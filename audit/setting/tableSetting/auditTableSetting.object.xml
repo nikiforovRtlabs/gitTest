@@ -1,0 +1,151 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0">
+    <name>auditTableSettings</name>
+
+    <actions>
+        <action id="add" name="Добавить">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="TASK">
+                            <wf:note>Проверяем настроена таблица на аудирование или нет</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    SELECT exists(
+                                    SELECT 1
+                                    FROM audit.table_setting ts
+                                    WHERE concat(ts.table_schema, '.', ts.table_name) = :table
+                                    );
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="table.table_full_name" mapping="['table']" domain="string"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="2"/>
+                                <wf:result value="true" next-task-id="3"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:service-task id="2" in-parameters-context-type="ACTION">
+                            <wf:note>Создаем запись о настройках аудировании таблицы, настраиваем аудирование</wf:note>
+                            <wf:invocation>
+                                <sp:stored-procedure name="audit.add_table_to_audit" data-source="jdbc/lsd"/>
+                            </wf:invocation>
+                        </wf:service-task>
+
+                        <wf:user-task id="3" template="audit/n2o/workflow/default.html">
+                            <wf:note>Оповещаем о том что таблица уже настроена на аудирование</wf:note>
+                            <wf:title>Оповещение</wf:title>
+                            <wf:description>
+                                Добавляемая таблица уже сохранена в настройках аудита таблиц. Хотите изменить запись?
+                            </wf:description>
+                            <wf:choices>
+                                <wf:choice title="Да" next-task-id="2"/>
+                            </wf:choices>
+                        </wf:user-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="table.table_full_name" mapping="[0]" domain="string"/>
+                <param name="table_hierarchy_id" mapping="[1]" domain="integer"/>
+                <param name="partition_period.id" mapping="[2]" domain="integer"/>
+                <param name="position" mapping="[3]" domain="integer"/>
+                <param name="audit_active" mapping="[4]" domain="boolean"/>
+                <param name="user_id" mapping="[5]" domain="integer" value="#{user.id}"/>
+            </in-parameters>
+            <out-parameters/>
+            <success-text>
+                Запись успешно добавлена
+            </success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="edit" name="Изменить">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="TASK">
+                            <wf:note>Проверяем возможно ли перепатрицирование</wf:note>
+                            <wf:invocation>
+                                <sp:stored-procedure name="audit.check_partition_period_change" data-source="jdbc/lsd"/>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="id" mapping="[0]" domain="integer"/>
+                                <param name="partition_period.id" mapping="[1]" domain="integer"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="['check_partition_period_change']"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="true" next-task-id="2"/>
+                                <wf:result value="false" next-task-id="3"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:service-task id="2" in-parameters-context-type="ACTION">
+                            <wf:note>Создаем запись о настройках аудировании таблицы, настраиваем аудирование</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    SELECT audit.edit_table_setting_row(
+                                    :id, :table_hierarchy_id, :partition_period_id, :position, :audit_active, :user_id);
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters/>
+                        </wf:service-task>
+
+                        <wf:user-task id="3" template="audit/n2o/workflow/default.html">
+                            <wf:note>Оповещаем о том что нельзя изменить период партицирования</wf:note>
+                            <wf:title>Оповещение</wf:title>
+                            <wf:description>
+                                Размер партиций нового периода партицирования больше максимально допустимого значения 
+                                партиций!
+                            </wf:description>
+                            <wf:choices/>
+                        </wf:user-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="table_hierarchy_id" mapping="['table_hierarchy_id']" domain="integer"/>
+                <param name="partition_period.id" mapping="['partition_period_id']" domain="integer"/>
+                <param name="position" mapping="['position']" domain="integer"/>
+                <param name="audit_active" mapping="['audit_active']" domain="boolean"/>
+                <param name="user_id" mapping="['user_id']" domain="integer" value="#{user.id}"/>
+            </in-parameters>
+            <out-parameters/>
+            <success-text>
+                Запись успешно изменена
+            </success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="moveToUnstructured">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        UPDATE audit.table_setting
+                        SET table_hierarchy_id = 1
+                        WHERE id = :id;
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters/>
+            <success-text>
+                Запись успешно перенесена
+            </success-text>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+</object>

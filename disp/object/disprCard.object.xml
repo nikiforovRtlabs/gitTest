@@ -1,0 +1,80 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>dispCard</id>
+    <name>кд</name>
+
+    <validations>
+        <constraint id="closeCase" level="error">
+            <invocation>
+                <sql:sql>
+                    select _overview from disp.md_event_patient where id = :epid
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="end_date" mapping="['end_date']"/>
+                <param name="id" mapping="['epid']"/>
+            </in-parameters>
+            <result expression="[0][0][0] >= 85"/>
+            <message>Нельзя закрыть случай пока пациенту не окажут 85% услуг</message>
+        </constraint>
+        <constraint id="renderTherapeutistBeforeCloseCase" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from disp.md_event_patient mep
+                    left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                    left join disp.md_event_service mes on mes.id = mesp.service_id
+                    left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+                    left join (select ssr.id, msr.case_id, ssr.service_id from MD_SRV_RENDERED msr
+                    left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep.case_id and ssr.service_id = mes.service_id
+                    where mnds.code = 'Д1.18' and mep.id = :epid and (ssr.id is not null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['epid']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 1"/>
+            <message>Нельзя закрыть случай пока пациенту не окажут обязательные услуги</message>
+        </constraint>
+        <constraint id="countDiagnosisNotZ" level="warning">
+            <message>У пациента выявлены диагнозы, не относящиеся к группе Z, устанавливать 1 группу здоровья не рекомендуется </message>
+            <invocation>
+                <sp:stored-procedure name="disp.validatehealthgroup" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]" domain="integer"/>
+                <param name="health_group.id" mapping="[1]" domain="integer"/>
+            </in-parameters>
+            <result expression="['validatehealthgroup'] == true"/>
+        </constraint>
+    </validations>
+
+    <actions>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    select disp.update_event_data_mes(:id, :hgi, :isd, :i2s, :it, :at, :igtdw, :igtdi, :is, :igts, :mes);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="health_group.id" mapping="['hgi']"/>
+                <param name="is_d" mapping="['isd']"/>
+                <param name="is_2_stage" mapping="['i2s']"/>
+                <param name="end_date"/>
+                <param name="is_therapy" mapping="['it']"/>
+                <param name="adv_therapy.id" mapping="['at']"/>
+                <param name="is_go_to_diagnostics_without" mapping="['igtdw']"/>
+                <param name="is_go_to_diagnostics_in" mapping="['igtdi']"/>
+                <param name="is_sanatorium" mapping="['is']"/>
+                <param name="is_go_to_sanatorium" mapping="['igts']"/>
+                <param name="mes_id.id" mapping="['mes']"/>
+            </in-parameters>
+        </action>
+
+    </actions>
+
+</object>

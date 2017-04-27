@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>treatmentStandard</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.services_template_prototype sts
+                join public.sr_srv_prototype s on s.id = sts.prototype_id
+                left join public.sr_srv_type st on s.type_id = st.id
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(sts)
+                from public.services_template_prototype sts
+                join public.sr_srv_prototype s on s.id = sts.prototype_id
+                left join public.sr_srv_type st on s.type_id = st.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>sts</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>sts.id</expression>
+        </field>
+
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <expression>s.code</expression>
+            <name>Код</name>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>s.name</expression>
+            <name>Наименование</name>
+        </field>
+
+        <field>
+            <id>templateId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>sts.template_id = :templateId</search>
+        </field>
+
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <expression>st.id</expression>
+        </field>
+
+        <field>
+            <id>type.name</id>
+            <domain>string</domain>
+            <name>Тип услуги</name>
+            <expression>st.name</expression>
+        </field>
+
+        <field>
+            <id>cases</id>
+            <domain>json</domain>
+            <display>(select array_to_json(array_agg(row_to_json(cat)))
+                from (select c.id, c.value from motherhood.mh_prototype_pregnant_age c where c.prototype_id = sts.id) as cat)</display>
+        </field>
+
+        <field>
+            <id>gestationList</id>
+            <domain>string</domain>
+            <name>Сроки беременности</name>
+            <display>(select array_to_string(ARRAY(
+                                                    select value || ' нед.' from motherhood.mh_prototype_pregnant_age  WHERE prototype_id = sts.id order by value
+                                                     ), ', ', 'NULL'
+                                            )
+                      )</display>
+            <sorting unavailable="true"/>
+        </field>
+
+    </fields>
+</query>

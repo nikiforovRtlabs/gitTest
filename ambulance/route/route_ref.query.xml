@@ -1,0 +1,122 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>route</id>-->
+    <name>Направление</name>
+    <object-id>route</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.md_ambulance_route r
+                join pim_organization po on r.org_id = po.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(r)
+                from amb.md_ambulance_route r
+                join pim_organization po on r.org_id = po.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>r</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>№№</name>
+            <expression>r.id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>r.name</expression>
+            <search>upper(:expression) like upper(concat('%',:name,'%'))</search>
+        </field>
+        <field>
+            <id>rorgId</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+        </field>
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+            <search value="#{org.id?}"/>
+        </field>
+        <field>
+            <id>station.name</id>
+            <domain>string</domain>
+            <name>Станция</name>
+            <expression>coalesce(po.short_name,po.full_name)</expression>
+            <!--<search>upper(:expression) like upper('%'||:name||'%')</search>-->
+        </field>
+        <field>
+            <id>station.shortName</id>
+            <domain>string</domain>
+            <name>Краткое наименование</name>
+            <expression>po.short_name</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <expression>:substation.id</expression>
+            <search>exists (select 1 from amb.md_ambulance_route_service rs
+                left join pim_department pd on rs.department_id = pd.id WHERE r.id = rs.route_id and pd.id = :substation.id limit 1 )</search>
+        </field>
+
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <name>Код</name>
+            <expression>r.code</expression>
+            <search>trim(upper(r.code)) like trim(upper(:code||'%'))</search>
+        </field>
+
+        <field>
+            <id>from_time</id>
+            <domain>date</domain>
+            <name>Действует с</name>
+            <!--<display>to_char(r.from_time,'dd.mm.yyyy')</display>-->
+            <!--<expression>cast(r.from_time as date)</expression>-->
+            <expression>r.from_time</expression>
+        </field>
+        <field>
+            <id>to_time</id>
+            <domain>date</domain>
+            <name>Действует по</name>
+            <!--<display>to_char(r.to_time,'dd.mm.yyyy')</display>-->
+            <expression>r.to_time</expression>
+        </field>
+
+        <field>
+            <id>ractive</id>
+            <domain>integer</domain>
+            <name>Действующие</name>
+            <expression><![CDATA[
+                    case when (r.to_time is null) or (r.to_time::date >= current_date) then 1
+                    when (r.to_time is not null) and (r.to_time::date < current_date) then 2
+                    end
+                    ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>active.id</id>
+            <domain>integer</domain>
+            <name>Действующие</name>
+            <expression><![CDATA[
+                case when (r.to_time is null) or (r.to_time::date >= current_date) then 1
+                when (r.to_time is not null) and (r.to_time::date < current_date) then 2
+                end
+                ]]>
+            </expression>
+        </field>
+
+    </fields>
+</query>

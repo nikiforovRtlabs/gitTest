@@ -1,0 +1,250 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-patient-1.0"
+      xmlns:ctrg="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+
+    <object-id>payment</object-id>
+    <layout>n2o/layout/top-bottom</layout>
+    <name>Картотека платежей</name>
+
+    <regions>
+        <region place="single" type="none">
+            <container id="countOrganizations" refresh-dependent-container="true">
+                <wgt:edit-form style="height: 0px;">
+                    <wgt:query-id>countOrganizations</wgt:query-id>
+                    <wgt:model>query-or-default</wgt:model>
+                </wgt:edit-form>
+                <pre-filters>
+                    <pre-filter field-id="userId" value="#{user.id}"/>
+                </pre-filters>
+            </container>
+        </region>
+        <region place="top" type="none">
+            <container id="payment" depends-on="countOrganizations">
+                <wgt:table customize="js,jsp" src="payment/n2o/widgets/custom/paymentListCustomTable" master-field-id="countOrg" detail-field-id="countOrg">
+                    <wgt:query-id>paymentList</wgt:query-id>
+                    <wgt:name>Платежи</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="recipient.name"/>
+                        <wgt:column column-field-id="number"/>
+                        <wgt:column column-field-id="date" format="date DD.MM.YYYY"/>
+                        <wgt:column column-field-id="payerType.name"/>
+                        <wgt:column column-field-id="payer.name"/>
+                        <wgt:column column-field-id="funding.name"/>
+                        <wgt:column column-field-id="contract.title"/>
+                        <wgt:column column-field-id="amount"/>
+                        <wgt:column column-field-id="method.name"/>
+                        <wgt:column column-field-id="type.name"/>
+                        <wgt:column column-field-id="registreted">
+                            <wgt:checkbox/>
+                        </wgt:column>
+                    </wgt:columns>
+
+                    <wgt:filters opened="true">
+
+                        <ctrl:hidden id="emplPosId" default-value="#{emplPos.id?}"/>
+
+                        <ctrl:input-text id="number" label="Номер платежа" control-style="width: 140px"
+                                         css-class="n2o-label-5 n2o-control-6"/>
+
+                        <ctrl:date-interval id="datePeriod" label="Период платежа" css-class="n2o-label-5 n2o-control-6"
+                                            control-style="width: 250px;"/>
+
+                        <ctrl:radio-group id="payerType"
+                                          label="Тип плательщика"
+                                          inline="true"
+                                          required="true">
+                            <ctrl:options>
+                                <ctrl:option>{"id" : 1, "name" : "Физ. лицо"}</ctrl:option>
+                                <ctrl:option>{"id" : 2, "name" : "Юр. лицо"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                                <ctrl:value field-id="name">Физ. лицо</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:radio-group>
+                        <ctrl:classifier id="payer"
+                                         label="Плательщик"
+                                         control-style="width:350px;">
+                            <ctrl:query query-id="pm_party" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="type" ref="payerType.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="contractPayment" label="Договор"
+                                         control-style="width:350px;" search-as-you-type="true"
+                                         autoselect-alone="true">
+                            <ctrl:query query-id="pm_contract" value-field-id="id" label-field-id="title">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="payerId" ref="payer.id" />
+                                    <ctrl:pre-filter field-id="recipientId" ref="recipient.id" />
+                                    <ctrl:pre-filter field-id="type" ref="payerType.id" />
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on="payer,recipient" on-load="false">
+                                null;
+                            </ctrl:set-value-expression>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="recipient" label="Получатель"
+                                         control-style="width:350px;" search-as-you-type="true"
+                                         autoselect-alone="true" dependency-condition="countOrg != 1">
+                            <ctrl:query query-id="pm_org_by_access_key" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="userId" value="#{user.id}" />
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id}</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+
+
+                        <ctrl:classifier id="type" label="Тип операции"
+                                         control-style="width:200px;" search-as-you-type="true"
+                                         autoselect-alone="true">
+                            <ctrl:query query-id="pm_payment_type" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="method" label="Способ платежа"
+                                         control-style="width:200px;" search-as-you-type="true"
+                                         autoselect-alone="true">
+                            <ctrl:query query-id="pm_payment_method" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:checkbox id="registreted" label="Проведен"/>
+
+                        <ctrl:checkbox id="notRegistreted" label="Не проведен" default-value="true"/>
+
+                    </wgt:filters>
+                    <wgt:rows>
+                        <wgt:color color-field-id="urgent"/>
+                    </wgt:rows>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" context="false" label="Добавить">
+                            <wgt:show-modal page-id="paymentForm" master-field-id="id" detail-field-id="id"
+                                            focus-after-submit="true" width="90%" max-width="550px" min-width="550px"
+                                            action-id="save" refresh-on-close="true" container-id="main"
+                                            page-name="Добавление платежа">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="showBillList" value="false"/>
+                                    <wgt:pre-filter field-id="countOrg" ref="countOrg"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="update" context="true" label="Изменить">
+                            <wgt:show-modal page-id="paymentForm" master-field-id="id" detail-field-id="id"
+                                            focus-after-submit="true" width="90%" max-width="550px" min-width="550px"
+                                            action-id="save" refresh-on-close="true" container-id="main"
+                                            page-name="Изменение платежа">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="showBillList" ref="billExists"></wgt:pre-filter>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!registreted</wgt:expression>
+                                    <wgt:tooltip>Платеж проведен</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!registreted</wgt:expression>
+                                    <wgt:tooltip>Платеж проведен</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Просмотр" context="true" id="view" icon="icon-eye-open"
+                                       type="textAndIcon">
+                            <wgt:show-modal page-id="paymentForm" master-field-id="id" detail-field-id="id"
+                                            focus-after-submit="true" width="90%" max-width="550px" min-width="550px"
+                                            page-name="Просмотр платежа" container-id="main"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Распределить" id="distribute" context="true">
+                            <wgt:open-page page-id="billList" master-field-id="id"
+                                           detail-field-id="payment.id" refresh-on-close="true"
+                                           page-name="Картотека счетов (платеж №{payment.number} от {payment.date})">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="payer.id" ref="payerId"/>
+                                    <wgt:pre-filter field-id="payer.name" ref="payer.name"/>
+                                    <wgt:pre-filter field-id="org.id" ref="recipient.id"/>
+                                    <wgt:pre-filter field-id="org.name" ref="recipient.name"/>
+                                </wgt:pre-filters>
+                            </wgt:open-page>
+
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!registreted</wgt:expression>
+                                    <wgt:tooltip>Платеж проведен</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Провести платеж" id="register" context="true">
+                            <wgt:invoke-action action-id="register" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!registreted</wgt:expression>
+                                    <wgt:tooltip>Платеж проведен</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="userId" value="#{user.id}"/>
+                </pre-filters>
+            </container>
+        </region>
+
+        <region place="bottom" type="list">
+            <container id="bills" depends-on="payment">
+                <wgt:table detail-field-id="payment.id" master-field-id="id">
+                    <wgt:query-id>paymentBillList</wgt:query-id>
+                    <wgt:name>Счета</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="org.name"/>
+                        <wgt:column column-field-id="number"/>
+                        <wgt:column column-field-id="billDate"/>
+                        <wgt:column column-field-id="amount"/>
+                        <wgt:column column-field-id="amountDiscount"/>
+                        <wgt:column column-field-id="amountAfterDiscount"/>
+                        <wgt:column column-field-id="amountPaid"/>
+                    </wgt:columns>
+
+                    <wgt:rows>
+                        <wgt:color color-field-id="urgent"/>
+                    </wgt:rows>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Отменить распределение" id="distribCancel" context="true">
+                            <wgt:invoke-action action-id="distribCancel" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!registreted</wgt:expression>
+                                    <wgt:tooltip>Платеж проведен</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                </wgt:table>
+            </container>
+        </region>
+
+    </regions>
+</page>

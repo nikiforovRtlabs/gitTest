@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<field-set xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+           xmlns="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+    <row>
+        <ctrl:input-text id="owner_org" label="Организация" readonly="true"/>
+    </row>
+    <row>
+        <ctrl:classifier id="resource" label="Ресурс" required="true"
+                         css-class="n2o-control-8 n2o-label-8" autoselect-alone="true">
+            <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="orgId" ref="owner_org_id"/>
+                    <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                    <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+        <ctrl:date-time id="date" label="Дата оказания" required="true"
+                        css-class="n2o-control-5 n2o-label-5">
+            <ctrl:validations>
+                <ctrl:validation ref-id="checkDateBeforeEvent"/>
+            </ctrl:validations>
+        </ctrl:date-time>
+    </row>
+
+
+    <row>
+        <ctrl:radio-group id="result" label="Результат" required="true">
+            <ctrl:options>
+                <ctrl:option>{"id":1, "code":true, "name":"Положительный"}</ctrl:option>
+                <ctrl:option>{"id":2, "code":false, "name":"Отрицательный"}</ctrl:option>
+            </ctrl:options>
+        </ctrl:radio-group>
+
+        <ctrl:radio-group id="degree" label="Степень" depends-on="result"
+                          dependency-condition="(result.id==1)&amp;&amp;(service_code=='ОМ1' || service_code=='ОМ9')">
+            <ctrl:options>
+                <ctrl:option>{"id":1, "name":"2+"}</ctrl:option>
+                <ctrl:option>{"id":2, "name":"3+"}</ctrl:option>
+                <ctrl:option>{"id":3, "name":"4+"}</ctrl:option>
+            </ctrl:options>
+        </ctrl:radio-group>
+
+        <ctrl:input-text id="titr" label="Титр 1:" depends-on="degree"
+                         dependency-condition="degree.id==3&amp;&amp; service_code=='ОМ1'">
+            <ctrl:set-value-expression on="degree.id, result.id">if(degree.id!=3 || result.id!=1) null; else titr
+            </ctrl:set-value-expression>
+        </ctrl:input-text>
+    </row>
+
+    <row>
+        <ctrl:text-area id="conclusion" label="Заключение" rows="3">
+            <ctrl:set-value-expression on="result.id,service_code">
+                if(( typeof result=='undefined'|| result.id==null || result.id==1) &amp;&amp; (service_code !='ОМ1' &amp;&amp; service_code !='ОМ9'
+                &amp;&amp;service_code !='ОМ8')) null;
+                else 'Результаты анализов отрицательны'
+            </ctrl:set-value-expression>
+        </ctrl:text-area>
+        <ctrl:text-area id="recommendations" label="Рекомендации" rows="3"/>
+    </row>
+
+    <row>
+        <ctrl:checkbox id="isSecond" label="Повторный анализ" dependency-condition="result.id == 1">
+            <ctrl:set-value-expression on="result.id">if (result.id == 2) false; else throw '!'
+            </ctrl:set-value-expression>
+        </ctrl:checkbox>
+    </row>
+    <row>
+        <ctrl:classifier id="second_org" label="МО исследования" required="true" depends-on="isSecond"
+                         dependency-condition="isSecond == true">
+            <ctrl:query query-id="organization" value-field-id="id" label-field-id="short_name"/>
+        </ctrl:classifier>
+        <ctrl:date-time id="refDate" label="Дата справки" required="true" depends-on="isSecond"
+                        dependency-condition="isSecond == true" css-class="n2o-control-5 n2o-label-5">
+        </ctrl:date-time>
+    </row>
+    <row>
+        <ctrl:radio-group id="second_result" label="Результат" required="true" depends-on="isSecond"
+                          dependency-condition="isSecond == true">
+            <ctrl:options>
+                <ctrl:option>{"id":1, "name":"Положительный", "code":true}</ctrl:option>
+                <ctrl:option>{"id":2, "name":"Отрицательный", "code":false}</ctrl:option>
+
+
+            </ctrl:options>
+        </ctrl:radio-group>
+    </row>
+</field-set>

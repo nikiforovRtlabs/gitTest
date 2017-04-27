@@ -1,0 +1,160 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>servicesTemplate</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query><![CDATA[
+
+                    SELECT :select
+                    FROM sr_service s
+                    LEFT JOIN sr_srv_prototype sp ON sp.id = s.prototype_id
+                    WHERE (SELECT (NOT (st.begin_date IS NOT NULL AND s.to_dt IS NOT NULL AND st.begin_date > s.to_dt OR
+                                      st.end_date IS NOT NULL AND s.from_dt IS NOT NULL AND st.end_date < s.from_dt))
+                         FROM services_template st
+                         WHERE st.id = :templateId) AND
+                        CASE WHEN (SELECT standard_id FROM services_template WHERE id = :templateId) IS NOT NULL THEN
+                            (sp.id IN (SELECT mp.prototype_id
+                                       FROM md_prescription mp
+                                       JOIN md_standard_prescription msp ON msp.id = mp.id
+                                       WHERE msp.standard_id = (SELECT t.standard_id
+                                                                FROM services_template t
+                                                                WHERE t.id = :templateId)))
+                            OR
+                            (s.id IN (SELECT mp.service_type_id
+                                      FROM md_prescription mp
+                                      JOIN md_standard_prescription msp ON msp.id = mp.id
+                                      WHERE msp.standard_id = (SELECT t.standard_id
+                                                               FROM services_template t
+                                                               WHERE t.id = :templateId)))
+                        ELSE true END AND :where
+
+                ORDER BY regexp_replace('''||:order||''', '[a-z].', '')
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query><![CDATA[
+                SELECT count(*)
+                FROM sr_service s
+                LEFT JOIN sr_srv_prototype sp ON sp.id = s.prototype_id
+                WHERE
+                    (SELECT (NOT (st.begin_date IS NOT NULL AND s.to_dt IS NOT NULL AND st.begin_date > s.to_dt OR
+                                  st.end_date IS NOT NULL AND s.from_dt IS NOT NULL AND st.end_date < s.from_dt))
+                     FROM services_template st
+                     WHERE st.id = :templateId) AND
+                    CASE WHEN (SELECT standard_id FROM services_template WHERE id = :templateId) IS NOT NULL THEN
+                        (sp.id IN (SELECT mp.prototype_id
+                                   FROM md_prescription mp
+                                   JOIN md_standard_prescription msp ON msp.id = mp.id
+                                   WHERE msp.standard_id = (SELECT t.standard_id
+                                                            FROM services_template t
+                                                            WHERE t.id = :templateId)))
+                        OR
+                        (s.id IN (SELECT mp.service_type_id
+                                  FROM md_prescription mp
+                                  JOIN md_standard_prescription msp ON msp.id = mp.id
+                                  WHERE msp.standard_id = (SELECT t.standard_id
+                                                           FROM services_template t
+                                                           WHERE t.id = :templateId)))
+                    ELSE true END AND :where
+                ]]>
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>code</id>
+            <name>Код</name>
+            <domain>string</domain>
+            <expression>s.code</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <name>Наименование</name>
+            <domain>string</domain>
+            <expression>s.name</expression>
+            <search></search>
+        </field>
+
+        <field>
+            <id>prototypeName</id>
+            <name>Прототип услуги</name>
+            <domain>string</domain>
+            <expression>sp.name</expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>s.org_id</expression>
+            <search value="#{org.id?}">(:expression = :orgId or :orgId is null)</search>
+        </field>
+
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>s.type_id = :type.id</search>
+        </field>
+
+        <field>
+            <id>category.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>s.category_id = :category.id</search>
+        </field>
+
+        <field>
+            <id>prototype.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>s.prototype_id = :prototype.id</search>
+        </field>
+
+        <field>
+            <id>templateId</id>
+            <domain>integer</domain>
+            <expression>:templateId</expression>
+        </field>
+
+        <field>
+            <id>servicesTemplateServiceId</id>
+            <domain>integer</domain>
+            <expression>(select id from services_template_service where template_id = :templateId and service_id = s.id)</expression>
+        </field>
+
+        <field>
+            <id>choiceFilter</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search filter-field="choice*.id" type="in">
+                (('added' in (:choice*.id)  and s.id in (select service_id from services_template_service where template_id = :templateId)) or
+                ('besidesAdded' in (:choice*.id)  and s.id not in (select service_id from services_template_service where template_id = :templateId)))
+            </search>
+        </field>
+
+        <field>
+            <id>createOrDeleteServicesTemplateService</id>
+            <domain>boolean</domain>
+            <name> </name>
+            <expression>(s.id in (select service_id from services_template_service where template_id = :templateId))</expression>
+        </field>
+
+        <field>
+            <id>serviceNameCode</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search>(s.code like '%'||:serviceNameCode||'%' or s.name like '%'||:serviceNameCode||'%' or s.code || ' ' || s.name  like '%'||:serviceNameCode||'%')</search>
+        </field>
+
+    </fields>
+</query>

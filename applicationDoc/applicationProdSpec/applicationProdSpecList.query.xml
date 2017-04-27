@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>applicationProdSpecList</name>
+    <object-id>applicationProdSpec</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.application_prod_spec spec
+                inner join inventory.hold_modif m on m.id=spec.hold_modif_id
+                inner join inventory.application_doc_prod dp on dp.id = spec.document_id
+                inner join public.cmn_measure ms on ms.id=m.mnei_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(spec)
+                from inventory.application_prod_spec spec
+                where :where
+            </n2o:count-query>
+            <n2o:alias>spec</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>doc.id</id>
+            <domain>integer</domain>
+            <expression>spec.document_id</expression>
+        </field>
+        <field>
+            <id>doc.status.id</id>
+            <domain>integer</domain>
+            <expression>dp.status_id</expression>
+        </field>
+        <field>
+            <id>holdModif.id</id>
+            <domain>integer</domain>
+            <expression>m.id</expression>
+        </field>
+        <field>
+            <id>holdModif.name</id>
+            <name>Модификация</name>
+            <domain>string</domain>
+            <expression>m.name</expression>
+        </field>
+        <field>
+            <id>inn.id</id>
+            <domain>integer</domain>
+            <expression>(select distinct(inn.id) from inventory.inn inn
+                inner join inventory.holding hl on hl.inn_id = inn.id
+                inner join inventory.hold_modif hm on hm.holding_id = hl.id
+                where hm.id = spec.hold_modif_id)</expression>
+        </field>
+        <field>
+            <id>inn.name</id>
+            <name>МНН</name>
+            <domain>integer</domain>
+            <expression>(select distinct(inn.name_rus) from inventory.inn inn
+                inner join inventory.holding hl on hl.inn_id = inn.id
+                inner join inventory.hold_modif hm on hm.holding_id = hl.id
+                where hm.id = spec.hold_modif_id)</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <name>Количество</name>
+            <domain>string</domain>
+            <expression>(cast(round(spec.quantity, 2) as varchar) || ' ' || ms.mnemocode)</expression>
+        </field>
+        <field>
+            <id>dose</id>
+            <name>Дозa</name>
+            <domain>string</domain>
+            <expression>
+                (cast(round(spec.dose, 2) as varchar) || ' ' ||
+                (select c.mnemocode from inventory.form_param_value p
+                inner join cmn_measure c on c.id = p.unit_id
+                where p.form_param_id=3 and p.hold_modif_id=spec.hold_modif_id))
+            </expression>
+        </field>
+    </fields>
+</query>

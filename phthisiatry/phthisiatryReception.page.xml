@@ -1,0 +1,273 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-patient-1.0">
+    <object-id>phthisiatryCase</object-id>
+    <name>Поликлинический прием</name>
+    <layout>n2o/layout/top-bottom(left-right)</layout>
+    <regions>
+        <region place="top">
+            <container id="mcase">
+                <wgt:table>
+                    <wgt:name>Случаи</wgt:name>
+                    <wgt:query-id>phthisiatryCase</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="number" width="75px"/>
+                        <wgt:column column-field-id="create_date" width="75px"/>
+                        <wgt:column column-field-id="patient.fio"/>
+                        <wgt:column column-field-id="gender.name" width="55px"/>
+                        <wgt:column column-field-id="birth_dt" width="70px"/>
+                        <wgt:column column-field-id="soc_group.name"/>
+                        <wgt:column column-field-id="patient.passport" width="90px"/>
+                        <wgt:column column-field-id="patient.polic"/>
+                        <wgt:column column-field-id="vrach.name"/>
+                        <wgt:column column-field-id="funding.name"/>
+                        <wgt:column column-field-id="mainDiagnosName"/>
+                        <wgt:column column-field-id="ref_diagnos.name"/>
+                        <wgt:column column-field-id="closing_step.date" width="75px"/>
+                        <wgt:column column-field-id="d_account_status" width="80px"/>
+                    </wgt:columns>
+                    <wgt:filters opened="false">
+                        <ctrl:input-text id="number"/>
+                        <ctrl:date-time id="create_date"/>
+                        <ctrl:classifier id="vrach" label="Врач">
+                            <ctrl:show-modal page-id="phthisiatryResGroupIndiv" result-container-id="resource"
+                                             label-field-id="fio" value-field-id="employee_position_id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="md_case_diagnos" label="Диагноз" search-are-you-type="true">
+                            <ctrl:query query-id="phthisiatryDiagnosis" label-field-id="name" value-field-id="id"/>
+                            <ctrl:show-modal page-id="phthisiatryDiagnosisTree" result-container-id="diagnosis"
+                                             value-field-id="id"/>
+                        </ctrl:classifier>
+                        <rc:patient id="patient" label="Пациент" isFilter="true" control-style="width:350px;"/>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createCase" context="false" label="Создать" icon="icon-plus">
+                            <wgt:show-modal page-id="phthisiatryCreateCase" action-id="create"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editCase" context="true" label="Изменить" icon="icon-pencil">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression><![CDATA[((isInReestr == 0) && (closing_step.id == null))]]></wgt:expression>
+                                    <wgt:tooltip>Случай выгружен в счёт-реестр. Редактирование невозможно!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:show-modal page-id="phthisiatryEditCase" action-id="update"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteCase" context="true" label="Удалить" icon="glyphicon glyphicon-remove">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression><![CDATA[((isInReestr == 0) && (closing_step.id == null))]]></wgt:expression>
+                                    <wgt:tooltip>Случай выгружен в счёт-реестр. Удаление невозможно!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:invoke-action action-id="deleteCase"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="registr" label="Д-учет" context="true">
+                            <wgt:sub-menu>
+                                <wgt:menu-item id="toRegistr" label="Перейти в Регистр">
+                                    <wgt:a href="#dAccountRegister" target="newWindow"/>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="closeCase" label="Результат" context="true" icon="glyphicons glyphicons-keys">
+                            <wgt:show-modal page-id="dAccountCaseClose" action-id="closeCase"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>visit_exists</wgt:expression>
+                                    <wgt:tooltip>Невозможно внести результат, так как нет ни одного посещения.</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>closing_step.id == null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editCloseCase" label="Результат" context="true" icon="glyphicons glyphicons-keys">
+                            <wgt:show-modal page-id="dAccountCaseCloseEdit" action-id="editCloseCase"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>closing_step.id != null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="reopen" label="Переоткрыть" context="true" icon="glyphicons glyphicons-restart">
+                            <wgt:invoke-action action-id="reopen"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>closing_step.id != null</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isInReestr == 0</wgt:expression>
+                                    <wgt:tooltip>Невозможно переоткрыть случай, выгруженный в счёт-реестр!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="toPatient" label="Перейти в картотеку пациентов"
+                                       icon="glyphicon glyphicon-arrow-right">
+                            <wgt:a href="/pats/patients/new" target="newWindow"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="left">
+            <container id="step" depends-on="mcase" refresh-dependent-container="true">
+                <wgt:table master-field-id="id" detail-field-id="mcase.id">
+                    <wgt:name>Посещения</wgt:name>
+                    <wgt:query-id>phthisiatryStep</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="admission_date"/>
+                        <wgt:column column-field-id="vrach_label"/>
+                        <wgt:column column-field-id="mainDiagnosName"/>
+                        <wgt:column column-field-id="main_diagnos_type.name"/>
+                        <wgt:column column-field-id="service.name"/>
+                    </wgt:columns>
+                    <wgt:filters>
+                        <ctrl:date-time id="admission_date"/>
+                        <ctrl:classifier id="service" label="Услуга">
+                            <ctrl:query query-id="phthisiatryServices" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="srSerOrg.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="vrach" label="Врач">
+                            <ctrl:query query-id="phthisiatryResVrach" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="vrachOrg.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="md_diagnos" label="Диагноз" search-are-you-type="true">
+                            <ctrl:query query-id="phthisiatryDiagnosis" label-field-id="name" value-field-id="id"/>
+                            <ctrl:show-modal page-id="phthisiatryDiagnosisTree" result-container-id="diagnosis"
+                                             value-field-id="id"/>
+                        </ctrl:classifier>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createStep" context="false" label="Создать" icon="icon-plus">
+                            <wgt:show-modal page-id="phthisiatryCreateStep" action-id="create"
+                                    refresh-on-close="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression><![CDATA[mcase.closing_stepId == null]]></wgt:expression>
+                                    <wgt:tooltip>Невозможно создать посещение в рамках закрытого случая!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editStep" context="true" label="Изменить" icon="icon-pencil">
+                            <wgt:show-modal page-id="phthisiatryEditStep" action-id="update"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="sub">
+                            <wgt:sub-menu>
+                                <wgt:menu-item id="diagnosis" context="true" label="Диагнозы">
+                                    <wgt:show-modal page-id="phthisiatryStepDiagnosis" master-field-id="id"
+                                                    detail-field-id="step.id">
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="id" ref="id" container-id="mainDiagnosis"/>
+                                            <wgt:pre-filter field-id="step.id" ref="id" container-id="additDiagnosis"/>
+                                        </wgt:pre-filters>
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="ref" context="true" label="Направления">
+                                    <wgt:show-modal page-id="phthisiatryHospReferral" master-field-id="id"
+                                                    detail-field-id="step.id">
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteStep" context="true" label="Удалить" icon="glyphicon glyphicon-remove">
+                            <wgt:invoke-action action-id="deleteStep"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="right">
+            <container id="ref" depends-on="step">
+                <wgt:table master-field-id="id" detail-field-id="step.id">
+                    <wgt:name>Направления (Назначения)</wgt:name>
+                    <wgt:query-id>phthisiatryPlannedAndRenderedService</wgt:query-id>
+                    <wgt:size>15</wgt:size>
+                    <wgt:columns>
+                        <wgt:column column-field-id="name"/>
+                        <wgt:column column-field-id="plannedDate" format="date 'DD.MM.YYYY HH:mm'"/>
+                        <wgt:column column-field-id="renderedDate" format="date 'DD.MM.YYYY HH:mm'"/>
+                        <wgt:column column-field-id="status"/>
+                        <wgt:column column-field-id="doctor"/>
+                        <wgt:column column-field-id="diagnosis.name"/>
+                        <wgt:column column-field-id="comment"/>
+                        <wgt:column column-field-id="clinic.name"/>
+                    </wgt:columns>
+                    <wgt:filters>
+                        <ctrl:classifier id="stepDepartment" label="Отделение" search-are-you-type="true">
+                            <ctrl:query query-id="dAccountOrganizations" value-field-id="id" label-field-id="name">
+                            </ctrl:query>
+                        </ctrl:classifier>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="assign" context="false" label="Назначить">
+                            <wgt:show-modal page-id="phthisiatryPlannedServiceForm" width="50%"
+                                            refresh-on-close="true"
+                                            master-field-id="step.id" detail-field-id="step.id"
+                                            action-id="savePlannedService"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression><![CDATA[step.caseClosingStepId == null]]></wgt:expression>
+                                    <wgt:tooltip>Невозможно создать назначение в рамках закрытого случая!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="edit" context="true" label="Изменить">
+                            <wgt:show-modal page-id="phthisiatryPlannedServiceForm" width="50%"
+                                           refresh-on-close="true"
+                                           master-field-id="step.id" detail-field-id="step.id"
+                                           action-id="editPlannedService"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isAppointed == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="serviceProtocol" context="true" label="Протокол">
+                            <wgt:open-page page-id="phthisiatryPlannedServiceProtocol" master-field-id="id"
+                                           detail-field-id="id" container-id="protocol"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isAppointed == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="В расписание" id="planning" context="false">
+                            <wgt:a href="${rmis.external.host}/plan/planning?organizationId=:organizationId:&amp;value=:patientId:&amp;fundingSourceType.id=:mcase.fundingSourceType.id:&amp;caseId=:caseId:&amp;stepId=:step.id:"
+                                   target="newWindow"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="rendered" context="true" label="Внести результат">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status != 'Оказана'</wgt:expression>
+                                    <wgt:tooltip>Оказанная услуга!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:show-modal-form form-id="phthisiatryRenderedService" width="50%">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="saveRenderedService"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="patientId" ref="patient.id"/>
+                    <pre-filter field-id="organizationId" ref="mo.id"/>
+                    <pre-filter field-id="caseId" ref="mcase.id"/>
+                </pre-filters>
+            </container>
+        </region>
+    </regions>
+</page>

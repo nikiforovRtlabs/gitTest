@@ -1,0 +1,123 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Сердцебиение плода</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить" name="Создание">
+            <invocation>
+                <n2o:sql>
+                    insert into motherhood.mh_pregnant_outcome_heartbeat (time, date, heartbeat,
+                    pregnant_outcome_id)
+                    values(to_timestamp(:time, 'HH24:MI'),
+                    :date, :heartbeat, :pregnantOutcomeId);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="time" mapping="['time']" domain="string"/>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="heartbeat" mapping="['heartbeat']" domain="integer"/>
+                <param name="pregnantOutcomeId" mapping="['pregnantOutcomeId']" domain="integer"/>
+            </in-parameters>
+            <success-text>Данные о сердцебиении плода на время {time} добавлены.</success-text>
+        </action>
+
+        <action id="update" name="Изменение">
+            <invocation>
+                <n2o:sql>
+                    update motherhood.mh_pregnant_outcome_heartbeat
+                    set heartbeat = :heartbeat,
+                    time = to_timestamp(:time, 'HH24:MI'),
+                    date = :date
+                    where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="time" mapping="['time']" domain="string"/>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="heartbeat" mapping="['heartbeat']" domain="integer"/>
+            </in-parameters>
+            <success-text>Данные о сердцебиении плода на время {time} обновлены.</success-text>
+        </action>
+
+        <action id="delete" name="Удаление">
+            <invocation>
+                <n2o:sql>
+                    delete from motherhood.mh_pregnant_outcome_heartbeat
+                    where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить данные о сердцебиении плода на время {time}?</confirmation-text>
+            <success-text>Данные о сердцебиении плода на время {time} удалены.</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkTime" level="error">
+            <message>Некорректный формат времени.</message>
+            <expression on="time">
+                <![CDATA[
+                    var regex = new RegExp('([0-1][0-9]|2[0-3]):[0-5][0-9]');
+                    var b = true;
+                    if(typeof time != 'undefined' && time != null && time != '')
+                    b = regex.test(time);
+                    b;
+                ]]>
+            </expression>
+        </condition>
+        <constraint id="uniqueTime" level="error">
+            <message>На данное время параметры уже созданы.</message>
+            <invocation>
+                <n2o:sql>
+                    select count(*) from motherhood.mh_pregnant_outcome_heartbeat
+                    where date + time = cast(:date as date) + :time::time and (:id is null or id != :id)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="time" mapping="['time']"/>
+                <param name="date" mapping="['date']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="assertDate" level="error">
+            <message>
+                Дата и время добавления параметра не могут быть раньше даты и времени оказания услуги.
+            </message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                        select (case when ssr.bdate is null then true
+                            else (case when :time is null then ssr.bdate <= cast(:date as date) else ssr.bdate + ssr.begin_time <= cast(:date as date) + :time::time end) end)
+                        from public.sr_srv_rendered ssr
+                        inner join motherhood.mh_pregnant_outcome mpo on mpo.service_id = ssr.id
+                        where mpo.id = :pregnantOutcomeId
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="time" mapping="['time']" domain="string"/>
+                <param name="pregnantOutcomeId" mapping="['pregnantOutcomeId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+        </constraint>
+
+        <condition id="heartbeatInterval" level="warning" moment="before-action">
+            <message>Данное значение не будет отражено в партограмме</message>
+            <expression on="heartbeat">
+                <![CDATA[ (heartbeat >= 100 && heartbeat <= 180) ]]>
+            </expression>
+        </condition>
+
+        <condition id="heartbeatFormat" level="error" moment="before-action">
+            <message>Значение должно быть целым положительным</message>
+            <expression on="heartbeat"><![CDATA[(/^[0-9]*$/.test(heartbeat)) && heartbeat >= 0]]></expression>
+        </condition>
+    </validations>
+</object>

@@ -1,0 +1,255 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+
+    <name>employeeDetails</name>
+    <actions>
+
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into pim_employee_position (
+                      id,
+                      employee_id,
+                      position_id,
+                      position_type_id,
+                      employment_type_id,
+                      start_date,
+                      hiring_type_id,
+                      hiring_order_code,
+                      rate,
+                      code,
+                      extra_payment,
+                      end_date,
+                      dismissal_reason_id,
+                      dismissal_order_code)
+                    values (
+                      nextval('pim_employee_to_position_seq'),
+                      :employee_id,
+                      :position_id,
+                      :position_type_id,
+                      :employment_type_id,
+                      :start_date,
+                      :hiring_type_id,
+                      :hiring_order_code,
+                      :rate,
+                      :code,
+                      :extra_payment,
+                      :end_date,
+                      :dismissal_reason_id,
+                      :dismissal_order_code
+                    );
+
+                    insert into md_employee_position (
+                      id,
+                      population,
+                      care_level_id,
+                      care_regimen_id,
+                      profile_id
+                    )
+                    values (
+                      currval('pim_employee_to_position_seq')::integer,
+                      :population,
+                      :care_level_id,
+                      :care_regimen_id,
+                      :profile_id
+                    );
+
+                    update pim_position_role set
+                      category_id = :category_id::integer
+                    where id = (select role_id from pim_position where id = :position_id ) and category_id isnull; <!-- Возможно обновить тольку тот прототип должности, у которого еще не задана категория -->
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="emp.id" mapping="['employee_id']" domain="integer"/>
+                <param name="pep.id" mapping="['id']" domain="integer"/>
+                <param name="position.id" mapping="['position_id']" domain="integer"/>
+                <param name="position_type.id" mapping="['position_type_id']" domain="integer"/>
+                <param name="employment_type.id" mapping="['employment_type_id']" domain="integer"/>
+                <param name="start_date" mapping="['start_date']" domain="date"/>
+                <param name="hiring_type.id" mapping="['hiring_type_id']" domain="integer"/>
+                <param name="hiring_order_code" mapping="['hiring_order_code']" domain="string"/>
+                <param name="rate" mapping="['rate']" domain="numeric"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="extra_payment" mapping="['extra_payment']" domain="string"/>
+                <param name="end_date" mapping="['end_date']" domain="date"/>
+                <param name="dismissal_reason.id" mapping="['dismissal_reason_id']" domain="integer"/>
+                <param name="dismissal_order_code" mapping="['dismissal_order_code']" domain="string"/>
+                <param name="population" mapping="['population']" domain="numeric"/>
+                <!-- md_employee_position -->
+                <param name="care_level.id" mapping="['care_level_id']" domain="integer" />
+                <param name="care_regimen.id" mapping="['care_regimen_id']" domain="integer" />
+                <param name="profile.id" mapping="['profile_id']" domain="integer" />
+
+                <param name="position_category.id" mapping="['category_id']" domain="integer" />
+            </in-parameters>
+
+            <out-parameters>
+                <param name="pep.id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Должность успешно сохранена в системе.
+            </success-text>
+
+            <validations activate="whiteList">
+                <validation ref-id="checkMainPosition" />
+                <validation ref-id="if_rate_enough"/>
+            </validations>
+
+        </action>
+
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_employee_position set
+                      position_id = :position_id,
+                      position_type_id = :position_type_id,
+                      employment_type_id = :employment_type_id,
+                      start_date = :start_date,
+                      hiring_type_id = :hiring_type_id,
+                      hiring_order_code = :hiring_order_code,
+                      rate = :rate,
+                      code = :code,
+                      extra_payment = :extra_payment,
+                      end_date = :end_date,
+                      dismissal_reason_id = :dismissal_reason_id,
+                      dismissal_order_code = :dismissal_order_code
+                    where id = :id;
+
+                    update md_employee_position set
+                      population = :population,
+                      care_level_id = :care_level_id,
+                      care_regimen_id = :care_regimen_id,
+                      profile_id = :profile_id
+                    where id = :id;
+
+                    update pim_position_role set
+                      category_id = :category_id::integer
+                    where id = (select role_id from pim_position where id = :position_id ) and category_id isnull;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pep.id" mapping="['id']" domain="integer"/>
+                <param name="emp.id" mapping="['employee_id']" domain="integer"/>
+
+                <param name="position.id" mapping="['position_id']" domain="integer"/>
+                <param name="position_type.id" mapping="['position_type_id']" domain="integer"/>
+                <param name="employment_type.id" mapping="['employment_type_id']" domain="integer"/>
+                <param name="start_date" mapping="['start_date']" domain="date"/>
+                <param name="hiring_type.id" mapping="['hiring_type_id']" domain="integer"/>
+                <param name="hiring_order_code" mapping="['hiring_order_code']" domain="string"/>
+                <param name="rate" mapping="['rate']" domain="numeric"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="extra_payment" mapping="['extra_payment']" domain="string"/>
+                <param name="end_date" mapping="['end_date']" domain="date"/>
+                <param name="dismissal_reason.id" mapping="['dismissal_reason_id']" domain="integer"/>
+                <param name="dismissal_order_code" mapping="['dismissal_order_code']" domain="string"/>
+                <param name="population" mapping="['population']" domain="numeric"/>
+                <!-- md_employee_position -->
+                <param name="care_level.id" mapping="['care_level_id']" domain="integer" />
+                <param name="care_regimen.id" mapping="['care_regimen_id']" domain="integer" />
+                <param name="profile.id" mapping="['profile_id']" domain="integer" />
+
+                <param name="position_category.id" mapping="['category_id']" domain="integer" />
+
+                <param name="pref_prescription" mapping="['pref_prescription']" domain="boolean"/>
+
+            </in-parameters>
+            <success-text>
+                Должность успешно изменена.
+            </success-text>
+
+            <validations activate="whiteList">
+                <validation ref-id="if_rate_enough"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_employee_position where id = :id;
+                    delete from public.md_employee_position where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pep.id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что Должность "{pp.name}" должна быть удалена?
+            </confirmation-text>
+            <success-text>
+                Должность "{pp.name}" успешно удалена.
+            </success-text>
+
+        </action>
+
+        <action id="deleteResource" form-submit-label="Удалить ресурс" name="Удалить ресурс">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_employee_position_resource where id = :resource_id;
+                    delete from public.sr_resource where id = :resource_id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="resource_id" mapping="['resource_id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что ресурс должен быть удален?
+            </confirmation-text>
+            <success-text>
+                Ресурс успешно удален.
+            </success-text>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="checkMainPosition" level="error">
+            <message>У сотрудника только одна должность может быть основной!</message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from pim_employee_position
+                    where
+                    employee_id = :employee_id
+                    and
+                    :position_type_id = 1
+                    and
+                    position_type_id = 1
+                    and (id != :id or :id is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pep.id" mapping="['id']" domain="integer"/>
+                <param name="emp.id" mapping="['employee_id']" domain="integer"/>
+                <param name="position_type.id" mapping="['position_type_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="if_rate_enough" level="warning">
+            <message>Количество ставок на сотрудников превышает количество ставок в штатном расписании</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select (select coalesce(rate,0) from pim_position where id = :position_id) - :rate - coalesce(sum(coalesce(pep.rate,0)),0) >= 0
+                      from pim_employee_position pep
+                      inner join pim_employee pe on pe.id = pep.employee_id
+                      where not coalesce(pe.is_dismissed,false) and pep.position_id = :position_id and (:id isnull or :id <> pep.id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pep.id" mapping="['id']" domain="integer"/>
+                <param name="position.id" mapping="['position_id']" domain="integer"/>
+                <param name="rate" mapping="['rate']" domain="numeric"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+
+    </validations>
+
+
+</object>

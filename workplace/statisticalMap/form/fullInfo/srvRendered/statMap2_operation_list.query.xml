@@ -1,0 +1,186 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>statMap_srvRendered</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_srv_rendered msr
+                inner join sr_srv_rendered ssr on ssr.id = msr.id
+                inner join sr_service s on s.id = ssr.service_id
+                inner join sr_srv_type sst on sst.id = s.type_id
+                left join mc_anesthesia_type anesthesia on anesthesia.id = msr.anesthesia_type_id
+                left join sr_srv_result_type complic on complic.id = msr.complication_type_id
+                left join fin_funding_source_type f on f.id = ssr.funding_id
+                left join sr_res_group srg on srg.id = ssr.res_group_id
+                left join pim_employee_position_resource epr on epr.employee_position_id = srg.responsible_id
+                left join pim_employee_position p on srg.responsible_id = p.id
+                left join pim_employee e on p.employee_id = e.id
+                left join pim_individual i on e.individual_id = i.id
+                left join pim_position pp ON p.position_id = pp.id
+                left join pim_position_name pname on pp.id = pname.position_id
+                where sst.code = 'SURGERY' and (pname.sex_id is null or pname.sex_id = i.gender_id) and :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(msr)
+                from md_srv_rendered msr
+                inner join sr_srv_rendered ssr on ssr.id = msr.id
+                inner join sr_service s on s.id = ssr.service_id
+                inner join sr_srv_type sst on sst.id = s.type_id
+                left join mc_anesthesia_type anesthesia on anesthesia.id = msr.anesthesia_type_id
+                left join sr_srv_result_type complic on complic.id = msr.complication_type_id
+                left join fin_funding_source_type f on f.id = ssr.funding_id
+                left join sr_res_group srg on srg.id = ssr.res_group_id
+                left join pim_employee_position_resource epr on epr.employee_position_id = srg.responsible_id
+                left join pim_employee_position p on srg.responsible_id = p.id
+                left join pim_employee e on p.employee_id = e.id
+                left join pim_individual i on e.individual_id = i.id
+                left join pim_position pp ON p.position_id = pp.id
+                left join pim_position_name pname on pp.id = pname.position_id
+                where sst.code = 'SURGERY' and (pname.sex_id is null or pname.sex_id = i.gender_id) and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>id</name>
+            <expression>msr.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>step.id</id>
+            <domain>integer</domain>
+            <expression>msr.step_id</expression>
+            <search>:expression = :step.id</search>
+        </field>
+
+        <field>
+            <id>quantity</id>
+            <domain>integer</domain>
+            <name>Количество</name>
+            <expression>ssr.quantity</expression>
+        </field>
+
+        <!--Анестезия-->
+        <field>
+            <id>anesthesiaType.id</id>
+            <domain>integer</domain>
+            <expression>anesthesia.id</expression>
+        </field>
+
+        <field>
+            <id>anesthesiaType.name</id>
+            <domain>string</domain>
+            <name>Анестезия</name>
+            <expression>anesthesia.name</expression>
+        </field>
+
+        <!--Осложнение-->
+        <field>
+            <id>complicationType.id</id>
+            <domain>integer</domain>
+            <expression>complic.id</expression>
+        </field>
+
+        <field>
+            <id>complicationType.name</id>
+            <domain>string</domain>
+            <name>Осложнение</name>
+            <expression>complic.name</expression>
+        </field>
+
+        <!--Дата операции-->
+        <field>
+            <id>bdate</id>
+            <domain>date</domain>
+            <name>Дата/Время оказания</name>
+            <expression>ssr.bdate + coalesce(ssr.begin_time, '00:00')</expression>
+            <sorting>:expression</sorting>
+            <search><![CDATA[
+                ((:bdate.begin::date is null and :bdate.end::date is null or
+                (:bdate.begin::date is null or :expression >= :bdate.begin) and
+                (:bdate.end::date is null or :expression <= :bdate.end)) or :expression is null)
+                ]]>
+            </search>
+        </field>
+        <field>
+            <id>bdate.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>bdate.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <!--Операция-->
+        <field>
+            <id>service.name</id>
+            <domain>string</domain>
+            <name>Операция</name>
+            <expression>coalesce(s.code,'') || ' ' ||  s.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <search>s.id = :service.id</search>
+        </field>
+
+        <!--Оплата-->
+        <field>
+            <id>finFundingSource</id>
+            <domain>string</domain>
+            <name>Вид оплаты</name>
+            <expression>f.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>doctor.name</id>
+            <domain>string</domain>
+            <name>Сотрудник</name>
+            <expression>
+                coalesce(i.surname, '') || ' '
+                || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for 1) || '.' end || ', ' || coalesce(NULLIF(pname.name,''), NULLIF(pp.name, ''))
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>epr.id</expression>
+            <search>epr.id = :doctor.id</search>
+        </field>
+
+        <field>
+            <id>initialFinancialType</id>
+            <domain>object</domain>
+            <expression>:initialFinancialType</expression>
+        </field>
+
+        <field>
+            <id>initialIsFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>:initialIsFinanceTypeControl</expression>
+        </field>
+
+    </fields>
+
+
+</query>

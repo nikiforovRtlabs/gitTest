@@ -1,0 +1,104 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Пульт</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    insert into amb.md_ambulance_desk (name, bdate, edate, descr)
+                    values(trim(:name), :bdate, :edate, trim(:descr))
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="bdate" mapping="['bdate']" domain="date"/>
+                <param name="edate" mapping="['edate']" domain="date"/>
+                <param name="descr" mapping="['descr']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="all"/>
+        </action>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update amb.md_ambulance_desk set name = trim(:name), bdate = :bdate, edate = :edate, descr =
+                    trim(:descr) where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="bdate" mapping="['bdate']" domain="date"/>
+                <param name="edate" mapping="['edate']" domain="date"/>
+                <param name="descr" mapping="['descr']" domain="string"/>
+            </in-parameters>
+            <validations activate="all"/>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from amb.md_ambulance_desk where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="desknameunique" level="error">
+            <message>
+                Пульт с наименованием '{name}' уже существует -> Укажите другое наименование!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from amb.md_ambulance_desk where trim(lower(name)) = trim(lower(:name)) and (:id is
+                    null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="desknamemaxlength" level="error" moment="before-action">
+            <message>
+                Наименование слишком длинное -> Укажите наименование не длиннее 16-ти символов!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select case
+                    when length(:name) > 16 then 1
+                    else 0
+                    end as leng
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="deskdescrmaxlength" level="error" moment="before-action">
+            <message>
+                Примечание слишком длинное -> Укажите примечание не длиннее 256-ти символов!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select case
+                             when length(:descr) > 256 then 1
+                             else 0
+                    end as leng
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="descr" mapping="['descr']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

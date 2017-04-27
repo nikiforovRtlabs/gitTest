@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>monitoringService</name>
+
+    <actions>
+        <action id="create" form-submit-label="Сохранить">
+            <invocation>
+                <n2o:sql>
+                    insert into motherhood.mh_treatment_plan_srv_rendered(clinic, diagnosis, survey, recommendations,
+                    service_id, provide_dt)
+                    values(:clinic, :diagnosis::json, :survey, :recommendations, :serviceId, :provideDate);
+
+                    update motherhood.mh_treatment_plan_service set note = :note, is_failed = :failed where id =
+                    :serviceId;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="renderedId" mapping="['id']" domain="integer"/>
+                <param name="id" mapping="['serviceId']" domain="string"/>
+                <param name="clinic" mapping="['clinic']" domain="string"/>
+                <param name="diagnosis" mapping="['diagnosis']" domain="json"/>
+                <param name="survey" mapping="['survey']" domain="string"/>
+                <param name="recommendations" mapping="['recommendations']" domain="string"/>
+                <param name="id" mapping="['serviceId']" domain="string"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="failed" mapping="['failed']" domain="boolean"/>
+                <param name="provideDate" mapping="['provideDate']" domain="date"/>
+            </in-parameters>
+            <success-text>Результаты мероприятия успешно сохранены.</success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="update" form-submit-label="Сохранить">
+            <invocation>
+                <n2o:sql>
+                    update motherhood.mh_treatment_plan_srv_rendered
+                    set clinic = :clinic,
+                    diagnosis = :diagnosis::json,
+                    survey = :survey,
+                    recommendations = :recommendations,
+                    provide_dt = :provideDate
+                    where id = :id;
+
+                    update motherhood.mh_treatment_plan_service set note = :note, is_failed = :failed where id =
+                    :serviceId;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="renderedId" mapping="['id']" domain="integer"/>
+                <param name="id" mapping="['serviceId']" domain="string"/>
+                <param name="clinic" mapping="['clinic']" domain="string"/>
+                <param name="diagnosis" mapping="['diagnosis']" domain="json"/>
+                <param name="survey" mapping="['survey']" domain="string"/>
+                <param name="recommendations" mapping="['recommendations']" domain="string"/>
+                <param name="id" mapping="['serviceId']" domain="string"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="failed" mapping="['failed']" domain="boolean"/>
+                <param name="provideDate" mapping="['provideDate']" domain="date"/>
+            </in-parameters>
+            <success-text>Результаты мероприятия успешно сохранены.</success-text>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="uniqueMainDiagnosis" level="error">
+            <message>Основной диагноз в рамках мероприятия должен быть один.</message>
+            <expression on="diagnosis">
+                <![CDATA[
+                    var invalidEntries = 0;
+                    var i;
+                    for(i in diagnosis){
+                        if(diagnosis[i].is_main === true){
+                            invalidEntries++;
+                        }
+                    }
+
+                    (invalidEntries < 2);
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="currentDate" level="error">
+            <message>Дата оказания не может быть больше текущей даты</message>
+            <expression on="provideDate">
+                <![CDATA[
+                    moment(provideDate, 'DD.MM.YYYY HH:mm').isBefore(new Date(), 'DD.MM.YYYY HH:mm')
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkPregnantAge" level="error">
+            <message>Дата оказания услуги не входит в диапазон беременности.</message>
+            <expression on="provideDate,regDate,pregnantAge">
+                <![CDATA[
+                    (moment(provideDate, 'DD.MM.YYYY').diff(moment(regDate, 'DD.MM.YYYY'), 'weeks') + pregnantAge) > 0
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

@@ -1,0 +1,99 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>remove_control_to_event</name>
+    <actions>
+        <action id="create" name="Добавление условия снятия с контроля">
+            <invocation>
+                <n2o:sql>
+                    insert into monitoring.mn_event_for_remove_control(name, event,is_active) values (:name::text,:event::text,:is_active)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']"/>
+                <param name="event" mapping="['event']"/>
+                <param name="is_active" mapping="['is_active']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="blackList">
+                <validation ref-id="uniqueEvent"/>
+                <validation ref-id="checkNotUsingInJournal"/>
+            </validations>
+            <success-text>Условие "{name}" успешно добавлено</success-text>
+            <fail-text>Не удалось добавить условие "{name}"</fail-text>
+        </action>
+        <action id="update" name="Изменение условия снятия с контроля">
+            <invocation>
+                <n2o:sql>
+                update monitoring.mn_event_for_remove_control
+                set name = :name::text, event = :event::text, is_active = :is_active
+                where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+                <param name="event" mapping="['event']"/>
+                <param name="active" mapping="['active']"/>
+                <param name="is_active" mapping="['is_active']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkNotUsingInJournal"/>
+            </validations>
+            <success-text>Условие "{name}" успешно изменено</success-text>
+            <fail-text>Не удалось изменить условие "{name}"</fail-text>
+        </action>
+        <action id="delete" name="Удаление условия снятия с контроля">
+            <invocation>
+                    <n2o:sql>
+                    delete from monitoring.mn_event_for_remove_control
+                    where id = :id
+                    </n2o:sql>
+            </invocation>
+                <in-parameters>
+                    <param name="id" mapping="['id']"/>
+                    <param name="active" mapping="['active']"/>
+                    <param name="is_active" mapping="['is_active']" value="null"/>
+                </in-parameters>
+            <success-text>Условие "{name}" успешно удалено</success-text>
+            <fail-text>Не удалось удалить условие "{name}"</fail-text>
+        </action>
+        </actions>
+    <validations>
+        <constraint id="checkNotUsingInJournal" level="error">
+            <message>Нельзя убрать признак "Действующий" для условия снятие с контроля, оно используется в журналах мониторинга. Удалите условие из журналов.</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT count(1) from monitoring.mn_journal_event_remove_control
+                    WHERE
+                    :is_active::BOOLEAN is not true AND
+                    coalesce(:active,FALSE) != coalesce(:is_active,FALSE) AND
+                    remove_control_id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="active" mapping="['active']" domain="boolean"/>
+                <param name="is_active" mapping="['is_active']" domain="boolean"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="uniqueName" level="error">
+            <message>Наименование должно быть уникальным</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT count(*) FROM monitoring.mn_event_for_remove_control
+                    WHERE upper(trim(name)) = upper(trim(:name))AND
+                    (:id ISNULL or :id != id)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+</object>

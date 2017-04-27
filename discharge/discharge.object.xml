@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <actions>
+        <action id="discharge" form-submit-label="Сохранить">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="TASK">
+                            <wf:invocation>
+                                <rest:rest method="GET">
+                                    ${n2o.backend.path}/hospital/discharge/check-relations
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="patientId" mapping="['patientId']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="['result']"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="true" next-task-id="2"/>
+                                <wf:result value="false" next-task-id="5"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:user-task id="2" template="hospital/n2o/workflow/discharge.relation.exists.notify.html"
+                                      use-wf-context="true" show-cancel-button="false">
+                            <wf:title>Предупреждение</wf:title>
+                            <wf:description>
+                                Найдены открытые случаи на пациентов с родственной связью "мать -
+                                новорожденный", хотите выписать и их?
+                            </wf:description>
+                            <wf:choices>
+                                <wf:choice title="Да" next-task-id="3"/>
+                                <wf:choice title="Нет" next-task-id="5"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="3" next-task-id="4" in-parameters-context-type="TASK">
+                            <wf:invocation>
+                                <rest:rest method="GET">
+                                    ${n2o.backend.path}/hospital/discharge/relation-list
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="patientId" mapping="['patientId']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="['data']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="4" template="hospital/n2o/workflow/discharge.relation.list.html"
+                                      show-cancel-button="true" use-wf-context="true">
+                            <wf:title>Список родственников</wf:title>
+                            <wf:choices>
+                                <wf:choice title="Готово" next-task-id="5"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="5" in-parameters-context-type="TASK">
+                            <wf:invocation>
+                                <rest:rest method="POST">
+                                    ${n2o.backend.path}/hospital/discharge
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="id" mapping="['id']"/>
+                                <param name="caseId" mapping="['caseId']"/>
+                                <param name="patientId" mapping="['patientId']"/>
+                                <param name="previousId" mapping="['previousId']"/>
+
+                                <param name="admissionDate" mapping="['admissionDate']"/>
+                                <param name="admissionDepartment.id" mapping="['admissionDepartmentId']"/>
+                                <param name="careRegimen.id" mapping="['careRegimenId']"/>
+                                <param name="profile.id" mapping="['profileId']"/>
+                                <param name="bedProfile.id" mapping="['bedProfileId']"/>
+                                <param name="financialType.id" mapping="['financialTypeId']"/>
+                                <param name="doctor.id" mapping="['doctorId']"/>
+                                <param name="doctor.employeePositionId" mapping="['employeePositionId']"/>
+
+                                <param name="resGroupId" mapping="['resGroupId']"/>
+                                <param name="diagnosis.id" mapping="['diagnosisId']"/>
+                                <param name="diagnosisEstablishmentDate" mapping="['diagnosisEstablishmentDate']"/>
+                                <param name="diagnosisNote" mapping="['diagnosisNote']"/>
+                                <param name="diagnosisInjuryReasonId" mapping="['diagnosisInjuryReasonId']" domain="integer"/>
+                                <param name="caseDiagnosisId" mapping="['caseDiagnosisId']"/>
+                                <param name="missedDaysAmount" mapping="['missedDaysAmount']"/>
+
+                                <param name="outcomeDate" mapping="['outcomeDate']"/>
+                                <param name="finalDiagnosis.id" mapping="['finalDiagnosisId']"/>
+                                <param name="finalCaseDiagnosisId" mapping="['finalCaseDiagnosisId']"/>
+                                <param name="stepResult.id" mapping="['stepResultId']"/>
+                                <param name="outcome.id" mapping="['outcomeId']"/>
+                                <param name="outcomeClinic.id" mapping="['outcomeClinicId']"/>
+                                <param name="outcomeClinicCareRegimen.id" mapping="['outcomeCareRegimenId']"/>
+                                <param name="deathEmployee.id" mapping="['deathEmployeeId']"/>
+                                <param name="deathDate" mapping="['deathDate']"/>
+                                <param name="deathSourceId" mapping="['deathSourceId']"/>
+
+                                <param name="standard.id" mapping="['standardId']"/>
+                                <param name="mes.id" mapping="['mesId']"/>
+                                <param name="mesQualityCriterion.id" mapping="['mesQualityCriterionId']"/>
+                                <param name="csg.id" mapping="['csgId']"/>
+                                <param name="vmp.id" mapping="['vmpId']"/>
+                                <param name="vmpMethod.id" mapping="['vmpMethodId']"/>
+
+                                <param name="deviationReason.id" mapping="['deviationReasonId']"/>
+                                <param name="prehospitalStageDefect.id" mapping="['prehospitalStageDefectId']"/>
+                                <param name="paymentMethod.id" mapping="['paymentMethodId']"/>
+                                <param name="careLevel.id" mapping="['careLevelId']"/>
+                                <param name="complexityLevel.id" mapping="['complexityLevelId']"/>
+
+                                <param name="diagnosis.attr*.value_id" mapping="['diagnosisAttributes']" domain="integer[]"/>
+                                <param name="finalDiagnosis.attr*.value_id" mapping="['finalDiagnosisAttributes']" domain="integer[]"/>
+
+                                <param name="stepCurCoefCritList" mapping="['stepCurCoefCritList']" domain="object[]"/>
+
+                                <param name="createPatronage" mapping="['createPatronage']"/>
+                                <param name="patronageId" mapping="['patronageId']"/>
+                                <param name="patronageDate" mapping="['patronageDate']" domain="date"/>
+                                <param name="patronageClinic.id" mapping="['patronageClinicId']"/>
+                                <param name="patronageCallType.id" mapping="['patronageCallTypeId']"/>
+                                <param name="patronageCallReason.id" mapping="['patronageCallReasonId']"/>
+                                <param name="patronageAddress.id" mapping="['patronageAddressId']"/>
+                                <param name="rankin.id" mapping="['rankinScaleId']" domain="integer"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters/>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="caseId" mapping="['caseId']"/>
+                <param name="patientId" mapping="['patientId']"/>
+                <param name="previousId" mapping="['previousId']"/>
+
+                <param name="admissionDate" mapping="['admissionDate']"/>
+                <param name="admissionDepartment.id" mapping="['admissionDepartmentId']"/>
+                <param name="careRegimen.id" mapping="['careRegimenId']"/>
+                <param name="profile.id" mapping="['profileId']"/>
+                <param name="bedProfile.id" mapping="['bedProfileId']"/>
+                <param name="financialType.id" mapping="['financialTypeId']"/>
+                <param name="doctor.id" mapping="['doctorId']"/>
+                <param name="doctor.employeePositionId" mapping="['employeePositionId']"/>
+
+                <param name="resGroupId" mapping="['resGroupId']"/>
+                <param name="diagnosis.id" mapping="['diagnosisId']"/>
+                <param name="diagnosisEstablishmentDate" mapping="['diagnosisEstablishmentDate']"/>
+                <param name="diagnosisNote" mapping="['diagnosisNote']"/>
+                <param name="caseDiagnosisId" mapping="['caseDiagnosisId']"/>
+                <param name="missedDaysAmount" mapping="['missedDaysAmount']"/>
+
+                <param name="outcomeDate" mapping="['outcomeDate']"/>
+                <param name="finalDiagnosis.id" mapping="['finalDiagnosisId']"/>
+                <param name="finalCaseDiagnosisId" mapping="['finalCaseDiagnosisId']"/>
+                <param name="stepResult.id" mapping="['stepResultId']"/>
+                <param name="outcome.id" mapping="['outcomeId']"/>
+                <param name="outcomeClinic.id" mapping="['outcomeClinicId']"/>
+                <param name="outcomeClinicCareRegimen.id" mapping="['outcomeCareRegimenId']"/>
+                <param name="deathEmployee.id" mapping="['deathEmployeeId']"/>
+                <param name="deathDate" mapping="['deathDate']"/>
+                <param name="deathSourceId" mapping="['deathSourceId']"/>
+
+                <param name="standard.id" mapping="['standardId']"/>
+                <param name="mes.id" mapping="['mesId']"/>
+                <param name="mesQualityCriterion.id" mapping="['mesQualityCriterionId']"/>
+                <param name="csg.id" mapping="['csgId']"/>
+                <param name="vmp.id" mapping="['vmpId']"/>
+                <param name="vmpMethod.id" mapping="['vmpMethodId']"/>
+
+                <param name="deviationReason.id" mapping="['deviationReasonId']"/>
+                <param name="prehospitalStageDefect.id" mapping="['prehospitalStageDefectId']"/>
+                <param name="paymentMethod.id" mapping="['paymentMethodId']"/>
+                <param name="careLevel.id" mapping="['careLevelId']"/>
+                <param name="complexityLevel.id" mapping="['complexityLevelId']"/>
+
+                <param name="diagnosis.attr*.value_id" mapping="['diagnosisAttributes']" domain="integer[]"/>
+                <param name="finalDiagnosis.attr*.value_id" mapping="['finalDiagnosisAttributes']" domain="integer[]"/>
+
+                <param name="stepCurCoefCritList" mapping="['stepCurCoefCritList']" domain="object[]"/>
+
+                <param name="createPatronage" mapping="['createPatronage']"/>
+                <param name="patronageId" mapping="['patronageId']"/>
+                <param name="patronageDate" mapping="['patronageDate']" domain="date"/>
+                <param name="patronageClinic.id" mapping="['patronageClinicId']"/>
+                <param name="patronageCallType.id" mapping="['patronageCallTypeId']"/>
+                <param name="patronageCallReason.id" mapping="['patronageCallReasonId']"/>
+                <param name="patronageAddress.id" mapping="['patronageAddressId']"/>
+                <param name="rankin.id" mapping="['rankinScaleId']" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkAdmissionOutcomeDates" level="error">
+            <expression on="admissionDate,outcomeDate"><![CDATA[
+                    (moment(admissionDate, 'DD.MM.YYYY HH:mm').isBefore(moment(outcomeDate, 'DD.MM.YYYY HH:mm')) ||
+                     moment(admissionDate, 'DD.MM.YYYY HH:mm').isSame(moment(outcomeDate, 'DD.MM.YYYY HH:mm')))]]></expression>
+            <message>Дата выписки меньше или равна дате поступления.</message>
+        </condition>
+
+        <constraint id="validExistingParallelCase" level="warning">
+            <invocation>
+                <n2o:rest method="POST">
+                    <n2o:query>
+                        ${n2o.backend.path}/hospital/hospital-record/valid
+                    </n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="caseId" mapping="['id']"/>
+                <param name="patientId" mapping="['patientId']"/>
+                <param name="admissionDate" mapping="['admissionDate']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="message" mapping="['message']"/>
+            </out-parameters>
+            <result expression="['success']"/>
+            <message>Обнаружено пересечение сроков лечения в круглосуточном стационаре. Случай(и) необходимо закрыть</message>
+        </constraint>
+
+        <constraint id="checkOutcomeDateInPreviousAndAdmissionInCurrent" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[select (case when s.outcome_date is null then true else
+                    case when s.outcome_time is not null then s.outcome_date + s.outcome_time else s.outcome_date end <= :admissionDate end)
+                    from hsp_record r
+                    inner join mc_step s on s.id = r.id
+                    where r.previous_id is not null and r.id = (case when :previousId::int4 is null then
+                    (select s2.id from mc_step s2 inner join hsp_record h2 on h2.id = s2.id
+                    where s2.case_id = :caseId  order by s2.admission_date desc, s2.admission_time desc, s2.id desc limit 1) else :previousId end)]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="previousId" mapping="['previousId']"/>
+                <param name="admissionDate" mapping="['admissionDate']"/>
+                <param name="caseId" mapping="['caseId']"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+            <message>Дата поступления в отделение меньше даты выбытия из предыдущего отделения.</message>
+        </constraint>
+
+        <!--Создание ЗОГа. Если в последнем ЗОГе не указана дата выбытия, то проверяем её дату поступления.-->
+        <constraint id="checkAdmissionDateInPreviousAndAdmissionInCurrent" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[select
+                    (case when s.admission_time is not null then s.admission_date + s.admission_time else s.admission_date end) <= :admissionDate
+                    from hsp_record r
+                    inner join mc_step s on s.id = r.id
+                    where r.id = (case when :previousId::int4 is null then
+                    (select s2.id from mc_step s2 inner join hsp_record h2 on h2.id = s2.id
+                    where s2.case_id = :caseId  order by s2.admission_date desc, s2.admission_time desc, s2.id desc limit 1)
+                    else :previousId::int4 end)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="previousId" mapping="['previousId']"/>
+                <param name="admissionDate" mapping="['admissionDate']"/>
+                <param name="caseId" mapping="['caseId']"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+            <message>Дата поступления в отделение меньше даты поступления в предыдущем отделении.</message>
+        </constraint>
+
+        <!--0-->
+        <condition id="checkCoefCurCriteria0" level="error">
+            <expression>
+                stepCurCoefCritList[0].coefCriteriaId != null &amp;&amp; stepCurCoefCritList[0].coefCriteriaId.id !=
+                null ||
+                stepCurCoefCritList[0].coefCriteriaId == null &amp;&amp; (stepCurCoefCritList[0].val == null ||
+                stepCurCoefCritList[0].val == '')
+            </expression>
+            <message>Поле обязательно для заполнения.</message>
+        </condition>
+
+        <condition id="checkCoefCurVal0" level="error">
+            <expression>
+                stepCurCoefCritList[0].val != null &amp;&amp; stepCurCoefCritList[0].val != '' ||
+                stepCurCoefCritList[0].coefCriteriaId == null &amp;&amp; (stepCurCoefCritList[0].val == null ||
+                stepCurCoefCritList[0].val == '')
+            </expression>
+            <message>Поле обязательно для заполнения.</message>
+        </condition>
+
+        <!--1-->
+        <condition id="checkCoefCurCriteria1" level="error">
+            <expression>
+                stepCurCoefCritList[1].coefCriteriaId != null &amp;&amp; stepCurCoefCritList[1].coefCriteriaId.id !=
+                null ||
+                stepCurCoefCritList[1].coefCriteriaId == null &amp;&amp; (stepCurCoefCritList[1].val == null ||
+                stepCurCoefCritList[1].val == '')
+            </expression>
+            <message>Поле обязательно для заполнения.</message>
+        </condition>
+
+        <condition id="checkCoefCurVal1" level="error">
+            <expression>
+                stepCurCoefCritList[1].val != null &amp;&amp; stepCurCoefCritList[1].val != '' ||
+                stepCurCoefCritList[1].coefCriteriaId == null &amp;&amp; (stepCurCoefCritList[1].val == null ||
+                stepCurCoefCritList[1].val == '')
+            </expression>
+            <message>Поле обязательно для заполнения.</message>
+        </condition>
+
+        <!--2-->
+        <condition id="checkCoefCurCriteria2" level="error">
+            <expression>
+                stepCurCoefCritList[2].coefCriteriaId != null &amp;&amp; stepCurCoefCritList[2].coefCriteriaId.id !=
+                null ||
+                stepCurCoefCritList[2].coefCriteriaId == null &amp;&amp; (stepCurCoefCritList[2].val == null ||
+                stepCurCoefCritList[2].val == '')
+            </expression>
+            <message>Поле обязательно для заполнения.</message>
+        </condition>
+
+        <condition id="checkCoefCurVal2" level="error">
+            <expression>
+                stepCurCoefCritList[2].val != null &amp;&amp; stepCurCoefCritList[2].val != '' ||
+                stepCurCoefCritList[2].coefCriteriaId == null &amp;&amp; (stepCurCoefCritList[2].val == null ||
+                stepCurCoefCritList[2].val == '')
+            </expression>
+            <message>Поле обязательно для заполнения.</message>
+        </condition>
+
+        <!--3-->
+        <condition id="checkCoefCurCriteria3" level="error">
+            <expression>
+                stepCurCoefCritList[3].coefCriteriaId != null &amp;&amp; stepCurCoefCritList[3].coefCriteriaId.id !=
+                null ||
+                stepCurCoefCritList[3].coefCriteriaId == null &amp;&amp; (stepCurCoefCritList[3].val == null ||
+                stepCurCoefCritList[3].val == '')
+            </expression>
+            <message>Поле обязательно для заполнения.</message>
+        </condition>
+
+        <condition id="checkCoefCurVal3" level="error">
+            <expression>
+                stepCurCoefCritList[3].val != null &amp;&amp; stepCurCoefCritList[3].val != '' ||
+                stepCurCoefCritList[3].coefCriteriaId == null &amp;&amp; (stepCurCoefCritList[3].val == null ||
+                stepCurCoefCritList[3].val == '')
+            </expression>
+            <message>Поле обязательно для заполнения.</message>
+        </condition>
+
+
+        <!--4-->
+        <condition id="checkCoefCurCriteria4" level="error">
+            <expression>
+                stepCurCoefCritList[4].coefCriteriaId != null &amp;&amp; stepCurCoefCritList[4].coefCriteriaId.id !=
+                null ||
+                stepCurCoefCritList[4].coefCriteriaId == null &amp;&amp; (stepCurCoefCritList[4].val == null ||
+                stepCurCoefCritList[4].val == '')
+            </expression>
+            <message>Поле обязательно для заполнения.</message>
+        </condition>
+
+        <condition id="checkCoefCurVal4" level="error">
+            <expression>
+                stepCurCoefCritList[4].val != null &amp;&amp; stepCurCoefCritList[4].val != '' ||
+                stepCurCoefCritList[4].coefCriteriaId == null &amp;&amp; (stepCurCoefCritList[4].val == null ||
+                stepCurCoefCritList[4].val == '')
+            </expression>
+            <message>Поле обязательно для заполнения.</message>
+        </condition>
+
+    </validations>
+
+</object>

@@ -1,0 +1,190 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>ambPrescription</object-id>
+    <name>ambPrescription</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hospital.prescription p
+                left join hospital.prescription_status ps on ps.id = p.status_id
+                left join hospital.prescription_periodicity pp on pp.id = p.periodicity_id
+                left join mc_case c on c.id = p.case_id
+                left join hsp_record r on r.id = p.step_id
+                where :where
+                order by p.period_begin_dt, :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(p)
+                from hospital.prescription p
+                left join hospital.prescription_status ps on ps.id = p.status_id
+                left join hospital.prescription_periodicity pp on pp.id = p.periodicity_id
+                left join mc_case c on c.id = p.case_id
+                left join hsp_record r on r.id = p.step_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>p</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+            <search>p.id = :id</search>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Препарат</name>
+            <expression>p.name_holding</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>dose</id>
+            <name>Доза</name>
+            <domain>string</domain>
+            <expression>
+                (
+                select array_to_string(array_agg(dose), ' + ')
+                from
+                (
+                select trim(to_char(sum(hold_dose_value * count), 'FM9999990.999'), '.') || ' ' || (select name from cmn_measure where id = hold_dose_measure_id) as dose
+                from hospital.prescription_holding
+                where prescription_id = p.id
+                group by hold_dose_measure_id, id
+                order by id
+                ) doses
+                )
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>holdings</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(t)) from (
+                select
+                ph.id
+                , holding
+                , ph.count * ph.hold_dose_value    as dose
+                , ph.count
+                , ph.is_patient_medicament
+
+                from hospital.prescription_holding ph
+                join ( select id, row_to_json(holding) as holding from ( select
+                phold.id
+                , phold.holding_id 		           as holding_id
+                , h.name || coalesce(', ' || ft.short_name, '') || coalesce(', ' || CASE WHEN phold.hold_con_value~'^[0-9]*\.?[0-9]*$' THEN trim(to_char(phold.hold_con_value::numeric, 'FM9999990.999'), '.') ELSE phold.hold_con_value END || coalesce(' ' || cm.name,''), '')
+                as holding_full_name
+                , phold.hold_form_type_id          as form_type_id
+                , trim(to_char(phold.hold_dose_value, 'FM9999990.999'), '.') || ' ' || dm.name
+                as dose_with_measure
+                , cast((phold.hold_dose_value) AS NUMERIC(40,6))::text            as dose
+                , phold.hold_dose_measure_id       as dose_measure_id
+                , dm.name                          as dose_measure_name
+                , phold.hold_con_value             as concentration
+                , phold.hold_con_measure_id        as concentration_measure_id
+                , phold.hold_mnei_id               as mnei_id
+                , (select name from cmn_measure where id = phold.hold_mnei_id)
+                as mnei_name
+                , h.name || coalesce(', ' || ft.short_name, '')
+                || coalesce(', ' || CASE WHEN phold.hold_con_value~'^[0-9]*\.?[0-9]*$' THEN trim(to_char(phold.hold_con_value::numeric, 'FM9999990.999'), '.') ELSE phold.hold_con_value END || coalesce(' ' || cm.name,''), '')
+                || coalesce(', ' || trim(to_char(phold.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' ' || dm.name,''), '')
+                || coalesce(', ' || mnei.name, '') as name_holding
+                from hospital.prescription_holding phold
+                join inventory.holding h on h.id = phold.holding_id
+                left join inventory.form_type ft on ft.id = phold.hold_form_type_id
+                left join cmn_measure dm on dm.id = phold.hold_dose_measure_id
+                left join cmn_measure cm on cm.id = phold.hold_con_measure_id
+                left join cmn_measure mnei on mnei.id = phold.hold_mnei_id
+                order by phold.id ) holding ) h on h.id = ph.id
+
+                where ph.prescription_id = p.id
+                order by ph.id) as t)
+            </expression>
+        </field>
+
+        <field>
+            <id>administrationRoute.id</id>
+            <domain>integer</domain>
+            <expression>p.administration_route_id</expression>
+        </field>
+
+        <field>
+            <id>periodicity.id</id>
+            <domain>integer</domain>
+            <expression>pp.id</expression>
+        </field>
+
+        <field>
+            <id>periodicity.name</id>
+            <name>Периодичность</name>
+            <domain>string</domain>
+            <expression>pp.name</expression>
+        </field>
+
+        <field>
+            <id>time</id>
+            <domain>string</domain>
+            <name>Время</name>
+            <expression>to_char(p.period_begin_dt::timestamp, 'HH24:MI')</expression>
+        </field>
+
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>cast(p.period_begin_dt as date)</expression>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <expression>p.note</expression>
+        </field>
+
+        <field>
+            <id>isExecutionOnce</id>
+            <domain>boolean</domain>
+            <expression>p.is_execution_once</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>p.case_id</expression>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>p.patient_id</expression>
+            <search>p.patient_id = :patientId</search>
+        </field>
+
+        <field>
+            <id>stepId</id>
+            <domain>integer</domain>
+            <expression>p.step_id</expression>
+        </field>
+
+        <field>
+            <id>statusId</id>
+            <domain>integer</domain>
+            <expression>ps.id</expression>
+        </field>
+
+        <field>
+            <id>status</id>
+            <name>Статус</name>
+            <domain>string</domain>
+            <expression>ps.name || (case when ps.id = 5 then ' (' || to_char(p.cancel_dt, 'dd.MM.yyyy') || ')' else '' end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+    </fields>
+</query>

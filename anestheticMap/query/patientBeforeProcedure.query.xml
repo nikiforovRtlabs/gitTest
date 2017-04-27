@@ -1,0 +1,406 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>anestheticMap</object-id>
+    <name>patientBeforeProcedure</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from hospital.patient_before_procedure a
+                left join hospital.basic_data_anesthetic_map b on a.id = b.id
+                left join mc_case cs on b.uid_id = cs.id
+                left join public.mc_severity_level sev on sev.id = a.severity_id
+                left join hospital.patient_consciousness cons on cons.id = a.consciousness_id
+                left join public.mc_anesthesia_type anType on anType.id = a.anesthesia_type_id
+                left join hospital.risk_surgery anRisk on anRisk.id = a.anesthesia_risk_id
+                left join hospital.md_srv_rendered_oper msro on b.md_srv_rendered_oper_id = msro.id
+                left join md_srv_rendered msr on msr.id = msro.service_id
+                left join mc_step step on step.id = msr.step_id
+                left join sr_srv_rendered ssr on ssr.id = msr.id
+                left join hospital.prescription p on p.id=a.anesthetic_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(a)
+                from hospital.patient_before_procedure a
+                left join hospital.basic_data_anesthetic_map b on a.id = b.id
+                left join public.mc_severity_level sev on sev.id = a.severity_id
+                left join hospital.patient_consciousness cons on cons.id = a.consciousness_id
+                left join public.mc_anesthesia_type anType on anType.id = a.anesthesia_type_id
+                left join hospital.risk_surgery anRisk on anRisk.id = a.anesthesia_risk_id
+                left join hospital.md_srv_rendered_oper msro on b.md_srv_rendered_oper_id = msro.id
+                join md_srv_rendered msr on msr.id = msro.service_id
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                left join hospital.prescription p on p.id=a.anesthetic_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>duringOperation</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>(case when exists(select of.id from hospital.operation_flow of
+                where of.anesthetic_map_id=b.id)
+                then true else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>operationJournalId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>b.md_srv_rendered_oper_id</expression>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>a.id</expression>
+            <display/>
+        </field>
+
+
+        <field>
+            <id>basic.patient.id</id>
+            <domain>integer</domain>
+            <expression>b.patient_id</expression>
+        </field>
+
+        <field>
+            <id>basicId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>b.id</expression>
+        </field>
+
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>b.uid_id</expression>
+        </field>
+        <field>
+            <id>case.patient.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>cs.patient_id</expression>
+        </field>
+        <field>
+            <id>case.step.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>msr.step_id</expression>
+        </field>
+        <field>
+            <id>case.service.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>msro.service_id</expression>
+        </field>
+        <field>
+            <id>case.step.department.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>(select hr.department_id from hsp_record hr where hr.id = step.id)</expression>
+        </field>
+        <field>
+            <id>case.organization.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>step._clinic_id</expression>
+        </field>
+        <field>
+            <id>case.patientBeforeProcedureId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>a.id</expression>
+        </field>
+
+        <field>
+            <id>case.financialTypeId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>(select ffs.id from
+                inventory.funding_source ffs
+                inner join inventory.funding_source_payment_type fspt1 on fspt1.funding_source_id = ffs.id
+                inner join fin_funding_source_type ffst on ffst.id=fspt1.payment_type_id
+                where ssr.funding_id = ffst.id and fspt1.is_check_accounting = true
+                and (fspt1.org_id is null or fspt1.org_id = step._clinic_id)
+                and (ffs.org_id is null or ffs.org_id = step._clinic_id)
+                order by fspt1.funding_source_id asc
+                limit 1)</expression>
+        </field>
+
+        <field>
+            <id>case.financialTypeName</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(select ffs.name from
+                inventory.funding_source ffs
+                inner join inventory.funding_source_payment_type fspt1 on fspt1.funding_source_id = ffs.id
+                inner join fin_funding_source_type ffst on ffst.id=fspt1.payment_type_id
+                where ssr.funding_id=ffst.id and fspt1.is_check_accounting = true
+                and (fspt1.org_id is null or fspt1.org_id = step._clinic_id)
+                and (ffs.org_id is null or ffs.org_id = step._clinic_id)
+                order by fspt1.funding_source_id asc
+                limit 1)</expression>
+        </field>
+
+
+        <field>
+            <id>basic.dateSurgery</id>
+            <domain>date</domain>
+            <display/>
+            <expression>b.date_surgery</expression>
+        </field>
+
+        <field>
+            <id>severity.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>sev.id</expression>
+        </field>
+        <field>
+            <id>severity.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>sev.name</expression>
+        </field>
+
+        <field>
+            <id>consciousness.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>cons.id</expression>
+        </field>
+        <field>
+            <id>consciousness.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>cons.name</expression>
+        </field>
+
+        <field>
+            <id>highPressure</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>a.high_pressure</expression>
+        </field>
+        <field>
+            <id>lowPressure</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>a.low_pressure</expression>
+        </field>
+        <field>
+            <id>temperature</id>
+            <domain>numeric</domain>
+            <display/>
+            <expression>a.temperature</expression>
+        </field>
+        <field>
+            <id>pulseRate</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>a.pulse_rate</expression>
+        </field>
+        <field>
+            <id>breathRate</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>a.breath_rate</expression>
+        </field>
+
+        <field>
+            <id>anesthesiaType.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>anType.id</expression>
+        </field>
+        <field>
+            <id>anesthesiaType.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>anType.name</expression>
+        </field>
+
+        <field>
+            <id>beginDate</id>
+            <domain>date</domain>
+            <display/>
+            <expression>a.begin_date</expression>
+        </field>
+        <field>
+            <id>beginTime</id>
+            <domain>string</domain>
+            <display/>
+            <expression>to_char(a.begin_time,'hh24:mi')</expression>
+        </field>
+
+        <field>
+            <id>anesthesiaRisk.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>anRisk.id</expression>
+        </field>
+        <field>
+            <id>anesthesiaRisk.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>anRisk.full_name</expression>
+        </field>
+
+
+        <field>
+            <id>anesthetic.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>a.anesthetic_id</expression>
+        </field>
+        <field>
+            <id>anesthetic.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select(
+                select string_agg( h.name || coalesce(', ' || ft.short_name, '')
+                || coalesce(', ' || CASE WHEN phold.hold_con_value~'^[0-9]*\.?[0-9]*$' THEN
+                trim(to_char(phold.hold_con_value::numeric, 'FM9999990.999'), '.') ELSE phold.hold_con_value END ||
+                coalesce(' ' || cm.name,''), '')
+                || coalesce(', ' || trim(to_char(phold.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' '
+                || dm.name,''), '')
+                || coalesce(', ' || mnei.name, '')
+                || coalesce(', ' || trim(to_char((phold.count * phold.hold_dose_value)::numeric, 'FM9999990.999'), '.')
+                || coalesce(' ' || dm.name,''), ''), ' + ')
+
+                as name_holding
+                from hospital.prescription_holding phold
+                join inventory.holding h on h.id = phold.holding_id
+                left join inventory.form_type ft on ft.id = phold.hold_form_type_id
+                left join cmn_measure dm on dm.id = phold.hold_dose_measure_id
+                left join cmn_measure cm on cm.id = phold.hold_con_measure_id
+                left join cmn_measure mnei on mnei.id = phold.hold_mnei_id
+                where phold.prescription_id = a.anesthetic_id)||(', ')||
+                (select distinct(mar.full_name) from public.md_administration_route mar
+                left join hospital.prescription p on p.administration_route_id= mar.id
+                left join hospital.prescription_holding phold on phold.prescription_id=p.id where phold.prescription_id
+                = a.anesthetic_id))
+
+
+            </expression>
+        </field>
+
+        <field>
+            <id>premedication.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>a.premedication_id</expression>
+        </field>
+        <field>
+            <id>premedication.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                <!--(select p.name_holding from hospital.prescription p where p.id = a.premedication_id)-->
+                (select(
+                select string_agg( h.name || coalesce(', ' || ft.short_name, '')
+                || coalesce(', ' || CASE WHEN phold.hold_con_value~'^[0-9]*\.?[0-9]*$' THEN
+                trim(to_char(phold.hold_con_value::numeric, 'FM9999990.999'), '.') ELSE phold.hold_con_value END ||
+                coalesce(' ' || cm.name,''), '')
+                || coalesce(', ' || trim(to_char(phold.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' '
+                || dm.name,''), '')
+                || coalesce(', ' || mnei.name, '')
+                || coalesce(', ' || trim(to_char((phold.count * phold.hold_dose_value)::numeric, 'FM9999990.999'), '.')
+                || coalesce(' ' || dm.name,''), ''), ' + ')
+
+                as name_holding
+                from hospital.prescription_holding phold
+                join inventory.holding h on h.id = phold.holding_id
+                left join inventory.form_type ft on ft.id = phold.hold_form_type_id
+                left join cmn_measure dm on dm.id = phold.hold_dose_measure_id
+                left join cmn_measure cm on cm.id = phold.hold_con_measure_id
+                left join cmn_measure mnei on mnei.id = phold.hold_mnei_id
+                where phold.prescription_id = a.premedication_id)||(', ')||
+                (select distinct(mar.full_name) from public.md_administration_route mar
+                left join hospital.prescription p on p.administration_route_id= mar.id
+                left join hospital.prescription_holding phold on phold.prescription_id=p.id where phold.prescription_id
+                = a.premedication_id)||(', ')||
+                (select distinct(pp.name) from hospital.prescription_periodicity pp
+                left join hospital.prescription p on p.periodicity_id= pp.id
+                where p.id
+                = a.premedication_id)||(', ')||
+                ( select p.period_end_dt::date-p.period_begin_dt::date+1 from hospital.prescription p where
+                p.id=a.premedication_id)||(' дн.'))
+            </expression>
+        </field>
+
+        <field>
+            <id>anesthesiolog.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>a.anesthesiolog_id</expression>
+        </field>
+        <field>
+            <id>anesthesiolog.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>( select (coalesce(i.surname, '') ||
+                coalesce(' ' || substring(i.name for 1) || '.', '') ||
+                coalesce(' ' || substring(i.patr_name for 1) || '.', ''))
+                from pim_employee_position_resource r
+                inner join pim_employee_position pos on r.employee_position_id = pos.id
+                join pim_employee empl on pos.employee_id = empl.id
+                join pim_individual i on empl.individual_id = i.id
+                where r.id = a.anesthesiolog_id
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>anesthesist.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>a.anesthesist_id</expression>
+        </field>
+        <field>
+            <id>anesthesist.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>( select (coalesce(i.surname, '') ||
+                coalesce(' ' || substring(i.name for 1) || '.', '') ||
+                coalesce(' ' || substring(i.patr_name for 1) || '.', ''))
+                from pim_employee_position_resource r
+                inner join pim_employee_position pos on r.employee_position_id = pos.id
+                join pim_employee empl on pos.employee_id = empl.id
+                join pim_individual i on empl.individual_id = i.id
+                where r.id = a.anesthesist_id
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>monitoring</id>
+            <domain>object[]</domain>
+            <name>Контролируемые показатели</name>
+            <display/>
+            <expression>(select array_to_json(array_agg(row_to_json(s)))
+                from (select pm.id, pm.name from hospital.patient_monitoring pm
+                join hospital.patient_anesthetic_monitoring anmon on anmon.monitoring_id= pm.id
+                where anmon.patient_before_procedure_id = a.id) as s)
+            </expression>
+        </field>
+        <field>
+            <id>controlSavingDone</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression> b.control_saving_done
+            </expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,161 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>batch</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from (select hm.id hmid,hm.name hmname, hold.commodity_group_id comGroupId,ss.store_id sendStoreId,
+                hm.price_unit_flag unitFlag, hm.mnei_id mneiId,fs.id fsId, fs.name fsname,sum(ss.act_balance_arr)  quantity,
+                sum(ss.act_balance_mnei) mneiQuantity,
+                coalesce(hm.mnei_count_in_sec_pk,1) countInSecPack,
+                (select coalesce(sum(bal.quantity),0)
+                       from inventory.hold_modif_min_balance bal
+                            inner join inventory.store min_s on min_s.id=bal.store_id
+                       where bal.hold_modif_id=hm.id and bal.fund_source_id=fs.id and min_s.id=:doc.sendStore.id) minBalanceMneiQuantity
+
+                from  inventory.store_supply ss
+                left outer join inventory.batch batch on ss.batch_id = batch.id
+                left outer join inventory.funding_source fs on fs.id=ss.funding_source_id
+                left outer join inventory.hold_modif hm on hm.id=batch.hold_modif_id
+                left outer join inventory.hold_modif_min_balance bal on bal.hold_modif_id=hm.id and bal.store_id=ss.store_id and bal.fund_source_id=fs.id
+                left outer join inventory.holding hold on hold.id=hm.holding_id
+                where ss.store_id= :doc.sendStore.id group by ss.store_id, hm.id, fs.id, hold.id ) as batch_list
+                where (coalesce(:existsInPharmacy,false) is false or (batch_list.quantity-minBalanceMneiQuantity!=0 and :existsInPharmacy is true)) and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(batch_list)
+                from (select hm.id hmid,hm.name hmname, hold.commodity_group_id comGroupId,ss.store_id sendStoreId,
+                hm.price_unit_flag unitFlag, hm.mnei_id mneiId,fs.id fsId, fs.name fsname,sum(ss.act_balance_arr) quantity,
+                (select coalesce(sum(bal.quantity),0)
+                from inventory.hold_modif_min_balance bal
+                inner join inventory.store min_s on min_s.id=bal.store_id
+                where bal.hold_modif_id=hm.id and bal.fund_source_id=fs.id and min_s.id=:doc.sendStore.id) minBalanceMneiQuantity
+
+                from  inventory.store_supply ss
+                left outer join inventory.batch batch on ss.batch_id = batch.id
+                left outer join inventory.funding_source fs on fs.id=ss.funding_source_id
+                left outer join inventory.hold_modif hm on hm.id=batch.hold_modif_id
+                left outer join inventory.holding hold on hold.id=hm.holding_id
+                where ss.store_id= :doc.sendStore.id group by ss.store_id, hm.id, fs.id, hold.id) as batch_list
+                where (coalesce(:existsInPharmacy,false) is false or (batch_list.quantity-minBalanceMneiQuantity!=0 and :existsInPharmacy is true)) and :where
+            </n2o:count-query>
+            <n2o:alias>batch</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <expression>CONCAT(hmid,'_',fsId)</expression>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fsId</expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <name>Финансирование</name>
+            <expression>fsname</expression>
+        </field>
+        <field>
+            <id>doc.fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fsId</expression>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>doc.comGroup.id</id>
+            <domain>integer</domain>
+            <expression>comGroupId</expression>
+            <search>:expression = :doc.comGroup.id</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>comGroupId</expression>
+            <search>:expression = :comGroup.id</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>doc.id</id>
+            <domain>string</domain>
+            <expression>(select :doc.id)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>doc.docNumber</id>
+            <domain>string</domain>
+            <expression>(select :doc.docNumber)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>doc.docDateString</id>
+            <domain>string</domain>
+            <expression>(select :doc.docDateString)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>holdModif.name</id>
+            <domain>string</domain>
+            <expression>hmname</expression>
+            <name>Наименование ЛС и ИМН</name>
+            <search>upper(:expression) like '%'||upper(:holdModif.name)||'%'</search>
+        </field>
+        <field>
+            <id>holdModif.id</id>
+            <domain>integer</domain>
+            <expression>hmid</expression>
+        </field>
+        <field>
+            <id>docDate</id>
+            <domain>date</domain>
+            <expression>(select :docDate::date)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>minBalanceMneiQuantity</id>
+            <domain>string</domain>
+            <expression>minBalanceMneiQuantity</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>string</domain>
+            <expression>round(quantity-minBalanceMneiQuantity/countInSecPack, 3)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>mneiQuantity</id>
+            <domain>string</domain>
+            <expression>mneiQuantity-minBalanceMneiQuantity</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>quantityInfo</id>
+            <domain>string</domain>
+            <name>Количество</name>
+            <expression>case when quantity = mneiQuantity
+                then
+                trim(to_char(quantity - minBalanceMneiQuantity/countInSecPack, 'FM9999990.999'), '.')||' '||inventory.get_unit_name_by_flag_of_modif(unitFlag, hmid)
+                else
+                trim(to_char(quantity - minBalanceMneiQuantity/countInSecPack, 'FM9999990.999'), '.')||' '||inventory.get_unit_name_by_flag_of_modif(unitFlag, hmid)
+                ||' ('||trim(to_char(mneiQuantity - minBalanceMneiQuantity, 'FM9999990.999'), '.')||' '||(select mnemocode from cmn_measure where id= mneiId)||')'
+                end</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>existsInPharmacy</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>doc.sendStore.id</id>
+            <domain>integer</domain>
+            <expression>sendStoreId</expression>
+        </field>
+    </fields>
+</query>

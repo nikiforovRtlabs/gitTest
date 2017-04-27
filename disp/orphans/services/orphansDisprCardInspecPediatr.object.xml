@@ -1,0 +1,111 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>orphansDisprCardInspecPediatr</name>
+
+    <actions>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    select disp.saveOrphansInspecPediatr(:event_patient_id, :ssr_id, :case_id, :date, :srg_id,
+                    :main_diagnosis_id, :disease_id, :counsel, :reference, :service_type_id, :is_suspicion, :make_d, :nosol_registr_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="event_patient_id" mapping="['event_patient_id']"/>
+                <param name="ssr_id" mapping="['ssr_id']"/>
+                <param name="case_id" mapping="['case_id']"/>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="resource.srg_id" mapping="['srg_id']"/>
+                <param name="main_diagnosis.id" mapping="['main_diagnosis_id']"/>
+                <param name="disease.id" mapping="['disease_id']"/>
+                <param name="counsel" mapping="['counsel']" domain="string"/>
+                <param name="reference" mapping="['reference']" domain="string"/>
+                <param name="service_type_id" mapping="['service_type_id']"/>
+                <param name="is_suspicion" mapping="['is_suspicion']"/>
+                <param name="make_d" mapping="['make_d']" domain="boolean"/>
+                <param name="nosol_registr.id" mapping="['nosol_registr_id']" domain="integer"/>
+                <param name="id"/>
+                <param name="event_patient_id"/>
+                <param name="open_date" domain="string"/>
+                <param name="end_date" domain="string"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="serviceInBill"/>
+                <validation ref-id="caseEndDateChangedCondition"/>
+                <validation ref-id="checkDispLength"/>
+                <validation ref-id="checkMaxDate"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <!--<condition id="checkAgreem" level="error" check-before-submit="true">-->
+            <!--<expression>agreeService == true</expression>-->
+            <!--<message>Пациент не дал согласие на оказание услуги!</message>-->
+        <!--</condition>-->
+        <constraint id="serviceInBill" level="error">
+            <message>На случай сформирован счет-реестр, действие запрещено</message>
+            <invocation>
+                <sql:sql>
+                    select disp.service_validate3(:id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="caseEndDateChangedCondition" level="warning">
+            <message>Дата закрытия случая будет изменена. Продолжить?</message>
+            <invocation>
+                <sql:sql>
+                    select disp.service_validate4(:id, :date)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="event_patient_id" mapping="['id']"/>
+                <param name="date" mapping="['date']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 1"/>
+        </constraint>
+
+        <constraint id="checkDispLength" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(id) from mc_case
+                        where id = :caseid and (to_date(:cdate, 'DD.MM.YYYY') - to_date(:odate, 'DD.MM.YYYY')) <= 14
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="case_id" mapping="['caseid']" domain="integer"/>
+                <param name="open_date" mapping="['odate']" domain="string"/>
+                <param name="date" mapping="['cdate']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] != 0"/>
+            <message>Длительность случая должна быть меньше 14 дней.</message>
+        </constraint>
+        <constraint id="checkMaxDate" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(1)
+                        where to_date(:cdate, 'DD.MM.YYYY') <= to_date(:edate, 'DD.MM.YYYY')
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="end_date" mapping="['edate']" domain="string"/>
+                <param name="date" mapping="['cdate']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] != 0"/>
+            <message>Дата окончания случая должна быть меньше даты окончания мероприятия</message>
+        </constraint>
+    </validations>
+
+</object>

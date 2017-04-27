@@ -1,0 +1,147 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>serviceReferral</object-id>
+    <name>serviceReferral</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from motherhood.mh_treatment_plan_service tps
+                inner join motherhood.mh_treatment_plan tp on tps.treatment_plan_id = tp.id
+                inner join motherhood.mh_pregnant_map mp on mp.id = tp.pregnant_map_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(tps)
+                from motherhood.mh_treatment_plan_service tps
+                where :where
+            </n2o:count-query>
+            <n2o:alias>tps</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>planServiceId</id>
+            <domain>integer</domain>
+            <expression>tps.id</expression>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>mp.patient_id</expression>
+        </field>
+
+        <field>
+            <id>referralDate</id>
+            <domain>date</domain>
+            <expression>current_date</expression>
+        </field>
+
+        <field>
+            <id>referralOrganization.id</id>
+            <domain>integer</domain>
+            <display value="#{org.id?}" unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>referralOrganization.name</id>
+            <domain>string</domain>
+            <search unavailable="true"/>
+            <expression>
+                (select full_name from pim_organization where id = :org.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>referralDepartment.id</id>
+            <domain>integer</domain>
+            <display value="#{dep.id?}" unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>referralDepartment.name</id>
+            <domain>string</domain>
+            <display value="#{dep.name?}" unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>recvOrg.id</id>
+            <domain>integer</domain>
+            <display value="#{org.id?}" unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>recvOrg.name</id>
+            <domain>string</domain>
+            <display value="#{org.name?}" unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>referralDoctor.id</id>
+            <domain>integer</domain>
+            <display value="#{emplPos.id?}" unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>employeePosId</id>
+            <domain>integer</domain>
+            <expression>:employeePosId</expression>
+            <search value="#{emplPos.id?}">(:expression = :employeePosId or :employeePosId is null)</search>
+        </field>
+
+        <field>
+            <id>referralDoctor.name</id>
+            <domain>string</domain>
+            <expression> (select pp.name ||' '|| pi.surname ||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)|| '. '
+                from pim_employee pe
+                left join pim_employee_position pep1 on ( pep1.employee_id = pe.id )
+                left join pim_position pp on pep1.position_id = pp.id
+                left join pim_individual pi on ( pe.individual_id = pi.id )
+                where pep1.id = :employeePosId) </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>:org.id</expression>
+            <display value="#{org.id?}" unavailable="true"/>
+            <search value="#{org.id?}">(:expression = :org.id or :org.id is null)</search>
+        </field>
+
+        <field>
+            <id>isComplex</id>
+            <domain>boolean</domain>
+            <expression>false</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>services</id>
+            <domain>object[]</domain>
+            <expression>
+                (select array_to_json(array_agg(s)) from (
+                select id, name from sr_service where prototype_id = tps.prototype_id and org_id = :org.id limit 1) as s)
+            </expression>
+        </field>
+
+        <field>
+            <id>prototypes</id>
+            <domain>object[]</domain>
+            <expression>
+                (select  array_to_json(array_agg(p)) from (
+                select id, name from sr_srv_prototype p where id = tps.prototype_id) as p)
+            </expression>
+        </field>
+    </fields>
+</query>

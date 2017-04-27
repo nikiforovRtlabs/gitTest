@@ -1,0 +1,244 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>pregnant_map</object-id>
+    <name>pregnantAllCart</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from motherhood.mh_pregnant_map mpm
+                left join public.pim_individual pi on mpm.patient_id = pi.id
+                left join pim_employee_position pep on pep.id = mpm.employee_id
+                left join public.pim_employee pe on pep.employee_id = pe.id
+                left join public.pim_individual pie on pe.individual_id = pie.id
+                left join pim_position pp on pep.position_id = pp.id
+                left join motherhood.mh_risk_level rl on rl.id = mpm.risk_id
+                where check_for_lice(:orgId, mpm.clinic_id)
+                and :where
+                order by (mpm.clinic_observ_id != :orgId or mpm.clinic_observ_id is null), :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from motherhood.mh_pregnant_map mpm
+                left join public.pim_individual pi on mpm.patient_id = pi.id
+                left join pim_employee_position pep on pep.id = mpm.employee_id
+                left join public.pim_employee pe on pep.employee_id = pe.id
+                left join public.pim_individual pie on pe.individual_id = pie.id
+                left join pim_position pp on pep.position_id = pp.id
+                left join motherhood.mh_risk_level rl on rl.id = mpm.risk_id
+                where check_for_lice(:orgId, mpm.clinic_id)
+                and :where
+            </n2o:count-query>
+            <n2o:alias>mpm</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <name>№ ИКП</name>
+            <domain>integer</domain>
+            <expression>mpm.id</expression>
+        </field>
+        <field>
+            <id>fullName</id>
+            <domain>string</domain>
+            <name>ФИО</name>
+            <expression>coalesce(pi.surname,'') || ' ' || coalesce(pi.name, '') || ' ' || coalesce(pi.patr_name, '')</expression>
+        </field>
+        <field>
+            <id>fullNameAndBirthDay</id>
+            <domain>string</domain>
+            <name>ФИО</name>
+            <expression>concat(pi.surname, ' ',pi.name, ' ',pi.patr_name, ' (',to_char(pi.birth_dt,'dd.mm.yyyy') , ')')</expression>
+            <search>upper(:expression) like '%'||upper(:fullNameAndBirthDay)||'%'</search>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>pi.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>doctorName</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <display/>
+            <expression>concat(pi.surname,' ', pi.name,' ',pi.patr_name)</expression>
+        </field>
+
+        <field>
+            <id>gestation</id>
+            <domain>string</domain>
+            <name>Срок беременности</name>
+            <expression>motherhood.calculate_weeks(mpm.reg_dt, mpm.pregnant_age)</expression>
+            <sorting>(date_part('day', current_date::timestamp  - mpm.reg_dt::timestamp) + mpm.pregnant_age * 7)::integer</sorting>
+            <display/>
+        </field>
+
+        <field>
+            <id>riskLevel.id</id>
+            <domain>integer</domain>
+            <expression>rl.id</expression>
+            <display/>
+            <search>:expression = :riskLevel.id</search>
+        </field>
+
+        <field>
+            <id>riskLevelName</id>
+            <domain>string</domain>
+            <name>Группа риска</name>
+            <display/>
+            <expression>rl.name</expression>
+            <sorting>rl.id</sorting>
+        </field>
+
+        <field>
+            <id>isObserv</id>
+            <domain>string</domain>
+            <name>Наблюдение МО</name>
+            <display/>
+            <expression>case when clinic_observ_id = :orgId then 'icon-eye-open' end</expression>
+        </field>
+
+        <field>
+            <id>regDt</id>
+            <domain>date</domain>
+            <name>Дата постановки на учет</name>
+            <expression>mpm.reg_dt</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>unregDt</id>
+            <domain>date</domain>
+            <name>Дата снятия с учета</name>
+            <expression>mpm.unreg_dt</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>status</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <display/>
+            <expression>
+                (case when
+                    (select count(1) > 0 from mc_case where patient_id = mpm.patient_id and closing_step_id is null and case_type_id = 2
+                    and open_date is not null and open_date between mpm.reg_dt and coalesce(mpm.unreg_dt, date 'infinity'))
+                then 'icomoon-aid-kit'
+                else case when
+                    (select count(1) > 0 from motherhood.mh_pregnant_outcome_child poc
+                    join motherhood.mh_pregnant_outcome po on po.id = poc.pregnant_outcome_id
+                    join public.sr_srv_rendered ssr on ssr.id = po.service_id
+                    where poc.outcome_id in (1, 2) and ssr.customer_id = mpm.patient_id and ssr.bdate between mpm.reg_dt and coalesce(mpm.unreg_dt, date 'infinity'))
+                then 'icomoon-reddit' end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>statusTooltip</id>
+            <domain>string</domain>
+            <name/>
+            <display/>
+            <expression>
+                (case when
+                    (select count(1) > 0 from mc_case where patient_id = mpm.patient_id and closing_step_id is null and case_type_id = 2
+                    and open_date is not null and open_date between mpm.reg_dt and coalesce(mpm.unreg_dt, date 'infinity'))
+                    then 'Открыт случай госпитализации'
+                else case when
+                    (select count(1) > 0 from motherhood.mh_pregnant_outcome_child poc
+                    join motherhood.mh_pregnant_outcome po on po.id = poc.pregnant_outcome_id
+                    join public.sr_srv_rendered ssr on ssr.id = po.service_id
+                    where poc.outcome_id in (1, 2) and ssr.customer_id = mpm.patient_id and ssr.bdate between mpm.reg_dt and coalesce(mpm.unreg_dt, date 'infinity'))
+                then 'Есть запись о новорожденном' end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <expression>mpm.clinic_id</expression>
+            <display/>
+            <search>:expression = :clinic.id</search>
+        </field>
+
+        <field>
+            <id>employee.id</id>
+            <domain>integer</domain>
+            <expression>mpm.employee_id</expression>
+            <display/>
+            <search>:expression = :employee.id </search>
+        </field>
+        <field>
+            <id>employeeName</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <display/>
+            <expression>coalesce(pie.surname,'') || ' ' || coalesce(pie.name, '') || ' ' || coalesce(pie.patr_name, '')|| ' ' || coalesce(pp.name,'' )</expression>
+        </field>
+        <field>
+            <id>period.begin</id>
+            <domain>string</domain>
+            <expression>:period.begin</expression>
+            <search><![CDATA[to_date(:period.begin, 'dd.mm.yyyy') <=mpm.reg_dt]]> </search>
+        </field>
+        <field>
+            <id>period.end</id>
+            <domain>string</domain>
+            <expression>:period.end</expression>
+            <search><![CDATA[to_date(:period.end, 'dd.mm.yyyy') >=mpm.reg_dt]]> </search>
+        </field>
+        <field>
+            <id>isActive</id>
+            <domain>boolean</domain>
+            <expression>:isActive</expression>
+            <search>mpm.unreg_dt is null</search>
+        </field>
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+            <search value="#{org.id}">1=1</search>
+        </field>
+        <field>
+            <id>pregnantAge.from</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[
+                    :pregnantAge.from <= (current_date - mpm.reg_dt)/7 + mpm.pregnant_age
+                ]]>
+            </search>
+        </field>
+        <field>
+            <id>pregnantAge.to</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[
+                    :pregnantAge.to >= (current_date - mpm.reg_dt)/7 + mpm.pregnant_age
+                ]]>
+            </search>
+        </field>
+        <field>
+            <id>outcome.id</id>
+            <domain>integer</domain>
+            <expression>mpm.outcome_id</expression>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>birthDate</id>
+            <domain>date</domain>
+            <expression>mpm.birth_dt</expression>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>hasBirthCertificate</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>(select count(id) > 0 from motherhood.mh_birth_certificate where pregnant_map_id = mpm.id) = :hasBirthCertificate</search>
+        </field>
+    </fields>
+</query>

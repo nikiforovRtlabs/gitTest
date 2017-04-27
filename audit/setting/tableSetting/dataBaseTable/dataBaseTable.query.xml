@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>dataBaseTable</object-id>
+    <name>dataBaseTable</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                <![CDATA[
+                    SELECT :select
+                    FROM information_schema.tables t
+                    WHERE t.table_type = 'BASE TABLE'
+                        AND NOT t.table_schema LIKE 'pg_%' AND t.table_schema <> 'information_schema'
+                        AND t.table_name <> 'databasechangelog' AND t.table_name <> 'databasechangeloglock'
+                        AND NOT t.table_name LIKE '%_aud'
+                        AND NOT exists( SELECT 1
+                                        FROM aud_excluded_schemas
+                                        WHERE schema_name = t.table_schema)
+                        AND NOT exists( SELECT 1
+                                        FROM aud_excluded_tables
+                                        WHERE table_name = t.table_schema || '.' || t.table_name)
+                        AND :where
+                    ORDER BY 2
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                <![CDATA[
+                    SELECT count(t)
+                    FROM information_schema.tables t
+                    WHERE t.table_type = 'BASE TABLE'
+                        AND NOT t.table_schema LIKE 'pg_%' AND t.table_schema <> 'information_schema'
+                        AND t.table_name <> 'databasechangelog' AND t.table_name <> 'databasechangeloglock'
+                        AND NOT t.table_name LIKE '%_aud'
+                        AND NOT exists( SELECT 1
+                                        FROM aud_excluded_schemas
+                                        WHERE schema_name = t.table_schema)
+                        AND NOT exists (SELECT 1
+                                        FROM aud_excluded_tables
+                                        WHERE table_name = t.table_schema || '.' || t.table_name)
+                        AND :where
+                    ]]>
+            </n2o:count-query>
+            <n2o:alias>t</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>table_full_name</id>
+            <name>Полное наименование таблицы</name>
+            <domain>string</domain>
+            <expression>concat(t.table_schema || '.' || t.table_name)</expression>
+            <display/>
+        </field>
+        <field>
+            <id>display_name</id>
+            <name>Комментарий и полное наименование таблицы</name>
+            <domain>string</domain>
+            <expression>
+                concat(
+                   coalesce((select obj_description(concat(t.table_schema, '.', t.table_name)::regclass)), 'Не задано'),
+                   ' (', t.table_schema || '.' || t.table_name, ')'
+                )
+            </expression>
+            <display/>
+            <filters auto-generate="true">
+                <filter type="eq" filter-field="display_name">
+                    upper(:expression) like '%' || upper(:display_name) || '%'
+                </filter>
+            </filters>
+        </field>
+    </fields>
+</query>

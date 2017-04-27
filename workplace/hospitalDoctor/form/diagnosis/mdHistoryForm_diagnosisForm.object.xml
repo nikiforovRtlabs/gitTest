@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0">
+
+    <name>Диагнозы</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/hospital/medical-history/diagnosis
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="case.id" mapping="['caseId']"/>
+                <param name="stage.id" mapping="['stageId']"/>
+                <param name="main" mapping="['main']" domain="boolean"/>
+                <param name="diagnosisType.id" mapping="['typeId']"/>
+                <param name="diagnosis.id" mapping="['diagnosisId']"/>
+                <param name="diagnosis.isInjury" mapping="['diagnosisIsInjury']" domain="boolean"/>
+                <param name="diagnosisInjuryReason.id" mapping="['injuryReasonId']"/>
+                <!--<param name="diagnosis.attr*.value_id" mapping="['diagnosisAttributes']" domain="integer[]"/>-->
+                <param name="case.step.id" mapping="['stepId']"/>
+                <param name="case.patient.id" mapping="['patientId']"/>
+                <param name="diseaseType.id" mapping="['diseaseTypeId']"/>
+                <param name="note" mapping="['note']"/>
+                <param name="establishmentDate" mapping="['establishmentDate']"/>
+                <param name="employeePositionId" mapping="['employeePositionId']"/>
+                <param name="mes.id" mapping="['mesId']"/>
+                <param name="setMesByDiagnosis" mapping="['mesSetting']"/>
+                <param name="standard.id" mapping="['standardId']"/>
+                <param name="csg.id" mapping="['csgId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/hospital/medical-history/diagnosis?id={id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить диагноз ?</confirmation-text>
+        </action>
+
+        <action id="copyFromProtocol" form-submit-label="Копировать из протокола">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/hospital/medical-history/copyFromProtocol?stepId={stepId}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="case.step.id" mapping="['stepId']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="checkHistoryIsClosed" level="error" moment="before-action">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[select closing_step_id is null from mc_case where id = :caseId]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="case.id" mapping="['caseId']" required="false"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Для внесения изменений в историю болезни необходимо отменить выписку из стационара</message>
+        </constraint>
+    </validations>
+
+</object>

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Заявка на плановую госпитализацию</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить" name="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/hospital/reservation
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+
+                <param name="rreferral.id" mapping="['referralId']" domain="integer"/>
+                <param name="referralOrganizationRole.id" mapping="['referralOrganizationRoleId']" domain="integer"/>
+                <param name="referralOrganization.id" mapping="['referralOrganizationId']" domain="integer"/>
+                <param name="refDepartment.id" mapping="['referralDepartmentId']" domain="integer"/>
+                <param name="referralDate" mapping="['referralDate']" domain="date"/>
+                <param name="orderNumber" mapping="['orderNumber']" domain="string"/>
+                <param name="referralDiagnosis.id" mapping="['referralDiagnosisId']" domain="integer"/>
+                <param name="referralDiagnosisComment" mapping="['referralDiagnosisComment']" domain="string"/>
+
+                <param name="clinicId" mapping="['clinicId']" domain="integer"/>
+                <param name="plannedDate" mapping="['plannedDate']" domain="date"/>
+                <param name="department.id" mapping="['departmentId']" domain="integer"/>
+                <param name="regimen.id" mapping="['regimenId']" domain="integer"/>
+                <param name="profile.id" mapping="['profileId']" domain="integer"/>
+                <param name="bedProfile.id" mapping="['bedProfileId']" domain="integer"/>
+                <param name="duration" mapping="['numberOfDays']" domain="integer"/>
+                <param name="issuePlannedDate" mapping="['issuePlannedDate']" domain="date"/>
+                <param name="financialType.id" mapping="['financialTypeId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="referralIsAlreadyInUse"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/hospital/reservation
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены, что хотите удалить направление?</confirmation-text>
+        </action>
+
+        <action id="setStatusNotConfirm" form-submit-label="Не подтверждена" name="Не подтверждена">
+            <invocation>
+                <sql:sql>
+                    update hospital.reservation__status set
+                    status_id = 2
+                    where reservation_id = :reservation_id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['reservation_id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="setStatusConfirm" form-submit-label="Подтверждена" name="Подтверждена">
+            <invocation>
+                <sql:sql>
+                    update hospital.reservation__status set
+                        status_id = 3,
+                        begin_dt = now()
+                        where reservation_id = :reservation_id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['reservation_id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+    </actions>
+
+    <validations>
+
+        <condition id="durationValueValidation" level="error">
+            <message>Введенное значение должно быть числом</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]+\$');
+                regex.test(duration);
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="referralIsAlreadyInUse" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*) from hsp_reservation where referral_id = :referralId and (:reservation.id is null or id != :reservation.id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="rreferral.id" mapping="['referralId']"/>
+                <param name="id" mapping="['reservation.id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Указанное направление уже используется в другой заявке на госпитализацию</message>
+        </constraint>
+
+        <condition id="plannedDateCheck" level="error">
+            <message>Дата плановой госпитализации не может быть раньше текущей</message>
+            <expression><![CDATA[
+            if(plannedDate == null){
+                true;
+             } else {
+                (moment(plannedDate, 'DD.MM.YYYY HH:mm')>=moment(today(), 'DD.MM.YYYY HH:mm'));
+            }]]></expression>
+        </condition>
+
+        <constraint id="bedCountCheck" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select case when :departmentId is null or :bedProfileId is null then true
+                        else (select count(*) from md_bed b
+                        join pim_room r on r.id = b.room_id
+                        join pim_department dep on dep.id = r.department_id
+                        join md_bed_profile bp on bp.id = b.bed_profile_id
+                        where dep.id = :departmentId and bp.id = :bedProfileId
+                        and '3' = (select sus.code from md_bed_state bs
+                        join pim_stock_unit_state sus on sus.id = bs.state_id
+                        where bs.bed_id = b.id and bs.from_dt <= now() order by bs.from_dt desc limit 1)) >
+                        (select count(*) from hsp_reservation hr where hr.department_id = :departmentId
+                        and hr.bed_profile_id = :bedProfileId and (:reservation.id is null or id != :reservation.id))
+                        end
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="bedProfile.id" mapping="['bedProfileId']" domain="integer"/>
+                <param name="department.id" mapping="['departmentId']" domain="integer"/>
+                <param name="id" mapping="['reservation.id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Количество запланированных пациентов превышает количество койко-мест на указанную дату</message>
+        </constraint>
+    </validations>
+
+</object>

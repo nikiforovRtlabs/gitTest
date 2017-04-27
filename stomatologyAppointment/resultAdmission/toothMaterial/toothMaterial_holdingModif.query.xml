@@ -1,0 +1,65 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>inventory_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.hold_modif m
+                left join inventory.holding h on h.id = m.holding_id
+                left join inventory.commodity_group cg on cg.id = h.commodity_group_id
+                left join public.cmn_measure cm on cm.id = m.mnei_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(m)
+                from inventory.hold_modif m
+                left join inventory.holding h on h.id = m.holding_id
+                left join inventory.commodity_group cg on cg.id = h.commodity_group_id
+                left join public.cmn_measure cm on cm.id = m.mnei_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>m</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <search>translate(upper(m.name),',. ','') like '%'||translate(upper(:name),',. ','')||'%'</search>
+            <sorting>upper(m.name)=upper(:name) desc , upper(:name) like substr(upper(m.name), 0,position(' ' IN m.name))||'%' desc, upper(m.name) like upper(:name)||'%' desc, upper(m.name) like '%'||upper(:name)</sorting>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>m.org_owner_id</expression>
+            <search value="#{org.id?}">(:expression = :org.id or :org.id is null)</search>
+        </field>
+        <field>
+            <id>holding.id</id>
+            <domain>integer</domain>
+            <expression>m.holding_id</expression>
+            <search>(:expression = :holding.id or :holding.id is null)</search>
+        </field>
+        <field>
+            <id>commodityGroup.id</id>
+            <domain>integer</domain>
+            <expression>cg.id</expression>
+            <search type="eq">cg.id = :commodityGroup.id</search>
+        </field>
+        <field>
+            <id>cmnMeasureId</id>
+            <domain>integer</domain>
+            <expression>cm.id</expression>
+        </field>
+        <field>
+            <id>cmnMeasure</id>
+            <domain>object</domain>
+            <expression>(select row_to_json(r) from(select cm.id as id, cm.name as name) as r)</expression>
+        </field>
+    </fields>
+</query>

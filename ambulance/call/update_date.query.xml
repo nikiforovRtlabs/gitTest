@@ -1,0 +1,529 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>update_date</id>-->
+    <name>Редактирование полей</name>
+    <object-id>update_date</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.md_ambulance_call cal
+                <!--для результата-->
+                left join amb.md_ambulance_call_result cr on cr.id = cal.id
+                left join mc_case cas on cas.id = cr.case_id
+                left join mc_step step on step.id = cas.closing_step_id
+                <!--смена для определения смены бригады спц-->
+                <!--должно вычисляться по бригаде, обслужившей вызов-->
+                join amb.md_ambulance_change mac on mac.id = coalesce((select change_id from amb.sr_res_team_job where id = cal.brg_id),cal.call_dt)
+                <!--вид-->
+                <!--left join amb.md_ambulance_call_kind ck on ck.id = cal.call_kind_id-->
+                <!--тип-->
+                <!--left join amb.md_ambulance_call_type act on act.id = cal.call_type_id-->
+                <!--регистратор КТ-->
+                <!--left join pim_employee_position pep on pep.id = cal.registrator_id-->
+                <!--left join pim_employee pe on pe.id = pep.employee_id-->
+                <!--left join pim_individual pi on pi.id = pe.individual_id-->
+                <!--left join pim_position ppos on ppos.id = pep.position_id-->
+
+                <!--обслужили вызов-->
+                    <!--новое определение бригады-->
+                    <!--left join sr_srv_rendered ssren on ssren.id = cr.srv_rendered_id-->
+                    <!--left join sr_res_group srg on srg.id = ssren.res_group_id-->
+                <!--бригада наверно иначе, пока не знаю точно как-->
+                left join amb.sr_res_team_job srtj on srtj.id =cal.brg_id
+                left join amb.sr_res_team srt on srt.id =srtj.team_id
+                left join sr_res_group srg on srt.resource_id = srg.id
+
+                <!--сотрудник (для амбулаторного)-->
+                left join amb.sr_res_team_job_resourse srtjr on srtjr.id = cal.emp_id
+                left join sr_resource sr on sr.id = srtjr.resource_id
+                left join sr_res_kind srk on srk.id = sr.res_kind_id
+                left join pim_employee_position_resource respepr on respepr.id = sr.id
+                left join pim_employee_position respep on respep.id = respepr.employee_position_id
+                left join pim_employee respe on respe.id = respep.employee_id
+                left join pim_individual respi on respi.id = respe.individual_id
+                left join pim_position resppos on resppos.id = respep.position_id
+                left join pim_organization resemppo on resemppo.id = respe.organization_id
+                <!--способ передачи-->
+                <!--left join amb.md_ambulance_transmit_state ts on ts.id = cr.transmit_state_id-->
+
+                <!--адрес вызова-->
+                <!--left join amb.md_ambulance_call_place pl on pl.id = cal.call_place_id-->
+                <!--left join pim_organization plorg on plorg.id = cal.place_org_id-->
+                <!--left join pim_department pldep on pldep.id = cal.place_department_id-->
+                <!--left join address_element ael on ael.id = cal.address_id-->
+                <!--left join address_element_data aed on aed.id = ael.id-->
+                <!--вызывает-->
+                <!--left join amb.md_ambulance_caller ac on ac.id = cal.caller_id-->
+                <!--left join pim_employee caleremp on caleremp.id = cal.employee_id-->
+                <!--left join pim_individual calerind on calerind.id = caleremp.individual_id-->
+                <!--пациент-->
+                <!--left join pci_patient pcp on pcp.id = cal.patient_id-->
+                <!--left join pim_individual pip on pip.id = pcp.id-->
+                <!--left join pim_gender pg on pg.id = pip.gender_id-->
+                <!--left join md_soc_group sg on sg.id = pcp.social_group_id-->
+                <!--left join md_soc_group casesg on casesg.id = cas.soc_group_id-->
+                <!--left join pci_patient_part_case pppc on pppc.patient_id = pcp.id-->
+                <!--left join pci_part_case pcase on pcase.id = pppc.part_case_id-->
+                <!--!-->
+                <!--документы-->
+                <!--left join pim_individual_doc idoc on idoc.indiv_id = pip.id and idoc.is_active is true and idoc.type_id in (select type_id from pim_doc_type_category where category_id = 1)-->
+                <!--left join pim_doc_type doct on doct.id = idoc.type_id-->
+                <!--left join pim_doc_type_category dtc on dtc.type_id = doct.id-->
+                <!--left join pim_indiv_code pic on pic.indiv_id = cal.patient_id and pic.type_id = (select id from pim_code_type where code='ENP')-->
+
+                <!--left join amb.pim_citizenship_type ship on ship.id = cr.citizenship_type_id-->
+
+                <!--!-->
+                <!--диагноз-->
+                <!--основной-->
+                <!--left join mc_diagnosis masterd on masterd.id = step.main_diagnosis_id-->
+                <!--left join md_diagnosis masterdiag on masterdiag.id = masterd.diagnos_id-->
+                <!--left join mc_disease_type mdist on mdist.id = masterd.disease_type_id-->
+                <!--будет потом иначе, пока просто для создания выборки - не иначе, всё как надо-->
+                <!--сопутствующий-->
+                <!--left join mc_diagnosis accompd on accompd.case_id = cas.id and  accompd.is_main is false-->
+                <!--left join md_diagnosis accompdiag on accompdiag.id = accompd.diagnos_id-->
+                <!--left join mc_disease_type accompdist on accompdist.id = accompd.disease_type_id-->
+                <!--результат (какой ещё параметр для однозначного определения, что данное значение для скорой) -->
+                <!--left join mc_step_result stepres on stepres.id = step.result_id and stepres.is_closed is true-->
+                <!--left join mc_step_care_result careres on careres.id = step.outcome_id-->
+                <!--вызов-->
+                <!--left join amb.md_ambulance_caller_reason crea on crea.id = cal.caller_reason_id-->
+                <!--left join amb.md_ambulance_call_reason macr on macr.id = cr.call_reason_id-->
+                <!--left join amb.md_ambulance_reason_accident mara on mara.id = cr.reason_accident_id-->
+                <!--left join md_diagnosis dia on dia.id = cal.reason_diag-->
+                <!--времени с начала заболевания-->
+                <!--left join mc_time_gone tgone on tgone.id = cas.time_gone_id-->
+
+                <!--join md_clinic mc on mc.id = cal.station_id-->
+                <!--join pim_organization po on po.id = mc.id-->
+                <!--join pim_party_address ppa on po.id = ppa.party_id-->
+                <!--join pim_party_addr_to_addr_type ppatat on ppa.id = ppatat.party_address_id and ppatat.address_type_id = 6-->
+                <!--join address_element_data stael on ppa.addr_id = stael.id-->
+
+                <!--left join amb.md_ambulance_route rou on rou.id = cal.route_id-->
+                <!--join pim_department pd on pd.id = cal.substation_id-->
+                <!--left join md_department_address pda on pda.dep_id = pd.id and pda.is_display = true-->
+                <!--left join address_element_data substaed on substaed.id = pda.addr_id-->
+
+                <!--Диспетчер направления-->
+                <!--left join amb.md_ambcall_state_history mash on mash.call_id = cal.id and mash.state_id = (select id from amb.md_ambulance_call_state where code = '4')-->
+                <!--left join pim_employee_position routepep on routepep.id = mash.registrator_id -->
+                <!--left join pim_employee routepe on routepe.id = routepep.employee_id-->
+                <!--left join pim_individual routepi on routepi.id = routepe.individual_id-->
+                <!--left join pim_position routeppos on routeppos.id = routepep.position_id-->
+                <!--left join amb.md_ambulance_out_delay_reason delres on delres.id = cr.out_delay_reason_id-->
+                <!--рекомендации-->
+                <!--посещение врачом поликлиники-->
+                <!--left join md_clinic policl on policl.id = cr.activ_visit_clinic_id-->
+                <!--left join pim_organization poliorg on poliorg.id = policl.id-->
+                <!--результат: Доставлен в больницу-->
+                <!--госпитализация-->
+                <!--left join pim_organization tplorg on tplorg.id = cal.to_org_id-->
+                <!--left join pim_department tpldep on tpldep.id = cal.to_department_id-->
+                <!--left join address_element toael on toael.id = cal.to_address_id-->
+                <!--left join address_element_data toaed on toaed.id = toael.id-->
+                <!--Диагноз приёмного отделения-->
+                <!--сомнения вызывает, т.к. скорее всего надо тащить по другому: из случая уже для приема в МО-->
+                <!--left join mc_diagnosis clind on clind.id = cr.receive_mkb_id and clind.stage_id = 2-->
+                <!--left join md_diagnosis clinddiag on clinddiag.id = clind.diagnos_id-->
+                <!--способ транспортировки-->
+                <!--left join mc_transporting_type tt on tt.id = cas.transporting_type_id-->
+                <!--Дежурный врач-->
+                <!--left join pim_employee_position toclpep on toclpep.id = cr.receive_emp_id-->
+                <!--left join pim_employee toclpe on toclpe.id = toclpep.employee_id-->
+                <!--left join pim_individual toclpi on toclpi.id = toclpe.individual_id-->
+                <!--left join pim_position toclppos on toclppos.id = toclpep.position_id-->
+                <!--смерть-->
+                <!--left join md_diagnosis deathdiag on deathdiag.id = cas.death_reason_diagnosis_id-->
+                <!--left join pim_employee_position deathpep on deathpep.id = step.death_employee_id-->
+                <!--left join pim_employee deathpe on deathpe.id = deathpep.employee_id-->
+                <!--left join pim_individual deathpi on deathpi.id = deathpe.individual_id-->
+                <!--left join pim_position deathppos on deathppos.id = deathpep.position_id-->
+                <!--видимо для протоколов-->
+                <!--left join sr_srv_rendered ssr on ssr.id = cr.srv_rendered_id-->
+                <!--left join md_srv_protocol sp on sp.srv_rendered_id = cr.srv_rendered_id-->
+                <!--left join md_ehr_protocol p on p.id = sp.protocol_id and lower(template_path) like '%emergency call card%'-->
+
+                <!--регистратор КВ-->
+                <!--join pim_employee_position kvpep on kvpep.id = cr.registrator_id-->
+                <!--join pim_employee kvpe on kvpe.id = kvpep.employee_id-->
+                <!--join pim_individual kvpi on kvpi.id = kvpe.individual_id-->
+                <!--join pim_position kvppos on kvppos.id = kvpep.position_id-->
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select 1
+            </n2o:count-query>
+            <n2o:alias>cal</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>cal.id</expression>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>integer</domain>
+            <name>Номер</name>
+            <expression>cal.call_number</expression>
+        </field>
+
+        <!--смена-->
+        <field>
+            <id>change.id</id>
+            <domain>integer</domain>
+            <expression>mac.id</expression>
+        </field>
+        <field>
+            <id>change.data</id>
+            <domain>date</domain>
+            <name>Смена</name>
+            <expression>cast(mac.from_data as date)</expression>
+        </field>
+        <!--вид-->
+        <!--<field>-->
+            <!--<id>call_kind.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>ck.id</expression>-->
+        <!--</field>-->
+        <!--тип-->
+        <!--<field>-->
+            <!--<id>call_type.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>act.id</expression>-->
+        <!--</field>-->
+
+        <!--регистратор-->
+        <!--<field>-->
+            <!--<id>employee.id</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Принял</name>-->
+            <!--<expression>pep.id</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>employee.nameP</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Принял</name>-->
+            <!--<expression>-->
+                <!--<![CDATA[-->
+                <!--pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||case when pep.code is not null and pep.code <> '' then pep.code else cast(pep.id as varchar(10)) end||')'-->
+                <!--]]>-->
+            <!--</expression>-->
+        <!--</field>-->
+        <!--обслужили вызов-->
+        <!--бригада наверно иначе, пока не знаю точно как пока для формирования страницы этого достаточно-->
+        <field>
+            <id>brg.id</id>
+            <domain>integer</domain>
+            <expression>srtj.id</expression>
+        </field>
+        <field>
+            <id>brg.name</id>
+            <domain>string</domain>
+            <name>Бригада</name>
+            <expression>srg.name</expression>
+        </field>
+        <!--сотрудник (для амбулаторного)-->
+        <field>
+            <id>emp.id</id>
+            <domain>integer</domain>
+            <expression>srtjr.id</expression>
+        </field>
+        <field>
+            <id>emp.res_name</id>
+            <domain>string</domain>
+            <name>Сотрудник</name>
+            <expression>respep.id||': '||respi.surname||' '||left(initcap(respi.name),1)||'. '||left(initcap(respi.patr_name),1)||'.'||'('||resppos.name||')'</expression>
+        </field>
+
+        <!--способ передачи-->
+        <!--<field>-->
+            <!--<id>transmit.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>ts.id</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>transmit.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Способ передачи</name>-->
+            <!--<expression>ts.name</expression>-->
+        <!--</field>-->
+        <!--время - вычисляемые поля-->
+        <field>
+            <id>from_time</id>
+            <domain>date</domain>
+            <name>Принят</name>
+            <expression>cal.from_time</expression>
+        </field>
+        <field>
+            <id>receipt_time</id>
+            <domain>string</domain>
+            <name>Время приема</name>
+            <expression>to_char(cal.from_time,'hh24:mi')</expression>
+        </field>
+        <field>
+            <id>transmit_time</id>
+            <domain>string</domain>
+            <name>Передан бригаде</name>
+            <expression>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '5' and mash.call_id = cal.id
+                    order by mash.date_time desc limit 1) is not null
+                then
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '5' and mash.call_id = cal.id
+                    order by mash.date_time desc limit 1)
+                else
+                    <!--'00:00'-->
+                    null
+                end
+            </expression>
+        </field>
+        <field>
+            <id>exit_time</id>
+            <domain>string</domain>
+            <name>Выезд с п/ст</name>
+            <expression>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '6' and mash.call_id = cal.id
+                    order by mash.date_time desc limit 1) is not null
+                then
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '6' and mash.call_id = cal.id
+                    order by mash.date_time desc limit 1)
+                else
+                    null
+                    <!--'00:00'-->
+                end
+            </expression>
+        </field>
+        <field>
+            <id>coming_time</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Прибытие на вызов</name>
+            <!--<expression>case when macs.e_code = '7' then cast(mash.date_time as time) else cast('00:00:00' as time) end</expression>-->
+            <expression>
+                case when
+                (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                else
+                null
+                <!--'00:00'-->
+                end
+            </expression>
+        </field>
+        <field>
+            <id>transportation_time</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Начало транспортировки</name>
+            <!--<expression>case when macs.e_code = '8' then cast(mash.date_time as time) else cast('00:00:00' as time) end</expression>-->
+            <expression>
+                case when
+                (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '8' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '8' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                else
+                null
+                <!--'00:00'-->
+                end
+            </expression>
+        </field>
+        <field>
+            <id>toclinic_time</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Прибытие в МО</name>
+            <!--<expression>case when macs.e_code = '9' then cast(mash.date_time as time) else cast('00:00:00' as time) end</expression>-->
+            <expression>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '9' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '9' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                else
+                    null
+                    <!--'00:00'-->
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>time_toclinic</id>
+            <domain>string</domain>
+            <name>Дата/время приёма больного в МО</name>
+            <expression>to_char(step.outcome_time,'HH24:MI')</expression>
+        </field>
+
+        <field>
+            <id>time_transmit</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Ожидание бригады</name>
+            <display>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                    to_char((select date_time from amb.md_ambcall_state_history mash
+                            left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                            where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) - cal.from_time,'hh24:mi')
+                else
+                    null
+                    <!--'00:00'-->
+                end
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>time_arrival</id>
+            <domain>string</domain>
+            <name>Доезд</name>
+            <display>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                    to_char(
+                            (select date_time from amb.md_ambcall_state_history mash
+                            left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                            where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) -
+                            (select date_time from amb.md_ambcall_state_history mash
+                            left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                            where macs.code = '5' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                            ,'hh24:mi')
+                else
+                    null
+                end
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>time_patient</id>
+            <domain>string</domain>
+            <name>У больного</name>
+            <display>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                    to_char(
+                        cal.to_time -
+                        (select date_time from amb.md_ambcall_state_history mash
+                        left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                        where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                        ,'hh24:mi')
+                else
+                    null
+                end
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>end_time</id>
+            <domain>string</domain>
+            <name>Окончание вызова</name>
+            <expression>to_char(cal.to_time,'hh24:mi')</expression>
+        </field>
+        <field>
+            <id>tosubstation_time</id>
+            <domain>string</domain>
+            <name>Возвращение на п/ст</name>
+            <expression>
+                case when
+                (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '11' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '11' and mash.call_id = cal.id
+                    order by mash.date_time desc limit 1)
+                else
+                    null
+                end
+            </expression>
+        </field>
+        <field>
+            <id>death_date</id>
+            <domain>date</domain>
+            <name>Констатация смерти</name>
+            <expression>step.death_date</expression>
+        </field>
+        <field>
+            <id>death_time</id>
+            <domain>string</domain>
+            <name>Констатация смерти</name>
+            <expression>
+                case when step.death_time is not null
+                then to_char(step.death_time,'hh24:mi')
+                else null
+                end
+            </expression>
+        </field>
+
+        <!--Длительность вызова-->
+        <field>
+            <id>calltime</id>
+            <domain>string</domain>
+            <name>Длительность</name>
+            <expression>to_char((cal.to_time - cal.from_time),'hh24:mi')</expression>
+        </field>
+
+        <field>
+            <id>call_data</id>
+            <domain>date</domain>
+            <name>дата</name>
+            <expression>cast(cal.from_time as date)</expression>
+        </field>
+
+    </fields>
+</query>

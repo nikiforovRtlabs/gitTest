@@ -1,0 +1,115 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>statMap_srvRendered</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_srv_rendered msr
+                inner join sr_srv_rendered ssr on ssr.id = msr.id
+                inner join sr_service s on s.id = ssr.service_id
+                left outer join fin_funding_source_type f on f.id = ssr.funding_id
+                left outer join sr_res_group res_group on res_group.id = ssr.res_group_id
+                left outer join pim_employee_position empl_posit on empl_posit.id = res_group.responsible_id
+                left outer join pim_employee empl on empl.id = empl_posit.employee_id
+                left outer join pim_individual render_doctor_ind on render_doctor_ind.id = empl.individual_id
+                where s.type_id = 3 and :where
+                order by :order, msr.id
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(msr)
+                from md_srv_rendered msr
+                inner join sr_srv_rendered ssr on ssr.id = msr.id
+                inner join sr_service s on s.id = ssr.service_id
+                left outer join fin_funding_source_type f on f.id = ssr.funding_id
+                left outer join sr_res_group res_group on res_group.id = ssr.res_group_id
+                left outer join pim_employee_position empl_posit on empl_posit.id = res_group.responsible_id
+                left outer join pim_employee empl on empl.id = empl_posit.employee_id
+                left outer join pim_individual render_doctor_ind on render_doctor_ind.id = empl.individual_id
+                where s.type_id = 3 and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>id</name>
+            <expression>msr.id</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>msr.case_id</expression>
+            <search>msr.case_id = :caseId</search>
+        </field>
+
+        <!--Дата операции-->
+        <field>
+            <id>bdate</id>
+            <domain>date</domain>
+            <name>Дата операции</name>
+            <expression>ssr.bdate</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <!--Отделение-->
+        <field>
+            <id>department</id>
+            <domain>string</domain>
+            <name>Отделение</name>
+            <expression>
+                (select d.name from hsp_record r
+                inner join pim_department d on r.id = msr.step_id and d.id = r.department_id)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <!--Операция-->
+        <field>
+            <id>serviceNameCode</id>
+            <domain>string</domain>
+            <name>Операция</name>
+            <expression>coalesce(s.code,'') || ' ' ||  s.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <!--Хирург-->
+        <field>
+            <id>renderedDoctor</id>
+            <domain>string</domain>
+            <name>Оказал</name>
+            <expression>
+                coalesce(render_doctor_ind.surname, '') || ' '
+                || case coalesce(substring(render_doctor_ind.name for 1), '') when '' then '' else substring(render_doctor_ind.name for 1) || '.' end
+                || ' ' || case coalesce(substring(render_doctor_ind.patr_name for 1), '') when '' then '' else substring(render_doctor_ind.patr_name for 1) || '.' end
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <!--Оплата-->
+        <field>
+            <id>finFundingSource</id>
+            <domain>string</domain>
+            <name>Оплата</name>
+            <expression>f.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>employeePositionUserId</id>
+            <domain>integer</domain>
+            <expression>empl_posit.id</expression>
+        </field>
+
+    </fields>
+
+
+</query>

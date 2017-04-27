@@ -1,0 +1,242 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>arrSpecification</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select from ( select s.id specId, (s.status_id=2) isExecuted, s.doc_id docId, s.series series,
+                s.expire_dt expireDate, s.country_id countryId,s.vat vat,s.producer_id producerId,
+                s.production_date prodDate, s.hold_modif_id modifId,
+                m.name modifName,mes.mnemocode modifMNEI,
+                coalesce(m.mnei_count_in_sec_pk,1) countInSecPack,
+                s.certificate certificate,s.amount_vat amountVat,
+                s.amount_vat/(1+coalesce(s.vat,0)*0.01) amount,
+                s.price_vat priceVat,s.price_vat/(1+coalesce(s.vat,0)*0.01) price,
+                s.quantity quantity, s.mnei_quantity mneiQuantity,
+                s.status_id statusId,i.doc_status_id docStatusId,ai.base_doc_id contractId,i.int_doc_dt docDate,
+                s.contract_spec_id contractSpecId,fs.price contractSpecPrice,
+                s.margin margin, s.price_with_margin priceWithMargin,s.amount_with_margin amountWithMargin,
+
+                case when m.price_unit_flag=2
+                then (select c.name from cmn_measure c where c.id=m.sec_pack_unit_id)
+                else
+                case when m.price_unit_flag=1
+                then (select c.name from cmn_measure c where c.id=m.extra_pack_unit_id)
+                else (select c.name from cmn_measure c where c.id=m.mnei_id)
+                end
+                end unitName,
+
+                (select coalesce(sum(arr.quantity),0) from inventory.arrival_spec arr
+                where arr.status_id=2 and arr.contract_spec_id = s.id)  deliveredQuantity,
+                fs.quantity contrSpecQuantity
+                from inventory.arrival_spec s
+                left  outer join inventory.hold_modif m on m.id=s.hold_modif_id
+                left  join  inventory.document i on i.id=s.doc_id
+                inner join inventory.arrival_invoice ai on ai.id=i.id
+                left  outer join inventory.fin_contract_spec fs on fs.id=s.contract_spec_id
+                left  outer join cmn_measure mes on mes.id=m.mnei_id) spec
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select 1</n2o:count-query>
+            <n2o:alias>spec</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>specId</expression>
+        </field>
+        <field>
+            <id>isExecuted</id>
+            <domain>boolean</domain>
+            <expression>isExecuted</expression>
+        </field>
+        <field>
+            <id>doc.id</id>
+            <domain>integer</domain>
+            <expression>docId</expression>
+        </field>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <expression>series</expression>
+        </field>
+        <field>
+            <id>expireDate</id>
+            <domain>date</domain>
+            <expression>expireDate</expression>
+        </field>
+        <field>
+            <id>country.id</id>
+            <domain>integer</domain>
+            <expression>countryId</expression>
+        </field>
+        <field>
+            <id>vat</id>
+            <domain>integer</domain>
+            <expression>vat</expression>
+        </field>
+        <field>
+            <id>producer.id</id>
+            <domain>integer</domain>
+            <expression>producerId</expression>
+        </field>
+        <field>
+            <id>prodDate</id>
+            <domain>date</domain>
+            <expression>prodDate</expression>
+        </field>
+        <field>
+            <id>modif.id</id>
+            <domain>integer</domain>
+            <expression>modifId</expression>
+        </field>
+        <field>
+            <id>modif.name</id>
+            <domain>string</domain>
+            <expression>modifName</expression>
+        </field>
+        <field>
+            <id>modif.unitName</id>
+            <domain>string</domain>
+            <expression>unitName</expression>
+        </field>
+        <field>
+            <id>modif.MNEI</id>
+            <domain>string</domain>
+            <expression>modifMNEI</expression>
+        </field>
+        <field>
+            <id>modif.countInMNEI</id>
+            <domain>integer</domain>
+            <expression>countInSecPack</expression>
+        </field>
+        <field>
+            <id>certificate</id>
+            <domain>string</domain>
+            <expression>certificate</expression>
+        </field>
+        <field>
+            <id>amountWithVat</id>
+            <domain>string</domain>
+            <expression>amountVat</expression>
+        </field>
+        <field>
+            <id>amount</id>
+            <domain>string</domain>
+            <expression>amount</expression>
+        </field>
+        <field>
+            <id>priceWithVat</id>
+            <domain>string</domain>
+            <expression>priceVat</expression>
+        </field>
+        <field>
+            <id>price</id>
+            <domain>string</domain>
+            <expression>price</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>integer</domain>
+            <expression>ceil(quantity)</expression>
+        </field>
+        <field>
+            <id>mneiQuantity</id>
+            <domain>integer</domain>
+            <expression>ceil(mneiQuantity)</expression>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>statusId</expression>
+        </field>
+        <field>
+            <id>docStatus.id</id>
+            <domain>integer</domain>
+            <expression>docStatusId</expression>
+        </field>
+        <field>
+            <id>contract.id</id>
+            <domain>integer</domain>
+            <expression>contractId</expression>
+        </field>
+        <field>
+            <id>doc.date</id>
+            <domain>date</domain>
+            <expression>docDate</expression>
+        </field>
+        <field>
+            <id>contractSpec.id</id>
+            <domain>integer</domain>
+            <expression>contractSpecId</expression>
+        </field>
+        <field>
+            <id>priceFromContract</id>
+            <domain>string</domain>
+            <expression>contractSpecPrice</expression>
+        </field>
+        <field>
+            <id>isSingleDrugSupplyContract</id>
+            <domain>boolean</domain>
+            <expression>coalesce((select t.code from fin_contract c inner join fin_contract_type t on t.id=c.type_id where c.id=contractId)='SINGLE_DRUG_SUPPLY',false)
+            </expression>
+        </field>
+        <field>
+            <id>margin</id>
+            <domain>integer</domain>
+            <expression>margin</expression>
+        </field>
+        <field>
+            <id>priceWithMargin</id>
+            <domain>string</domain>
+            <expression>priceWithMargin</expression>
+        </field>
+        <field>
+            <id>amountWithMargin</id>
+            <domain>string</domain>
+            <expression>amountWithMargin</expression>
+        </field>
+        <field>
+            <id>deliveredQuantity</id>
+            <domain>string</domain>
+            <expression>'Поставлено: '||trim(to_char(deliveredQuantity, 'FM9999990.999999'), '.')||' '||unitName
+            </expression>
+        </field>
+        <field>
+            <id>restQuantityStr</id>
+            <domain>string</domain>
+            <expression>
+                <![CDATA[
+                        case when contrSpecQuantity - deliveredQuantity < 0
+                        then 'Остаток: 0'||' '||unitName
+                        else
+                         'Остаток: '||trim(to_char(contrSpecQuantity - deliveredQuantity, 'FM9999990.999999'), '.')||' '||unitName
+                        end
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>restQuantity</id>
+            <domain>string</domain>
+            <expression>
+                <![CDATA[
+                        case when contrSpecQuantity - deliveredQuantity < 0
+                        then 0
+                        else
+                           contrSpecQuantity - deliveredQuantity
+                        end
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>deliveredMoreThenNeed</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[contrSpecQuantity - deliveredQuantity < 0]]>
+            </expression>
+        </field>
+    </fields>
+</query>

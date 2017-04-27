@@ -1,0 +1,256 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <name>Информация о бригаде</name>
+    <object-id>brg_journal</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query><![CDATA[
+                select :select
+                from amb.md_ambulance_call cal
+                join amb.md_ambulance_change mac on mac.id = cal.call_dt
+                join amb.md_ambulance_call_kind ck on ck.id = cal.call_kind_id
+                join amb.md_ambulance_call_type ct on ct.id = cal.call_type_id
+
+                left join amb.md_ambulance_caller_reason cr on cr.id = cal.caller_reason_id
+                left join amb.md_ambulance_call_reason macr on macr.id = cr.call_reason_id
+                left join amb.md_ambulance_reason_accident mara on mara.id = cr.reason_accident_id
+                left join md_diagnosis dia on dia.id = cal.reason_diag
+
+                left join address_element ael on ael.id = cal.address_id
+                left join address_element_type aet on aet.id = ael.type_id
+
+                join pim_individual pip on pip.id = cal.patient_id
+                JOIN LATERAL ( SELECT
+                                CASE
+                                    WHEN (COALESCE(t.age_yy, 0) = 0) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) < 1) THEN tdd.day_str
+                                        ELSE tmm.month_str
+                                    END
+                                    WHEN (COALESCE(t.age_yy, 0) < 3) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) = 0) THEN tyy.year_str
+                                        ELSE concat(tyy.year_str, ' ', tmm.month_str)
+                                    END
+                                    ELSE tyy.year_str
+                                END AS age_txt,
+                            NULL::integer AS age_sort
+                           FROM (((( SELECT COALESCE((date_part('year'::text, t_1.age))::integer, pip.age_year) AS age_yy,
+                                    COALESCE((date_part('month'::text, t_1.age))::integer, pip.age_month) AS age_mm,
+                                    COALESCE((date_part('day'::text, t_1.age))::integer, pip.age_day) AS age_dd
+                                   FROM ( SELECT age((COALESCE((pip.death_dt)::date, ('now'::text)::date))::timestamp with time zone, (pip.birth_dt)::timestamp with time zone) AS age) t_1) t
+                             LEFT JOIN LATERAL ( SELECT format('%s %s.'::text, t.age_yy,
+                                        CASE
+                                            WHEN ((t.age_yy <> ALL (ARRAY[11, 12, 13, 14])) AND ((t.age_yy % 10) = ANY (ARRAY[1, 2, 3, 4]))) THEN 'г'::text
+                                            ELSE 'л'::text
+                                        END) AS year_str
+                                  WHERE (t.age_yy IS NOT NULL)
+                                 LIMIT 1) tyy ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s мес.'::text, t.age_mm) AS month_str
+                                  WHERE (t.age_mm IS NOT NULL)
+                                 LIMIT 1) tmm ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s дн.'::text, t.age_dd) AS day_str
+                                  WHERE (t.age_dd IS NOT NULL)
+                                 LIMIT 1) tdd ON (true))
+                         LIMIT 1) p_age on TRUE
+
+                join pim_employee_position pep on pep.id = cal.registrator_id
+                join pim_employee pe on pe.id = pep.employee_id
+                join pim_individual pi on pi.id = pe.individual_id
+                join pim_position ppos on ppos.id = pep.position_id
+                left join pim_gender pg on pg.id = pip.gender_id
+
+                left join amb.sr_res_team_job srtj on srtj.id = cal.brg_id
+                left join amb.sr_res_team srt on srt.id = srtj.team_id
+                left join sr_res_group srg on srg.id = srt.resource_id
+                join amb.md_ambcall_state_history mash on mash.id = (select id from amb.md_ambcall_state_history where call_id = cal.id order by date_time DESC, id desc limit 1)
+
+                where :where
+                order by :order
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from amb.md_ambulance_call cal
+                join amb.md_ambulance_change mac on mac.id = cal.call_dt
+                join amb.md_ambulance_call_kind ck on ck.id = cal.call_kind_id
+                join amb.md_ambulance_call_type ct on ct.id = cal.call_type_id
+
+                left join amb.md_ambulance_caller_reason cr on cr.id = cal.caller_reason_id
+                left join amb.md_ambulance_call_reason macr on macr.id = cr.call_reason_id
+                left join amb.md_ambulance_reason_accident mara on mara.id = cr.reason_accident_id
+                left join md_diagnosis dia on dia.id = cal.reason_diag
+
+                left join address_element ael on ael.id = cal.address_id
+                left join address_element_type aet on aet.id = ael.type_id
+
+                join pim_individual pip on pip.id = cal.patient_id
+
+                join pim_employee_position pep on pep.id = cal.registrator_id
+                join pim_employee pe on pe.id = pep.employee_id
+                join pim_individual pi on pi.id = pe.individual_id
+                join pim_position ppos on ppos.id = pep.position_id
+                left join pim_gender pg on pg.id = pip.gender_id
+
+                left join amb.sr_res_team_job srtj on srtj.id = cal.brg_id
+                left join amb.sr_res_team srt on srt.id = srtj.team_id
+                left join SR_RES_GROUP srg on srg.id = srt.resource_id
+                join amb.md_ambcall_state_history mash on mash.id = (select id from amb.md_ambcall_state_history where call_id = cal.id order by date_time DESC, id desc limit 1)
+
+                where :where
+            </n2o:count-query>
+            <n2o:alias>brg</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <!--по id наряда находим все остальное для информации по текущей бригаде, нужной нам смены-->
+        <field>
+            <id>nar.id</id>
+            <domain>integer</domain>
+            <name>Наряд</name>
+            <expression>srtj.id</expression>
+            <filters>
+                <filter type="eq" filter-field="nar.id">srtj.id = :nar.id</filter>
+            </filters>
+        </field>
+        <field>
+            <id>brg.id</id>
+            <domain>integer</domain>
+            <name>Бригада</name>
+            <expression>srt.id</expression>
+        </field>
+        <!--Поля по таблице-->
+        <field>
+            <id>cal.call_number</id>
+            <domain>integer</domain>
+            <name>№№</name>
+            <expression>cal.call_number</expression>
+            <display/>
+        </field>
+        <field>
+            <id>call_kind.id</id>
+            <domain>integer</domain>
+            <expression>ck.id</expression>
+            <filters>
+                <filter type="eq" filter-field="call_kind.id">ck.id = :call_kind.id</filter>
+            </filters>
+        </field>
+        <field>
+            <id>call_kind.name</id>
+            <domain>string</domain>
+            <name>Вид</name>
+            <expression>ck.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>call_type.id</id>
+            <domain>integer</domain>
+            <expression>ct.id</expression>
+            <filters>
+                <filter type="eq" filter-field="call_type.id">ct.id = :call_type.id</filter>
+            </filters>
+        </field>
+        <field>
+            <id>call_type.name</id>
+            <domain>string</domain>
+            <name>Тип</name>
+            <expression>ct.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>cal.note</id>
+            <domain>string</domain>
+            <name>Отметки</name>
+            <expression>amb.search_call_note(cal.id)</expression>
+            <display/>
+        </field>
+        <field>
+            <id>pip.fio</id>
+            <domain>string</domain>
+            <name>ФИО</name>
+            <expression>pip.surname||' '||pip.name||' '||pip.patr_name||case when pip.birth_dt is not null then ' '||to_char(pip.birth_dt,'dd.mm.yyyy') else '' end</expression>
+            <display/>
+        </field>
+        <field>
+            <id>pip.gender</id>
+            <domain>string</domain>
+            <name>Пол</name>
+            <expression>lower(left(initcap(pg.name),1))</expression>
+            <display/>
+        </field>
+        <field>
+            <id>pip.age</id>
+            <domain>integer</domain>
+            <name>Возраст</name>
+            <expression>p_age.age_txt</expression>
+            <display/>
+        </field>
+        <field>
+            <id>cal.address</id>
+            <domain>string</domain>
+            <name>Адрес</name>
+            <expression>
+                (select aed.search_name from address_element_data aed where aed.id = cal.address_id)
+            </expression>
+            <display/>
+        </field>
+        <field>
+            <id>ftime</id>
+            <domain>string</domain>
+            <name>Принят</name>
+            <expression>to_char(cal.from_time,'dd.MM.yyyy hh24:mi')</expression>
+            <display/>
+        </field>
+        <field>
+            <id>cal.coming_time</id>
+            <domain>string</domain>
+            <name>Прибытие</name>
+            <expression>
+                case when
+                (select to_char(date_time,'dd.MM.yyyy hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                (select to_char(date_time,'dd.MM.yyyy hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                else
+                null
+                end
+            </expression>
+            <display/>
+        </field>
+        <field>
+            <id>end_date</id>
+            <domain>string</domain>
+            <name>Завершен</name>
+            <expression>to_char(cal.to_time,'dd.MM.yyyy hh24:mi')</expression>
+            <display/>
+        </field>
+        <field>
+            <id>time</id>
+            <domain>string</domain>
+            <!-- округление до минуты, если есть разница в секундах, так же как в карте вызова врача -->
+            <name>Длительность</name>
+            <expression>
+                DATE_TRUNC('minute',
+                case when(DATE_PART('seconds', cal.to_time - cal.from_time) >= 1)
+                then ((cal.to_time - cal.from_time) + interval '1 minute')
+                else cal.to_time - cal.from_time end)
+            </expression>
+            <display>to_char(:expression, 'hh24:mi')</display>
+            <!--<expression>to_char((cal.to_time - cal.from_time),'hh24:mi')</expression>-->
+            <display/>
+        </field>
+        <field>
+            <id>reason</id>
+            <domain>string</domain>
+            <name>Повод</name>
+            <expression>cr.name</expression>
+            <display/>
+        </field>
+    </fields>
+</query>

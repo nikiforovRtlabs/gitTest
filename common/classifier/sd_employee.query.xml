@@ -1,0 +1,103 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <!--<id>resource_one_job</id>-->
+    <name>Сотрудник</name>
+    <object-id>sd_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sr_resource sr
+                join sr_res_kind srk on sr.res_kind_id = srk.id
+                left join pim_employee_position_resource pepr on sr.id = pepr.id
+                left join pim_employee_position pep on pepr.employee_position_id = pep.id
+                left join pim_employee pe on pep.employee_id = pe.id
+                left join pim_individual pi on pe.individual_id = pi.id
+                left join pim_position ppos on pep.position_id = ppos.id
+                left join pim_organization emppo on ppos.organization_id = emppo.id
+                left join pim_department emppd on ppos.department_id = emppd.id
+                left join sickdoc.rf_position_link spl on spl.position_role_id = ppos.role_id
+                left join sickdoc.rf_position_name spn on spn.id = spl.position_short_name_id
+                where (srk.id = 1) and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from sr_resource sr
+                join sr_res_kind srk on sr.res_kind_id = srk.id
+                left join pim_employee_position_resource pepr on sr.id = pepr.id
+                left join pim_employee_position pep on pepr.employee_position_id = pep.id
+                left join pim_employee pe on pep.employee_id = pe.id
+                left join pim_individual pi on pe.individual_id = pi.id
+                left join pim_position ppos on pep.position_id = ppos.id
+                left join pim_organization emppo on ppos.organization_id = emppo.id
+                join pim_department emppd on ppos.department_id = emppd.id
+                left join sickdoc.rf_position_link spl on spl.position_role_id = ppos.role_id
+                left join sickdoc.rf_position_name spn on spn.id = spl.position_short_name_id
+                where (srk.id = 1) and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>pep.id</expression>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <expression>sr.code</expression>
+        </field>
+        <field>
+            <id>employeeShortPosName</id>
+            <domain>string</domain>
+            <expression>spn.name</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>coalesce(coalesce(nullif(pep.code, ''), cast(pep.id as varchar))||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||coalesce(', '||emppd.name,'')||')')</expression>
+            <search>upper(trim(coalesce(coalesce(nullif(pep.code, ''), cast(pep.id as varchar))||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||coalesce(', '||emppd.name,'')||')'))) like upper(trim('%'||:name||'%'))</search>
+        </field>
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>coalesce(ppos.organization_id, pe.organization_id)</expression>
+            <search>ppos.organization_id = :orgId </search>
+        </field>
+        <field>
+            <id>posRole.id</id>
+            <domain>integer</domain>
+            <expression>ppos.id</expression>
+        </field>
+        <field>
+            <id>resKind.name</id>
+            <domain>string</domain>
+            <expression>srk.name</expression>
+        </field>
+        <field>
+            <id>empDateFilter</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[
+                (CASE WHEN pep.end_date IS NOT NULL THEN pep.end_date >= COALESCE(:empDateFilter, pep.end_date) ELSE true END)
+                ]]>
+            </search>
+        </field>
+        <field>
+            <id>empDateFilterEnd</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[
+                pep.start_date <= COALESCE(:empDateFilterEnd, pep.start_date)
+                ]]>
+            </search>
+        </field>
+    </fields>
+</query>

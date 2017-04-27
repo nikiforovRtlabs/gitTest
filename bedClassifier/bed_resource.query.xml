@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>bed_resource</object-id>
+    <name>bed_resource</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select
+                FROM md_bed_resource r
+                    INNER JOIN md_bed b ON r.bed_id = b.id
+                    JOIN md_room room ON b.room_id = room.id
+                    LEFT OUTER JOIN md_bed_profile bp ON bp.id = b.bed_profile_id
+                WHERE b.room_id = :roomId and :where
+                ORDER BY :order
+            </n2o:items-query>
+            <n2o:count-query>
+                SELECT count(r)
+                FROM md_bed_resource r
+                    INNER JOIN md_bed b ON r.bed_id = b.id
+                    JOIN md_room room ON b.room_id = room.id
+                    LEFT OUTER JOIN md_bed_profile bp ON bp.id = b.bed_profile_id
+                WHERE b.room_id = :roomId and :where
+            </n2o:count-query>
+            <n2o:alias>r</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>
+                <![CDATA[
+                'Койка № '||b.number|| COALESCE (' - '||bp.name, '')||
+                COALESCE (( CASE WHEN
+                NOT EXISTS (
+                SELECT 1 FROM sr_res_group_relationship rgrel JOIN mc_step ON mc_step.res_group_id = rgrel.group_id WHERE rgrel.resource_id = r.id AND
+                ( NOT (:beginDate:: TIMESTAMP > rgrel.edatetime OR :endDate:: TIMESTAMP IS NOT NULL AND :endDate:: TIMESTAMP < rgrel.bdatetime)
+                OR (:endDate:: TIMESTAMP IS NULL OR :endDate:: TIMESTAMP > rgrel.bdatetime) AND rgrel.edatetime IS NULL
+                ) AND
+                (mc_step.outcome_date IS NULL OR (mc_step.outcome_date + COALESCE ( mc_step.outcome_time, '00:00:00':: TIME )) >=:beginDate:: TIMESTAMP ))
+                THEN
+                '(свободна)'
+                ELSE
+                ( SELECT '(' || COALESCE (i.surname, '') || ' '
+                || CASE COALESCE ( SUBSTRING (i.name FOR 1), '') WHEN '' THEN '' ELSE SUBSTRING (i.name FOR 1) || '.' END || ' ' || CASE COALESCE ( SUBSTRING (i.patr_name FOR 1), '') WHEN '' THEN '' ELSE SUBSTRING (i.patr_name FOR 1) || '.' END
+                || ', ' || mc_case.uid  || ')'
+                FROM sr_res_group_relationship rgrel
+                JOIN mc_step ON mc_step.res_group_id = rgrel.group_id
+                JOIN mc_case ON mc_case.id = mc_step.case_id
+                JOIN pci_patient ON pci_patient.id = mc_case.patient_id
+                JOIN pim_individual i ON i.id = pci_patient.id
+                WHERE mc_case.clinic_id = :clinicId AND rgrel.resource_id = r.id AND
+                ( NOT (:beginDate:: TIMESTAMP > rgrel.edatetime OR :endDate:: TIMESTAMP IS NOT NULL AND :endDate:: TIMESTAMP < rgrel.bdatetime)
+                OR (:endDate:: TIMESTAMP IS NULL OR :endDate:: TIMESTAMP > rgrel.bdatetime) AND rgrel.edatetime IS NULL ) ORDER BY rgrel.bdatetime DESC LIMIT 1)
+                END ), 'свободна')
+                ]]>
+            </expression>
+
+        </field>
+        <field>
+            <id>roomId</id>
+            <domain>integer</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>beginDate</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search value="null" unavailable="true"/>
+        </field>
+        <field>
+            <id>endDate</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search value="null" unavailable="true"/>
+        </field>
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search value="null" unavailable="true"/>
+        </field>
+    </fields>
+</query>

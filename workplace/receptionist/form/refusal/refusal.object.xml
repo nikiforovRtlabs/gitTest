@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+
+    <actions>
+        <action id="saveRefusal" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/hospital/hospital-case/saveRefusalForm
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="caseId" mapping="['caseId']" domain="integer"/>
+                <param name="id" mapping="['recordId']" domain="integer"/>
+                <param name="refusalDate" mapping="['refusalDate']" domain="date"/>
+                <param name="stepResultReason.id" mapping="['stepResultReasonId']" domain="integer"/>
+                <param name="stepResult.id" mapping="['stepResultId']" domain="integer"/>
+                <param name="refusalEmployee.id" mapping="['refusalEmployeeId']" domain="integer"/>
+                <param name="notice" mapping="['caseNotice']" domain="string"/>
+                <param name="outcome.id" mapping="['outcomeId']"/>
+                <param name="uid" mapping="['caseUid']" domain="string"/>
+                <param name="careRegimen.id" mapping="['careRegimenId']"/>
+                <param name="profile.id" mapping="['profileId']"/>
+                <param name="paymentMethod.id" mapping="['paymentMethodId']"/>
+                <param name="careLevel.id" mapping="['careLevelId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="checkOutcomeDate" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select (s.admission_time is not null and s.admission_date + s.admission_time <= :outcomeDate) or
+                    (s.admission_time is null and s.admission_date <= :outcomeDate)
+                    from hsp_record r
+                    inner join mc_step s on s.id = r.id
+                    where s.case_id = :caseId and r.previous_id is null;
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="refusalDate" mapping="['outcomeDate']"/>
+                <param name="caseId" mapping="['caseId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Дата/время отказа не может быть меньше даты поступления в отделение</message>
+        </constraint>
+    </validations>
+</object>

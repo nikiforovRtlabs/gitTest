@@ -1,0 +1,119 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>original_death_reason_def</id>-->
+    <name>Первоначальная причина смерти</name>
+    <object-id>death_reason</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from
+                <!--certificates.death_reason dr-->
+                <!--join -->
+                certificates.death_certificate dc
+                <!--on dc.id = dr.death_certificate_id-->
+                <!--join public.md_diagnosis md on md.id = dr.diagnos_id-->
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from certificates.death_certificate dc
+                where :where
+            </n2o:count-query>
+            <n2o:alias>dc</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <!--<field>-->
+            <!--<id>id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<name>Идентификатор</name>-->
+            <!--<display/>-->
+            <!--<expression>dr.id</expression>-->
+            <!--<filters>-->
+                <!--<filter type="eq" filter-field="id">-->
+                    <!--:expression = :id-->
+                <!--</filter>-->
+            <!--</filters>-->
+            <!--<sorting/>-->
+        <!--</field>-->
+
+        <field>
+            <id>certificate.id</id>
+            <domain>integer</domain>
+            <name>Свидетельство</name>
+            <display/>
+            <expression>dc.id</expression>
+            <filters>
+                <filter type="eq" filter-field="certificate.id">
+                    :expression = :certificate.id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>IndB4</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                case when exists(select diagnos_code from certificates.death_reason where death_certificate_id = dc.id and is_foreign is true)
+                        then 2
+                        else 1
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>has_original</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>
+                case when exists(select diagnos_code from certificates.death_reason where death_certificate_id = dc.id and is_primary_diagnosis is true)
+                    then true
+                    else false
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>original_id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                <!--case when exists-->
+                (select id from certificates.death_reason where death_certificate_id = dc.id and is_primary_diagnosis is true)
+                    <!--then true-->
+                    <!--else false-->
+                <!--end-->
+            </expression>
+        </field>
+
+        <field>
+            <id>acmeAIN1string</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select certificates.ACMEAIN(dc.id,1))
+                <!--<![CDATA[-->
+                <!--'2015NC000000100011Aug08032015200420041073A        I469/T411*T925 &Y481                                                                                                    Y  1 080320159999                                                                         q\n-->
+                <!--2015NC000000100021Aug08032015200420041073A        I469/T411                                                                                                               Y  1 080320159999                                                                         q'-->
+                <!--]]>-->
+            </expression>
+        </field>
+
+        <field>
+            <id>acmeAIN2string</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                case when :IndB4 = 2
+                    then '\n'||(select certificates.ACMEAIN(dc.id,2))
+                    else ''
+                end
+            </expression>
+        </field>
+
+    </fields>
+</query>

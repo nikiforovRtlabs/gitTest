@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+
+    <name>eventTypeTargetForm</name>
+    <actions>
+        <action id="create" name="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into disp.md_event_type_target (id, case_init_goal_id, event_type_id, begin_date, end_date, stage)
+                    values (nextval('disp.md_event_type_target_id_seq'), :case_init_goal_id, :event_type_id, to_date(:begin_date, 'dd.mm.yyyy'), to_date(:end_date, 'dd.mm.yyyy'), :stage);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="case_init_goal.id" mapping="['case_init_goal_id']"/>
+                <param name="event_type.id" mapping="['event_type_id']"/>
+                <param name="begin_date" mapping="['begin_date']" domain="string"/>
+                <param name="end_date" mapping="['end_date']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+                <param name="stage.id" mapping="['stage']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+        </action>
+
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    update disp.md_event_type_target set case_init_goal_id = :case_init_goal_id, event_type_id = :event_type_id,
+                        begin_date = to_date(:begin_date, 'dd.mm.yyyy'), end_date = to_date(:end_date, 'dd.mm.yyyy'), stage = :stage where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="case_init_goal.id" mapping="['case_init_goal_id']"/>
+                <param name="event_type.id" mapping="['event_type_id']"/>
+                <param name="begin_date" mapping="['begin_date']" domain="string"/>
+                <param name="end_date" mapping="['end_date']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+                <param name="stage.id" mapping="['stage']"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from disp.md_event_type_target where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkDateIntervals" level="error">
+            <message>На одну дату не может быть несколько записей, у которых полностью совпадают все параметры</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select exists(select 1 from disp.md_event_type_target
+                            where ((begin_date is null and end_date is null) or (to_date(:begin_date, 'dd.mm.yyyy') is null and to_date(:end_date, 'dd.mm.yyyy') is null)
+                            or (begin_date is null and to_date(:begin_date, 'dd.mm.yyyy') is null) or (end_date is null and to_date(:end_date, 'dd.mm.yyyy') is null)
+                            or ((begin_date is null or to_date(:end_date, 'dd.mm.yyyy') is null or begin_date <= to_date(:end_date, 'dd.mm.yyyy'))
+                            and (end_date is null or to_date(:begin_date, 'dd.mm.yyyy') is null or end_date >= to_date(:begin_date, 'dd.mm.yyyy'))))
+                            and event_type_id = :event_type_id
+                            and stage = :stage
+                            and (:id is null or id <> :id))
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="event_type.id" mapping="['event_type_id']" domain="integer"/>
+                <param name="begin_date" mapping="['begin_date']" domain="string"/>
+                <param name="end_date" mapping="['end_date']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+                <param name="stage.id" mapping="['stage']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == false"/>
+        </constraint>
+    </validations>
+</object>

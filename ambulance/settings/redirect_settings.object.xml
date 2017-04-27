@@ -1,0 +1,94 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>redirect_settings</id>-->
+    <name>Настройки распределения вызовов по диспетчерам</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    insert into amb.md_ambcall_redirect_settings (emp_id, route_id, dep_id, team_id, registrator_id)
+                        values(:emp,:route,:dep,:team,:reg);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="emp.id" mapping="['emp']" domain="integer"/>
+                <param name="route.id" mapping="['route']" domain="integer"/>
+                <param name="dep.id" mapping="['dep']" domain="integer"/>
+                <param name="team.id" mapping="['team']" domain="integer"/>
+                <param name="registrator.id" mapping="['reg']" domain="integer" value="#{emplPos.id}"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+        </action>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update amb.md_ambcall_redirect_settings set emp_id = :emp, route_id = :route, dep_id = :dep, team_id = :team where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="emp.id" mapping="['emp']" domain="integer"/>
+                <param name="route.id" mapping="['route']" domain="integer"/>
+                <param name="dep.id" mapping="['dep']" domain="integer"/>
+                <param name="team.id" mapping="['team']" domain="integer"/>
+                <param name="registrator.id" mapping="['reg']" domain="integer" value="#{emplPos.id}"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from amb.md_ambcall_redirect_settings where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="settingUnique" level="warning">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.md_ambcall_redirect_settings
+                    where (emp_id = :emp and route_id = :route and :dep is null and :team is null)
+                    or (emp_id = :emp and route_id = :route and dep_id = :dep and :team is null)
+                    or (emp_id = :emp and route_id = :route and :dep is null and team_id = :team)
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+                <param name="emp.id" mapping="['emp']" domain="integer"/>
+                <param name="route.id" mapping="['route']" domain="integer"/>
+                <param name="dep.id" mapping="['dep']" domain="integer"/>
+                <param name="team.id" mapping="['team']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Настройка уже существует в системе</message>
+        </constraint>
+        <constraint id="allSettingUnique" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.md_ambcall_redirect_settings
+                    where (emp_id = :emp and route_id = :route and dep_id = :dep and team_id = :team)
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+                <param name="emp.id" mapping="['emp']" domain="integer"/>
+                <param name="route.id" mapping="['route']" domain="integer"/>
+                <param name="dep.id" mapping="['dep']" domain="integer"/>
+                <param name="team.id" mapping="['team']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Настройка уже существует в системе</message>
+        </constraint>
+    </validations>
+</object>

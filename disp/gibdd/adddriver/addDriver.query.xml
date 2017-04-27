@@ -1,0 +1,105 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>addDriver</name>
+    <object-id>addDriver</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from gibdd.md_gibdd_reference r
+                join disp.md_event_patient ep on ep.id = r.id
+                join pim_individual i on i.id = ep.indiv_id
+                join disp.md_event me on me.id = ep.event_id
+                left join disp.md_event_type met on met.id = me.event_type
+                left join gibdd.md_gibdd_reference_reference rr on r.id = rr.card_id
+                where rr.id = (select max(id) from gibdd.md_gibdd_reference_reference xr where xr.card_id = r.id) and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(r)
+                from gibdd.md_gibdd_reference r
+                join disp.md_event_patient ep on ep.id = r.id
+                join pim_individual i on i.id = ep.indiv_id
+                join disp.md_event me on me.id = ep.event_id
+                left join disp.md_event_type met on met.id = me.event_type
+                where :where
+            </n2o:count-query>
+            <n2o:alias>r</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display>r.id</display>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display>i.id</display>
+        </field>
+        <field>
+            <id>refId</id>
+            <domain>integer</domain>
+            <expression>rr.id</expression>
+        </field>
+        <field>
+            <id>reference_series</id>
+            <domain>string</domain>
+            <display>rr.series</display>
+        </field>
+        <field>
+            <id>reference_number</id>
+            <domain>string</domain>
+            <display>rr.number</display>
+        </field>
+        <field>
+            <id>categoryTS</id>
+            <domain>string</domain>
+            <display>(select array_to_json(array_agg(row_to_json(cat)))
+                from (select c.id from gibdd.md_gibdd_reference_category rc
+                join gibdd.md_gibdd_category c on rc.category_id = c.id
+                where rc.reference_id = r.id) as cat)</display>
+        </field>
+        <field>
+            <id>event_type_code</id>
+            <domain>string</domain>
+            <display>met.code</display>
+            <expression>met.code</expression>
+            <search>met.code = :event_type_code</search>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>integer</domain>
+            <display>ep.event_id</display>
+        </field>
+        <field>
+            <id>eventType</id>
+            <domain>string</domain>
+            <display>me.event_type</display>
+        </field>
+
+        <field>
+            <id>eventPatientId</id>
+            <domain>integer</domain>
+            <display>ep.id</display>
+            <search>ep.id = :eventPatientId</search>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <display>me.org_id</display>
+            <search>me.org_id = :org.id</search>
+        </field>
+        <field>
+            <id>expDate</id>
+            <domain>date</domain>
+            <expression>(select exp_date from gibdd.md_gibdd_reference_reference rrx where rrx.card_id = r.id and is_duplicate is not true limit 1)</expression>
+        </field>
+        <field>
+            <id>blank_date</id>
+            <domain>date</domain>
+            <expression>r.blank_date</expression>
+        </field>
+    </fields>
+</query>

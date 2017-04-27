@@ -1,0 +1,1171 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-1.0">
+    <id>disprCardRenderingService</id>
+    <name>Оказание услуг</name>
+    <object-id>disprCardDiagnosis</object-id>
+    <layout>n2o/layout/single-with-hidden</layout>
+    <regions>
+        <region place="dummy">
+            <container id="main">
+                <wgt:form>
+                    <wgt:id>disprCardRenderingServiceDummy</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceDummy</wgt:query-id>
+                    <wgt:name>disprCardRenderingServiceDummy</wgt:name>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:input-text id="event_patient_id" label="test0" />
+                                <ctrl:input-text id="service_code" label="test2" />
+                                <ctrl:input-text id="indivId" label="test3" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                </wgt:form>
+            </container>
+        </region>
+        <region place="single" type="list">
+            <container id="therapeutist" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.18'">
+                <wgt:form detail-field-id="event_patient_id" master-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceTherapeutist</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceTherapeutist</wgt:query-id>
+                    <wgt:name>Прием терапевта</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                               <!-- <ctrl:checkbox id="hasOtherOrg" label="Услуга оказана в другом МО" />-->
+
+                                <ctrl:classifier id="org" label="Организация" required="true" dependency-condition="hasOtherOrg!=null &amp;&amp; hasOtherOrg">
+                                    <ctrl:query query-id="organization" value-field-id="id" label-field-id="short_name"/>
+                                    <ctrl:actions>
+                                        <ctrl:link label="Найти услугу">
+                                            <ctrl:show-modal page-id="ServiceByDoc" refresh-on-close="true"></ctrl:show-modal>
+                                        </ctrl:link>
+                                    </ctrl:actions>
+                                </ctrl:classifier>
+
+                                <ctrl:classifier id="service" label="Вид услуги" required="true" dependency-condition="hasOtherOrg!=null &amp;&amp; hasOtherOrg">
+                                    <ctrl:query query-id="serviceType" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org.id" />
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+
+                                <ctrl:classifier id="resource" label="Ресурс" depends-on="org" dependency-condition="hasOtherOrg!=null &amp;&amp; hasOtherOrg" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org.id" />
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service.id" />
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" dependency-condition="typeof(hasOtherOrg) == 'undefined' || !(hasOtherOrg)" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDate"/>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:classifier id="main_diagnosis" label="Основной диагноз" required="true">
+                                    <ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name"/>
+                                </ctrl:classifier>
+                                <ctrl:checkbox id="is_suspicion" label="Подозрение">
+                                    <ctrl:set-value-expression on="diagnosis">
+                                        if ((main_diagnosis==null)||(main_diagnosis &amp;&amp; typeof main_diagnosis.id== 'undefined' ))
+                                        null
+                                        else throw('!');
+                                    </ctrl:set-value-expression>
+                                </ctrl:checkbox>
+                                <!--<ctrl:classifier id="other_diagnos_1" label="Сопутствующий диагноз">-->
+                                    <!--<ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name"/>-->
+                                <!--</ctrl:classifier>-->
+                                <!--<ctrl:classifier id="other_diagnos_2" label="Сопутствующий диагноз">-->
+                                    <!--<ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name"/>-->
+                                <!--</ctrl:classifier>-->
+                                <ctrl:classifier id="disease" label="Характер заболевания">
+                                <ctrl:query query-id="disprCardDiagnosisDis" value-field-id="id" label-field-id="name"/>
+                                    <ctrl:dependencies>
+                                        <ctrl:required-condition on="is_suspicion,main_diagnosis">(((typeof is_suspicion ==
+                                            'undefined')||(is_suspicion==false)||(is_suspicion==null))
+                                            &amp;&amp;(( typeof main_diagnosis != 'undefined' )&amp;&amp;(main_diagnosis.id!=null)&amp;&amp;(main_diagnosis.code.indexOf('Z')
+                                            == -1))
+                                            )
+                                        </ctrl:required-condition>
+                                    </ctrl:dependencies>
+                                    <ctrl:set-value-expression on="main_diagnosis" on-load="true" on-non-empty="true">
+                                        if ((main_diagnosis!=null)&amp;&amp;(!main_diagnosis || typeof main_diagnosis.code!= 'undefined' )&amp;&amp;(main_diagnosis.code.indexOf('Z')==
+                                        0))
+                                        {var o = new Object(); o.id=parseInt(character); o.code = '40'; o.name = 'Прочее (для Z00-Z99)'; o;} else throw '!'
+                                    </ctrl:set-value-expression>
+                                </ctrl:classifier>
+                                <ctrl:text-area id="counsel" label="Заключение" rows="2" />
+                                <ctrl:text-area id="reference" label="Рекомендации" rows="2" />
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.18"/>
+                </pre-filters>
+            </container>
+            <container id="neurologist" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.17'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceNeurologist</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceNeurologist</wgt:query-id>
+                    <wgt:name>Прием невролога</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:classifier id="main_diagnosis" label="Основной диагноз" required="true">
+                                    <ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name"/>
+                                </ctrl:classifier>
+                                <ctrl:checkbox id="is_suspicion" label="Подозрение" >
+                                <ctrl:set-value-expression on="main_diagnosis">
+                                    if ((main_diagnosis==null)||(main_diagnosis &amp;&amp; typeof main_diagnosis.id== 'undefined' ))
+                                    null
+                                    else throw('!');
+                                </ctrl:set-value-expression>
+                                </ctrl:checkbox>
+                                <!--<ctrl:classifier id="other_diagnosis_1" label="Сопутствующий диагноз">-->
+                                    <!--<ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name"/>-->
+                                <!--</ctrl:classifier>-->
+                                <!--<ctrl:classifier id="other_diagnosis_2" label="Сопутствующий диагноз">-->
+                                    <!--<ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name"/>-->
+                                <!--</ctrl:classifier>-->
+                                <ctrl:classifier id="disease" label="Характер заболевания" >
+                                    <ctrl:query query-id="disprCardDiagnosisDis" value-field-id="id" label-field-id="name"/>
+                                    <ctrl:dependencies>
+                                        <ctrl:required-condition on="is_suspicion,main_diagnosis">(((typeof is_suspicion ==
+                                            'undefined')||(is_suspicion==false)||(is_suspicion==null))
+                                            &amp;&amp;(( typeof main_diagnosis != 'undefined' )&amp;&amp;(main_diagnosis.id!=null)&amp;&amp;(main_diagnosis.code.indexOf('Z')
+                                            == -1))
+                                            )
+                                        </ctrl:required-condition>
+                                    </ctrl:dependencies>
+                                    <ctrl:set-value-expression on="main_diagnosis" on-load="true" on-non-empty="true">
+                                        if ((main_diagnosis!=null)&amp;&amp;(!main_diagnosis || typeof main_diagnosis.code!= 'undefined' )&amp;&amp;(main_diagnosis.code.indexOf('Z')==
+                                        0))
+                                        {var o = new Object(); o.id=parseInt(character); o.code = '40'; o.name = 'Прочее (для Z00-Z99)'; o;} else throw '!'
+                                    </ctrl:set-value-expression>
+                                </ctrl:classifier>
+                                <ctrl:text-area id="counsel" label="Заключение" rows="2" />
+                                <ctrl:text-area id="reference" label="Рекомендации" rows="2" />
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.17"/>
+                </pre-filters>
+            </container>
+            <container id="ArterialPressure" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.03'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceArterialPressure</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceArterialPressure</wgt:query-id>
+                    <wgt:name>Артериальное давление</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:input-text id="systolic_ad" label="Систолическое АД (мм.рт.ст)" css-class="n2o-control-7 n2o-label-7"/>
+                                <ctrl:input-text id="diastolic_ad" label="Диастолическое АД" />
+                                <ctrl:checkbox id="hypotensive_therapy" label="Гипотензивная терапия"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.03"/>
+                </pre-filters>
+            </container>
+            <container id="Cholesterol" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.05'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceCholesterol</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceCholesterol</wgt:query-id>
+                    <wgt:name>Определение общего уровня холестерина в крови</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:input-text id="rate" label="Показатель (ммоль/л)" />
+                                <ctrl:checkbox id="lipid_lowering_therapy" label="Гиполипидемическая терапия"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.05"/>
+                </pre-filters>
+            </container>
+            <container id="Glucose" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.06'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceGlucose</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceGlucose</wgt:query-id>
+                    <wgt:name>Определение уровня глюкозы в крови</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:input-text id="rate" label="Показатель (ммоль/л)" />
+                                <ctrl:checkbox id="hypoglycemic_therapy" label="Гипогликемическая терапия"/>
+                                <ctrl:checkbox id="pathology" label="Патология">
+                                    <ctrl:set-value-expression on="rate">parseFloat(rate) >= 6.1</ctrl:set-value-expression>
+                                </ctrl:checkbox>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.06"/>
+                </pre-filters>
+            </container>
+            <container id="CardioRisk" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.07'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceCardioRisk</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceCardioRisk</wgt:query-id>
+                    <wgt:name>Суммарный сердечно-сосудистый риск</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <!--<ctrl:input-text id="rate" label="Показатель (%)" />-->
+                                <ctrl:custom label="Показатель (%):" id="rate" src="n2o/controls/custom/cardio/cardio" />
+                                <ctrl:select id="risk_level" label="Уровень риска">
+                                    <ctrl:options>
+                                        <ctrl:option>{"id":1, "name":"Низкий"}</ctrl:option>
+                                        <ctrl:option>{"id":2, "name":"Умеренный"}</ctrl:option>
+                                        <ctrl:option>{"id":3, "name":"Высокий"}</ctrl:option>
+                                        <ctrl:option>{"id":4, "name":"Очень высокий"}</ctrl:option>
+                                    </ctrl:options>
+                                    <ctrl:set-value-expression on="rate"><![CDATA[
+                                        if ( parseInt( rate.value ) < 1 ){
+                                            a = {'id': 1, 'name': 'Низкий'};
+                                        } else if ( parseInt( rate.value ) >= 1 && parseInt( rate.value ) < 5 ){
+                                            a = {'id': 2, 'name': 'Умеренный'};
+                                        } else if ( parseInt( rate.value ) >= 5 && parseInt( rate.value ) < 10 ){
+                                            a = {'id': 3, 'name': 'Высокий'};
+                                        } else if ( parseInt( rate.value ) >= 10 ){
+                                            a = {'id': 4, 'name': 'Очень высокий'};
+                                        }
+                                        ]]>
+                                    </ctrl:set-value-expression>
+                                </ctrl:select>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.07"/>
+                </pre-filters>
+            </container>
+            <container id="EKG" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.16'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceEKG</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceEKG</wgt:query-id>
+                    <wgt:name>ЭКГ</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                        <ctrl:validation ref-id="checkDateByCase"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.16"/>
+                </pre-filters>
+            </container>
+            <container id="MedicalAssistant" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.21'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceMedicalAssistant</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceMedicalAssistant</wgt:query-id>
+                    <wgt:name>Цитологическое исследование</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="oncology_suspicion" label="Онкоподозрение"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.21"/>
+                </pre-filters>
+            </container>
+            <container id="CytologyPapanicolay" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.27'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceCytologyPapanicolay</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceCytologyPapanicolay</wgt:query-id>
+                    <wgt:name>Цитологическое исследование(метод Папаниколау)</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="oncology_suspicion" label="Онкоподозрение"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.27"/>
+                </pre-filters>
+            </container>
+            <container id="CytologyLiquidMethod" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.28'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceCytologyLiquidMethod</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceCytologyLiquidMethod</wgt:query-id>
+                    <wgt:name>Цитологическое исследование(жидкостной метод)</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="oncology_suspicion" label="Онкоподозрение"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.28"/>
+                </pre-filters>
+            </container>
+            <container id="ParamedicVisit" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.20'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceParamedicVisit</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceParamedicVisit</wgt:query-id>
+                    <wgt:name>Осмотр фельдшера (акушерки)</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="oncology_suspicion" label="Онкоподозрение"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.20"/>
+                </pre-filters>
+            </container>
+            <container id="Fluorography" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.15'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceFluorography</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceFluorography</wgt:query-id>
+                    <wgt:name>Флюорография</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                        <ctrl:validation ref-id="checkDateByCase"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="oncology_suspicion" label="Онкоподозрение"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.15"/>
+                </pre-filters>
+            </container>
+            <container id="MammographyWithDecode" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.23'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceMammography</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceMammography</wgt:query-id>
+                    <wgt:name>Маммография с расшифровкой</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                        <ctrl:validation ref-id="checkDateByCase"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="oncology_suspicion" label="Онкоподозрение"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.23"/>
+                </pre-filters>
+            </container>
+            <container id="MammographyWithoutDecode" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.24'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceMammography</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceMammography</wgt:query-id>
+                    <wgt:name>Маммография без расшифровки маммограммы врачом</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                        <ctrl:validation ref-id="checkDateByCase"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.24"/>
+                </pre-filters>
+            </container>
+            <container id="MammographyDocDecode" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.25'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceMammography</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceMammography</wgt:query-id>
+                    <wgt:name>Расшифровка маммограммы врачом</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                        <ctrl:validation ref-id="checkDateByCase"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="oncology_suspicion" label="Онкоподозрение"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:text-area id="counsel" label="Заключение" rows="2" />
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.25"/>
+                </pre-filters>
+            </container>
+            <container id="ClinicBlood" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.09'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceClinicBlood</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceClinicBlood</wgt:query-id>
+                    <wgt:name>Клинический анализ крови</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.09"/>
+                </pre-filters>
+            </container>
+            <container id="ClinicBloodAdv" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.10'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceClinicBloodAdv</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceClinicBloodAdv</wgt:query-id>
+                    <wgt:name>Клинический анализ крови (развернутый)</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.10"/>
+                </pre-filters>
+            </container>
+            <container id="BioBlood" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.12'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceBioBlood</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceBioBlood</wgt:query-id>
+                    <wgt:name>Биохимический анализ крови</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.12"/>
+                </pre-filters>
+            </container>
+            <container id="Urine" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.11'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceUrine</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceUrine</wgt:query-id>
+                    <wgt:name>Общий анализ мочи</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.11"/>
+                </pre-filters>
+            </container>
+            <container id="Excrement" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.13'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceExcrement</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceExcrement</wgt:query-id>
+                    <wgt:name>Кал на скрытую кровь</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.13"/>
+                </pre-filters>
+            </container>
+            <container id="ProstateAntigen" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.22'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceProstateAntigen</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceProstateAntigen</wgt:query-id>
+                    <wgt:name>Простатспецифический антиген</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:input-text id="rate" label="Показатель (мг/мл)" />
+                                <ctrl:checkbox id="oncology_suspicion" label="Онкоподозрение"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.22"/>
+                </pre-filters>
+            </container>
+            <container id="Ultrasound" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.14'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceUltrasound</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceUltrasound</wgt:query-id>
+                    <wgt:name>УЗИ органов брюшной полости</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <!--<ctrl:input-text id="rate" label="Показатель (мг/мл)" />-->
+                                <ctrl:checkbox id="oncology_suspicion" label="Онкоподозрение"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.14"/>
+                </pre-filters>
+            </container>
+            <container id="UltrasoundAnevrizm" depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.26'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceUltrasoundExcludeAnevrizm</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceUltrasoundExcludeAnevrizm</wgt:query-id>
+                    <wgt:name>Ультразвуковое исследование в целях исключения аневризмы брюшной аорты</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <!--<ctrl:input-text id="rate" label="Показатель (мг/мл)" />-->
+                                <ctrl:checkbox id="oncology_suspicion" label="Онкоподозрение"/>
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.26"/>
+                </pre-filters>
+            </container>
+            <container id="IntraocularPressure"  depends-on="main" opened="true" dependency-condition="main.service_code == 'Д1.08'">
+                <wgt:form master-field-id="event_patient_id" detail-field-id="event_patient_id">
+                    <wgt:id>disprCardRenderingServiceIntraocularPressure</wgt:id>
+                    <wgt:query-id>disprCardRenderingServiceIntraocularPressure</wgt:query-id>
+                    <wgt:name>Внутриглазное давление</wgt:name>
+                    <wgt:edit>
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:grid>
+                        <wgt:column>
+                            <fs:field-set header="none" inline="true" field-label-location="top">
+                                <ctrl:classifier id="resource" label="Ресурс" required="true" autoselect="true">
+                                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:query>
+                                </ctrl:classifier>
+                                <ctrl:date-time id="date" label="Дата" required="true">
+                                    <ctrl:validations>
+                                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                                    </ctrl:validations>
+                                </ctrl:date-time>
+                                <ctrl:input-text id="rate_left" label="Левый" />
+                                <ctrl:input-text id="rate_right" label="Правый" />
+                                <ctrl:checkbox id="pathology" label="Патология"/>
+                                <ctrl:hidden id="service_type_id" />
+                            </fs:field-set>
+                        </wgt:column>
+                    </wgt:grid>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+                            <wgt:go-edit action-id="update" />
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="service_code" value="Д1.08"/>
+                </pre-filters>
+            </container>
+            <container id="dignosisData" depends-on="main" opened="true">
+                <wgt:table master-field-id="indiv.id" detail-field-id="indiv.id">
+                    <wgt:id>dignosisData</wgt:id>
+                    <wgt:query-id>disprCardDiagnosis</wgt:query-id>
+                    <wgt:name>Диагнозы</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="diagnosis.name"/>
+                        <wgt:column column-field-id="date"/>
+                        <wgt:column column-field-id="diagnosisType.name"/>
+                        <wgt:column column-field-id="disease.name"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="add" label="Добавить" icon="icon-plus" type="icon" context="false">
+                            <wgt:show-modal width="500px" page-id="disprCardDiagnosis" container-id="main" action-id="add" master-field-id="id"
+                                            detail-field-id="id">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" icon="icon-pencil" type="icon" context="true">
+                            <wgt:show-modal width="500px" page-id="disprCardDiagnosis" container-id="main" action-id="update">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="id" ref="id"/>
+                                    <wgt:pre-filter field-id="is_d" ref="is_d"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" label="Удалить" icon="icon-remove" type="icon" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true">
+                            </wgt:invoke-action>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>

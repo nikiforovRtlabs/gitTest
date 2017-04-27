@@ -1,0 +1,161 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Список параметров услуг</name>
+
+    <actions>
+        <action id="create">
+            <invocation>
+                <sql:sql>
+                    insert into disp.event_service_protocol (id, service_id, code, binding, label, is_required, type,
+                    values, fieldset_label, measure, min_norm_male, max_norm_male, min_norm_female, max_norm_female, no)
+                    values (nextval('disp.event_service_protocol_seq'), :serviceId, :code::varchar, :binding::varchar, :label::varchar,
+                    :isRequired::boolean, :typeId, :values ::json, :fieldsetLabel::varchar, :measure::varchar,
+                    regexp_replace(:minNormForMale, ',', '.')::numeric, regexp_replace(:maxNormForMale, ',', '.')::numeric,
+                    regexp_replace(:minNormForFemale, ',', '.')::numeric, regexp_replace(:maxNormForFemale, ',', '.')::numeric, :no)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="service.id" mapping="['serviceId']"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="binding" mapping="['binding']" domain="string"/>
+                <param name="label" mapping="['label']" domain="string"/>
+                <param name="isRequired" mapping="['isRequired']" value="false"/>
+                <param name="type.id" mapping="['typeId']"/>
+                <param name="fieldsetLabel" mapping="['fieldsetLabel']" domain="string"/>
+                <param name="measure" mapping="['measure']" domain="string"/>
+                <param name="minNormForMale" mapping="['minNormForMale']" domain="string"/>
+                <param name="maxNormForMale" mapping="['maxNormForMale']" domain="string"/>
+                <param name="minNormForFemale" mapping="['minNormForFemale']" domain="string"/>
+                <param name="maxNormForFemale" mapping="['maxNormForFemale']" domain="string"/>
+                <param name="values" mapping="['values']"/>
+                <param name="no" mapping="['no']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+        </action>
+
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update disp.event_service_protocol
+                    set service_id = :serviceId, binding = :binding, code = :code::varchar, label = :label::varchar, is_required =
+                    :isRequired::boolean,
+                    type = :typeId, values = :values ::json, fieldset_label = :fieldsetLabel::varchar, measure = :measure::varchar,
+                    min_norm_male = regexp_replace(:minNormForMale::text, ',', '.')::numeric,
+                    max_norm_male = regexp_replace(:maxNormForMale::text, ',', '.')::numeric,
+                    min_norm_female = regexp_replace(:minNormForFemale::text, ',', '.')::numeric,
+                    max_norm_female = regexp_replace(:maxNormForFemale::text, ',', '.')::numeric,
+                    no = :no
+                    where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="service.id" mapping="['serviceId']"/>
+                <param name="binding" mapping="['binding']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="label" mapping="['label']" domain="string"/>
+                <param name="isRequired" mapping="['isRequired']" value="false"/>
+                <param name="type.id" mapping="['typeId']"/>
+                <param name="values" mapping="['values']"/>
+                <param name="fieldsetLabel" mapping="['fieldsetLabel']" domain="string"/>
+                <param name="measure" mapping="['measure']" domain="string"/>
+                <param name="minNormForMale" mapping="['minNormForMale']" domain="string"/>
+                <param name="maxNormForMale" mapping="['maxNormForMale']" domain="string"/>
+                <param name="minNormForFemale" mapping="['minNormForFemale']" domain="string"/>
+                <param name="maxNormForFemale" mapping="['maxNormForFemale']" domain="string"/>
+                <param name="no" mapping="['no']"/>
+            </in-parameters>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from disp.event_service_protocol where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="correctFormat" level="error">
+            <message>Содержит недопустимые символы</message>
+            <expression on="no" ><![CDATA[
+                var regex = new RegExp('\^[0-9]*\$');
+                var b = true;
+                if(typeof no != 'undefined' && no != null && no != '')
+                    b = regex.test(no);
+                b;
+                ]]>
+            </expression>
+        </condition>
+        <constraint id="assertUniqueCode" level="error">
+            <message>Код параметра должен быть уникальным</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from disp.event_service_protocol where code = :code::varchar and (:id is null or id != :id) and service_id = :serviceId
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="service.id" mapping="['serviceId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <condition id="assertMinNormForMale" level="error">
+            <message>Неверный формат</message>
+            <expression on="minNormForMale">
+                <![CDATA[
+                var regex = new RegExp('\^[0-9]+([.]|[,])?[0-9]*\$');
+                var result = true;
+                if(typeof minNormForMale != 'undefined' && minNormForMale != null && minNormForMale != '')
+                   result = regex.test(minNormForMale);
+                result;
+                ]]>
+            </expression>
+        </condition>
+        <condition id="assertMaxNormForMale" level="error">
+            <message>Неверный формат</message>
+            <expression on="maxNormForMale">
+                <![CDATA[
+                var regex = new RegExp('\^[0-9]+([.]|[,])?[0-9]*\$');
+                var result = true;
+                if(typeof maxNormForMale != 'undefined' && maxNormForMale != null && maxNormForMale != '')
+                   result = regex.test(maxNormForMale);
+                result;
+                ]]>
+            </expression>
+        </condition>
+        <condition id="assertMinNormForFemale" level="error">
+            <message>Неверный формат</message>
+            <expression on="minNormForFemale">
+                <![CDATA[
+                var regex = new RegExp('\^[0-9]+([.]|[,])?[0-9]*\$');
+                var result = true;
+                if(typeof minNormForFemale != 'undefined' && minNormForFemale != null && minNormForFemale != '')
+                   result = regex.test(minNormForFemale);
+                result;
+                ]]>
+            </expression>
+        </condition>
+        <condition id="assertMaxNormForFemale" level="error">
+            <message>Неверный формат</message>
+            <expression on="maxNormForFemale">
+                <![CDATA[
+                var regex = new RegExp('\^[0-9]+([.]|[,])?[0-9]*\$');
+                var result = true;
+                if(typeof maxNormForFemale != 'undefined' && maxNormForFemale != null && maxNormForFemale != '')
+                   result = regex.test(maxNormForFemale);
+                result;
+                ]]>
+            </expression>
+        </condition>
+
+    </validations>
+</object>

@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>patSearchDuplicates</name>
+    <actions>
+        <action id="merge" name="Подтвердить">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="ACTION">
+                            <wf:note>Проверяем что выбрано два пациента</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET">
+                                    ${n2o.backend.path}/patients/duplicate/selected/check-count-selected
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="['result']"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="2"/>
+                                <wf:result value="true" next-task-id="3"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:user-task id="2"
+                                      template="patients/n2o/workflow/patient/duplicate/duplicate.select.error.html"
+                                      use-wf-context="true">
+                            <wf:title>Предупреждение</wf:title>
+                            <wf:description>Необходимо выбрать двух пациентов для объединения</wf:description>
+                            <wf:choices/>
+                        </wf:user-task>
+
+                        <wf:service-task id="3" next-task-id="4" in-parameters-context-type="ACTION">
+                            <wf:note>Получаем форму для объединения пациентов</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET">
+                                    ${n2o.backend.path}/patients/duplicate/selected/merge-form
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="['data']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="4"
+                                      template="patients/n2o/workflow/patient/duplicate/duplicate.merge.selected.html"
+                                      use-wf-context="true">
+                            <wf:title>Объединения дубликатов</wf:title>
+                            <wf:description>Выберите значения для объединения</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Объединить" next-task-id="5"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="5" in-parameters-context-type="TASK" out-parameters-context-type="ACTION">
+                            <wf:note>Объединение нового пациента с дублем</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="PUT">
+                                    ${n2o.backend.path}/patients/duplicate/selected/merge
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="wf_updatedId" mapping="['updatedId']"/>
+                                <param name="wf_duplicateId" mapping="['duplicateId']"/>
+                                <param name="wf_surname" mapping="['selectedSurname']"/>
+                                <param name="wf_name" mapping="['selectedName']"/>
+                                <param name="wf_patronymic" mapping="['selectedPatronymic']"/>
+                                <param name="wf_birthDate" mapping="['selectedBirthDate']"/>
+                                <param name="wf_genderId" mapping="['selectedGenderId']"/>
+                                <param name="wf_docPerson" mapping="['selectedDocPerson']"/>
+                                <param name="wf_docMhi" mapping="['selectedDocMhi']"/>
+                                <param name="wf_docSnils" mapping="['selectedDocSnils']"/>
+                                <param name="wf_docInn" mapping="['selectedDocInn']"/>
+                                <param name="wf_registerAddress" mapping="['selectedRegisterAddress']"/>
+                                <param name="wf_actualAddress" mapping="['selectedActualAddress']"/>
+                                <param name="wf_birthAddress" mapping="['selectedBirthAddress']"/>
+                            </wf:in-parameters>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <union-by-parameter union-parameter-name="id" output-parameter-name="list"/>
+        </action>
+    </actions>
+
+</object>

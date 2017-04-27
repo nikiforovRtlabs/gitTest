@@ -1,0 +1,103 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>monitoring_service</object-id>
+    <name>monitoringService</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from motherhood.mh_treatment_plan_service ts
+                left join motherhood.mh_treatment_plan_srv_rendered tsr on tsr.service_id = ts.id
+                inner join motherhood.mh_treatment_plan tp on ts.treatment_plan_id = tp.id
+                inner join motherhood.mh_pregnant_map mp on mp.id = tp.pregnant_map_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ts)
+                from motherhood.mh_treatment_plan_service ts
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ts</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ts.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>renderedId</id>
+            <domain>integer</domain>
+            <expression>tsr.id</expression>
+        </field>
+
+        <!-- Пришлось дополнить json пустыми значениями, если приходит не полный массив, иначе значения на форму не вставляются -->
+        <field>
+            <id>diagnosis</id>
+            <domain>json</domain>
+            <expression>
+                <![CDATA[
+                    (case when json_array_length(tsr.diagnosis) = 5 then tsr.diagnosis
+                        when json_array_length(tsr.diagnosis) = 4 then ('[' || replace(replace(tsr.diagnosis::text, '[', ''), ']', '') || ',' ||  json_build_object('value', null) || ']')::json
+                        when json_array_length(tsr.diagnosis) = 3 then ('[' || replace(replace(tsr.diagnosis::text, '[', ''), ']', '') || ',' ||  json_build_object('value', null) || ',' ||  json_build_object('value', null) || ']')::json
+                        when json_array_length(tsr.diagnosis) = 2 then ('[' || replace(replace(tsr.diagnosis::text, '[', ''), ']', '') || ',' ||  json_build_object('value', null) || ',' ||  json_build_object('value', null) || ',' || json_build_object('value', null) || ']')::json
+                        when json_array_length(tsr.diagnosis) = 1 then ('[' || replace(replace(tsr.diagnosis::text, '[', ''), ']', '') || ',' ||  json_build_object('value', null) || ',' ||  json_build_object('value', null) || ',' || json_build_object('value', null) || ',' || json_build_object('value', null) || ']')::json
+                        when json_array_length(tsr.diagnosis) = 0 then ('[' || json_build_object('value', null) || ',' ||  json_build_object('value', null) || ',' || json_build_object('value', null) || ',' || json_build_object('value', null) || ',' || json_build_object('value', null) || ']')::json
+                    end)
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>clinic</id>
+            <domain>integer</domain>
+            <expression>tsr.clinic</expression>
+        </field>
+
+        <field>
+            <id>survey</id>
+            <domain>string</domain>
+            <expression>tsr.survey</expression>
+        </field>
+
+        <field>
+            <id>recommendations</id>
+            <domain>string</domain>
+            <expression>tsr.recommendations</expression>
+        </field>
+
+        <field>
+            <id>failed</id>
+            <domain>boolean</domain>
+            <expression>ts.is_failed</expression>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <expression>ts.note</expression>
+        </field>
+
+        <field>
+            <id>provideDate</id>
+            <domain>date</domain>
+            <expression>tsr.provide_dt</expression>
+        </field>
+
+        <field>
+            <id>regDate</id>
+            <domain>date</domain>
+            <expression>mp.reg_dt</expression>
+        </field>
+
+        <field>
+            <id>pregnantAge</id>
+            <domain>integer</domain>
+            <expression>mp.pregnant_age</expression>
+        </field>
+    </fields>
+</query>

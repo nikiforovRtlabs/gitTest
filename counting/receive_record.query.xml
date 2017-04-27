@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>receive_record</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sickdoc.bso_rec_record j
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select 1
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <expression>j.id</expression>
+        </field>
+        <field>
+            <id>receiver.id</id>
+            <expression>j.receiver_id</expression>
+        </field>
+        <field>
+            <id>receiveDate</id>
+            <domain>date</domain>
+            <expression>j.date_in</expression>
+        </field>
+        <field>
+            <id>receivedFrom.id</id>
+            <expression>j.received_from</expression>
+        </field>
+        <field>
+            <id>commission</id>
+            <expression>j.commission</expression>
+        </field>
+        <field>
+            <id>commissionDate</id>
+            <domain>date</domain>
+            <expression>j.date_com</expression>
+        </field>
+        <field>
+            <id>restQuantity</id>
+            <expression>j.rest_quantity</expression>
+        </field>
+        <field>
+            <id>receivedQuantity</id>
+            <expression>j.rec_quantity</expression>
+        </field>
+        <field>
+            <id>orderReport</id>
+            <expression>j.order_report</expression>
+        </field>
+        <field>
+            <id>orderReportDate</id>
+            <domain>date</domain>
+            <expression>j.order_report_date</expression>
+        </field>
+        <field>
+            <id>resultQuantity</id>
+            <expression>(COALESCE(j.rest_quantity::bigint,0) + COALESCE(j.rec_quantity::bigint,0))</expression>
+        </field>
+        <field>
+            <id>requisites</id>
+            <domain>string</domain>
+            <expression>(SELECT array_to_string (ARRAY(
+                SELECT  case when r.end_num IS NULL THEN r.start_num::text else CONCAT(r.start_num,'-',r.end_num) end
+                FROM    sickdoc.bso_record_range r WHERE r.rec_record_id = j.id), ';'))</expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>j.clinic_id</expression>
+            <search value="#{org.id?}">:expression = :orgId</search>
+        </field>
+        <field>
+            <id>orderedNumber</id>
+            <expression>(SELECT COALESCE(MAX(clinic_record_order)+1,1) FROM sickdoc.bso_rec_record WHERE clinic_id = :orgId)</expression>
+        </field>
+    </fields>
+</query>

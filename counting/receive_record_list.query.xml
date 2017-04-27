@@ -1,0 +1,114 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>receive_record</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sickdoc.bso_rec_record j
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from sickdoc.bso_rec_record j
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <expression>j.id</expression>
+        </field>
+        <field>
+            <id>sequentNumber</id>
+            <name>№ п/н</name>
+            <expression>j.clinic_record_order</expression>
+        </field>
+        <field>
+            <id>receiveDate</id>
+            <domain>date</domain>
+            <name>Дата получения</name>
+            <expression>j.date_in</expression>
+        </field>
+        <field>
+            <id>reportOrder</id>
+            <domain>string</domain>
+            <name>Отчет-заявка</name>
+            <expression>concat(j.order_report,' ', to_char(j.order_report_date, 'dd.mm.yyyy'))</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <name>Количество</name>
+            <expression>j.rec_quantity</expression>
+        </field>
+        <field>
+            <id>restQuantity</id>
+            <name>Остаток</name>
+            <expression>j.rest_quantity</expression>
+        </field>
+        <field>
+            <id>overallQuantity</id>
+            <domain>numeric</domain>
+            <name>Общее кол-во</name>
+            <expression>j.rest_quantity::bigint + j.rec_quantity::bigint</expression>
+        </field>
+        <field>
+            <id>requisites</id>
+            <domain>string</domain>
+            <name>Реквизиты бланков</name>
+            <expression>(SELECT array_to_string (ARRAY(
+                SELECT  case when r.end_num IS NULL THEN r.start_num::text else CONCAT(r.start_num,'-',r.end_num) end
+                FROM    sickdoc.bso_record_range r WHERE r.rec_record_id = j.id), ';'))</expression>
+        </field>
+        <field>
+            <id>receiver.name</id>
+            <domain>string</domain>
+            <name>Получатель</name>
+            <expression>
+                (select concat(i.surname, ' ' || left(i.name, 1) || '.', ' ' || left(i.patr_name, 1) || '.', ', ' || pp.name)
+                from pim_employee_position ep
+                join pim_position pp on pp.id = ep.position_id
+                join pim_employee e on e.id = ep.employee_id
+                join pim_individual i on i.id = e.individual_id
+                where ep.id = j.receiver_id
+                limit 1)
+            </expression>
+        </field>
+        <field>
+            <id>blankNumber</id>
+            <domain>numeric</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[(0 <
+                (SELECT  COUNT(*) FROM sickdoc.bso_record_range r
+                WHERE :blankNumber BETWEEN r.start_num::bigint AND COALESCE(r.end_num::bigint, r.start_num::bigint)
+                AND r.rec_record_id = j.id))]]>
+            </search>
+        </field>
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>j.clinic_id</expression>
+        </field>
+        <field>
+            <id>usedNumbers</id>
+            <domain>boolean</domain>
+            <expression>exists(
+                SELECT 1 from sickdoc.bso_record_range brr
+                WHERE exists(
+                SELECT 1 FROM sickdoc.sickdoc s
+                WHERE left(s.number,9) !='' and  left(s.number,9)::bigint BETWEEN brr.start_num::bigint
+                AND COALESCE(brr.end_num,brr.start_num)::bigint
+                ) and brr.rec_record_id = j.id
+
+                )
+            </expression>
+        </field>
+    </fields>
+</query>

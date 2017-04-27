@@ -1,0 +1,262 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>monitoring</name>
+
+    <actions>
+        <action id="createBase">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="TASK">
+                            <wf:note>Проверяем наличие базового стандарта.</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    select exists(select 1 from public.services_template where is_base is true and
+                                    is_motherhood is true)
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:in-parameters/>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="2"/>
+                                <wf:result value="true" next-task-id="3"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:user-task id="2"
+                                      template="pregnantMap/n2o/workflow/monitoring/standard.base.select.error.html"
+                                      show-cancel-button="true">
+                            <wf:title>Предупреждение</wf:title>
+                            <wf:description>Базовый стандарт не найден. План лечения не может быть сформирован.
+                            </wf:description>
+                            <wf:choices/>
+                        </wf:user-task>
+
+                        <wf:service-task id="3" in-parameters-context-type="TASK">
+                            <wf:invocation>
+                                <sql:sql>
+                                    SELECT exists(select 1 from public.services_template_prototype stp
+                                    inner join public.services_template st on st.id = stp.template_id and st.is_base is
+                                    true)
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters/>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="4"/>
+                                <wf:result value="true" next-task-id="5"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:user-task id="4"
+                                      template="pregnantMap/n2o/workflow/monitoring/standard.base.select.error.html"
+                                      show-cancel-button="true">
+                            <wf:title>Предупреждение</wf:title>
+                            <wf:description>В базовом стандарте отсутствуют прототипы услуг. План лечения не может быть
+                                сформирован.
+                            </wf:description>
+                            <wf:choices/>
+                        </wf:user-task>
+
+                        <wf:service-task id="5">
+                            <wf:invocation>
+                                <sql:sql>
+                                    select pregnant_age is not null and reg_dt is not null from
+                                    motherhood.mh_pregnant_map where id = :pregnantMapId
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="pregnantMapId" mapping="['pregnantMapId']" domain="integer"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="6"/>
+                                <wf:result value="true" next-task-id="7"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:user-task id="6"
+                                      template="pregnantMap/n2o/workflow/monitoring/standard.base.select.error.html"
+                                      show-cancel-button="true">
+                            <wf:title>Предупреждение</wf:title>
+                            <wf:description>
+                                В индивидуальной карте беременной не заполнен один или оба параметра: срок беременности
+                                и дата постановки на учет. План лечения не может быть
+                                сформирован.
+                                Укажите зачения данных параметров и сохраните индивидуальную карту. После этого
+                                повторите попытку формирования плана лечения.
+                            </wf:description>
+                            <wf:choices/>
+                        </wf:user-task>
+
+                        <wf:service-task id="7" in-parameters-context-type="ACTION" out-parameters-context-type="TASK">
+                            <wf:note>Формируем план лечения на основе базового стандарта.</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    <![CDATA[
+                                        select motherhood.shape_treatment_plan(:pregnantMapId, null);
+                                    ]]>
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="pregnantMapId" mapping="['pregnantMapId']" domain="integer"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters/>
+                        </wf:service-task>
+
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="pregnantMapId" mapping="['pregnantMapId']" domain="integer"/>
+            </in-parameters>
+            <success-text>План лечения на основе базового стандарта сформирован.</success-text>
+            <fail-text>Не удалось сформировать план лечения на основе базового стандарта.</fail-text>
+        </action>
+
+        <action id="createList" form-submit-label="Сформировать">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="TASK">
+                            <wf:invocation>
+                                <sql:sql>
+                                    SELECT exists(select 1 from public.services_template_prototype stp
+                                    where stp.template_id = ANY(cast(string_to_array(trim(both '[]' from
+                                    :standards),',') as integer[])))
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="pregnantMapId" mapping="['pregnantMapId']" domain="integer"/>
+                                <param name="standard*.id" mapping="['standards']" domain="integer[]"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="2"/>
+                                <wf:result value="true" next-task-id="3"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:user-task id="2"
+                                      template="pregnantMap/n2o/workflow/monitoring/standard.base.select.error.html"
+                                      show-cancel-button="true">
+                            <wf:title>Предупреждение</wf:title>
+                            <wf:description>
+                                В выбранных стандартах отсутствуют прототипы услуг. План лечения не может быть
+                                сформирован.
+                            </wf:description>
+                            <wf:choices/>
+                        </wf:user-task>
+
+                        <wf:service-task id="3">
+                            <wf:invocation>
+                                <sql:sql>
+                                    select pregnant_age is not null and reg_dt is not null from
+                                    motherhood.mh_pregnant_map where id = :pregnantMapId
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="pregnantMapId" mapping="['pregnantMapId']" domain="integer"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="4"/>
+                                <wf:result value="true" next-task-id="5"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:user-task id="4"
+                                      template="pregnantMap/n2o/workflow/monitoring/standard.base.select.error.html"
+                                      show-cancel-button="true">
+                            <wf:title>Предупреждение</wf:title>
+                            <wf:description>
+                                В индивидуальной карте беременной не заполнен один или оба параметра: срок беременности
+                                и дата постановки на учет. План лечения не может быть
+                                сформирован.
+                                Укажите зачения данных параметров и сохраните индивидуальную карту. После этого
+                                повторите попытку формирования плана лечения.
+                            </wf:description>
+                            <wf:choices/>
+                        </wf:user-task>
+
+                        <wf:service-task id="5" in-parameters-context-type="ACTION" out-parameters-context-type="TASK">
+                            <wf:note>Формируем план лечения на основе выбранных стандартов.</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    <![CDATA[
+                                        select motherhood.shape_treatment_plan(:pregnantMapId, cast(string_to_array(trim(both '[]' from
+                                        :standards),',') as integer[]));
+                                    ]]>
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="standard*.id" mapping="['standards']" domain="integer[]"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters/>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="pregnantMapId" mapping="['pregnantMapId']" domain="integer"/>
+                <param name="standard*.id" mapping="['standards']" domain="integer[]"/>
+            </in-parameters>
+            <confirmation-text>План лечения на основе выбранных стандартов сформирован.</confirmation-text>
+            <fail-text>Не удалось сформировать план лечения на основе выбранных стандартов.</fail-text>
+        </action>
+
+        <action id="delete" name="Удаление">
+            <invocation>
+                <sql:sql>
+                    delete from motherhood.mh_treatment_plan_service where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить мероприятие из мониторинга?</confirmation-text>
+        </action>
+
+        <action id="removeResult">
+            <invocation>
+                <sql:sql>
+                    delete from motherhood.mh_treatment_plan_srv_rendered where service_id = :id;
+                    update motherhood.mh_treatment_plan_service set note = null, is_failed = null where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить введенные данные о мероприятии?</confirmation-text>
+            <success-text>Данные о мероприятии удалены.</success-text>
+        </action>
+
+        <action id="refresh">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select motherhood.refresh_treatment_plan(:pregnantMapId);
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pregnantMapId" mapping="['pregnantMapId']" domain="integer"/>
+            </in-parameters>
+            <success-text>Мониторинг актуализирован.</success-text>
+            <fail-text>Не удалось актуализировать мониторинг.</fail-text>
+            <confirmation-text>Вы уверены, что хотите актуализировать данные мониторинга?</confirmation-text>
+        </action>
+    </actions>
+</object>

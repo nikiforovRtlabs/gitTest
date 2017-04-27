@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>med_room</object-id>
+    <name>Палата</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select
+                FROM md_room room
+                    JOIN pim_room proom ON room.id = proom.id
+                    JOIN pim_department dep ON proom.department_id = dep.id
+                    JOIN pim_organization org ON dep.org_id = org.id
+                WHERE :where
+                ORDER BY :order
+            </n2o:items-query>
+            <n2o:count-query>
+                SELECT count(room)
+                FROM md_room room
+                    JOIN pim_room proom ON room.id = proom.id
+                    JOIN pim_department dep ON proom.department_id = dep.id
+                    JOIN pim_organization org ON dep.org_id = org.id
+                WHERE :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>room.id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>
+                <![CDATA[
+                proom.name || ' (' || (select count(1) from md_bed where room_id = room.id) || '/'  ||
+                (select count(1) from md_bed bb
+                 join md_bed_resource r on r.bed_id = bb.id
+                 where bb.room_id = room.id and not exists
+                (select 1 from sr_res_group_relationship rgrel
+                join mc_step on mc_step.res_group_id = rgrel.group_id
+                where mc_step._clinic_id = :clinicId and rgrel.resource_id = r.id and
+                (not(:beginDate::timestamp > rgrel.edatetime or :endDate::timestamp is not null and :endDate::timestamp < rgrel.bdatetime)
+                OR (:endDate::timestamp is null or :endDate::timestamp > rgrel.bdatetime) and rgrel.edatetime is null) and
+(mc_step.outcome_date is NULL or (mc_step.outcome_date + COALESCE( mc_step.outcome_time, '00:00:00'::TIME)) >=:beginDate::timestamp ))) || ')'
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>org.id</expression>
+            <search>org.id = :clinicId</search>
+        </field>
+        <field>
+            <id>departmentId</id>
+            <domain>integer</domain>
+            <expression>dep.id</expression>
+            <search>dep.id=:departmentId</search>
+        </field>
+        <field>
+            <id>beginDate</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search value="null" unavailable="true"/>
+        </field>
+        <field>
+            <id>endDate</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search value="null" unavailable="true"/>
+        </field>
+    </fields>
+</query>

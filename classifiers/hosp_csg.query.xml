@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from md_clinical_statistical_group csg
+                join md_csg_to_clinic cc on cc.csg_id = csg.id
+                LEFT JOIN md_csg_to_diagnosis mctd ON csg.id = mctd.csg_id
+                left join md_diagnosis fromDiag on fromDiag.id = mctd.from_diagnosis_id
+                left join md_diagnosis toDiag on toDiag.id = mctd.to_diagnosis_id
+                where :where order by csg.id
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1) from md_clinical_statistical_group csg
+                join md_csg_to_clinic cc on cc.csg_id = csg.id
+                LEFT JOIN md_csg_to_diagnosis mctd ON csg.id = mctd.csg_id
+                left join md_diagnosis fromDiag on fromDiag.id = mctd.from_diagnosis_id
+                left join md_diagnosis toDiag on toDiag.id = mctd.to_diagnosis_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>csg.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>coalesce(csg.code, '') || coalesce(' ' || csg.name, '')</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>organizationId</id>
+            <domain>integer</domain>
+            <expression>cc.clinic_id</expression>
+            <search>:expression = :organizationId</search>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search value="#{org.id?}">(cc.clinic_id is null or cc.clinic_id = :orgId)</search>
+        </field>
+
+        <field>
+            <id>typeId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(csg.type_id = (select id from md_csg_type where code = 3) or csg.type_id = :typeId)</search>
+        </field>
+
+        <field>
+            <id>diagnosisId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>((select code from md_diagnosis where id = :diagnosisId) between fromDiag.code and toDiag.code)</search>
+        </field>
+
+        <field>
+            <id>diagnosisTypeId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>mctd.diagnosis_type_id = :diagnosisTypeId</search>
+        </field>
+
+<!--        <field>
+            <id>stepId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(csg.type_id = (select id from md_csg_type where code = 3) or
+                csg.type_id = (select pd.type_id from hosp_record hr
+                join pim_department pd on hr.department_id = pd.id
+                join mc_step ms on hr.step_id = ms.id
+                where hr.step_id = :stepId)
+            </search>
+        </field>-->
+
+    </fields>
+
+</query>

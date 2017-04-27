@@ -1,0 +1,113 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>inventory_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.hold_modif m
+                inner join inventory.holding h on h.id=m.holding_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(m)
+                from inventory.hold_modif m
+                inner join inventory.holding h on h.id=m.holding_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>m</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>m.name</expression>
+            <search>translate(upper(m.name),', ','') like '%'||translate(upper(:name),', ','')||'%'</search>
+            <sorting>upper(m.name)=upper(:name) desc , upper(:name) like substr(upper(m.name), 0,position(' ' IN m.name))||'%' desc, upper(m.name) like upper(:name)||'%' desc, upper(m.name) like '%'||upper(:name)</sorting>
+        </field>
+        <field>
+            <id>unitName</id>
+            <domain>string</domain>
+            <name>Ед.изм.</name>
+            <expression>
+                (case when m.price_unit_flag=2
+                then (select c.name from cmn_measure c where c.id=m.sec_pack_unit_id)
+                else
+                case when m.price_unit_flag=1
+                then (select c.name from cmn_measure c where c.id=m.extra_pack_unit_id)
+                else (select c.name from cmn_measure c where c.id=m.mnei_id)
+                end
+                end)
+            </expression>
+        </field>
+        <field>
+            <id>priceUnitFlag</id>
+            <domain>integer</domain>
+            <expression>m.price_unit_flag</expression>
+        </field>
+        <field>
+            <id>countInMNEI</id>
+            <domain>integer</domain>
+            <name>Кол-во в минимальной неделимой ед.изм.</name>
+            <expression>coalesce(m.mnei_count_in_sec_pk,1)</expression>
+        </field>
+        <field>
+            <id>MNEI</id>
+            <domain>string</domain>
+            <expression>(select mnemocode from cmn_measure where id= m.mnei_id)</expression>
+        </field>
+        <field>
+            <id>dosageTitle</id>
+            <domain>string</domain>
+            <expression>
+                (SELECT
+                c_m.dosage_val || ' ' || mnei.mnemocode
+                FROM inventory.holding AS hold
+                INNER JOIN inventory.inn AS inn ON hold.inn_id = inn.id
+                INNER JOIN inventory.common_holding AS c_h ON c_h.inn_id = inn.id
+                INNER JOIN inventory.common_hold_modif AS c_m ON c_h.id = c_m.common_holding_id
+                INNER JOIN public.cmn_measure AS mnei ON c_m.dosage_unit_id = mnei.id
+                WHERE hold.id = h.id
+                AND c_m.dosage_val NOTNULL)
+            </expression>
+        </field>
+        <field>
+            <id>dosage.value</id>
+            <domain>integer</domain>
+            <name>Дозировка - значение</name>
+            <expression>(select trunc(cast(p.value as numeric))::integer from inventory.form_param_value p
+                where p.form_param_id=3 and p.hold_modif_id=m.id)</expression>
+        </field>
+        <field>
+            <id>dosage.name</id>
+            <domain>string</domain>
+            <name>Ед. изм</name>
+            <expression>(select (cast(trunc(cast(p.value as numeric)) as varchar) || ' ' || c.mnemocode) from inventory.form_param_value p
+                inner join cmn_measure c on c.id = p.unit_id
+                where p.form_param_id=3 and p.hold_modif_id=m.id)</expression>
+        </field>
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>h.commodity_group_id</expression>
+            <search>:expression = :comGroup.id</search>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>m.org_owner_id</expression>
+            <search>(:expression = :org.id or :expression is null)</search>
+        </field>
+        <field>
+            <id>isExtemporal</id>
+            <domain>boolean</domain>
+            <expression>coalesce(is_extemporal,false)</expression>
+            <search>:expression = cast(:isExtemporal as boolean)</search>
+        </field>
+    </fields>
+</query>

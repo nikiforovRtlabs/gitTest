@@ -1,0 +1,175 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>medicationNeedsAnalysis</name>
+    <object-id>storeSupply</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query><![CDATA[
+                with sendStoreSupply as
+                (select hm.id modifId,hm.name modifName, coalesce(hm.mnei_count_in_sec_pk,1) mneiCountInSecPk,
+                        inventory.get_unit_name_by_flag_of_modif(hm.price_unit_flag, hm.id) unitName,
+                        sum(send_ss.act_balance_mnei) balance,
+                        send_ss.store_id storeId, s.name storeName,
+                        coalesce(f.short_name, f.full_name) formName, inn.name_rus innName
+                from inventory.hold_modif hm
+                     inner join inventory.batch b on b.hold_modif_id=hm.id
+                     inner join inventory.store_supply send_ss on send_ss.batch_id=b.id and send_ss.act_balance_mnei!=0 and send_ss.store_id = :sendStore.id
+                     inner join inventory.store s on send_ss.store_id=s.id and s.store_type_id=1
+                     left outer join inventory.form_type f on f.id=hm.form_type_id
+                     inner join inventory.holding h on h.id= hm.holding_id
+                     left outer join inventory.inn inn on inn.id=h.inn_id
+                where (translate(upper(hm.name),',. ','') like '%'||translate(upper(:holdModif.name),',. ','')||'%' or :holdModif.name is null)
+                group by hm.id,send_ss.store_id, f.id, inn.id, s.id),
+
+                recStoreSupply as
+                (select hm.id modifId,
+                        sum(rec_ss.act_balance_mnei) balance,
+                        rec_ss.store_id storeId, s.name storeName,
+                        round(coalesce(sum(jur1.mnei_quantity),0)/7) mediumReqMneiQuantity,
+                        round(coalesce(sum(jur2.mnei_quantity),0)/(date_part('month',age(date_trunc('month', current_date) -INTERVAL '1 day',  date_trunc('year', now())-INTERVAL '1 day'))::int)) mediumSpendMneiQuantity
+                from inventory.hold_modif hm
+                     inner join inventory.batch b on b.hold_modif_id=hm.id
+                     inner join inventory.store_supply rec_ss on rec_ss.batch_id=b.id and rec_ss.store_id = :recStore.id
+                     inner join inventory.store s on rec_ss.store_id=s.id and s.store_type_id=2
+                     left outer join inventory.store_opr_jur jur1 on jur1.send_store_sup_id=rec_ss.id and jur1.date >= (CURRENT_DATE - INTERVAL '7 day')::date and jur1.date <= CURRENT_DATE::date
+                     left outer join inventory.store_opr_jur jur2 on jur2.send_store_sup_id=rec_ss.id and jur2.date >= date_trunc('year', now()) and jur2.date <= (date_trunc('month', current_date) -INTERVAL '1 day')
+                     left outer join inventory.store_opr opr on opr.id=jur1.store_opr_id and opr.id=jur2.store_opr_id and (opr.code='6' or opr.code='7')
+                where (translate(upper(hm.name),',. ','') like '%'||translate(upper(:holdModif.name),',. ','')||'%' or :holdModif.name is null)
+                group by hm.id,rec_ss.store_id, s.id)
+
+                select :select
+                       from sendStoreSupply
+                            inner join recStoreSupply on sendStoreSupply.modifId=recStoreSupply.modifId
+                       where sendStoreSupply.storeId!=recStoreSupply.storeId
+                       order by :order
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                with sendStoreSupply as
+                (select hm.id modifId, send_ss.store_id storeId
+                from inventory.hold_modif hm
+                inner join inventory.batch b on b.hold_modif_id=hm.id
+                inner join inventory.store_supply send_ss on send_ss.batch_id=b.id and send_ss.act_balance_mnei!=0 and send_ss.store_id = :sendStore.id
+                where (translate(upper(hm.name),',. ','') like '%'||translate(upper(:holdModif.name),',. ','')||'%' or :holdModif.name is null)
+                group by hm.id,send_ss.store_id),
+
+                recStoreSupply as
+                (select hm.id modifId,rec_ss.store_id storeId
+                from inventory.hold_modif hm
+                inner join inventory.batch b on b.hold_modif_id=hm.id
+                inner join inventory.store_supply rec_ss on rec_ss.batch_id=b.id and rec_ss.store_id = :recStore.id
+                where (translate(upper(hm.name),',. ','') like '%'||translate(upper(:holdModif.name),',. ','')||'%' or :holdModif.name is null)
+                group by hm.id,rec_ss.store_id)
+
+                select count(1)
+                from sendStoreSupply
+                inner join recStoreSupply on sendStoreSupply.modifId=recStoreSupply.modifId
+                where sendStoreSupply.storeId!=recStoreSupply.storeId
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>string</domain>
+            <expression>sendStoreSupply.modifId||'_'||sendStoreSupply.storeId||'_'||recStoreSupply.storeId</expression>
+        </field>
+        <field>
+            <id>sendStore.id</id>
+            <domain>integer</domain>
+            <expression>sendStoreSupply.storeId</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>sendStore.name</id>
+            <domain>string</domain>
+            <name>Отправитель</name>
+            <expression>sendStoreSupply.storeName</expression>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>recStore.id</id>
+            <domain>integer</domain>
+            <expression>recStoreSupply.storeId</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>recStore.name</id>
+            <domain>string</domain>
+            <name>Получатель</name>
+            <expression>recStoreSupply.storeName</expression>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>recBalance</id>
+            <domain>string</domain>
+            <name>Остаток (получатель)</name>
+            <expression>trim(to_char(recStoreSupply.balance/mneiCountInSecPk, 'FM9999990.99'), '.')</expression>
+            <sorting>recStoreSupply.balance/mneiCountInSecPk</sorting>
+        </field>
+        <field>
+            <id>sendBalance</id>
+            <domain>string</domain>
+            <name>Остаток (отправитель)</name>
+            <expression>trim(to_char(sendStoreSupply.balance/mneiCountInSecPk, 'FM9999990.99'), '.')</expression>
+            <sorting>sendStoreSupply.balance/mneiCountInSecPk</sorting>
+        </field>
+        <field>
+            <id>holdModif.name</id>
+            <domain>string</domain>
+            <name>ЛС и ИМН</name>
+            <expression>modifName</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>innName</id>
+            <domain>string</domain>
+            <name>МНН</name>
+            <expression>innName</expression>
+        </field>
+        <field>
+            <id>secondPackUnit</id>
+            <domain>string</domain>
+            <name>Ед. изм</name>
+            <expression>unitName</expression>
+        </field>
+        <field>
+            <id>pharmFormName</id>
+            <domain>string</domain>
+            <name>Лек. форма</name>
+            <expression>sendStoreSupply.formName</expression>
+        </field>
+        <field>
+            <id>mediumRequirement</id>
+            <domain>string</domain>
+            <name>Средняя потребность</name>
+            <expression>trim(to_char(mediumReqMneiQuantity/mneiCountInSecPk, 'FM9999990.99'), '.')</expression>
+            <sorting>mediumReqMneiQuantity/mneiCountInSecPk</sorting>
+        </field>
+        <field>
+            <id>mediumSpendMneiQuantity</id>
+            <domain>string</domain>
+            <name>Средний расход за месяц</name>
+            <expression>trim(to_char(mediumSpendMneiQuantity/mneiCountInSecPk, 'FM9999990.99'), '.')</expression>
+            <sorting>mediumSpendMneiQuantity/mneiCountInSecPk</sorting>
+        </field>
+        <field>
+            <id>reserve</id>
+            <domain>string</domain>
+            <name>Заказать</name>
+            <expression>
+                <![CDATA[
+                  case when
+                       mediumReqMneiQuantity-recStoreSupply.balance < 0
+                       then '0'
+                       else
+                           trim(to_char((mediumReqMneiQuantity-recStoreSupply.balance)/mneiCountInSecPk, 'FM9999990.99'), '.')
+                  end
+                ]]>
+              </expression>
+            <sorting>(mediumReqMneiQuantity-recStoreSupply.balance)/mneiCountInSecPk</sorting>
+        </field>
+    </fields>
+</query>

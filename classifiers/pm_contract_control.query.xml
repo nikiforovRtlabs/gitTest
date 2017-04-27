@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>pm_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                <![CDATA[
+                select :select
+                from fin_contract con
+                where (con.beginning_date is null or con.beginning_date::date <= current_date)
+                and (coalesce(con.termination_date, period) is null
+                    or coalesce(con.termination_date, period)::date >= current_date)
+                and :where
+                order by :order
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                <![CDATA[
+                select count(1)
+                from fin_contract con
+                where (con.beginning_date is null or con.beginning_date::date <= current_date)
+                and (coalesce(con.termination_date, period) is null
+                    or coalesce(con.termination_date, period)::date >= current_date)
+                and :where
+                ]]>
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>con.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>title</id>
+            <domain>string</domain>
+            <expression>con.number || ' от ' || to_char(con.date, 'DD.MM.YYYY')</expression>
+            <search>(upper(:expression) like '%' || upper(:title) || '%')</search>
+        </field>
+
+        <field>
+            <id>pricelistId</id>
+            <domain>integer</domain>
+            <expression>con.price_list_id</expression>
+            <search unavailable="true" />
+        </field>
+
+        <field>
+            <id>recipientId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>exists((select * from public.fin_contractor ctr
+                left join public.fin_contractor_role crole on crole.id = ctr.role_id
+                where ctr.contract_id = con.id and crole.code = 'PERFORMER' and COALESCE(ctr.individual_id, ctr.organization_id) = :recipientId))</search>
+        </field>
+
+        <field>
+            <id>payerIds</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search>exists((select * from public.fin_contractor ctr
+                left join public.fin_contractor_role crole on crole.id = ctr.role_id
+                where ctr.contract_id = con.id and crole.code = 'CUSTOMER' and  COALESCE(ctr.individual_id, ctr.organization_id) in (:payerIds)))</search>
+        </field>
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(:patientId is null or
+                exists(select 1 from fin_contract_to_patient ctp where ctp.contract_id = con.id and ctp.patient_id = :patientId))</search>
+        </field>
+
+    </fields>
+
+</query>

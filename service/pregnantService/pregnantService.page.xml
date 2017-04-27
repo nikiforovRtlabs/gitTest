@@ -1,0 +1,136 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <object-id>pregnantService</object-id>
+    <layout>n2o/layout/single</layout>
+
+    <regions>
+        <region place="single" type="list">
+            <container id="outcome" opened="true">
+                <wgt:form src="hospital/n2o/custom/pregnant/pregnantForm" customize="js">
+                    <wgt:name>Основные данные</wgt:name>
+                    <wgt:query-id>pregnantService</wgt:query-id>
+                    <wgt:default-values-query-id>pregnantService</wgt:default-values-query-id>
+                    <fs:field-set field-label-location="top">
+                        <fs:row>
+                            <ctrl:output-text id="patient.name" label="Пациент:" control-style="width:300px;"
+                                              label-style="font-weight: bold;"/>
+
+                            <ctrl:output-text id="service.name" label="Услуга:" control-style="width:300px;"
+                                              label-style="font-weight: bold;"/>
+                            <ctrl:hidden id="pregnantMapOutcomeId">
+                                <ctrl:set-value-expression on="pregnantAge" on-load="true">
+                                    if (pregnantAge >= 37) 3; else 2;
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="department" label="Отделение" required="true"
+                                             control-style="width:300px;" label-style="width:300px;">
+                                <ctrl:query query-id="hosp_stepDepartment" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="caseId" ref="caseId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="doctor" label="Сотрудник" search-as-you-type="true"
+                                             control-style="width:300px;">
+                                <ctrl:query query-id="hosp_resourceEmployeePositionResourceWithoutRole"
+                                            value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">#{emplPosRes.id?}</ctrl:value>
+                                    <ctrl:value field-id="name">#{emplPosRes.name?}</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="financialType" label="Вид финансирования" required="true"
+                                             control-style="width:300px;" label-style="width:300px;">
+                                <ctrl:query query-id="hosp_financialTypeByOrg" value-field-id="id"
+                                            label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>typeof isFinanceTypeControl == 'undefined' || !isFinanceTypeControl</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:date-time id="regDate" label="Дата и время поступления" domain="date"
+                                            format="DD.MM.YYYY HH:mm" required="true" control-style="width:200px;"
+                                            label-style="width:200px;"/>
+                            <ctrl:input-text id="regNumber" label="Регистрационный номер" domain="integer"
+                                             required="true" control-style="width:250px;" label-style="width:250px;"
+                                             min="0"/>
+                            <ctrl:input-text id="pregnantAge" label="Срок беременности (в неделях)" domain="integer"
+                                             required="true" control-style="width:250px;" label-style="width:250px;"/>
+                            <ctrl:date-interval id="anhydrousInterval" label="Безводный период"
+                                                format="DD.MM.YYYY HH:mm" control-style="width:300px;"
+                                                label-style="width:300px;"/>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:custom id="isSurgery" src="hospital/n2o/component/pregnant/pregnant"
+                                         default-value="false"
+                                         label="Требуется кесарево сечение" label-style="display:none">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        <![CDATA[ !hasChild ]]>
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:custom>
+                        </fs:row>
+
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+
+            <container id="partogram" opened="true" depends-on="outcome"
+                       dependency-condition="typeof outcome.outcomeId !='undefined' &amp;&amp; outcome.outcomeId!=null"
+                       refresh-dependent-container="true">
+                <wgt:form master-field-id="outcomeId" detail-field-id="id" customize="js,jsp" src="pregnantMap/n2o/custom/partogram/partogram">
+                    <wgt:query-id>partogram</wgt:query-id>
+                    <wgt:name>Партограмма</wgt:name>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="dataEntry" context="true" label="Внесение данных" icon="icon-tasks"
+                                       type="textAndIcon">
+                            <wgt:open-page page-id="partogram" refresh-on-close="true" page-name="Внесение данных"
+                                           master-field-id="id" detail-field-id="pregnantOutcomeId">
+                            </wgt:open-page>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+            </container>
+
+            <container id="protocol" opened="true" refresh-dependent-container="true" depends-on="outcome"
+                       dependency-condition="typeof outcome.outcomeId !='undefined' &amp;&amp; outcome.outcomeId!=null">
+                <wgt:custom src="ehr/widget/protocol" master-field-id="id" detail-field-id="id">
+                    <wgt:query-id>sr_srv_rendered_protocol</wgt:query-id>
+                    <wgt:name>Протокол</wgt:name>
+                    <wgt:properties>
+                        <wgt:property key="object-type" value="service"/>
+                    </wgt:properties>
+                </wgt:custom>
+            </container>
+
+            <container id="child" opened="true" refresh-dependent-container="true" depends-on="outcome"
+                       dependency-condition="typeof outcome.outcomeId !='undefined' &amp;&amp; outcome.outcomeId!=null">
+                <wgt:table master-field-id="outcomeId" detail-field-id="pregnantOutcomeId" ref-id="pregnantChild">
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="motherCaseId" ref="caseId"/>
+                    <pre-filter field-id="motherStepId" ref="stepId"/>
+                </pre-filters>
+            </container>
+        </region>
+    </regions>
+</page>

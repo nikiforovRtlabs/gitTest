@@ -1,0 +1,235 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>ambPrescription</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from (
+                select  h.id as holdingId, h.name || coalesce(', ' || mnei.name, '') as holdingName,
+                (select value from inventory.form_param_value fpv where fpv.hold_modif_id = hm.id and form_param_id = 3 limit 1) as dose,
+                (select fpv.unit_id from inventory.form_param_value fpv where fpv.hold_modif_id = hm.id and form_param_id = 3 limit 1) as doseMeasureId,
+                (select value from inventory.form_param_value fpv where fpv.hold_modif_id = hm.id and form_param_id = 2 limit 1) as concentration,
+                (select fpv.unit_id from inventory.form_param_value fpv where fpv.hold_modif_id = hm.id and form_param_id = 2 limit 1) as concentrationMeasureId,
+                ft.short_name as formTypeName,
+                ft.id as formTypeId,
+                inn.name_rus as innName,
+                mnei.id as mneiId,
+                mnei.name as mneiName
+                from inventory.hold_modif hm
+                join inventory.holding h on h.id = hm.holding_id
+                left join cmn_measure mnei on mnei.id = hm.mnei_id
+                join inventory.form_type ft on ft.id = hm.form_type_id
+                left join inventory.inn inn on inn.id = h.inn_id
+                left join inventory.batch b on b.hold_modif_id = hm.id
+                left join inventory.store_supply ss on ss.batch_id = b.id
+                left join inventory.store s on s.id = ss.store_id
+                where (:availability.id = 3 or (ss.act_balance_mnei != 0 and (:availability.id = 1 and s.department_id = :department_id or :availability.id = 2 and s.org_id = :org_id)))
+                and (:invFundingSource.id::int4 is null or ss.funding_source_id = :invFundingSource.id) and :where) as t where dose is not null
+                group by holdingId, holdingName, innName, formTypeName, formTypeId, mneiId, mneiName, dose, doseMeasureId, concentration, concentrationMeasureId
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(0) from (
+                    select holdingId, holdingName, innName, formTypeName, formTypeId, mneiId, mneiName, dose, doseMeasureId, concentration, concentrationMeasureId from (
+                    select  h.id as holdingId, h.name || coalesce(', ' || mnei.name, '') as holdingName,
+                    (select value from inventory.form_param_value fpv where fpv.hold_modif_id = hm.id and form_param_id = 3 limit 1) as dose,
+                    (select fpv.unit_id from inventory.form_param_value fpv where fpv.hold_modif_id = hm.id and form_param_id = 3 limit 1) as doseMeasureId,
+                    (select value from inventory.form_param_value fpv where fpv.hold_modif_id = hm.id and form_param_id = 2 limit 1) as concentration,
+                    (select fpv.unit_id from inventory.form_param_value fpv where fpv.hold_modif_id = hm.id and form_param_id = 2 limit 1) as concentrationMeasureId,
+                    ft.short_name as formTypeName,
+                    ft.id as formTypeId,
+                    inn.name_rus as innName,
+                    mnei.id as mneiId,
+                    mnei.name as mneiName
+                    from inventory.hold_modif hm
+                    join inventory.holding h on h.id = hm.holding_id
+                    left join cmn_measure mnei on mnei.id = hm.mnei_id
+                    join inventory.form_type ft on ft.id = hm.form_type_id
+                    left join inventory.inn inn on inn.id = h.inn_id
+                    left join inventory.batch b on b.hold_modif_id = hm.id
+                    left join inventory.store_supply ss on ss.batch_id = b.id
+                    left join inventory.store s on s.id = ss.store_id
+                    where (:availability.id = 3 or (ss.act_balance_mnei != 0 and (:availability.id = 1 and s.department_id = :department_id or :availability.id = 2 and s.org_id = :org_id)))
+                    and (:invFundingSource.id::int4 is null or ss.funding_source_id = :invFundingSource.id) and :where) as t where dose is not null
+                    group by holdingId, holdingName, innName, formTypeName, formTypeId, mneiId, mneiName, dose, doseMeasureId, concentration, concentrationMeasureId
+                ) as tt
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <!--<field>-->
+            <!--<id>id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>holdingId</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>holding_id</id>
+            <domain>integer</domain>
+            <expression>holdingId</expression>
+        </field>
+
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search filter-field="store*.id" type="in">(:availability.id = 3 or s.id in (:store*.id))</search>
+        </field>
+
+        <field>
+            <id>holding_name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <display>holdingName</display>
+            <sorting>holdingName</sorting>
+        </field>
+
+        <field>
+            <id>holding.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>h.id = :holding.id</search>
+        </field>
+
+        <field>
+            <id>holding_full_name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <display>(select name from inventory.holding where id = holdingId) || coalesce(', ' || formTypeName, '') ||
+                coalesce(', ' || CASE WHEN concentration~'^[0-9]*\.?[0-9]*$' THEN trim(to_char(concentration::numeric, 'FM9999990.999'), '.') ELSE concentration END || ' ' || (select name from cmn_measure where id = concentrationMeasureId), '')
+            </display>
+        </field>
+
+        <field>
+            <id>dose_with_measure</id>
+            <domain>string</domain>
+            <name>Доза</name>
+            <display>trim(to_char(dose::numeric, 'FM9999990.999'), '.') || ' ' || (select name from cmn_measure where id = doseMeasureId)</display>
+            <sorting>dose</sorting>
+        </field>
+
+        <field>
+            <id>dose</id>
+            <domain>string</domain>
+            <display>dose</display>
+        </field>
+
+        <field>
+            <id>dose_measure_id</id>
+            <domain>integer</domain>
+            <display>doseMeasureId</display>
+        </field>
+
+        <field>
+            <id>dose_measure_name</id>
+            <domain>string</domain>
+            <display>(select name from cmn_measure where id = doseMeasureId)</display>
+        </field>
+
+        <field>
+            <id>concentration_with_measure</id>
+            <domain>string</domain>
+            <name>Концентрация</name>
+            <expression>CASE WHEN concentration~'^[0-9]*\.?[0-9]*$' THEN trim(to_char(concentration::numeric, 'FM9999990.999'), '.') ELSE concentration END</expression>
+            <display>:expression || ' ' || (select name from cmn_measure where id = concentrationMeasureId)</display>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>concentration</id>
+            <domain>string</domain>
+            <display>concentration</display>
+        </field>
+
+        <field>
+            <id>concentration_measure_id</id>
+            <domain>string</domain>
+            <display>concentrationMeasureId</display>
+        </field>
+
+        <field>
+            <id>form_type_name</id>
+            <domain>string</domain>
+            <name>Лекарственная форма</name>
+            <display>formTypeName</display>
+            <sorting>formTypeName</sorting>
+        </field>
+
+
+        <field>
+            <id>form_type_id</id>
+            <domain>integer</domain>
+            <display>formTypeId</display>
+        </field>
+
+
+        <field>
+            <id>inn_name</id>
+            <domain>string</domain>
+            <name>МНН</name>
+            <display>innName</display>
+            <sorting>innName</sorting>
+        </field>
+
+        <field>
+            <id>inn.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>inn.id = :inn.id</search>
+        </field>
+
+        <field>
+            <id>commodity_group.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>h.commodity_group_id = :commodity_group.id</search>
+        </field>
+
+        <field>
+            <id>mnei_id</id>
+            <domain>integer</domain>
+            <display>mneiId</display>
+        </field>
+
+        <field>
+            <id>mnei_name</id>
+            <domain>string</domain>
+            <display>mneiName</display>
+        </field>
+
+        <field>
+            <id>department_id</id>
+            <domain>integer</domain>
+            <expression>:department_id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>availability.id</id>
+            <domain>integer</domain>
+            <expression>:availability.id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>inv_funding_source.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+
+    </fields>
+</query>

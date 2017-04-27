@@ -1,0 +1,181 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <!--<id>patReg</id>-->
+    <name>Прикрепление пациента</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <n2o:java-method bean="patientRegService" name="save">
+                    <n2o:arguments>
+                        <n2o:argument class="java.util.HashMap" name="dataSet"/>"
+                    </n2o:arguments>
+                </n2o:java-method>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]['id']" domain="integer"/>
+                <param name="patient.id" mapping="[0]['patient_id']" domain="integer"/>
+                <param name="number_attach" mapping="[0]['number_attach']" domain="string"/>
+                <param name="org.id" mapping="[0]['clinic_id']" domain="integer"/>
+                <param name="dep.id" mapping="[0]['department_id']" domain="integer"/>
+                <param name="reg_type.id" mapping="[0]['type_id']" domain="integer"/>
+                <param name="reg_state.id" mapping="[0]['state_id']" domain="integer"/>
+                <param name="request_uid" mapping="[0]['request_uid']" domain="string"/>
+                <param name="request_dt" mapping="[0]['request_dt']" domain="date"/>
+                <param name="reg_dt" mapping="[0]['reg_dt']" domain="date"/>
+                <param name="unreg_dt" mapping="[0]['unreg_dt']" domain="date"/>
+                <param name="unreg_cause.id" mapping="[0]['unreg_cause_id']" domain="integer"/>
+                <param name="address.realId" mapping="[0]['address_id']" domain="integer"/>
+                <param name="district.id" mapping="[0]['district_id']" domain="integer"/>
+                <param name="is_assertion" mapping="[0]['is_assertion']" domain="boolean"/>
+                <param name="district_by_addr.id" mapping="[0]['district_by_addr_id']" domain="integer"/>
+                <param name="pat_selection" mapping="[0]['pat_selection']" domain="boolean"/>
+                <param name="note" mapping="[0]['note']" domain="string"/>
+            </in-parameters>
+            <success-text>
+                Прикрепление сохранено в системе
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueReg"/>
+            </validations>
+        </action>
+
+        <action id="update" name="Изменить">
+            <invocation>
+                <n2o:java-method bean="patientRegService" name="save">
+                    <n2o:arguments>
+                        <n2o:argument class="java.util.HashMap" name="dataSet"/>"
+                    </n2o:arguments>
+                </n2o:java-method>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]['id']" domain="integer"/>
+                <!--<param name="patient.id" mapping="['patient_id']" domain="integer"/>-->
+                <param name="number_attach" mapping="[0]['number_attach']" domain="string"/>
+                <param name="org.id" mapping="[0]['clinic_id']" domain="integer"/>
+                <param name="dep.id" mapping="[0]['department_id']" domain="integer"/>
+                <param name="reg_type.id" mapping="[0]['type_id']" domain="integer"/>
+                <param name="reg_state.id" mapping="[0]['state_id']" domain="integer"/>
+                <param name="request_uid" mapping="[0]['request_uid']" domain="string"/>
+                <param name="request_dt" mapping="[0]['request_dt']" domain="date"/>
+                <param name="reg_dt" mapping="[0]['reg_dt']" domain="date"/>
+                <param name="unreg_dt" mapping="[0]['unreg_dt']" domain="date"/>
+                <param name="unreg_cause.id" mapping="[0]['unreg_cause_id']" domain="integer"/>
+                <param name="address.realId" mapping="[0]['address_id']" domain="integer"/>
+                <param name="district.id" mapping="[0]['district_id']" domain="integer"/>
+                <param name="is_assertion" mapping="[0]['is_assertion']" domain="boolean"/>
+                <param name="district_by_addr.id" mapping="[0]['district_by_addr_id']" domain="integer"/>
+                <param name="pat_selection" mapping="[0]['pat_selection']" domain="boolean"/>
+                <param name="note" mapping="[0]['note']" domain="string"/>
+            </in-parameters>
+            <success-text>
+                Изменение прикрепления сохранено в системе
+            </success-text>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from public.pci_patient_reg where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="full_name" mapping="['full_name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что прикрепление {full_name} должено быть удалено?
+            </confirmation-text>
+            <success-text>
+                Прикрепление успешно удалено
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <condition id="checkUnregofDate" level="error">
+            <expression on="unreg_dt,reg_state">
+                if ((typeof unreg_dt != 'undefined') &amp;&amp; (unreg_dt != null))
+                    ((typeof reg_state != 'undefined') &amp;&amp; (reg_state.id != null))
+                    ;else true
+            </expression>
+            <message>
+                При указании даты открепления состояние регистрации должно быть "Откреплен"
+            </message>
+        </condition>
+
+        <condition id="birth_check_regdt" level="error">
+            <expression on="reg_dt,patient.birth_dt">
+                (moment(reg_dt.substring(0,10), 'DD.MM.YYYY')) >= (moment(patient.birth_dt.substring(0,10), 'DD.MM.YYYY'))
+                <!--reg_dt >= patient.birth_dt-->
+            </expression>
+            <message>
+                Дата прикрепления не может быть меньше даты рождения {birth_dt}
+            </message>
+        </condition>
+
+        <condition id="regdt_check_death" level="error">
+            <expression on="reg_dt,death_date">
+                if ((typeof death_date != 'undefined') &amp;&amp; (death_date != null))
+                (moment(death_date.substring(0,10), 'DD.MM.YYYY')) > (moment(reg_dt.substring(0,10), 'DD.MM.YYYY'))
+                <!--(death_date > reg_dt)-->
+                ; else true
+            </expression>
+            <message>
+                Дата прикрепления не может быть больше даты смерти {death_date}
+            </message>
+        </condition>
+
+        <condition id="check_dt" level="error">
+            <expression on="unreg_dt,reg_dt">
+                if ((typeof unreg_dt != 'undefined') &amp;&amp; (unreg_dt != null))
+                (moment(unreg_dt.substring(0,10), 'DD.MM.YYYY')) > (moment(reg_dt.substring(0,10), 'DD.MM.YYYY'))
+                <!--(unreg_dt > reg_dt)-->
+                ; else true
+            </expression>
+            <message>
+                Дата прикрепления не может быть больше даты открепления
+            </message>
+        </condition>
+
+        <condition id="death_check_unregdt" level="error">
+            <expression on="death_date,unreg_dt">
+                if ((typeof unreg_dt != 'undefined') &amp;&amp; (unreg_dt != null)&amp;&amp;(typeof death_date != 'undefined') &amp;&amp; (death_date != null))
+                    (moment(death_date.substring(0,10), 'DD.MM.YYYY')) >= (moment(unreg_dt.substring(0,10), 'DD.MM.YYYY'))
+                    <!--(death_date >= unreg_dt)-->
+                    ;else true
+            </expression>
+            <message>
+                Дата открепления не может быть больше даты смерти {death_date}
+            </message>
+        </condition>
+
+        <constraint id="checkUniqueReg" level="error">
+            <message>Прикрепление пересекается по времени с другими прикреплениями указанного вида.</message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from pci_patient_reg ppr
+                    where ppr.patient_id = :pat
+                    and ppr.type_id = :type
+                    and
+                    (
+                        (cast(:reg_dt as date) >= ppr.reg_dt and (ppr.unreg_dt >= cast(:reg_dt as date) or ppr.unreg_dt is null))
+                          or
+                        (ppr.reg_dt >= cast(:reg_dt as date) and (cast(:unreg_dt as date) >= ppr.reg_dt or cast(:unreg_dt as date) is null))
+                    )
+                    and (:id is null or ppr.id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['pat']" domain="integer"/>
+                <param name="reg_dt" mapping="['reg_dt']" domain="date"/>
+                <param name="unreg_dt" mapping="['unreg_dt']" domain="date"/>
+                <param name="reg_type.id" mapping="['type']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+    </validations>
+</object>

@@ -1,0 +1,241 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicAppointment</object-id>
+    <name>clinicAppointmentList</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sr_session s
+                join sr_shift sf on s.shift_id = sf.id
+                join sr_timetable_res_group trg on trg.id = sf.timetable_id
+                join sr_res_group rg on rg.id = trg.res_group_id
+                left join sr_session_ticket st on st.session_id = s.id
+                left join md_appointment a on a.id = st.ticket_id
+                left join sr_srv_rendered ssr on ( a.srv_rendered_id = ssr.id )
+                left join pim_individual i on i.id = a.customer_id
+                left join fin_funding_source_type f on f.id = a.funding_id
+                left join md_appointment_source aps on aps.id = a.source_id
+                left join sr_service ser on ser.id = a.service_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from sr_session s
+                join sr_shift sf on s.shift_id = sf.id
+                join sr_timetable_res_group trg on trg.id = sf.timetable_id
+                join sr_res_group rg on rg.id = trg.res_group_id
+                left join sr_session_ticket st on st.session_id = s.id
+                left join md_appointment a on a.id = st.ticket_id
+                left join pim_individual i on i.id = a.customer_id
+                left join fin_funding_source_type f on f.id = a.funding_id
+                left join md_appointment_source aps on aps.id = a.source_id
+                left join sr_service ser on ser.id = a.service_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>s</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>appointmentId</id>
+            <domain>integer</domain>
+            <expression>a.id</expression>
+        </field>
+
+        <field>
+            <id>bdatetime</id>
+            <domain>string</domain>
+            <name>Время</name>
+            <expression>to_char(s.bdatetime, 'HH24:MI')</expression>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>ФИО</name>
+            <expression>(coalesce(i.surname, '') || ' ' || coalesce(i.name, '') || ' ' || coalesce(i.patr_name, ''))
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>i.id</expression>
+        </field>
+
+        <field>
+            <id>ticket_number</id>
+            <domain>string</domain>
+            <name>Талон №</name>
+            <expression>a.ticket_number</expression>
+        </field>
+
+        <field>
+            <id>patientCome</id>
+            <domain>boolean</domain>
+            <name>Пациент пришел</name>
+            <expression>(a.queue_state_id != 4)</expression>
+        </field>
+
+        <field>
+            <id>serviceName</id>
+            <domain>string</domain>
+            <name>Вид услуги</name>
+            <expression>ser.name</expression>
+        </field>
+
+        <field>
+            <id>sourceName</id>
+            <domain>string</domain>
+            <name>Способ записи</name>
+            <expression>aps.name</expression>
+        </field>
+
+        <field>
+            <id>registration_dt</id>
+            <domain>date</domain>
+            <name>Дата записи</name>
+            <expression>a.registration_dt</expression>
+        </field>
+
+        <field>
+            <id>fundingName</id>
+            <domain>string</domain>
+            <name>Вид оплаты</name>
+            <expression>f.name</expression>
+        </field>
+
+        <field>
+            <id>employeePosId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>rg.responsible_id</expression>
+            <search>(:expression = :employeePosId)</search>
+        </field>
+
+        <field>
+            <id>dt</id>
+            <domain>date</domain>
+            <name></name>
+            <display unavailable="true"/>
+            <search><![CDATA[(s.bdatetime >= :dt::date and s.bdatetime < (:dt::date + '1 day'::interval))]]></search>
+        </field>
+
+        <field>
+            <id>appointmentStateColor</id>
+            <domain>string</domain>
+            <expression>(case when a.state_id = 3 then 'text-info' when a.queue_state_id = 3 then 'text-success'
+                else '' end)
+            </expression>
+        </field>
+
+        <field>
+            <id>isHouseCall</id>
+            <domain>boolean</domain>
+            <expression>s.is_house_call</expression>
+        </field>
+
+        <field>
+            <id>resourceGroup.id</id>
+            <domain>integer</domain>
+            <expression>rg.id</expression>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>(select mp.id from md_profile mp where code='68')</expression>
+        </field>
+
+        <field>
+            <id>caseType.id</id>
+            <domain>integer</domain>
+            <expression>(select mct.id from mc_case_type mct where code='1')</expression>
+        </field>
+
+        <field>
+            <id>initGoal.id</id>
+            <domain>integer</domain>
+            <expression>(select mcig.id from mc_case_init_goal mcig where code='1')</expression>
+        </field>
+
+        <field>
+            <id>careRegimen.id</id>
+            <domain>integer</domain>
+            <expression>(select mcr.id from mc_care_regimen mcr where mcr.code='1')</expression>
+        </field>
+
+        <field>
+            <id>fundingSourceType.id</id>
+            <domain>integer</domain>
+            <expression>(select ffst.id from fin_funding_source_type ffst where ffst.code='OMS')</expression>
+        </field>
+
+        <field>
+            <id>newCase</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.id</id>
+            <domain>integer</domain>
+            <expression>a.srv_rendered_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.orgId</id>
+            <domain>integer</domain>
+            <expression>ssr.org_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.patientId</id>
+            <domain>integer</domain>
+            <expression>ssr.customer_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.resGroupId</id>
+            <domain>integer</domain>
+            <expression>ssr.res_group_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.resGroupIsSystem</id>
+            <domain>boolean</domain>
+            <expression>rg.is_system</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.serviceId</id>
+            <domain>integer</domain>
+            <expression>a.service_id</expression>
+        </field>
+
+        <field>
+            <id>patient.orgId</id>
+            <domain>integer</domain>
+            <expression>ssr.org_id</expression>
+        </field>
+
+        <field>
+            <id>patient.emplContext</id>
+            <domain>integer</domain>
+            <expression>(select pe1.id from pim_employee pe1
+                join pim_employee_position pep on ( pe1.id = pep.employee_id )
+                join sr_res_group srg on ( pep.id = srg.responsible_id ) where srg.id = ssr.res_group_id)
+            </expression>
+        </field>
+
+    </fields>
+</query>

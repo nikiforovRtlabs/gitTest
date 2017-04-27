@@ -1,0 +1,331 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>groupTurnoverSheet</name>
+    <object-id>turnoverSheet</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>with turnoverSheet as
+                (select * ,
+                case when :isMnei is true then price*ts_beginQuantity/countInSecPack
+                    else  price*ts_beginQuantity end as beginSum,
+                case when :isMnei is true then price*ts_incomeQuantity/countInSecPack
+                    else  price*ts_incomeQuantity end as  incomeSum,
+                case when :isMnei is true then  price*ts_outcomeQuantity/countInSecPack
+                    else  price*ts_outcomeQuantity end as  outcomeSum,
+                case when (ts_beginQuantity+ts_incomeQuantity-ts_outcomeQuantity) = 0 then 0
+                    else (case when :isMnei is true then price*(ts_beginQuantity+ts_incomeQuantity-ts_outcomeQuantity)/countInSecPack
+                        else  price*(ts_beginQuantity+ts_incomeQuantity-ts_outcomeQuantity) end) end as endSum,
+                case when :isMnei=true then mneiUnit else unit end as measure,
+
+                ts_beginQuantity+ts_incomeQuantity-ts_outcomeQuantity as endQuantity
+                from
+                (select store.id storeid,store.name storename, modif.id modifid, modif.name modifname, h.id as holdid, h.inn_id as innId, fund.id fundid,fund.name fundname, ss.price as price,
+                cg.id comGroupId, cg.name comGroupName, coalesce(org.short_name, org.full_name) as prodName, hp.id as prodid, coalesce(modif.mnei_count_in_sec_pk,1) as countInSecPack,
+                inventory.get_unit_name_by_flag_of_modif(modif.price_unit_flag, modif.id) as unit,
+                mes.mnemocode as mneiUnit,
+
+                coalesce(inventory.get_store_supply_quantity_at_date(ss.id,:periodDates.begin::date, :isMnei),0) ts_beginQuantity,
+                coalesce(inventory.get_income_quantity_for_store_supply_for_period(ss.id,:periodDates.begin::date,:periodDates.end::date, :isMnei),0) ts_incomeQuantity,
+                coalesce(inventory.get_outcome_quantity_for_store_supply_for_period(ss.id,:periodDates.begin::date,:periodDates.end::date, :isMnei),0) ts_outcomeQuantity
+
+                from inventory.store_supply ss
+                left outer join inventory.batch batch on batch.id = ss.batch_id
+                left outer join inventory.hold_modif modif on modif.id = batch.hold_modif_id
+                left outer join inventory.holding_producer hp on batch.hold_producer_id= hp.id
+                left outer join pim_organization org on org.id = hp.org_id
+                left outer join cmn_measure mes on mes.id =  modif.mnei_id
+                left outer join inventory.holding h on h.id = modif.holding_id
+                left outer join inventory.commodity_group cg on cg.id = h.commodity_group_id
+                left outer join inventory.store store on store.id = ss.store_id
+                left outer join inventory.funding_source fund on fund.id = ss.funding_source_id
+
+                where (store.id in (:store*.id) or (:store*.id) is null)
+                    and (fund.id in (:fundSources*.id) or (:fundSources*.id) is null)
+                    and (cg.id in (:comGroupList*.id) or (:comGroupList*.id) is null)
+                    and (modif.id in (:modifList*.id) or (:modifList*.id) is null)
+                    and (h.id in (:holdingList*.id) or (:holdingList*.id) is null)
+                    and (h.inn_id in (:innList*.id) or (:innList*.id) is null)
+                    and store.org_id = :org.id
+                group by store.id,modif.id,h.id,fund.id, cg.id, ss.id, unit, mes.id, hp.id, org.id order by store.id)
+                as query
+                where (ts_beginQuantity=0 and  ts_incomeQuantity=0 and ts_outcomeQuantity = 0) is false
+                ),
+
+                turnoverSheetBalance as(
+                select storeid as store_id , 0 as fund_id,0 as com_Group_id,0 as modif_id, 0 as hold_id, 'store'||storeid as id,storename as name, 'store' as levelType, '' as measure,
+                sum(ts_beginQuantity) as beginQuantity, sum(beginSum) as beginAmount,
+                sum(ts_incomeQuantity) as incomeQuantity, sum(incomeSum) as incomeAmount,
+                sum(ts_outcomeQuantity) as outcomeQuantity, sum(outcomeSum) as outcomeAmount,
+                sum(endQuantity) as endQuantity, sum(endSum) as endAmount, 0 as prod_id
+                from turnoverSheet group by storeid, storename
+
+                union
+
+                select storeid as store_id , fundid as fund_id, 0 as com_Group_id, 0 as modif_id,0 as hold_id, 'store'||storeid||'fund'||fundid as id, fundname as name,'funding' as levelType,'' as measure,
+                sum(ts_beginQuantity) as beginQuantity,  sum(beginSum) as beginAmount,
+                sum(ts_incomeQuantity) as incomeQuantity, sum(incomeSum) as incomeAmount,
+                sum(ts_outcomeQuantity) as outcomeQuantity, sum(outcomeSum) as outcomeAmount,
+                sum(endQuantity) as endQuantity, sum(endSum) as endAmount, 0 as prod_id
+                from  turnoverSheet group by storeid, fundid, fundname
+
+                union
+
+                select storeid as store_id ,fundid as fund_id, comGroupId as com_Group_id,0 as modif_id,0 as hold_id,
+                'store'||storeid||'fund'||fundid||'comGroup'||comGroupId as id, comGroupName as name,'comGroup' as levelType, '' as measure,
+                sum(ts_beginQuantity)as beginQuantity,sum(beginSum) as beginAmount,
+                sum(ts_incomeQuantity) as incomeQuantity,sum(incomeSum) as incomeAmount,
+                sum(ts_outcomeQuantity) as outcomeQuantity,sum(outcomeSum) as outcomeAmount,
+                sum(endQuantity) as endQuantity, sum(endSum) as endAmount, 0 as prod_id
+                from  turnoverSheet group by storeid, fundid, comGroupId, comGroupName
+
+                union
+
+                select storeid as store_id ,fundid as fund_id, comGroupId as com_Group_id,modifid as modif_id, holdid as hold_id,
+                'store'||storeid||'fund'||fundid||'comGroup'||comGroupId||'modif'||modifid||'prod'||coalesce(prodid,0) as id,
+                modifname||coalesce(', '||prodName, '') as name, 'modif' as levelType, measure,
+                sum(ts_beginQuantity) as beginQuantity, sum(beginSum) as beginAmount,
+                sum(ts_incomeQuantity) as  incomeQuantity,  sum(incomeSum) as incomeAmount,
+                sum(ts_outcomeQuantity) as outcomeQuantity,sum(outcomeSum) as outcomeAmount,
+                sum(endQuantity) as endQuantity, sum(endSum) as endAmount, prodid as prod_id
+                from  turnoverSheet
+                group by storeid,fundid,comGroupId,modifid,holdid,modifname, prodName, prodid, measure)
+
+                select :select from  turnoverSheetBalance
+                where  :where
+                order by store_id, fund_id, com_Group_id, levelType, :order
+            </n2o:items-query>
+            <n2o:count-query>with turnoverSheet as
+                (select *
+                from
+                (select ss.id , hp.id  as prodid, ss.store_id  as storeid,  ss.funding_source_id as fundid, h.commodity_group_id as comGroupId, modif.id as modifid,
+                coalesce(inventory.get_store_supply_quantity_at_date(ss.id,:periodDates.begin::date, :isMnei),0) ts_beginQuantity,
+                coalesce(inventory.get_income_quantity_for_store_supply_for_period(ss.id,:periodDates.begin::date,:periodDates.end::date, :isMnei),0) ts_incomeQuantity,
+                coalesce(inventory.get_outcome_quantity_for_store_supply_for_period(ss.id,:periodDates.begin::date,:periodDates.end::date, :isMnei),0) ts_outcomeQuantity
+
+                from inventory.store_supply ss
+                left outer join inventory.batch batch on batch.id = ss.batch_id
+                left outer join inventory.hold_modif modif on modif.id = batch.hold_modif_id
+                left outer join inventory.holding_producer hp on batch.hold_producer_id= hp.id
+                left outer join inventory.holding h on h.id = modif.holding_id
+                left outer join inventory.commodity_group cg on cg.id = h.commodity_group_id
+                left outer join inventory.store store on store.id = ss.store_id
+                left outer join inventory.funding_source fund on fund.id = ss.funding_source_id
+
+                where (store.id in (:store*.id) or (:store*.id) is null)
+                    and (fund.id in (:fundSources*.id) or (:fundSources*.id) is null)
+                    and (h.commodity_group_id in (:comGroupList*.id) or (:comGroupList*.id) is null)
+                    and (modif.id in (:modifList*.id) or (:modifList*.id) is null)
+                    and (h.id in (:holdingList*.id) or (:holdingList*.id) is null)
+                    and (h.inn_id in (:innList*.id) or (:innList*.id) is null)
+                    and store.org_id = :org.id
+                group by modif.id,h.id,ss.id,hp.id)
+                as query
+                where (ts_beginQuantity=0 and  ts_incomeQuantity=0 and ts_outcomeQuantity = 0) is false
+                ),
+
+                turnoverSheetBalance as(
+                select 'store'||storeid as id, storeid as store_id
+                from turnoverSheet group by storeid
+                union
+                select 'store'||storeid||'fund'||fundid as id, storeid as store_id
+                from  turnoverSheet group by storeid, fundid
+                union
+                select 'store'||storeid||'fund'||fundid||'comGroup'||comGroupId as id, storeid as store_id
+                from  turnoverSheet group by storeid, fundid, comGroupId
+                union
+                select  'store'||storeid||'fund'||fundid||'comGroup'||comGroupId||'modif'||modifid||'prod'||coalesce(prodid,0) as id, storeid as store_id
+                from  turnoverSheet
+                group by storeid,fundid,comGroupId,modifid,prodid)
+
+                select count(1) from  turnoverSheetBalance
+                where  :where
+            </n2o:count-query>
+            <n2o:alias>turnoverSheet</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>id</expression>
+        </field>
+        <field>
+            <id>levelType</id>
+            <domain>string</domain>
+            <expression>levelType</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Склад/ Финансирование/ Тов. группа/ Наименование ЛС</name>
+            <expression>name</expression>
+            <sorting>name</sorting>
+        </field>
+        <field>
+            <id>store*.id</id>
+            <domain>integer[]</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>fundSources*.id</id>
+            <domain>integer[]</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>modif.id</id>
+            <domain>integer</domain>
+            <expression>modif_id</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>modifList*.id</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>comGroupList*.id</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>comGroupId</id>
+            <domain>integer</domain>
+            <expression>turnoverSheetBalance.com_Group_id</expression>
+        </field>
+        <field>
+            <id>holding.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>holdingList*.id</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>innList*.id</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>isMnei</id>
+            <domain>boolean</domain>
+            <expression>(select coalesce(:isMnei, false))</expression>
+            <display unavailable="false"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>measure</id>
+            <domain>string</domain>
+            <name>Ед.изм.</name>
+            <expression>measure</expression>
+        </field>
+        <field>
+            <id>beginQuantity</id>
+            <name>Остаток на начало</name>
+            <domain>string</domain>
+            <expression>beginQuantity</expression>
+            <search unavailable="true"/>
+            <sorting>beginQuantity</sorting>
+        </field>
+        <field>
+            <id>beginAmount</id>
+            <domain>string</domain>
+            <name>Сумма на начало</name>
+            <expression>beginAmount</expression>
+            <search unavailable="true"/>
+            <sorting>beginAmount</sorting>
+        </field>
+        <field>
+            <id>incomeQuantity</id>
+            <name>Приход</name>
+            <domain>string</domain>
+            <expression>incomeQuantity</expression>
+            <search unavailable="true"/>
+            <sorting>incomeQuantity</sorting>
+        </field>
+        <field>
+            <id>incomeAmount</id>
+            <domain>string</domain>
+            <name>Сумма приход</name>
+            <expression>incomeAmount</expression>
+            <search unavailable="true"/>
+            <sorting>incomeAmount</sorting>
+        </field>
+        <field>
+            <id>outcomeQuantity</id>
+            <name>Расход</name>
+            <domain>string</domain>
+            <expression>outcomeQuantity</expression>
+            <search unavailable="true"/>
+            <sorting>outcomeQuantity</sorting>
+        </field>
+        <field>
+            <id>outcomeAmount</id>
+            <domain>string</domain>
+            <name>Сумма расход</name>
+            <expression>outcomeAmount</expression>
+            <search unavailable="true"/>
+            <sorting>outcomeAmount</sorting>
+        </field>
+        <field>
+            <id>endQuantity</id>
+            <name>Остаток на конец</name>
+            <domain>string</domain>
+            <expression>endQuantity</expression>
+            <search unavailable="true"/>
+            <sorting>endQuantity</sorting>
+        </field>
+        <field>
+            <id>endAmount</id>
+            <domain>string</domain>
+            <name>Сумма на конец</name>
+            <expression>endAmount</expression>
+            <search unavailable="true"/>
+            <sorting>endAmount</sorting>
+        </field>
+        <field>
+            <id>periodDates.end</id>
+            <domain>date</domain>
+            <expression>(select :periodDates.end::date)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>periodDates.begin</id>
+            <domain>date</domain>
+            <expression>(select :periodDates.begin::date)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fund_id</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <expression>store_id</expression>
+        </field>
+        <field>
+            <id>prod.id</id>
+            <domain>integer</domain>
+            <expression>prod_id</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search  unavailable="true"/>
+        </field>
+    </fields>
+</query>

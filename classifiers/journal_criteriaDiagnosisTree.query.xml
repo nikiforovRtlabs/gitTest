@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_diagnosis md, monitoring.mn_journal_criteria jc
+                where :where
+                order by code
+            </n2o:items-query>
+            <n2o:count-query>select count(md)
+                from md_diagnosis md
+                where :where
+            </n2o:count-query>
+            <n2o:alias>md</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>md.code || ' ' || md.name</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>parentId</id>
+            <domain>integer</domain>
+            <expression>md.parent_id</expression>
+        </field>
+
+        <field>
+            <id>hasChildren</id>
+            <domain>boolean</domain>
+            <expression>coalesce((select true
+                from md_diagnosis as md1 where md.id = md1.parent_id limit 1),false)
+            </expression>
+        </field>
+
+        <field>
+            <id>beginDiagnosisId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                md.code >= (select code from md_diagnosis where id = :beginDiagnosisId)
+            </search>
+        </field>
+
+        <field>
+            <id>criteria_id</id>
+            <domain>integer</domain>
+            <expression>jc.id</expression>
+        </field>
+
+        <field>
+            <id>canResolve</id>
+            <domain>boolean</domain>
+            <expression>
+                coalesce(jc.is_range OR (select not exists(select 1 from md_diagnosis as md1 where md.id = md1.parent_id limit 1)), false)
+            </expression>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,56 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Лицевые счета</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/stocks/organizationAccount/save
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']" domain="string" />
+                <param name="organizationAccount" mapping="['accountNumber']" domain="string" />
+                <param name="bankDetail.id" mapping="['bankDetailsId']" domain="integer" />
+                <param name="openDate" mapping="['openDate']"/>
+                <param name="closeDate" mapping="['closeDate']"/>
+                <param name="org.id" mapping="['orgId']" value="#{stocks.orgId}" domain="integer" />
+            </in-parameters>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удаление">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/stocks/organizationAccount?organizationAccountId={organizationAccountId}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['organizationAccountId']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить лицевой счет?</confirmation-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkOpenAndCloseDates" level="error">
+            <expression><![CDATA[
+                    (openDate != null && closeDate != null &&
+                    (!moment(openDate, 'DD.MM.YYYY').isAfter(moment(closeDate, 'DD.MM.YYYY'))))
+                    ||openDate == null||closeDate == null]]></expression>
+            <message>Дата открытия должна быть раньше даты закрытия.</message>
+        </condition>
+        <condition id="checkOrganizationAccountNumberOfDigits" level="error">
+            <expression><![CDATA[
+                    var regex = new RegExp('^\\d{20}$');
+                    var v = true;
+                    if(typeof organizationAccount != 'undefined' && organizationAccount != null && organizationAccount != '')
+                    v = regex.test(organizationAccount);
+                    v;
+                    ]]></expression>
+            <message>Должно быть 20 цифр.</message>
+        </condition>
+    </validations>
+
+</object>

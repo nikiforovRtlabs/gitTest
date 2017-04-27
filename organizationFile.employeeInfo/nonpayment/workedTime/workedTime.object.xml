@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Фактически отработанное время</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO worked_time(id, hours, employee_id, from_dt, to_dt)
+                    VALUES ( nextval('worked_time_id_seq'), :hours, :employee_id, :from_dt, :to_dt );
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="hours" mapping="['hours']" domain="integer"/>
+                <param name="employee_id" mapping="['employee_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="oid" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Фактически отработанное время успешно добавлено.
+            </success-text>
+        </action>
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update worked_time set
+                    hours = :hours,
+                    from_dt = :from_dt,
+                    to_dt = :to_dt
+                    where id = :oid
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="oid" mapping="['oid']" domain="integer"/>
+                <param name="hours" mapping="['hours']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <success-text>
+                Фактически отработанное время успешно изменено.
+            </success-text>
+        </action>
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from worked_time where id = :oid;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="oid" mapping="['oid']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы действительно хотите удалить фактически отработанное время?
+            </confirmation-text>
+            <success-text>
+                Фактически отработанное время успешно удалено.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <condition id="checkFromDt" level="error" moment="before-action">
+            <message>Не может быть раньше рождения</message>
+            <expression on="from_dt">
+                <![CDATA[
+                  moment(from_dt, 'DD.MM.YYYY') < moment(patient.birthDate, 'DD.MM.YYYY') ? false : true;
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkToDt" level="error" moment="before-action">
+            <message>Дата окончания должна быть больше даты начала или равна ей</message>
+            <expression on="to_dt">
+                <![CDATA[
+                  to_dt == null ? true : moment(from_dt, 'DD.MM.YYYY') > moment(to_dt, 'DD.MM.YYYY') ? false : true;
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

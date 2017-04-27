@@ -1,0 +1,104 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <!--<id>diagnosis</id>-->
+    <name>Диагноз МКБ-10</name>
+    <object-id>amb_diagnosis</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_diagnosis md1
+                left join md_diagnosis md2 on md2.id = md1.parent_id
+                where
+                <!--md1.parent_id is not null -->
+                md1.is_leaf is true
+                and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from md_diagnosis md1
+                left join md_diagnosis md2 on md2.id = md1.parent_id
+                where
+                <!--md1.parent_id is not null -->
+                md1.is_leaf is true
+                and :where
+            </n2o:count-query>
+            <n2o:alias>md1</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>md1.id</expression>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <name>Код</name>
+            <expression>md1.code</expression>
+            <search>upper(md1.code) like upper(:code||'%')</search>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>md1.name</expression>
+            <search>upper(md1.name) like upper('%'||:name||'%')</search>
+        </field>
+        <field>
+            <id>codename</id>
+            <domain>string</domain>
+            <name>Код и Наименование</name>
+            <expression>md1.code || ' ' ||md1.name</expression>
+            <!--<search>upper(:expression) like upper('%'||:codename||'%')</search>-->
+            <search>
+                <![CDATA[(:codename = '' and md1.parent_id is null) or (:codename <> '' and
+                (upper(md1.code || ' ' || md1.name) = upper(:codename)
+                or upper(md1.code) like upper(:codename || '%')
+                or upper(md1.name) like upper('%' || :codename || '%')
+                or upper(md1.code) like translate(upper(:codename), 'ЙЦУКЕНГШЩЗФЫВАПРОЛДЯЧСМИТЬ,', 'QWERTYUIOPASDFGHJKLZXCVBNM.')||'%'
+                or upper(md1.name) like '%' || translate(upper(:codename), 'QWERTYUIOP[]ASDFGHJKL;''ZXCVBNM,.','ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ') || '%'))
+                ]]>
+            </search>
+        </field>
+        <field>
+            <id>injury</id>
+            <domain>boolean</domain>
+            <name>Признак травмы</name>
+            <expression>(md1.code between 'S00' and 'T99')</expression>
+        </field>
+        <field>
+            <id>level</id>
+            <domain>integer</domain>
+            <name>Уровень</name>
+            <expression>md1.level</expression>
+        </field>
+        <field>
+            <id>leaf</id>
+            <domain>boolean</domain>
+            <name>Листик</name>
+            <expression>md1.is_leaf</expression>
+        </field>
+        <field>
+            <id>is_psycho</id>
+            <domain>boolean</domain>
+            <expression>
+                case when md1.code like ('F%') then true else false end
+            </expression>
+        </field>
+
+        <field>
+            <id>parent_code</id>
+            <domain>string</domain>
+            <expression>
+                md2.code
+            </expression>
+        </field>
+    </fields>
+</query>

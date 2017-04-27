@@ -1,0 +1,123 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <name>Информация о бригаде</name>
+    <object-id>brg_journal</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from amb.sr_res_team_job srtj
+                join amb.sr_res_team srt on srt.id = srtj.team_id
+                --старший в наряде
+                join amb.sr_res_team_job_resourse srtjr on srtjr.team_job_id=srtj.id
+                join sr_resource res on srtjr.resource_id = res.id
+                join pim_employee_position_resource pepr on res.id = pepr.id
+                join pim_employee_position respep on pepr.employee_position_id = respep.id
+                join pim_employee respe on respep.employee_id = respe.id
+                join pim_individual respi on respe.individual_id = respi.id
+
+                join sr_res_group srg on srg.id = srt.resource_id
+                join pim_organization po on po.id = srg.org_id
+                join pim_department pd on pd.id = srg.department_id
+                left join amb.md_ambulance_change mac on mac.id = srtj.change_id
+                -- последний статус бригады
+                left join amb.sr_res_team_job_status_history srjsh on srjsh.id = (select id from amb.sr_res_team_job_status_history where team_job_id = srtj.id order by date_time desc,job_status_id desc, id desc limit 1)
+                left join amb.sr_res_team_job_status srtjstat on srtjstat.id = srjsh.job_status_id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from amb.sr_res_team_job srtj
+                join amb.sr_res_team srt on srt.id = srtj.team_id
+                join amb.sr_res_team_job_resourse srtjr on srtjr.team_job_id=srtj.id
+                join sr_resource res on srtjr.resource_id = res.id
+                join pim_employee_position_resource pepr on res.id = pepr.id
+                join pim_employee_position respep on pepr.employee_position_id = respep.id
+                join pim_employee respe on respep.employee_id = respe.id
+                join pim_individual respi on respe.individual_id = respi.id
+                join sr_res_group srg on srg.id = srt.resource_id
+                join pim_organization po on po.id = srg.org_id
+                join pim_department pd on pd.id = srg.department_id
+                left join amb.md_ambulance_change mac on mac.id = srtj.change_id
+                left join amb.sr_res_team_job_status_history srjsh on srjsh.id = (select id from amb.sr_res_team_job_status_history where team_job_id = srtj.id order by date_time desc,job_status_id desc, id desc limit 1)
+                left join amb.sr_res_team_job_status srtjstat on srtjstat.id = srjsh.job_status_id
+
+                where :where
+            </n2o:count-query>
+            <n2o:alias>brg</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <!-- по id наряда находим необходимую информацию о бригаде -->
+        <field>
+            <id>nar.id</id>
+            <domain>integer</domain>
+            <name>Наряд</name>
+            <expression>srtj.id</expression>
+            <filters>
+                <filter type="eq" filter-field="nar.id">srtj.id = :nar.id</filter>
+            </filters>
+        </field>
+        <field>
+            <id>brg_info.brg.id</id>
+            <domain>integer</domain>
+            <name>Бригада</name>
+            <expression>srt.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>brg_info.mac.id</id>
+            <domain>integer</domain>
+            <name>Смена</name>
+            <expression>mac.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>brg_info.brg.begin</id>
+            <domain>date</domain>
+            <name>Начало</name>
+            <expression>coalesce(srtj.bdate, srtj.planned_bdate)</expression>
+            <display/>
+        </field>
+        <field>
+            <id>brg_info.brg.end</id>
+            <domain>date</domain>
+            <name>Окончание</name>
+            <expression>coalesce(srtj.edate,srtj.planned_edate)</expression>
+            <display/>
+        </field>
+        <field>
+            <id>brg_info.brg.head</id>
+            <domain>string</domain>
+            <name>Старший</name>
+            <expression>respi.surname||' '||left(initcap(respi.name),1)||'. '||left(initcap(respi.patr_name),1)||'.    '||srtjr.workplace</expression>
+            <filters>
+                <filter type="eq" filter-field="brg.head" default-value="false">
+                    srtjr.is_head = true
+                </filter>
+            </filters>
+            <display/>
+        </field>
+        <field>
+            <id>brg_info.brg.note</id>
+            <domain>string</domain>
+            <name>Примечание</name>
+            <expression>CONCAT((select cal.call_number from amb.md_ambulance_call cal where cal.brg_id = srtj.id order by id desc limit 1),' ',
+                (select st.name from amb.md_ambulance_call cal
+                inner join amb.md_ambcall_state_history hist on cal.id=hist.call_id
+                inner join amb.md_ambulance_call_state st on st.id = hist.state_id
+                where cal.brg_id = srtj.id order by cal.id desc, hist.id desc limit 1),' ',
+                (select cal.note from amb.md_ambulance_call cal where cal.brg_id = srtj.id order by id desc limit 1))</expression>
+            <display/>
+        </field>
+        <field>
+            <id>brg_info.brg.status</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>srtjstat.name</expression>
+            <display/>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,276 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicPatient</object-id>
+    <name>personalDataOfThePatient</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from sr_srv_rendered ssr
+                left join md_appointment a on ( ssr.id = a.srv_rendered_id )
+                left join pim_individual pi on ( ssr.customer_id = pi.id )
+                left join pim_party ppa on ( pi.id = ppa.id )
+                left join pim_party_address ppadr on ( ppa.id = ppadr.party_id )
+                left join pim_party_addr_to_addr_type ppatat ON ( ppadr.id = ppatat.party_address_id )
+                left join pci_patient pp on ( pi.id = pp.id )
+                left join pci_patient_reg ppr on ( pp.id = ppr.patient_id )
+                left join pim_gender pg on ( pi.gender_id = pg.id )
+                left join pci_patient_job ppj on ( pp.id = ppj.patient_id )
+                left join pim_organization po on ( ppj.organization_id = po.id )
+                left join pim_profession_working ppw on ( ppj.profession_working_id = ppw.id )
+                left join md_srv_rendered msr on ( ssr.id = msr.id )
+                left join mc_step ms on ( msr.step_id = ms.id )
+                left join mc_case mc on ( ms.case_id = mc.id )
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ssr)
+                from sr_srv_rendered ssr
+                left join md_appointment a on ( ssr.id = a.srv_rendered_id )
+                left join pim_individual pi on ( ssr.customer_id = pi.id )
+                left join pim_party ppa on ( pi.id = ppa.id )
+                left join pim_party_address ppadr on ( ppa.id = ppadr.party_id )
+                left join pim_party_addr_to_addr_type ppatat ON ( ppadr.id = ppatat.party_address_id )
+                left join pci_patient pp on ( pi.id = pp.id )
+                left join pci_patient_reg ppr on ( pp.id = ppr.patient_id )
+                left join pim_gender pg on ( pi.gender_id = pg.id )
+                left join pci_patient_job ppj on ( pp.id = ppj.patient_id )
+                left join pim_organization po on ( ppj.organization_id = po.id )
+                left join pim_profession_working ppw on ( ppj.profession_working_id = ppw.id )
+                left join md_srv_rendered msr on ( ssr.id = msr.id )
+                left join mc_step ms on ( msr.step_id = ms.id )
+                left join mc_case mc on ( ms.case_id = mc.id )
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ssr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>appointmentId</id>
+            <domain>integer</domain>
+            <expression>a.id</expression>
+        </field>
+
+        <field>
+            <id>drugIntolerance</id>
+            <domain>string</domain>
+            <name>Лекарственная непереносимость:</name>
+            <expression>
+                (select concat(ii.name_rus,' - ',pdi.note)
+                from pci_drug_intolerance pdi
+                join inv_inn ii on ( pdi.inn_id = ii.id )
+                where pdi.patient_id = pp.id limit 1)
+                <!-- array_to_string(array(select concat(ii.name_rus,' - ',pdi.note)
+                 from pci_drug_intolerance pdi
+                 join inv_inn ii on ( pdi.inn_id = ii.id  )
+                 where pdi.patient_id = pp.id), '; ')-->
+            </expression>
+        </field>
+
+        <field>
+            <id>countDrugIntolerance</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when (select count(pdi)
+                from pci_drug_intolerance pdi
+                join inv_inn ii on ( pdi.inn_id = ii.id )
+                where pdi.patient_id = pp.id) > 1 then 'true'
+                else 'false'
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>patientReg.numberAttach</id>
+            <domain>string</domain>
+            <name>Мед. карта №:</name>
+            <expression>ppr.number_attach</expression>
+        </field>
+
+        <field>
+            <id>patientReg.id</id>
+            <domain>integer</domain>
+            <expression>ppr.id</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>pi.id</expression>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>ФИО:</name>
+            <expression>
+                (coalesce(pi.surname, '') || ' ' || coalesce(pi.name, '') || ' ' || coalesce(pi.patr_name, ''))
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.bt</id>
+            <domain>string</domain>
+            <name>Дата рождения:</name>
+            <expression>(coalesce(to_char(pi.birth_dt, 'DD.MM.YYYY'), '') || ' (' || date_part('year', age
+                (pi.birth_dt))|| ')')
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.gender</id>
+            <domain>string</domain>
+            <name>Пол:</name>
+            <expression>pg.name</expression>
+        </field>
+
+        <field>
+            <id>patientAddress</id>
+            <domain>string</domain>
+            <name>Проживает:</name>
+            <expression>
+                (case when ppadr.addr_id is null then ppadr.text_addr when ppatat.address_type_id = 6 then
+                (coalesce((select adr__get_element_as_text(ppadr.addr_id,'(4,s,0)(6,s,0)(7,s,0)(8,s,0)')), ''))
+                when ppatat.address_type_id = 4 then (coalesce((select
+                adr__get_element_as_text(ppadr.addr_id,'(4,s,0)(6,s,0)(7,s,0)(8,s,0)')), ''))
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>patientJob</id>
+            <domain>string</domain>
+            <name>Место работы/учёбы:</name>
+            <expression>
+                (coalesce(po.short_name, '') || ' ' || coalesce(ppw.name, ''))
+            </expression>
+        </field>
+
+        <field>
+            <id>patientContact</id>
+            <domain>string</domain>
+            <name>Контакты:</name>
+            <expression>
+                array_to_string(array(select value from pim_indiv_contact pic where pic.indiv_id = pi.id), ' / ')
+            </expression>
+        </field>
+
+        <field>
+            <id>mcCaseId</id>
+            <domain>integer</domain>
+            <expression>mc.id</expression>
+        </field>
+
+        <field>
+            <id>dtStep</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>to_char(ms.admission_date, 'DD.MM.YYYY')</expression>
+        </field>
+
+        <field>
+            <id>patient.orgId</id>
+            <domain>integer</domain>
+            <expression>ssr.org_id</expression>
+        </field>
+
+        <field>
+            <id>serviceId</id>
+            <domain>integer</domain>
+            <expression>ssr.service_id</expression>
+        </field>
+
+        <field>
+            <id>resourceGroupId</id>
+            <domain>string</domain>
+            <expression>(case when a.executor_id is null then 'employeeId='||(select pe1.id from pim_employee pe1
+                join pim_employee_position pep on ( pe1.id = pep.employee_id )
+                join sr_res_group srg on ( pep.id = srg.responsible_id ) where srg.id = ssr.res_group_id)
+                else 'appointment.resourceGroupId='||a.executor_id end)</expression>
+        </field>
+
+        <!--cardPlace-->
+
+        <field>
+            <id>dt</id>
+            <name>Дата</name>
+            <domain>date</domain>
+            <expression>(select now())</expression>
+        </field>
+
+        <field>
+            <id>place</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(l) from (
+                select
+                pcp.id as id,
+                pcp.name as name
+                from pci_patient_card_place ppcp
+                left join pci_card_place pcp on ( ppcp.card_place_id = pcp.id  )
+                where ppcp.patient_id = ssr.customer_id and ppcp.date = (select max(ppcp1.date) from pci_patient_card_place ppcp1 where ppcp1.patient_id = ssr.customer_id and ppcp1.clinic_id = :clinicId limit 1)
+                and ppcp.clinic_id = :clinicId order by ppcp.id desc limit 1) as l)
+            </expression>
+        </field>
+
+        <field>
+            <id>placeOld</id>
+            <domain>integer</domain>
+            <expression>
+                (select pcp.id
+                from pci_patient_card_place ppcp
+                left join pci_card_place pcp on ( ppcp.card_place_id = pcp.id  )
+                where ppcp.patient_id = ssr.customer_id and ppcp.date =(select max(ppcp1.date) from pci_patient_card_place ppcp1 where ppcp1.patient_id = ssr.customer_id and ppcp1.clinic_id = :clinicId limit 1)
+                and ppcp.clinic_id = :clinicId order by ppcp.id desc limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>placeEmpl</id>
+            <domain>integer</domain>
+            <expression>
+                (select ppcp.employee_position_id
+                from pci_patient_card_place ppcp
+                where ppcp.patient_id = ssr.customer_id and ppcp.date =(select max(ppcp1.date) from pci_patient_card_place ppcp1 where ppcp1.patient_id = ssr.customer_id and ppcp1.clinic_id = :clinicId limit 1)
+                and ppcp.clinic_id = :clinicId order by ppcp.id desc limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>:clinicId</expression>
+            <search value="#{org.id?}">:expression = :clinicId</search>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>pi.id</expression>
+        </field>
+
+        <field>
+            <id>employeePosId</id>
+            <domain>integer</domain>
+            <expression>:employeePosId</expression>
+            <search value="#{emplPos.id?}">:expression = :employeePosId</search>
+        </field>
+
+        <field>
+            <id>repeatedServiceId</id>
+            <domain>integer</domain>
+            <expression>COALESCE(
+                (SELECT ss.id FROM sr_service ss JOIN sr_res_group_service sr ON ss.id = sr.srv_type_id
+                WHERE sr.group_id = a.executor_id AND ss.name =
+                regexp_replace((SELECT name FROM sr_service WHERE id = ssr.service_id)::varchar,'ервичн','овторн' ))
+                ,ssr.service_id) </expression>
+        </field>
+    </fields>
+</query>

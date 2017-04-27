@@ -1,0 +1,124 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+<name>Участок обслуживания</name>
+<actions>
+    <action id="create">
+        <invocation>
+            <n2o:sql>
+                INSERT INTO md_clinic_district( id, name, order_number, attache_number, separation_id, type_id, kind_id, from_dt, to_dt)
+                VALUES (nextval('md_clinic_district_seq'), :name, :order_number, :attache_number, :separation_id, :type_id, :kind_id, :from_dt, :to_dt);
+
+                select set_district_departments( (select currval('md_clinic_district_seq'))::integer, :context_org_id, :district_departments);
+
+                select currval('md_clinic_district_seq');
+            </n2o:sql>
+        </invocation>
+        <in-parameters>
+            <param name="oid" mapping="['oid']" domain="integer"/>
+            <param name="name" mapping="['name']" domain="string"/>
+            <param name="order_number" mapping="['order_number']" domain="integer"/>
+            <param name="context_org_id" mapping="['context_org_id']" domain="integer" value="#{stocks.orgId}"/>
+            <param name="district_departments*.oid" mapping="['district_departments']" domain="integer[]"/>
+            <param name="attache_number" mapping="['attache_number']" domain="integer"/>
+            <param name="separation.oid" mapping="['separation_id']" domain="integer"/>
+            <param name="type.oid" mapping="['type_id']" domain="integer"/>
+            <param name="kind.oid" mapping="['kind_id']" domain="integer"/>
+            <param name="period.begin" mapping="['from_dt']" domain="date"/>
+            <param name="period.end" mapping="['to_dt']" domain="date"/>
+        </in-parameters>
+        <out-parameters>
+            <param name="oid" mapping="[0][0]" domain="integer"/>
+        </out-parameters>
+        <success-text>
+            Участок "{name}" успешно добавлен.
+        </success-text>
+        <validations activate="whiteList">
+            <validation ref-id="checkIfExsts"/>
+        </validations>
+    </action>
+    <action id="update" form-submit-label="Изменить">
+        <invocation>
+            <sql:sql>
+                select set_district_departments( :oid, :context_org_id, :district_departments);
+
+                update md_clinic_district set
+                name = :name,
+                order_number = :order_number,
+                attache_number = :attache_number,
+                separation_id = :separation_id,
+                type_id = :type_id,
+                kind_id = :kind_id,
+                from_dt = :from_dt,
+                to_dt = :to_dt
+                where id = :oid;
+            </sql:sql>
+        </invocation>
+        <in-parameters>
+            <param name="oid" mapping="['oid']" domain="integer"/>
+            <param name="name" mapping="['name']" domain="string"/>
+            <param name="order_number" mapping="['order_number']" domain="integer"/>
+            <param name="context_org_id" mapping="['context_org_id']" domain="integer" value="#{stocks.orgId}"/>
+            <param name="district_departments*.oid" mapping="['district_departments']" domain="string"/>
+            <param name="attache_number" mapping="['attache_number']" domain="integer"/>
+            <param name="separation.oid" mapping="['separation_id']" domain="integer"/>
+            <param name="type.oid" mapping="['type_id']" domain="integer"/>
+            <param name="kind.oid" mapping="['kind_id']" domain="integer"/>
+            <param name="period.begin" mapping="['from_dt']" domain="date"/>
+            <param name="period.end" mapping="['to_dt']" domain="date"/>
+        </in-parameters>
+        <success-text>
+            Участок "{name}" успешно изменен.
+        </success-text>
+        <validations activate="whiteList">
+            <validation ref-id="checkIfExsts"/>
+        </validations>
+    </action>
+    <action id="delete" form-submit-label="Удалить" name="Удалить">
+        <invocation>
+            <n2o:sql>
+                delete from md_clinic_district where id = :oid;
+            </n2o:sql>
+        </invocation>
+        <in-parameters>
+            <param name="oid" mapping="['oid']" domain="integer"/>
+            <param name="name" mapping="['name']" domain="string"/>
+        </in-parameters>
+        <confirmation-text>
+            Вы действительно хотите удалить участок "{name}"?
+            <!--Будут удалены все связанные с участком объекты (Адреса, Организации и ее подразделения, Диапазоны возрастов, Диапазоны диагнозов, Ограничения по полу).-->
+        </confirmation-text>
+        <success-text>
+            Участок "{name}" успешно удален.
+        </success-text>
+    </action>
+</actions>
+    <validations>
+        <constraint id="checkIfExsts" level="error">
+            <message>Запись уже существует в списке</message>
+            <invocation>
+                <n2o:sql>
+                    select exists (
+                    select 1 from md_clinic_district a
+                    WHERE
+                    a.name = :name AND
+                    a.order_number = :order_number AND
+                    a.separation_id = :separation_id AND
+                    (a.id != :oid or :oid is null) AND
+                    CASE WHEN COALESCE(:from_dt, date '1970-01-01') >= COALESCE(a.from_dt, date '1970-01-01')
+                    THEN COALESCE(a.to_dt, date '2070-01-01') >= COALESCE(:from_dt, date '1970-01-01')
+                    ELSE COALESCE(:to_dt, date '2070-01-01') >= COALESCE(a.from_dt, date '1970-01-01')  END);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="oid" mapping="['oid']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="separation.oid" mapping="['separation_id']" domain="integer"/>
+                <param name="order_number" mapping="['order_number']" domain="integer"/>
+                <param name="period.begin" mapping="['from_dt']" domain="date"/>
+                <param name="period.end" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == false"/>
+        </constraint>
+    </validations>
+</object>

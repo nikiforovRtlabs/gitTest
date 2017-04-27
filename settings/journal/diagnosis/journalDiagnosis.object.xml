@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>journalDiagnosis</name>
+
+    <actions>
+        <action id="save">
+            <invocation>
+                <n2o:sql>
+                    select monitoring.save_diagnosis_range(:id,:journalId,:diagnosisId,:stageIds,:main)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="journalId" mapping="['journalId']" domain="integer"/>
+                <param name="diagnosis_stage*.id" mapping="['stageIds']" domain="string"/>
+                <param name="diagnosis.id" mapping="['diagnosisId']" domain="integer"/>
+                <param name="main" mapping="['main']" domain="boolean"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+        </action>
+
+        <action id="delete">
+            <invocation>
+                <n2o:sql>
+                    DELETE FROM monitoring.mn_journal_diagnosis WHERE id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="uniqueDiagnos" level="error">
+            <message>Имеется пересечение диапазонов диагнозов</message>
+            <invocation>
+                <n2o:sql>
+                    select (WITH RECURSIVE
+                    diagnosisSetting AS (
+                    SELECT md.id, md.parent_id FROM monitoring.mn_journal_diagnosis mjd2
+                    JOIN md_diagnosis md ON md.id = mjd2.diagnosis_id::INTEGER
+                    where mjd2.journal_id = :journalId and (mjd2.id != :id or :id is null)
+                    UNION ALL
+                    SELECT md.id, md.parent_id FROM md_diagnosis md JOIN diagnosisSetting dS ON dS.id = md.parent_id
+                    )
+                    SELECT count(dS2) from diagnosisSetting dS2 WHERE dS2.id = :diagnosisId)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="journalId" mapping="['journalId']" domain="integer"/>
+                <param name="diagnosis.id" mapping="['diagnosisId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+
+</object>

@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>orphansDisprCardInspec</name>
+
+    <actions>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    select disp.saveOrphansInspec(:event_patient_id, :ssr_id, :case_id, :date, :srg_id, :main_diagnosis_id, :disease_id,
+                    cast(:counsel as character varying), cast(:reference as character varying), :service_type_id, cast(:is_suspicion as boolean), :make_d, :nosol_registr_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="event_patient_id" mapping="['event_patient_id']"/>
+                <param name="ssr_id" mapping="['ssr_id']"/>
+                <param name="case_id" mapping="['case_id']"/>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="resource.srg_id" mapping="['srg_id']"/>
+                <param name="main_diagnosis.id" mapping="['main_diagnosis_id']"/>
+                <param name="disease.id" mapping="['disease_id']"/>
+                <param name="counsel" mapping="['counsel']" domain="string"/>
+                <param name="reference" mapping="['reference']" domain="string"/>
+                <param name="service_type_id" mapping="['service_type_id']"/>
+                <param name="is_suspicion" mapping="['is_suspicion']" domain="boolean"/>
+                <param name="make_d" mapping="['make_d']" domain="boolean"/>
+                <param name="nosol_registr.id" mapping="['nosol_registr_id']" domain="integer"/>
+                <param name="id"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="serviceInBill"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <!--<condition id="checkAgreem" level="error" check-before-submit="true">-->
+            <!--<expression>agreeService == true</expression>-->
+            <!--<message>Пациент не дал согласие на оказание услуги!</message>-->
+        <!--</condition>-->
+        <constraint id="serviceInBill" level="error">
+            <message>На случай сформирован счет-реестр, действие запрещено</message>
+            <invocation>
+                <sql:sql>
+                    select disp.service_validate3(:id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+</object>

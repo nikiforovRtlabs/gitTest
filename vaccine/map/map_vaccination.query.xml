@@ -1,0 +1,258 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>Карта прививок</name>
+    <object-id>inoculation</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from vac_inoculation vi
+                join vac_vaccine vv on vv.id = vi.vaccine_id
+                join vac_inoculation_status vis on vis.id = vi.status_id
+                left join vac_number vn on vn.id = vi.number_id
+                left join vac_inp_type vit on vit.id = vi.inp_type_id
+
+                left join vac_dose vd on vd.id = vi.dose_id
+                left join vac_series vs on vs.id = vi.series_id
+
+                left join public.pim_indiv_code pic on pic.code = vi.patient_uid and pic.type_id = (select id from public.pim_code_type where upper(code) = upper('UID'))
+                left join public.pim_individual pi on pi.id = pic.indiv_id
+                left join public.pim_gender pg on pg.id = pi.gender_id
+
+                join vac_disease vdis on vdis.id = vv.disease_id
+                left join vac_dose_type vdt on vdt.id = vd.dose_type_id
+
+                where vi.deleted is false and pi.id = :individual.id
+                and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from vac_inoculation vi
+                join vac_vaccine vv on vv.id = vi.vaccine_id
+                join vac_inoculation_status vis on vis.id = vi.status_id
+                left join vac_number vn on vn.id = vi.number_id
+                left join vac_inp_type vit on vit.id = vi.inp_type_id
+
+                left join vac_dose vd on vd.id = vi.dose_id
+                left join vac_series vs on vs.id = vi.series_id
+
+                left join public.pim_indiv_code pic on pic.code = vi.patient_uid and pic.type_id = (select id from public.pim_code_type where upper(code) = upper('UID'))
+                left join public.pim_individual pi on pi.id = pic.indiv_id
+                left join public.pim_gender pg on pg.id = pi.gender_id
+
+                join vac_disease vdis on vdis.id = vv.disease_id
+                left join vac_dose_type vdt on vdt.id = vd.dose_type_id
+
+                where vi.deleted is false and pi.id = :individual.id
+                and :where
+            </n2o:count-query>
+            <n2o:alias>vi</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>vi.id</expression>
+        </field>
+        <field>
+            <id>individual.id</id>
+            <domain>integer</domain>
+            <expression>pi.id</expression>
+        </field>
+        <field>
+            <id>individual.FIO</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>concat(pi.surname, ' ', pi.name, ' ', pi.patr_name)</expression>
+            <search>upper(:expression) like upper('%'||:individual.FIO||'%')</search>
+        </field>
+        <field>
+            <id>data</id>
+            <domain>string</domain>
+            <name>Дата</name>
+            <expression>to_char(vi.date,'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>vi.date</expression>
+        </field>
+        <field>
+            <id>age</id>
+            <domain>string</domain>
+            <name>Возраст</name>
+            <expression>
+                <![CDATA[
+                CASE when (DATE_PART('year', vi.date)- DATE_PART('year', pi.birth_dt)
+                            /* - (CASE TO_CHAR(vi.date, 'MMDD') < TO_CHAR(pi.birth_dt, 'MMDD') WHEN TRUE THEN 1 ELSE 0 END)*/
+                            ) <= 0
+                    THEN
+                        case when date_part('month', vi.date) - date_part('month',pi.birth_dt)
+                          -(CASE TO_CHAR(vi.date, 'DD') < TO_CHAR(pi.birth_dt, 'DD') WHEN TRUE THEN 1 ELSE 0 END) <= 0
+                            then cast(vi.date - pi.birth_dt as varchar) ||'д'
+                            else cast(date_part('month', vi.date) - date_part('month',pi.birth_dt)
+                                           - (CASE TO_CHAR(vi.date, 'DD') < TO_CHAR(pi.birth_dt, 'DD') WHEN TRUE THEN 1 ELSE 0 END) as varchar)
+                             ||'м '||CAST(date_part('day', vi.date) + (DATE_PART('days', DATE_TRUNC('month', pi.birth_dt) + '1 MONTH'::INTERVAL - '1 DAY'::INTERVAL) - date_part('day',pi.birth_dt)) as varchar) ||'д'
+                        end
+                    ELSE
+                        cast(date_part('year', vi.date) - date_part('year', pi.birth_dt)
+                               - (case to_char(vi.date, 'MMDD') < to_char(pi.birth_dt, 'MMDD') WHEN TRUE THEN 1 ELSE 0 END) as varchar)||
+                        case when
+                              right(cast(date_part('year', vi.date) - date_part('year', pi.birth_dt) - (case to_char(vi.date, 'MMDD') < to_char(pi.birth_dt, 'MMDD') WHEN TRUE THEN 1 ELSE 0 END) as varchar), 1) in ('1','2','3','4')
+                              and right(cast(date_part('year', vi.date) - date_part('year', pi.birth_dt) - (case to_char(vi.date, 'MMDD') < to_char(pi.birth_dt, 'MMDD') WHEN TRUE THEN 1 ELSE 0 END) as varchar), 2) not in ('11','12','13','14')
+                            then 'г '
+                            else 'л '
+                        end||
+                        (case when date_part('month', vi.date) - date_part('month',pi.birth_dt)
+                           - (case to_char(vi.date, 'DD') < to_char(pi.birth_dt, 'DD') WHEN TRUE THEN 1 ELSE 0 END) < 0
+                                then cast(12 + cast(date_part('month', vi.date) - date_part('month',pi.birth_dt) as integer) as varchar(2)) ||'м '
+                                else cast(date_part('month', vi.date) - date_part('month',pi.birth_dt)
+                                            -(case to_char(vi.date, 'DD') < to_char(pi.birth_dt, 'DD') WHEN TRUE THEN 1 ELSE 0 END) as varchar(2)) ||'м '
+                            end )||
+                        (case when (date_part('day', vi.date) - date_part('day',pi.birth_dt)) < 0
+        	                then
+                                CAST(date_part('day',vi.date -(vi.date - interval '1 month'))
+                                                       - date_part('day',pi.birth_dt)
+                                                     + date_part('day', vi.date) as varchar)||'д'
+                            else
+                                CAST(date_part('day', vi.date) - date_part('day',birth_dt) as varchar) ||'д'
+
+                        end)
+
+                END
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>disease.id</id>
+            <domain>integer</domain>
+            <name>Инфекция</name>
+            <expression>vdis.id</expression>
+        </field>
+        <field>
+            <id>disease.label</id>
+            <domain>string</domain>
+            <name>Инфекция</name>
+            <expression>vdis.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>number.id</id>
+            <domain>integer</domain>
+            <name>Этап вакцинации</name>
+            <expression>vn.id</expression>
+        </field>
+        <field>
+            <id>number.label</id>
+            <domain>string</domain>
+            <name>Этап вакцинации</name>
+            <expression>vn.label</expression>
+        </field>
+        <field>
+            <id>vaccine.id</id>
+            <domain>integer</domain>
+            <name>Вакцина</name>
+            <expression>vv.id</expression>
+        </field>
+        <field>
+            <id>vaccine.label</id>
+            <domain>string</domain>
+            <name>Вакцина</name>
+            <expression>vv.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <name>Статус</name>
+            <expression>vis.id</expression>
+        </field>
+        <field>
+            <id>status.label</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>vis.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>statusForClinic.id</id>
+            <domain>integer</domain>
+            <name>Статус</name>
+            <expression>vis.id</expression>
+        </field>
+        <field>
+            <id>statusForClinic.label</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>vis.label</expression>
+        </field>
+        <field>
+            <id>dose.id</id>
+            <domain>integer</domain>
+            <name>Доза</name>
+            <expression>vd.id</expression>
+        </field>
+        <field>
+            <id>dose.label</id>
+            <domain>string</domain>
+            <name>Доза</name>
+            <expression>vd.count||vdt.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>inp_type.id</id>
+            <domain>integer</domain>
+            <name>Тип введения</name>
+            <expression>vit.id</expression>
+        </field>
+        <field>
+            <id>inp_type.label</id>
+            <domain>string</domain>
+            <name>Тип введения</name>
+            <expression>vit.label</expression>
+        </field>
+        <field>
+            <id>series.id</id>
+            <domain>integer</domain>
+            <name>Серия</name>
+            <expression>vs.id</expression>
+        </field>
+        <field>
+            <id>series.label</id>
+            <domain>string</domain>
+            <name>Серия</name>
+            <expression>vs.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>result</id>
+            <domain>string</domain>
+            <name>Результат</name>
+            <expression>
+                case when vi.is_mantu = false then
+                case when vi.complication != '' then 'Осложнения' else
+                case when vi.global_result != '' then 'Общая реакция' else
+                case when vi.local_result != '' then 'Местная реакция'
+                end
+                end
+                end
+                else (select vmr.label from vac_inoculation_mantu vim
+                join vac_mantu_result vmr on vmr.id = vim.result_id
+                where vim.id = vi.id)
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>isStomatologyVisit</id>
+            <domain>boolean</domain>
+            <expression>:isStomatologyVisit</expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,191 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<fs:field-set xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+              xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+
+    <ctrl:classifier id="administrationRoute" label="Способ введения" search-are-you-type="true" required="true"
+                     control-style="width: 700px;" label-style="width: 130px;">
+        <ctrl:query query-id="hosp_administrationRouteByFormType" value-field-id="id" label-field-id="name">
+            <ctrl:pre-filters>
+                <ctrl:pre-filter field-id="formTypeId" ref="holdings.0.holding.form_type_id"/>
+            </ctrl:pre-filters>
+        </ctrl:query>
+    </ctrl:classifier>
+
+    <ctrl:classifier id="prescriptionPeriodicity" label="Периодичность" search-are-you-type="true" required="true"
+                     control-style="width: 700px;" label-style="width: 130px;">
+        <ctrl:query query-id="hosp_prescriptionPeriodicity" value-field-id="id" label-field-id="name"/>
+    </ctrl:classifier>
+
+    <ctrl:classifier id="visitTerm" label="Условия" search-are-you-type="true"
+                     control-style="width: 700px;" label-style="width: 130px;">
+        <ctrl:query query-id="hosp_visitTerm" value-field-id="id" label-field-id="name"/>
+    </ctrl:classifier>
+
+    <fs:row>
+        <ctrl:date-time id="periodBeginDt" format="DD.MM.YYYY HH:mm" label="Период с" required="true" default-value="now()" control-style="width:153px;" label-style="width: 130px;">
+            <ctrl:validations>
+                <ctrl:validation ref-id="prescriptionPeriodValidation" side="client"/>
+            </ctrl:validations>
+        </ctrl:date-time>
+
+        <ctrl:date-time id="periodEndDt" label="по" format="DD.MM.YYYY HH:mm" default-time="now()" required="true" control-style="width:153px;" label-style="width:20px;" >
+            <ctrl:validations>
+                <ctrl:validation ref-id="prescriptionPeriodValidation" side="client"/>
+            </ctrl:validations>
+        </ctrl:date-time>
+
+    </fs:row>
+
+    <ctrl:text-area id="note" label="Комментарий" rows="2" control-style="width: 700px;" label-style="width: 130px;"/>
+
+    <ctrl:output-text id="dayAmount" label="Количество дней:" control-style="width:100px;" label-style="width: 130px;">
+        <ctrl:set-value-expression>
+            <![CDATA[
+                if(typeof periodBeginDt != 'undefined' && periodBeginDt != null &&
+                   typeof periodEndDt != 'undefined' && periodEndDt != null &&
+                   typeof prescriptionPeriodicity != 'undefined' && prescriptionPeriodicity != null && prescriptionPeriodicity.id != null)
+                {
+
+                var periodEnd = moment(periodEndDt, 'DD.MM.YYYY');
+                var periodBegin = moment(periodBeginDt, 'DD.MM.YYYY');
+                var days = periodEnd.diff(periodBegin, 'days') + 1;
+
+                var interval = prescriptionPeriodicity.interval;
+                if(interval != null && interval != 0)
+                {
+                    var daysWithInterval = Math.ceil(days / interval);
+                    days = daysWithInterval;
+                }
+                dayAmount = days;
+                }
+               ]]>
+        </ctrl:set-value-expression>
+    </ctrl:output-text>
+
+    <ctrl:output-text id="singleDoseWithMeasure" label="Разовая доза:" control-style="width: 740px;" label-style="width: 130px;">
+        <ctrl:set-value-expression on="holdings" silent-mode="true">
+            <![CDATA[
+                    var singleDose;
+                    if (typeof holdings != 'undefined' && holdings != null) {
+                        var singleMap = new Map();
+                        for (var i = 0; i < 10; i++) {
+                            var h = new Object();
+                            h = holdings[i];
+                            if (typeof h != 'undefined' && h != null && typeof h.holding != 'undefined' && h.holding != null
+                            && typeof h.dose != 'undefined' && h.dose != null && typeof h.count != 'undefined' && h.count != null
+                            && h.dose != '' && h.count != '') {
+                                var doseMeasureId = h.holding.dose_measure_id;
+                                var doseAndMeasure = new Object();
+                                doseAndMeasure.dose = parseFloat(h.dose).toFixed(3) * 1;
+                                doseAndMeasure.measure = h.holding.dose_measure_name;
+                                if (singleMap.has(doseMeasureId)) {
+                                    doseAndMeasure.dose = singleMap.get(doseMeasureId).dose + doseAndMeasure.dose;
+                                    singleMap.set(doseMeasureId, doseAndMeasure);
+                                }
+                                else {
+                                    singleMap.set(doseMeasureId, doseAndMeasure);
+                                }
+                            }
+                        }
+                        singleMap.forEach(function(value, key) {
+                            singleDose = (typeof singleDose != 'undefined' ? (singleDose + ' + ') : '') + parseFloat(value.dose).toFixed(3)*1 + ' ' +  value.measure;
+                        });
+                        singleDoseWithMeasure = typeof singleDose == 'undefined' ? null : singleDose;
+                    }
+                ]]>
+        </ctrl:set-value-expression>
+    </ctrl:output-text>
+
+    <ctrl:output-text id="dailyDoseWithMeasure" label="Суточная доза:" control-style="width: 740px;" label-style="width: 130px;">
+        <ctrl:set-value-expression on="holdings,prescriptionPeriodicity" silent-mode="true">
+            <![CDATA[
+                        var dailyDose;
+                        if (typeof holdings != 'undefined' && holdings != null
+                        && typeof prescriptionPeriodicity != 'undefined' && prescriptionPeriodicity != null
+                        && typeof prescriptionPeriodicity.count != 'undefined' && prescriptionPeriodicity.count != null) {
+                            var singleMap = new Map();
+                            for (var i = 0; i < 10; i++) {
+                                var h = new Object();
+                                h = holdings[i];
+                                if (typeof h != 'undefined' && h != null && typeof h.holding != 'undefined' && h.holding != null
+                                && typeof h.dose != 'undefined' && h.dose != null && typeof h.count != 'undefined' && h.count != null
+                                && h.dose != '' && h.count != '') {
+                                    var doseMeasureId = h.holding.dose_measure_id;
+                                    var doseAndMeasure = new Object();
+                                    doseAndMeasure.dose = parseFloat(h.dose).toFixed(3) * 1;
+                                    doseAndMeasure.measure = h.holding.dose_measure_name;
+                                    if (singleMap.has(doseMeasureId)) {
+                                        doseAndMeasure.dose = singleMap.get(doseMeasureId).dose + doseAndMeasure.dose;
+                                        singleMap.set(doseMeasureId, doseAndMeasure);
+                                    }
+                                    else {
+                                        singleMap.set(doseMeasureId, doseAndMeasure);
+                                    }
+                                }
+                            }
+                            singleMap.forEach(function(value, key) {
+                                dailyDose = (typeof dailyDose != 'undefined' ? (dailyDose + ' + ') : '') + parseFloat(value.dose * prescriptionPeriodicity.count).toFixed(3)*1 + ' ' +  value.measure;
+                            });
+                        }
+                        dailyDoseWithMeasure = typeof dailyDose == 'undefined' ? null : dailyDose;
+                ]]>
+        </ctrl:set-value-expression>
+    </ctrl:output-text>
+
+    <ctrl:output-text id="courseDoseWithMeasure" label="Курсовая доза:" control-style="width: 740px;" label-style="width: 130px;">
+        <ctrl:set-value-expression on="holdings,prescriptionPeriodicity,dayAmount,periodBeginDt,periodEndDt" silent-mode="true">
+            <![CDATA[
+                    var courseDose;
+                    if(typeof holdings != 'undefined' && holdings != null &&
+                        typeof dayAmount != 'undefined' && dayAmount != null &&
+                        typeof dailyDoseWithMeasure != 'undefined' && dailyDoseWithMeasure != null &&
+                        typeof prescriptionPeriodicity != 'undefined' && prescriptionPeriodicity != null && prescriptionPeriodicity.id != null &&
+                        typeof singleDoseWithMeasure != 'undefined' && singleDoseWithMeasure != null &&
+                        typeof periodBeginDt != 'undefined' && periodBeginDt != null &&
+                        typeof periodEndDt != 'undefined' && periodEndDt != null) {
+                        var singleMap = new Map();
+                        for (var i = 0; i < 10; i++) {
+                            var h = new Object();
+                            h = holdings[i];
+                            if (typeof h != 'undefined' && h != null && typeof h.holding != 'undefined' && h.holding != null
+                            && typeof h.dose != 'undefined' && h.dose != null && typeof h.count != 'undefined' && h.count != null
+                            && h.dose != '' && h.count != '') {
+                                var doseMeasureId = h.holding.dose_measure_id;
+                                var doseAndMeasure = new Object();
+                                doseAndMeasure.dose = parseFloat(h.dose).toFixed(3) * 1;
+                                doseAndMeasure.measure = h.holding.dose_measure_name;
+                                if (singleMap.has(doseMeasureId)) {
+                                    doseAndMeasure.dose = singleMap.get(doseMeasureId).dose + doseAndMeasure.dose;
+                                    singleMap.set(doseMeasureId, doseAndMeasure);
+                                }
+                                else {
+                                    singleMap.set(doseMeasureId, doseAndMeasure);
+                                }
+                            }
+                        }
+
+                        var missedTimes = 0;
+                        if(prescriptionPeriodicity.times != null) {
+                            var times = prescriptionPeriodicity.times.split(',');
+                            for(var i = 0; i < times.length; i++) {
+                                if (moment(times[i], 'HH:mm:ss').isBefore(moment(moment(periodBeginDt, 'DD.MM.YYYY HH:mm').format('HH:mm'),'HH:mm'))) {
+                                    missedTimes = missedTimes + 1;
+                                }
+
+                                if (moment(times[i], 'HH:mm:ss').isAfter(moment(moment(periodEndDt, 'DD.MM.YYYY HH:mm').format('HH:mm'),'HH:mm'))) {
+                                    missedTimes = missedTimes + 1;
+                                }
+                            }
+                        }
+
+                        singleMap.forEach(function(value, key) {
+                            var calculated = value.dose * prescriptionPeriodicity.count * dayAmount - value.dose * missedTimes;
+                            courseDose = (typeof courseDose != 'undefined' ? (courseDose + ' + ') : '') + parseFloat(calculated).toFixed(3)*1 + ' ' + value.measure;
+                        });
+                    }
+                    courseDoseWithMeasure = typeof courseDose == 'undefined' ? null : courseDose;
+                ]]>
+        </ctrl:set-value-expression>
+    </ctrl:output-text>
+
+</fs:field-set>

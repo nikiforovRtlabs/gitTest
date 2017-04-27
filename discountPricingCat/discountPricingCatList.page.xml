@@ -1,0 +1,262 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-patient-1.0">
+
+    <object-id>discountPricingCat</object-id>
+    <layout>n2o/layout/top-bottom(left-right)</layout>
+    <name>Картотека категорий ценообразования пациента</name>
+
+    <regions>
+        <region place="single" type="none">
+            <container id="countOrganizations" refresh-dependent-container="true">
+                <wgt:edit-form style="height: 0px;">
+                    <wgt:query-id>countOrganizations</wgt:query-id>
+                    <wgt:model>query-or-default</wgt:model>
+                </wgt:edit-form>
+                <pre-filters>
+                    <pre-filter field-id="userId" value="#{user.id}"/>
+                </pre-filters>
+            </container>
+        </region>
+        <region place="top" type="none">
+            <container id="discountPricingCat" depends-on="countOrganizations">
+                <wgt:table master-field-id="countOrg" detail-field-id="countOrg">
+                    <wgt:query-id>discountPricingCatList</wgt:query-id>
+                    <wgt:name>Список категорий ценообразования пациента</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="cat_name" width="40%"/>
+                        <wgt:column column-field-id="org_name" width="30%"/>
+                        <wgt:column column-field-id="begin_date" width="15%"/>
+                        <wgt:column column-field-id="end_date" width="15%"/>
+                    </wgt:columns>
+                    <wgt:filters opened="true">
+                        <ctrl:classifier id="org" label="Медицинская организация"
+                                         control-style="width:350px;" search-as-you-type="true" dependency-condition="countOrg != 1">
+                            <ctrl:query query-id="pm_org_by_access_key" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="userId" value="#{user.id}"></ctrl:pre-filter>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id}</ctrl:value>
+                                <ctrl:value field-id="name">#{org.name}</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="category" label="Название категории"
+                                         control-style="width:350px;" search-as-you-type="true">
+                            <ctrl:query query-id="pm_discount_pricing_cat" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" ref="org.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:date-interval id="pricingCatPeriod" label="Период действия" control-style="width:360px;"
+                                            format="DD.MM.YYYY"/>
+
+                        <ctrl:checkbox id="is_vip" label="Признак VIP"/>
+
+                        <ctrl:classifier id="gender" label="Пол"
+                                         control-style="width:350px;" search-as-you-type="true">
+                            <ctrl:query query-id="pm_gender" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="social" label="Социальное положение"
+                                         control-style="width:350px;" search-as-you-type="true">
+                            <ctrl:query query-id="pm_social" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="benefit_type" label="Особые категории: Тип льготы"
+                                         control-style="width:350px;" search-as-you-type="true">
+                            <ctrl:query query-id="pm_benefit_type" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="benefit_definition" label="Льготы"
+                                         control-style="width:350px;" search-as-you-type="true"
+                                         depends-on="benefit_type">
+                            <ctrl:query query-id="pm_benefit_definition" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="benefit_type_id" ref="benefit_type.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:masked-input id="from_age" label="Возраст От" mask="9?99" control-style="width:100px">
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="checkAgeInterval"/>
+                            </ctrl:validations>
+                        </ctrl:masked-input>
+                        <ctrl:masked-input id="to_age" label="До" mask="9?99" control-style="width:100px">
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="checkAgeInterval"/>
+                            </ctrl:validations>
+                        </ctrl:masked-input>
+
+                        <ctrl:classifier id="work_place" label="Место работы/учебы"
+                                         control-style="width:350px;" search-as-you-type="true">
+                            <ctrl:query query-id="pm_organization" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="position" label="Должность"
+                                         control-style="width:350px;" search-as-you-type="true"
+                                         depends-on="work_place">
+                            <ctrl:query query-id="pm_patient_job" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organization_id" ref="work_place.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                    </wgt:filters>
+
+                    <wgt:rows>
+                        <wgt:color color-field-id="urgent"/>
+                    </wgt:rows>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" context="false" label="Создать">
+                            <wgt:show-modal page-id="discountPricingCatForm" refresh-on-close="true" width="50%"
+                                            master-field-id="id" detail-field-id="id"
+                                            action-id="save"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="update" context="true" label="Изменить">
+                            <wgt:show-modal page-id="discountPricingCatForm" width="50%" detail-field-id="id" master-field-id="id"
+                                            refresh-on-close="true"
+                                            action-id="save"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Просмотр" context="true" id="view" icon="icon-eye-open" type="textAndIcon">
+                            <wgt:show-modal page-id="discountPricingCatForm" width="50%"
+                                            detail-field-id="id" master-field-id="id"/>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+                </wgt:table>
+            </container>
+        </region>
+
+        <!-- Отображение множетственных связанных данных из других таблиц-->
+        <region place="bottom" type="tabs">
+            <container id="discountPricingCatAge" depends-on="discountPricingCat">
+                <wgt:table detail-field-id="pricingCatId" master-field-id="id">
+                    <wgt:query-id>discountPricingCatAgeList</wgt:query-id>
+                    <wgt:name>Возраст</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="fromAge"/>
+                        <wgt:column column-field-id="toAge"/>
+                    </wgt:columns>
+
+                    <wgt:rows>
+                        <wgt:color color-field-id="urgent"/>
+                    </wgt:rows>
+
+                    <wgt:action-menu>
+
+                        <wgt:menu-item id="create" context="false" label="Создать">
+                            <wgt:show-modal page-id="discountPricingCatAgeForm"
+                                            focus-after-submit="true"  width="90%" max-width="750px" min-width="750px"
+                                            action-id="saveDiscountPricingCatAgeRel" refresh-on-close="true"
+                                            page-name="Добавление возраста" />
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="update" context="true" label="Изменить">
+                            <wgt:show-modal page-id="discountPricingCatAgeForm"
+                                            focus-after-submit="true"  width="90%" max-width="750px" min-width="750px"
+                                            action-id="saveDiscountPricingCatAgeRel" refresh-on-close="true"
+                                            page-name="Изменение возраста" />
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="deleteDiscountPricingCatAgeRel" confirmation="true"/>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+                </wgt:table>
+            </container>
+            <container id="discountPricingCatBenefit" depends-on="discountPricingCat">
+                <wgt:table detail-field-id="pricingCatId" master-field-id="id">
+                    <wgt:query-id>discountPricingCatBenefitList</wgt:query-id>
+                    <wgt:name>Особые категории (льготы)</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="typeName"/>
+                        <wgt:column column-field-id="definitionName"/>
+                    </wgt:columns>
+
+                    <wgt:rows>
+                        <wgt:color color-field-id="urgent"/>
+                    </wgt:rows>
+
+                    <wgt:action-menu>
+
+                        <wgt:menu-item id="create" context="false" label="Создать">
+                            <wgt:show-modal page-id="discountPricingCatBenefitForm"
+                                            focus-after-submit="true"  width="90%" max-width="750px" min-width="750px"
+                                            action-id="saveDiscountPricingCatBenefit" refresh-on-close="true"
+                                            page-name="Добавление льготы" />
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="update" context="true" label="Изменить">
+                            <wgt:show-modal page-id="discountPricingCatBenefitForm"
+                                            focus-after-submit="true"  width="90%" max-width="750px" min-width="750px"
+                                            action-id="saveDiscountPricingCatBenefit" refresh-on-close="true"
+                                            page-name="Изменение льготы" />
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="deleteDiscountPricingCatBenefit" confirmation="true"/>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+                </wgt:table>
+            </container>
+            <container id="discountPricingCatJob" depends-on="discountPricingCat">
+                <wgt:table detail-field-id="pricingCatId" master-field-id="id">
+                    <wgt:query-id>discountPricingCatJobList</wgt:query-id>
+                    <wgt:name>Место работы/учебы</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="organizationName"/>
+                        <wgt:column column-field-id="positionName"/>
+                    </wgt:columns>
+
+                    <wgt:rows>
+                        <wgt:color color-field-id="urgent"/>
+                    </wgt:rows>
+
+                    <wgt:action-menu>
+
+                        <wgt:menu-item id="create" context="false" label="Создать">
+                            <wgt:show-modal page-id="discountPricingCatJobForm"
+                                            focus-after-submit="true"  width="90%" max-width="750px" min-width="750px"
+                                            action-id="saveDiscountPricingCatJob" refresh-on-close="true"
+                                            page-name="Добавление места работы и должности" />
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="update" context="true" label="Изменить">
+                            <wgt:show-modal page-id="discountPricingCatJobForm"
+                                            focus-after-submit="true"  width="90%" max-width="750px" min-width="750px"
+                                            action-id="saveDiscountPricingCatJob" refresh-on-close="true"
+                                            page-name="Изменение места работы и должности" />
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="deleteDiscountPricingCatJob" confirmation="true"/>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>

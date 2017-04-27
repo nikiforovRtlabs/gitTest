@@ -1,0 +1,212 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<table xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0">
+    <id>EventPatient</id>
+    <name>Пациенты</name>
+    <query-id>eventPatients</query-id>
+    <columns>
+        <column column-field-id="fio"/>
+        <column column-field-id="birthday"/>
+        <column column-field-id="full_age"/>
+        <column column-field-id="target_date.name"/>
+        <column column-field-id="open_date_orphans.begin"/>
+        <column column-field-id="close_date_orphans"/>
+        <column column-field-id="health_group_orphans"/>
+        <column column-field-id="overview">
+            <!--<color color-field-id="overview_color"/>-->
+            <color>
+                <switch value-field-id="overview_color">
+                    <case value="1">text-error</case>
+                    <case value="2">text-warning</case>
+                    <case value="3">text-success</case>
+                    <default>text-success</default>
+                </switch>
+            </color>
+        </column>
+        <!--  <column column-field-id="ambCard"/>
+          <column column-field-id="is_2_stage">
+              <checkbox>
+              </checkbox>
+          </column>
+          <column column-field-id="is_d">
+              <checkbox>
+              </checkbox>
+          </column>-->
+    </columns>
+    <filters position="top">
+        <n2o:input-text id="fio"/>
+        <n2o:date-time id="birthday"/>
+        <n2o:input-text id="ambCard"/>
+        <n2o:classifier id="gender" label="Пол">
+            <n2o:query query-id="dispGender" value-field-id="id" label-field-id="name"/>
+        </n2o:classifier>
+        <n2o:input-text id="o_number">
+            <n2o:validations>
+                <n2o:validation ref-id="correctFormat"/>
+            </n2o:validations>
+        </n2o:input-text>
+        <n2o:classifier id="address" label="Адрес">
+            <n2o:query query-id="addressData" value-field-id="id" label-field-id="search_name"/>
+        </n2o:classifier>
+        <n2o:classifier label="Группа здоровья" id="health_group">
+            <n2o:query query-id="dispHealthGroup" value-field-id="id" label-field-id="name"/>
+        </n2o:classifier>
+        <n2o:checkbox id="is_d"/>
+        <n2o:checkbox id="is_2_stage"/>
+        <n2o:date-interval id="target_date" format="DD.MM.YYYY" label="Плановая дата"/>
+        <n2o:date-interval id="open_date_orphans" format="DD.MM.YYYY" label="Дата начала"/>
+        <n2o:checkbox id="status_orphans" default-value="true"/>
+        <n2o:checkbox id="status_orphans2"/>
+        <n2o:checkbox id="statusPatientInEvent"/>
+        <n2o:classifier id="overview_search" label="Результат">
+            <n2o:query query-id="overview" value-field-id="id" label-field-id="name"/>
+        </n2o:classifier>
+    </filters>
+
+    <action-menu>
+        <group>
+        <menu-item id="sub" label="Еще">
+            <sub-menu>
+                <menu-item id="addPatient" label="Добавить пациента" context="false" icon="icon-plus-sign" type="textAndIcon">
+                    <show-modal page-id="patientSearchService" container-id="main" action-id="addPatient" master-field-id="id"
+                                detail-field-id="id" width="650px"/>
+                </menu-item>
+
+                <menu-item id="editPresFroPatient2" label="Изменить назначения" context="true" icon="icon-exclamation-sign" type="textAndIcon">
+                <show-modal page-id="patientSearchServicePrescription" container-id="main" master-field-id="id"
+                            detail-field-id="event_patient_id" action-id="update" />
+                <conditions>
+                    <enabling-condition>
+                        <expression>hasBill==0</expression>
+                        <tooltip>На случай сформирован счет-реестр, изменять назначения запрещено</tooltip>
+                    </enabling-condition>
+                </conditions>
+            </menu-item>
+                <menu-item label="ЭМК" id="emk" context="true" icon="icon-share-alt" type="textAndIcon">
+                    <a href="/cases/patient/:indivId:/case/:caseId:/edit" target="newWindow" />
+                    <conditions>
+                        <enabling-condition>
+                            <expression>check_agree_event == true</expression>
+                            <tooltip>Пациент еще не начал проходить мероприятие!</tooltip>
+                        </enabling-condition>
+                    </conditions>
+                </menu-item>
+                <menu-item id="removePatient" label="Удалить пациента" context="true" icon="icon-remove-sign" type="textAndIcon">
+                    <invoke-action action-id="removePatient" confirmation="true" />
+                </menu-item>
+            </sub-menu>
+        </menu-item>
+        <menu-item id="sub_planned" label="Планирование" icon="icon-calendar">
+            <sub-menu>
+                <menu-item label="Ручное" id="planning2" context="true" icon="icon-calendar" type="text">
+                    <show-modal page-id="manualSetPlannedDate" action-id="manualSetPlannedDate" container-id="main" master-field-id="id"
+                                detail-field-id="id" width="255px" refresh-on-close="true"/>
+                    <conditions>
+                        <enabling-condition>
+                            <expression>absence_reason.id==null&amp;&amp;absence_reason.id!=6</expression>
+                            <tooltip>Функция недоступна, т.к. пациенту была зафиксирована неявка</tooltip>
+                        </enabling-condition>
+                    </conditions>
+                </menu-item>
+            </sub-menu>
+            <conditions>
+                <enabling-condition>
+                    <expression>absence_reason.id==null&amp;&amp;absence_reason.id!=6</expression>
+                    <tooltip>Функция недоступна, т.к. пациенту была зафиксирована неявка</tooltip>
+                </enabling-condition>
+            </conditions>
+        </menu-item>
+        </group>
+        <group>
+        <menu-item label="Согласие" id="agreementMinors" context="true" icon="icon-ok-circle" type="textAndIcon">
+            <show-modal page-id="orphansDisprCardAgreeForm" action-id="orphansAgreeDispr" container-id="generalInfo" master-field-id="id"
+                        detail-field-id="event_patient_id" width="255px"/>
+            <conditions>
+                <enabling-condition>
+                    <expression>absence_reason.id==null&amp;&amp;absence_reason.id!=6</expression>
+                    <tooltip>Функция недоступна, т.к. пациенту была зафиксирована неявка</tooltip>
+                </enabling-condition>
+                <enabling-condition>
+                    <expression>retryAgree==null</expression>
+                    <tooltip>Изменение даты согласия недоступно, пациенту были оказаны услуги</tooltip>
+                </enabling-condition>
+                <visibility-condition>
+                    <expression>((event_type_code=='ОН1')||(event_type_code=='ОН2')||(event_type_code=='ОН3')||(event_type_code=='ОН2.1')
+                        ||(event_type_code=='ОН3.1')||(event_type_code=='ОН2.2')||(event_type_code=='ОН3.2')||(event_type_code=='ДС1')||(event_type_code=='ДС2'))</expression>
+                </visibility-condition>
+            </conditions>
+        </menu-item>
+
+        <menu-item label="Отказ" id="denial" context="true" icon="icon-remove-circle" type="textAndIcon">
+            <show-modal page-id="orphansDisprCardDeniForm" action-id="orphansDeniDispr" container-id="generalInfo" master-field-id="id"
+                        detail-field-id="event_patient_id" width="255px"/>
+            <conditions>
+                <enabling-condition>
+                    <expression>absence_reason.id==null&amp;&amp;absence_reason.id!=6</expression>
+                    <tooltip>Функция недоступна, т.к. пациенту была зафиксирована неявка</tooltip>
+                </enabling-condition>
+            </conditions>
+        </menu-item>
+        <menu-item label="Зафиксировать неявку" id="absence" context="true" icon="icon-fire" type="textAndIcon">
+            <show-modal page-id="orphansDisprCardAbsenceForm" action-id="orphansAbsence" container-id="generalInfo" master-field-id="id"
+                        detail-field-id="event_patient_id" width="255px" refresh-on-close="true"/>
+        </menu-item>
+        </group>
+        <group>
+        <menu-item label="Карточка" id="card" context="true" icon="icon-book" type="textAndIcon" color="btn-success">
+            <open-page page-id="orphansDisprCard" container-id="patientData" master-field-id="id" detail-field-id="id" refresh-on-close="true" />
+            <conditions>
+           <visibility-condition>
+                    <expression>absence_reason.id==null</expression>
+                </visibility-condition>
+                <enabling-condition>
+                    <expression>check_agree_event == true</expression>
+                    <tooltip>Пациент не согласился на диспансеризацию!</tooltip>
+                </enabling-condition>
+            </conditions>
+        </menu-item>
+        <menu-item label="Карточка" id="cardRead" context="true" icon="icon-book" type="textAndIcon">
+            <open-page page-id="readOrphansDisprCard" container-id="patientData" master-field-id="id" detail-field-id="id"  />
+            <conditions>
+                <enabling-condition>
+                    <expression>check_agree_event == true&amp;&amp;absence_reason.id!=null&amp;&amp;absence_reason.id!=6</expression>
+                    <tooltip>Карточка недоступна, т.к. пациенту не были назначены услуги и зафиксирована неявка</tooltip>
+                </enabling-condition>
+                <visibility-condition>
+                    <expression>absence_reason.id!=null</expression>
+                </visibility-condition>
+            </conditions>
+        </menu-item>
+        <menu-item label="Выгрузка в XML" id="unloading" context="false"  type="text">
+            <show-modal page-id="orphansUnloading" container-id="main" width="270px" action-id="unloading"/>
+        </menu-item>
+            <menu-item id="reports" label="Отчеты" icon="icon-list">
+                <sub-menu>
+                    <menu-item label="030-Д/с/у-13. Карта диспансеризации несовершеннолетнего" id="report_030-Dcy-13" context="true" icon="icon-share-alt" type="textAndIcon">
+                        <a href="/birt/run?__report=n2o/030-Dcy-13.rptdesign&amp;case_id=:caseId:&amp;__format=pdf" target="newWindow" />
+                        <conditions>
+                            <visibility-condition>
+                                <expression>(event_type_code == 'ДС1')||(event_type_code == 'ДС2')</expression>
+                            </visibility-condition>
+                        </conditions>
+                    </menu-item>
+                    <menu-item label="030-ПО/у-12. Карта профилактического медицинского осмотра несовершеннолетнего" id="report_030-PO-y-12" context="true" icon="icon-share-alt" type="textAndIcon">
+                        <a href="/birt/run?__report=n2o/030-PO-y-12.rptdesign&amp;case_id=:caseId:&amp;__format=pdf" target="newWindow" />
+                        <conditions>
+                            <visibility-condition>
+                                <expression>(event_type_code=='ОН1')||(event_type_code=='ОН2')||(event_type_code=='ОН3')||(event_type_code=='ОН2.1')
+                                    ||(event_type_code=='ОН3.1')||(event_type_code=='ОН2.2')||(event_type_code=='ОН3.2')</expression>
+                            </visibility-condition>
+                        </conditions>
+                    </menu-item>
+                    <menu-item label="030-Д/с/о-13. Сведения о диспансеризации несовершеннолетних" id="report_030_DC_o_12" context="false" icon="icon-share-alt" type="textAndIcon">
+                        <show-modal-form form-id="report_030_DC_o_12"/>
+                    </menu-item>
+                    <menu-item label="030-ПО/о-12. Сведения о профилактических медицинских осмотрах несовершеннолетних" id="report_030_PO_o_12" context="false" icon="icon-share-alt" type="textAndIcon">
+                        <show-modal-form form-id="report_030_PO_o_12"/>
+                    </menu-item>
+                </sub-menu>
+            </menu-item>
+        </group>
+    </action-menu>
+</table>

@@ -1,0 +1,252 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>migrantDocument</name>
+
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO migr.md_migr_document (series, number, type_id, card_id, form_issuance_date)
+                    VALUES (:series, :number, :typeId, :cardId, CASE :typeName
+                                                                WHEN 'Заключение'
+                                                                    THEN :formIssuanceDate
+                                                                ELSE NULL :: DATE END);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="cardId" mapping="['cardId']"/>
+                <param name="type.id" mapping="['typeId']"/>
+                <param name="type.name" mapping="['typeName']"/>
+                <param name="series" mapping="['series']" domain="string"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="formIssuanceDate" mapping="['formIssuanceDate']"/>
+                <param name="id" mapping="['id']" value=""/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="uniqueNumberSeries"/>
+            </validations>
+        </action>
+        <action id="update">
+            <invocation>
+                <n2o:sql>
+                    UPDATE migr.md_migr_document
+                    SET
+                        type_id            = :typeId,
+                        series             = :series,
+                        number             = :number,
+                        form_issuance_date = (CASE :typeName
+                                              WHEN 'Заключение'
+                                                  THEN :formIssuanceDate
+                                              ELSE NULL :: DATE END)
+                    WHERE id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="type.id" mapping="['typeId']"/>
+                <param name="type.name" mapping="['typeName']"/>
+                <param name="series" mapping="['series']" domain="string"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="formIssuanceDate" mapping="['formIssuanceDate']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="uniqueNumberSeries"/>
+            </validations>
+        </action>
+        <action id="delete">
+            <invocation>
+                <n2o:sql>
+                    DELETE FROM migr.md_migr_document
+                    WHERE id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>
+        <action id="issue">
+            <invocation>
+                <n2o:sql>
+                    UPDATE migr.md_migr_document
+                    SET
+                        document_issuance_date = :documentIssuanceDate,
+                        validity               = :validityDate,
+                        commission_id          = :commissionId,
+                        is_issued              = TRUE
+                    WHERE id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="documentIssuanceDate" mapping="['documentIssuanceDate']"/>
+                <param name="validityDate" mapping="['validityDate']"/>
+                <param name="commission.id" mapping="['commissionId']"/>
+                <param name="cardId" mapping="['cardId']"/>
+                <param name="type.id" mapping="['typeId']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="servicesAppointed"/>
+                <validation ref-id="allServicesAreRendered"/>
+                <validation ref-id="mo2NotRendered"/>
+                <validation ref-id="mo2IsPositive"/>
+            </validations>
+        </action>
+        <action id="cancelIssuance">
+            <invocation>
+                <n2o:sql>
+                    UPDATE migr.md_migr_document
+                    SET
+                        document_issuance_date = NULL,
+                        validity               = NULL,
+                        commission_id          = NULL,
+                        is_issued              = FALSE
+                    WHERE id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <condition id="dateFormIssueBeforeDocumentIssue" level="error">
+            <message>Дата выдачи документа должна следовать после даты выдачи бланка</message>
+            <expression>
+                if (formIssuanceDate == null) {
+                true;
+                } else {
+                (moment(formIssuanceDate, 'DD.MM.YYYY').isBefore(moment(documentIssuanceDate, 'DD.MM.YYYY')) ||
+                moment(formIssuanceDate, 'DD.MM.YYYY').isSame(moment(documentIssuanceDate, 'DD.MM.YYYY'))); }
+            </expression>
+        </condition>
+        <condition id="dateIssueBeforeValidity" level="error">
+            <message>Дата окончания срока действия должна следовать после даты выдачи документа</message>
+            <expression>
+                (moment(documentIssuanceDate, 'DD.MM.YYYY').isBefore(moment(validityDate, 'DD.MM.YYYY')) ||
+                moment(documentIssuanceDate, 'DD.MM.YYYY').isSame(moment(validityDate, 'DD.MM.YYYY')))
+            </expression>
+        </condition>
+        <constraint id="uniqueNumberSeries" level="error">
+            <message>Документ с таким номером уже существует</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT count(mmd.*)
+                    FROM migr.md_migr_document mmd
+                    WHERE
+                        CASE WHEN :series IS NULL
+                            THEN mmd.series IS NULL
+                        ELSE mmd.series = :series :: VARCHAR END AND
+                        mmd.number = :number :: VARCHAR AND
+                        mmd.type_id = :type :: INTEGER AND
+                        CASE WHEN :id IS NOT NULL
+                            THEN mmd.id != :id
+                        ELSE TRUE END
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="series" mapping="['series']" domain="string"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="type.id" mapping="['type']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="servicesAppointed" level="error">
+            <message>Не назначено ни одной услуги</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT CASE WHEN ((SELECT code
+                                       FROM migr.md_migr_document_type
+                                       WHERE id = :typeId) != 'conclusion')
+                        THEN 1
+                           ELSE (SELECT count(*)
+                                 FROM disp.md_event_patient mep
+                                     INNER JOIN disp.md_event_service_patient mesp ON mesp.event_patient_id = mep.id
+                                 WHERE mep.id = :mainId) END;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="cardId" mapping="['mainId']"/>
+                <param name="type.id" mapping="['typeId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] != 0"/>
+        </constraint>
+        <constraint id="allServicesAreRendered" level="error">
+            <message>Не все услуги оказаны!</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT count(*)
+                    FROM disp.md_event_patient mep
+                        INNER JOIN disp.md_event_service_patient mesp ON mesp.event_patient_id = mep.id
+                    WHERE mesp.status IN (1, 2) AND mep.id = :mainId AND (SELECT code
+                                                                          FROM migr.md_migr_document_type
+                                                                          WHERE id = :typeId) = 'conclusion';
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="cardId" mapping="['mainId']"/>
+                <param name="type.id" mapping="['typeId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="mo2NotRendered" level="error">
+            <message>Сертификат не может быть выдан, т.к. услуга "Осмотр врачом-инфекционистом" не оказана</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT CASE WHEN (SELECT code
+                                      FROM migr.md_migr_document_type
+                                      WHERE id = :typeId) = 'certificate'
+                        THEN (
+                            SELECT count(*)
+                            FROM disp.md_event_patient mep
+                                INNER JOIN disp.md_event_service_patient mesp ON mesp.event_patient_id = mep.id
+                                LEFT JOIN disp.md_event_service dmes ON dmes.id = mesp.service_id
+                                LEFT JOIN md_norm_document_service mnds ON mnds.id = dmes.doc_service_id
+                            WHERE mnds.code = 'ОМ2' AND mesp.status IN (3, 4) AND mep.id = :cardId)
+                           ELSE 1 END;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="cardId" mapping="['cardId']"/>
+                <param name="type.id" mapping="['typeId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] > 0"/>
+        </constraint>
+        <constraint id="mo2IsPositive" level="error">
+            <message>Сертификат не может быть выдан, т.к. результат исследования положительный</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT count(*)
+                    FROM disp.md_event_patient mep
+                        INNER JOIN disp.md_event_service_patient mesp ON mesp.event_patient_id = mep.id
+                        LEFT JOIN disp.md_event_service dmes ON dmes.id = mesp.service_id
+                        LEFT JOIN md_norm_document_service mnds ON mnds.id = dmes.doc_service_id
+                        LEFT JOIN migr.md_migr_service mmes ON mmes.event_service_patient_id = mesp.id
+                    WHERE mnds.code = 'ОМ2' AND mep.id = :cardId AND mmes.result = TRUE AND (SELECT code
+                                                                                             FROM
+                                                                                                 migr.md_migr_document_type
+                                                                                             WHERE id = :typeId) =
+                                                                                            'certificate'
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="cardId" mapping="['cardId']"/>
+                <param name="type.id" mapping="['typeId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <condition id="numberLength" level="error">
+            <message>Максимальная длина поля "Номер" - 10 знаков</message>
+            <expression>number.length &lt;= 10;</expression>
+        </condition>
+        <condition id="seriesLength" level="error">
+            <message>Максимальная длина поля "Серия" - 50 знаков</message>
+            <expression>series.length &lt;= 50;</expression>
+        </condition>
+    </validations>
+</object>

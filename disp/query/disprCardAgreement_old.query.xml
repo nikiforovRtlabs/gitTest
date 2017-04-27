@@ -1,0 +1,195 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <id>disprCardAgreement</id>
+    <name>Согласие</name>
+    <object-id>disprCardAgreement</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                inner join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service_patient_agreement mespa on mespa.service_id = mesp.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join disp.sr_srv_service_document sssd on sssd.service_id = mes.service_id -- Документ "Взрослая дисп. 1 этап"
+                left join md_norm_document_service mnds on mnds.id = sssd.document_service_id
+                left join sr_service ss on ss.id =  mes.service_id
+                where :where
+                order by ss.name
+            </n2o:items-query>
+            <n2o:count-query>select count(mep)
+                from disp.md_event_patient mep
+                inner join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service_patient_agreement mespa on mespa.service_id = mesp.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join disp.sr_srv_service_document sssd on sssd.service_id = mes.service_id -- Документ "Взрослая дисп. 1 этап"
+                left join md_norm_document_service mnds on mnds.id = sssd.document_service_id
+                left join sr_service ss on ss.id =  mes.service_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mesp</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mesp.id</display>
+            <search>mesp.id = :id</search>
+        </field>
+        <field>
+            <id>agreeId</id>
+            <domain>Integer</domain>
+            <display>mespa.id</display>
+            <search>mespa.id = :agreeId</search>
+        </field>
+        <field>
+            <id>mainId</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+            <search>mep.id = :mainId</search>
+        </field>
+        <field>
+            <id>serviceId</id>
+            <domain>Integer</domain>
+            <display>mesp.id</display>
+            <search>mesp.id = :serviceId</search>
+        </field>
+        <field>
+            <id>realServiceId</id>
+            <domain>Integer</domain>
+            <display>mes.service_id</display>
+            <search>mes.service_id = :realServiceId</search>
+        </field>
+        <field>
+            <id>service_code</id>
+            <domain>string</domain>
+            <expression>mnds.code</expression>
+            <display>mnds.code</display>
+            <search>mnds.code = :service_code</search>
+        </field>
+        <field>
+            <id>withoutAnketa</id>
+            <domain>string</domain>
+            <display>NULL</display>
+            <search>mnds.code != :withoutAnketa</search>
+        </field>
+        <field>
+            <id>agree</id>
+            <name>Согласие</name>
+            <domain>boolean</domain>
+            <expression>mespa.agree</expression>
+            <display>mespa.agree</display>
+            <search>mespa.agree = :agree</search>
+        </field>
+        <field>
+            <id>service</id>
+            <name>Услуга</name>
+            <domain>String</domain>
+            <display>ss.name</display>
+            <search>ss.name = :service.name</search>
+            <sorting>ss.name</sorting>
+        </field>
+        <field>
+            <id>denial</id>
+            <name>Отказ</name>
+            <domain>boolean</domain>
+            <expression>mespa.denial</expression>
+            <display>mespa.denial</display>
+            <search>mespa.denial = :denial</search>
+        </field>
+        <field>
+            <id>agreeDate</id>
+            <name>Дата</name>
+            <domain>date</domain>
+            <expression>mespa.agree_date</expression>
+            <display>mespa.agree_date</display>
+            <search>mespa.agree_date = :agreeDate</search>
+        </field>
+        <field>
+            <id>oldDate</id>
+            <name>Пройдено ранее</name>
+            <domain>date</domain>
+            <expression>NULLIF(
+                (select edate from SR_SRV_RENDERED ssr where ssr.customer_id = mep.indiv_id and ssr.service_id = mesp.service_id and edate IS NOT NULL limit 1), NULL) as old_date</expression>
+            <display>NULLIF((select edate from SR_SRV_RENDERED ssr where ssr.customer_id = mep.indiv_id and ssr.service_id = mesp.service_id and edate IS NOT NULL limit 1), NULL) as old_date</display>
+        </field>
+        <field>
+            <id>generalDate</id>
+            <name>Дата</name>
+            <domain>date</domain>
+            <expression>COALESCE(
+                (select gmespa.agree_date
+                from disp.md_event_patient gmep
+                inner join disp.md_event_service_patient gmesp on gmesp.indiv_id = gmep.indiv_id and gmesp.event_id = gmep.event_id
+                left join disp.md_event_service_patient_agreement gmespa on gmespa.service_id = gmesp.id
+                left join disp.md_event_service gmes on gmes.id = gmesp.service_id
+                left join disp.sr_srv_service_document gsssd on gsssd.service_id = gmes.service_id -- Документ "Взрослая дисп. 1 этап"
+                left join md_norm_document_service gmnds on gmnds.id = gsssd.document_service_id
+                where gmnds.code = 'Д1.02' and gmep.id = mep.id limit 1)
+                , current_date) as general_date</expression>
+            <display>COALESCE(
+                (select gmespa.agree_date
+                from disp.md_event_patient gmep
+                inner join disp.md_event_service_patient gmesp on gmesp.indiv_id = gmep.indiv_id and gmesp.event_id = gmep.event_id
+                left join disp.md_event_service_patient_agreement gmespa on gmespa.service_id = gmesp.id
+                left join disp.md_event_service gmes on gmes.id = gmesp.service_id
+                left join disp.sr_srv_service_document gsssd on gsssd.service_id = gmes.service_id -- Документ "Взрослая дисп. 1 этап"
+                left join md_norm_document_service gmnds on gmnds.id = gsssd.document_service_id
+                where gmnds.code = 'Д1.02' and gmep.id = mep.id limit 1)
+                , current_date) as general_date</display>
+        </field>
+        <field>
+            <id>generalDeniDispr.id</id>
+            <name>generalDeniDispr</name>
+            <domain>integer</domain>
+            <expression>
+                CASE WHEN (select gmespa.denial
+                from disp.md_event_patient gmep
+                inner join disp.md_event_service_patient gmesp on gmesp.indiv_id = gmep.indiv_id and gmesp.event_id = gmep.event_id
+                left join disp.md_event_service_patient_agreement gmespa on gmespa.service_id = gmesp.id
+                left join disp.md_event_service gmes on gmes.id = gmesp.service_id
+                left join disp.sr_srv_service_document gsssd on gsssd.service_id = gmes.service_id -- Документ "Взрослая дисп. 1 этап"
+                left join md_norm_document_service gmnds on gmnds.id = gsssd.document_service_id
+                where gmnds.code = 'Д1.02' and gmep.id = mep.id limit 1)=TRUE THEN 2
+                WHEN (select gmespa.agree
+                from disp.md_event_patient gmep
+                inner join disp.md_event_service_patient gmesp on gmesp.indiv_id = gmep.indiv_id and gmesp.event_id = gmep.event_id
+                left join disp.md_event_service_patient_agreement gmespa on gmespa.service_id = gmesp.id
+                left join disp.md_event_service gmes on gmes.id = gmesp.service_id
+                left join disp.sr_srv_service_document gsssd on gsssd.service_id = gmes.service_id -- Документ "Взрослая дисп. 1 этап"
+                left join md_norm_document_service gmnds on gmnds.id = gsssd.document_service_id
+                where gmnds.code = 'Д1.02' and gmep.id = mep.id limit 1)=TRUE THEN 1
+                ELSE NULL
+                END</expression>
+            <display>CASE WHEN (select gmespa.denial
+                from disp.md_event_patient gmep
+                inner join disp.md_event_service_patient gmesp on gmesp.indiv_id = gmep.indiv_id and gmesp.event_id = gmep.event_id
+                left join disp.md_event_service_patient_agreement gmespa on gmespa.service_id = gmesp.id
+                left join disp.md_event_service gmes on gmes.id = gmesp.service_id
+                left join disp.sr_srv_service_document gsssd on gsssd.service_id = gmes.service_id -- Документ "Взрослая дисп. 1 этап"
+                left join md_norm_document_service gmnds on gmnds.id = gsssd.document_service_id
+                where gmnds.code = 'Д1.02' and gmep.id = mep.id limit 1)=TRUE THEN 2
+                WHEN (select gmespa.agree
+                from disp.md_event_patient gmep
+                inner join disp.md_event_service_patient gmesp on gmesp.indiv_id = gmep.indiv_id and gmesp.event_id = gmep.event_id
+                left join disp.md_event_service_patient_agreement gmespa on gmespa.service_id = gmesp.id
+                left join disp.md_event_service gmes on gmes.id = gmesp.service_id
+                left join disp.sr_srv_service_document gsssd on gsssd.service_id = gmes.service_id -- Документ "Взрослая дисп. 1 этап"
+                left join md_norm_document_service gmnds on gmnds.id = gsssd.document_service_id
+                where gmnds.code = 'Д1.02' and gmep.id = mep.id limit 1)=TRUE THEN 1
+                ELSE NULL
+                END</display>
+        </field>
+        <field>
+            <id>generalDeniDispr.name</id>
+            <name>generalDeniDispr</name>
+            <domain>string</domain>
+            <expression>NULL</expression>
+            <expression>NULL</expression>
+        </field>
+    </fields>
+</query>

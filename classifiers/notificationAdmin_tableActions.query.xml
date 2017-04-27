@@ -1,0 +1,59 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>notificationAdmin_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from (
+                SELECT 'UPDATE' as action
+                UNION ALL SELECT 'INSERT'
+                UNION ALL SELECT 'DELETE'
+                ) actions
+                where :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(action) from (
+                SELECT 'UPDATE' as action
+                UNION ALL SELECT 'INSERT'
+                UNION ALL SELECT 'DELETE'
+                ) actions
+                where :where
+            </n2o:count-query>
+            <n2o:alias>t</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <expression>action</expression>
+        </field>
+
+        <field>
+            <id>table_name</id>
+            <domain>string</domain>
+            <expression>action</expression>
+            <search>action not in
+                (
+                select
+                case r.ev_type
+                when '1' then 'SELECT'
+                when '2' then 'UPDATE'
+                when '3' then 'INSERT'
+                when '4' then 'DELETE'
+                else 'UNKNOWN'
+                end as rule_event
+                from pg_rewrite r
+                join pg_class c on r.ev_class = c.oid
+                left join pg_namespace n on n.oid = c.relnamespace
+                left join pg_description d on r.oid = d.objoid
+                left join pg_rules rl on rl.tablename=c.relname
+                where
+                rl.rulename in ('event_on_insert','event_on_update','event_on_delete') and
+                c.relname = (select r[2] from regexp_split_to_array(:table_name, E'\\.') r))</search>
+        </field>
+
+    </fields>
+</query>

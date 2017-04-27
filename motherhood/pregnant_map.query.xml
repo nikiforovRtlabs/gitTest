@@ -1,0 +1,242 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>pregnant_map</object-id>
+    <name>pregnant_map</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from motherhood.mh_pregnant_map pm
+                inner join pci_patient p on p.id = pm.patient_id
+                inner join pim_individual pi on pi.id = p.id
+                left join motherhood.mh_risk_level rl on pm.risk_id = rl.id
+                left join motherhood.mh_outcome o on pm.outcome_id = o.id
+                left join md_clinic c on pm.clinic_id = c.id
+                left join pim_employee_position ep on ep.id = pm.employee_id
+                left join public.pim_employee e on ep.employee_id = e.id
+                left join public.pim_individual ei on e.individual_id = ei.id
+                left join pim_position pp on ep.position_id = pp.id
+                left join md_clinic cobs on pm.clinic_observ_id = cobs.id
+                left join md_clinic cunr on pm.clinic_unreg_id = cunr.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(pm)
+                from motherhood.mh_pregnant_map pm
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pm</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <expression>pm.id</expression>
+            <domain>integer</domain>
+            <display>pm.id</display>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display>p.id</display>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>fullName</id>
+            <domain>string</domain>
+            <display/>
+            <expression>coalesce(pi.surname,'') || ' ' || coalesce(pi.name, '') || ' ' || coalesce(pi.patr_name, '')</expression>
+        </field>
+
+        <field>
+            <id>riskLevel.id</id>
+            <domain>integer</domain>
+            <display>rl.id</display>
+        </field>
+
+        <field>
+            <id>riskLevel.name</id>
+            <domain>string</domain>
+            <display>rl.name</display>
+        </field>
+
+        <field>
+            <id>is_auto_create</id>
+            <domain>boolean</domain>
+            <display>pm.is_auto_create</display>
+        </field>
+
+        <field>
+            <id>outcome.id</id>
+            <domain>integer</domain>
+            <display>o.id</display>
+        </field>
+
+        <field>
+            <id>outcome.name</id>
+            <domain>string</domain>
+            <display>o.name</display>
+        </field>
+
+        <field>
+            <id>clinic.id</id>
+            <domain>Integer</domain>
+            <display>c.id</display>
+        </field>
+
+        <field>
+            <id>clinic.name</id>
+            <domain>string</domain>
+            <display>c.full_name</display>
+        </field>
+
+        <field>
+            <id>pregnant_age</id>
+            <domain>integer</domain>
+            <display>pm.pregnant_age</display>
+        </field>
+
+        <field>
+            <id>employee.id</id>
+            <domain>Integer</domain>
+            <display>ep.id</display>
+        </field>
+
+        <field>
+            <id>employee.name</id>
+            <domain>string</domain>
+            <display>coalesce(ei.surname,'') || ' ' || coalesce(ei.name, '') || ' ' || coalesce(ei.patr_name, '') || ' ' || coalesce(pp.name,'' )</display>
+        </field>
+
+        <field>
+            <id>reg_dt</id>
+            <domain>date</domain>
+            <display>pm.reg_dt</display>
+        </field>
+
+        <field>
+            <id>unreg_dt</id>
+            <domain>string</domain>
+            <display>to_char(unreg_dt, 'dd.mm.yyyy')</display>
+        </field>
+
+        <field>
+            <id>unregDate</id>
+            <domain>date</domain>
+            <display>pm.unreg_dt</display>
+        </field>
+
+        <field>
+            <id>birth_dt</id>
+            <domain>date</domain>
+            <display>pm.birth_dt</display>
+        </field>
+
+        <field>
+            <id>number</id>
+            <domain>string</domain>
+            <display>pm.number</display>
+        </field>
+
+        <field>
+            <id>birthCertificate</id>
+            <domain>string</domain>
+            <expression>
+                (select concat(bc.series, ' ', bc.number) from motherhood.mh_birth_certificate bc
+                 where bc.pregnant_map_id = pm.id limit 1)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>sickList</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select sl.number from sickdoc.sickdoc sl
+                where sl.individual_id = pm.patient_id and sl.issue_dt between pm.reg_dt and coalesce(pm.unreg_dt, 'infinity')
+                order by sl.issue_dt desc limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>clinicObservation.id</id>
+            <domain>Integer</domain>
+            <display>cobs.id</display>
+        </field>
+
+        <field>
+            <id>clinicObservation.name</id>
+            <domain>string</domain>
+            <display>cobs.full_name</display>
+        </field>
+
+        <field>
+            <id>clinicUnregisteration</id>
+            <domain>string</domain>
+            <display>cunr.full_name</display>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+            <display value="#{org.id}"/>
+        </field>
+
+        <field>
+            <id>serviceId</id>
+            <domain>integer</domain>
+            <expression>
+                (select sr_service.id
+                from sr_srv_rendered ssr
+                inner join sr_service on sr_service.id = ssr.service_id
+                inner join sr_srv_prototype on sr_service.prototype_id = sr_srv_prototype.id
+                where sr_srv_prototype.code in ('B0100104', 'B0100103', 'B01.001.03', 'B01.001.04',
+                                                'B01.001.01', 'B01.001.02', 'B0100101', 'B0100102')
+                and ssr.customer_id = p.id and ssr.bdate >= pm.reg_dt order by ssr.bdate asc limit 1)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>renderedId</id>
+            <domain>integer</domain>
+            <expression>
+                (select ssr.id
+                from sr_srv_rendered ssr
+                inner join sr_service on sr_service.id = ssr.service_id
+                inner join sr_srv_prototype on sr_service.prototype_id = sr_srv_prototype.id
+                where sr_srv_prototype.code in ('B0100104', 'B0100103', 'B01.001.03', 'B01.001.04',
+                                                'B01.001.01', 'B01.001.02', 'B0100101', 'B0100102')
+                and ssr.customer_id = p.id and ssr.bdate >= pm.reg_dt order by ssr.bdate asc limit 1)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>status</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(case when
+                                (select count(1) > 0 from mc_case where patient_id = pm.patient_id and closing_step_id is null and case_type_id = 2
+                                    and open_date is not null and open_date between pm.reg_dt and coalesce(pm.unreg_dt, date 'infinity'))
+                            then
+                                (select concat('Госпитализирована в ''', o.short_name, ''' с ', to_char(open_date, 'DD.MM.YYYY')) from mc_case c
+                                join pim_organization o on o.id = c.clinic_id
+                                where c.patient_id = pm.patient_id and c.closing_step_id is null and c.case_type_id = 2
+                                and c.open_date is not null and open_date between pm.reg_dt and coalesce(pm.unreg_dt, date 'infinity') order by c.open_date desc limit 1)
+                            else case when
+                                (pm.birth_dt is not null and  (select count(1) = 0 from mc_case where patient_id = pm.patient_id and closing_step_id is null and case_type_id = 2
+                                    and open_date is not null and open_date between pm.reg_dt and coalesce(pm.unreg_dt, date 'infinity')))
+                            then 'Родоразрешение'
+                            else 'Наблюдение за течением беременности' end end)
+            </expression>
+        </field>
+    </fields>
+</query>

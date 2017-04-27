@@ -1,0 +1,204 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Склад</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить" name="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into inventory.store(id,name,org_id,department_id, store_type_id,funding_source_id, is_blocking, central_store_id, is_auto_accept, is_for_request_doc)
+                    values(nextval('inventory.store_seq'),:name,:orgId,:depId,:storeTypeId,:fundSourceId,
+                           (case when :blocking is null then false else :blocking end),:centralStoreId,:isAutoAccept, :isForRequestDoc)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="org.id" mapping="['orgId']" value="#{org.id}"/>
+                <param name="dep.id" mapping="['depId']"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+                <param name="storeType.id" mapping="['storeTypeId']"/>
+                <param name="blocking" mapping="['blocking']"/>
+                <param name="isAutoAccept" mapping="['isAutoAccept']"/>
+                <param name="centralStore.id" mapping="['centralStoreId']"/>
+                <param name="isForRequestDoc" mapping="['isForRequestDoc']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <success-text>Склад "{name}" добавлен</success-text>
+        </action>
+
+        <action id="update" form-submit-label="Изменить" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    update inventory.store set
+                    name= :name,
+                    org_id= :orgId,
+                    department_id= :depId,
+                    store_type_id= :storeTypeId,
+                    funding_source_id= :fundSourceId,
+                    is_blocking= (case when :blocking is null then false else :blocking end),
+                    central_store_id= :centralStoreId,
+                    is_auto_accept = :isAutoAccept,
+                    is_for_request_doc = :isForRequestDoc
+                    where id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="dep.id" mapping="['depId']"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+                <param name="storeType.id" mapping="['storeTypeId']"/>
+                <param name="blocking" mapping="['blocking']"/>
+                <param name="isAutoAccept" mapping="['isAutoAccept']"/>
+                <param name="centralStore.id" mapping="['centralStoreId']"/>
+                <param name="isForRequestDoc" mapping="['isForRequestDoc']"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <success-text>Склад "{name}" отредактирован</success-text>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    DELETE from inventory.store where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить склад?</confirmation-text>
+            <validations activate="all"/>
+            <success-text>Склад удален</success-text>
+        </action>
+
+        <action id="setClosingPeriod" name="Установить дату закрытия периода" form-submit-label="Сохранить">
+            <invocation>
+               <rest:rest method="POST" >
+                   ${n2o.backend.path}/inventory/refbook/store/closingPeriod
+               </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="closingDate" mapping="['closingDate']" domain="date"/>
+                <param name="user.id" mapping="['userId']" value="#{user.id}"/>
+                <param name="org.id" mapping="['orgId']" value="#{org.id}"/>
+            </in-parameters>
+            <success-text>Дата закрытия периода установлена</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="foreignKeyConstraint1" level="error">
+            <message>Невозможно удалить склад. Существует ссылка из Приходных накладных</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.arrival_invoice where recipient_store_id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="foreignKeyConstraint2" level="error">
+            <message>Невозможно удалить склад. Существует ссылка из Расходных накладных</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.exp_invoice where send_store_id = :id or rec_store_id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="foreignKeyConstraint3" level="error">
+            <message>Невозможно удалить склад. Существует ссылка из Требований</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.request_doc where rec_store_id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="foreignKeyConstraint4" level="error">
+            <message>Невозможно удалить склад. Существует ссылка из Возвратных документов</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.return_document where send_store_id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="foreignKeyConstraint5" level="error">
+            <message>Невозможно удалить склад. Существует ссылка из Актов списания</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.write_off_document where send_store_id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="foreignKeyConstraint6" level="error">
+            <message>Невозможно удалить склад. Существует ссылка из Доверенностей</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.trust_doc where store_id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="foreignKeyConstraint7" level="error">
+            <message>Невозможно удалить склад. Существует ссылка из Заявки</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.application_doc where store_id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="refFromProdDocExists" level="error">
+            <message>Невозможно удалить склад. Существует ссылка из Документа на изготовление</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.production_doc where send_store_id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="refFromPostExists" level="error">
+            <message>Невозможно удалить запись. Существует пост, ссылающийся на данный склад.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from md_post where store_id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+</object>

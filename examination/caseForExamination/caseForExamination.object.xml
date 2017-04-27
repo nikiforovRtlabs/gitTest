@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-2.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Случай, подлежащий экспертизе</name>
+
+    <actions>
+
+        <action id="setNoDefects" name="Без замечаний" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    <rest:query>
+                        ${n2o.backend.path}/examination/examinationCard/noDefects
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="createDate" mapping="['createDate']" domain="date"/>
+                <param name="caseIds" mapping="['caseIds']" domain="integer[]"/>
+                <param name="controlLevel.id" mapping="['controlLevelId']" domain="integer"/>
+                <param name="qualityLevel" mapping="['qualityLevel']" value="1.0" domain="string"/>
+                <param name="expert.id" mapping="['expertId']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkControlLevelsOfExistingCards"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="repeatDuringMonthsValueValidation" level="error" moment="before-query">
+            <message>Введенное значение должно быть числом от 1 до 12</message>
+            <expression on="repeatDuringMonths"><![CDATA[
+                var b = true;
+                if(typeof repeatDuringMonths != 'undefined' && repeatDuringMonths != null && repeatDuringMonths != '')
+                    b = (repeatDuringMonths > 0 && repeatDuringMonths <= 12);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="percentDurationIsMoreValidation" level="error" moment="before-query">
+            <message>Введенное значение должно быть числом от 1 до 100</message>
+            <expression on="percentDurationIsMore"><![CDATA[
+                var b = true;
+                if(typeof percentDurationIsMore != 'undefined' && percentDurationIsMore != null && percentDurationIsMore != '')
+                    b = (percentDurationIsMore > 0 && percentDurationIsMore <= 100);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="percentDurationIsLessValidation" level="error" moment="before-query">
+            <message>Введенное значение должно быть числом от 1 до 100</message>
+            <expression on="percentDurationIsLess"><![CDATA[
+                var b = true;
+                if(typeof percentDurationIsLess != 'undefined' && percentDurationIsLess != null && percentDurationIsLess != '')
+                    b = (percentDurationIsLess > 0 && percentDurationIsLess <= 100);
+                b;
+                ]]>
+            </expression>
+        </condition>
+        
+        <constraint id="checkControlLevelsOfExistingCards" level="error" moment="before-action">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select exists(select id from qos_examination_card where case_id = ANY (string_to_array(trim(both '[]' from :caseIds),',')::int[])
+                        and control_level_id = :controlLevelId)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+               <!--todo domain="integer[]" не работает в 3.4.12-->
+                <param name="caseIds" mapping="['caseIds']" domain="string"/>
+                <param name="controlLevel.id" mapping="['controlLevelId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == false"/>
+            <message>Для одного или более случаев уже существует экспертная карта указанной ступени</message>
+        </constraint>
+    </validations>
+
+</object>

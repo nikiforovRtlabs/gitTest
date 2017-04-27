@@ -1,0 +1,129 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>stomatologyAdmission</object-id>
+    <name>stomatologyVisits</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+
+                from plc_visit pv
+                join mc_step ms on ms.id = pv.id
+                join mc_case mc on mc.id = ms.case_id
+                join md_srv_rendered msr on msr.step_id = ms.id
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                left join md_appointment ma on ( ssr.id = ma.srv_rendered_id )
+                left join sr_service ssrss on ( ssr.service_id = ssrss.id )
+                <!--ssr.planned_date is not null  условия, что услуга является основной  услугой посещения-->
+                where ssr.planned_date is not null and
+                ssrss.is_stomat = TRUE and ssrss.org_id = :orgId  and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(pv)
+                from plc_visit pv
+                left join mc_step ms on ms.id = pv.id
+                left join mc_case mc on mc.id = ms.case_id
+                left join md_srv_rendered msr on msr.step_id = ms.id
+                left join sr_srv_rendered ssr on ssr.id = msr.id
+                left join md_appointment ma on ( ssr.id = ma.srv_rendered_id )
+                left join sr_service ssrss on ( ssr.service_id = ssrss.id )
+                where ssr.planned_date is not null and
+                ssrss.is_stomat = TRUE and ssrss.org_id = :orgId and :where
+            </n2o:count-query>
+            <n2o:alias>pv</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>visitId</id>
+            <domain>integer</domain>
+            <expression>pv.id</expression>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>ssr.customer_id</expression>
+            <display>:expression</display>
+            <search type="eq" filter-field="patientId"/>
+        </field>
+
+        <field>
+            <id>visitDateTime</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>
+                case when ms.id is null then
+                (case when ma.id is null then now()
+                else ma.bdatetime end)
+                else (ms.admission_date + ms.admission_time)
+                end
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>service.name</id>
+            <domain>string</domain>
+            <name>Услуга</name>
+            <expression>
+                case when ssrss.name is null then
+                (case when (select count(*) from sr_res_group srg where srg.responsible_id = :employeePosId and
+                srg.is_system = false) > 1 then null
+                else(case when (select count(srgs) from sr_res_group_service srgs where srgs.default_service = true and
+                srgs.group_id =
+                (select srg.id from sr_res_group srg where srg.responsible_id = :employeePosId and srg.is_system =
+                false)) > 1 then null
+                else
+                (select sti.name from sr_service sti where sti.id = (select srgs.srv_type_id from sr_res_group_service
+                srgs where srgs.default_service = true and srgs.group_id =
+                (select srg.id from sr_res_group srg where srg.responsible_id = :employeePosId and srg.is_system =
+                false))) end)
+                end)
+                else ssrss.name
+                end
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+            <search value="#{org.id?}">(:expression = :orgId or :orgId is null)</search>
+        </field>
+
+        <field>
+            <id>openDoctor.name</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <expression>
+                (select pi.surname ||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)|| '. ' || pe.note
+                from mc_step ms
+                left join sr_res_group srg on ( ms.res_group_id = srg.id  )
+                left join pim_employee_position pep on ( srg.responsible_id = pep.id  )
+                left join pim_employee pe on ( pep.employee_id = pe.id  )
+                left join pim_individual pi on ( pe.individual_id = pi.id  )
+                where ms.admission_date = mc.open_date and ms.case_id = mc.id limit 1)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+
+        <field>
+            <id>dentalFormulaId</id>
+            <domain>integer</domain>
+            <expression>pv.dental_formula_id</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>renderedId</id>
+            <domain>integer</domain>
+            <expression>ssr.id</expression>
+            <display>:expression</display>
+        </field>
+
+    </fields>
+</query>

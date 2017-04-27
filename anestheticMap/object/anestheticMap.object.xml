@@ -1,0 +1,243 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-2.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0">
+    <name>Наркозная карта</name>
+
+    <actions>
+        <action id="saveBasicDateAnestheticMap" name="Сохранить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    <rest:query>
+                        ${n2o.backend.path}/hospital/anesthetic-map/saveBasicData
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient.id" mapping="['patientId']"/>
+                <param name="uid.id" mapping="['uidId']"/>
+                <param name="height" mapping="['height']"/>
+                <param name="weight" mapping="['weight']"/>
+                <param name="bloodGroup.id" mapping="['bloodGroupId']"/>
+                <param name="surgery.id" mapping="['surgeryId']"/>
+                <param name="date_surgery" mapping="['dateSurgery']"/>
+                <param name="operationJournalId" mapping="['operationJournalId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkIsMcClosing"/>
+                <validation ref-id="checkControlSavingDone"/>
+            </validations>
+        </action>
+
+        <action id="create" name="Сохранить" form-submit-label="Сохранить">
+
+            <invocation>
+                <!--todo: 1 -> :id -->
+                <sql:sql>
+                    insert into hospital.patient_before_procedure ( id, severity_id, consciousness_id, high_pressure,
+                    low_pressure, temperature, pulse_rate,breath_rate, anesthesia_type_id, begin_date, begin_time,
+                    anesthesia_risk_id, anesthetic_id, premedication_id, anesthesiolog_id, anesthesist_id)
+                    values (:id, :severity_id, :consciousness_id, :high_pressure,
+                    :low_pressure, :temperature, :pulse_rate, :breath_rate, :anesthesia_type_id, :begin_date,
+                    :begin_time::time,
+                    :anesthesia_risk_id, :anesthetic_id, :premedication_id, :anesthesiolog_id, :anesthesist_id);
+
+                    insert into hospital.patient_anesthetic_monitoring(patient_before_procedure_id, monitoring_id)
+                    (select :id, id from hospital.patient_monitoring where id
+                    in (select value::integer from json_array_elements_text(cast(:monitoringIds as json)))
+                    );
+
+                    select :id;
+                </sql:sql>
+            </invocation>
+
+            <in-parameters>
+                <param name="basicId" mapping="[id]" domain="integer"/>
+                <param name="severity.id" mapping="[severity_id]" domain="integer"/>
+                <param name="consciousness.id" mapping="[consciousness_id]" domain="integer"/>
+                <param name="highPressure" mapping="[high_pressure]" domain="integer"/>
+                <param name="lowPressure" mapping="[low_pressure]" domain="integer"/>
+                <param name="temperature" mapping="[temperature]" domain="numeric"/>
+                <param name="pulseRate" mapping="[pulse_rate]" domain="integer"/>
+                <param name="breathRate" mapping="[breath_rate]" domain="integer"/>
+                <param name="anesthesiaType.id" mapping="[anesthesia_type_id]" domain="integer"/>
+                <param name="beginDate" mapping="[begin_date]" domain="date"/>
+                <param name="beginTime" mapping="[begin_time]" domain="string"/>
+                <param name="anesthesiaRisk.id" mapping="[anesthesia_risk_id]" domain="integer"/>
+                <param name="anesthetic.id" mapping="[anesthetic_id]" domain="integer"/>
+                <param name="premedication.id" mapping="[premedication_id]" domain="integer"/>
+                <param name="anesthesiolog.id" mapping="[anesthesiolog_id]" domain="integer"/>
+                <param name="anesthesist.id" mapping="[anesthesist_id]" domain="integer"/>
+                <param name="monitoring*.id" mapping="[monitoringIds]" domain="integer[]"/>
+
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkIsMcClosingCreateBeforeProcedure"/>
+            </validations>
+        </action>
+
+        <action id="update" name="Сохранить" form-submit-label="Сохранить">
+
+            <invocation>
+                <sql:sql>
+                    update hospital.patient_before_procedure
+                    set severity_id=:severity_id,
+                    consciousness_id=:consciousness_id,
+                    high_pressure=:high_pressure,
+                    low_pressure=:low_pressure,
+                    temperature=:temperature,
+                    pulse_rate=:pulse_rate,
+                    breath_rate=:breath_rate,
+                    anesthesia_type_id=:anesthesia_type_id,
+                    begin_date=:begin_date,
+                    begin_time=:begin_time::time,
+                    anesthesia_risk_id=:anesthesia_risk_id,
+                    anesthetic_id=:anesthetic_id,
+                    premedication_id=:premedication_id,
+                    anesthesiolog_id=:anesthesiolog_id,
+                    anesthesist_id=:anesthesist_id
+                    where id = :id ;
+
+                    delete from hospital.patient_anesthetic_monitoring where patient_before_procedure_id=:id;
+
+                    insert into hospital.patient_anesthetic_monitoring(patient_before_procedure_id, monitoring_id)
+                    (select :id, id from hospital.patient_monitoring where id
+                    in (select value::integer from json_array_elements_text(cast(:monitoringIds as json)))
+                    );
+                </sql:sql>
+            </invocation>
+
+            <in-parameters>
+                <param name="id" mapping="[id]" domain="integer"/>
+                <param name="severity.id" mapping="[severity_id]" domain="integer"/>
+                <param name="consciousness.id" mapping="[consciousness_id]" domain="integer"/>
+                <param name="highPressure" mapping="[high_pressure]" domain="integer"/>
+                <param name="lowPressure" mapping="[low_pressure]" domain="integer"/>
+                <param name="temperature" mapping="[temperature]" domain="numeric"/>
+                <param name="pulseRate" mapping="[pulse_rate]" domain="integer"/>
+                <param name="breathRate" mapping="[breath_rate]" domain="integer"/>
+                <param name="anesthesiaType.id" mapping="[anesthesia_type_id]" domain="integer"/>
+                <param name="beginDate" mapping="[begin_date]" domain="date"/>
+                <param name="beginTime" mapping="[begin_time]" domain="string"/>
+                <param name="anesthesiaRisk.id" mapping="[anesthesia_risk_id]" domain="integer"/>
+                <param name="anesthetic.id" mapping="[anesthetic_id]" domain="integer"/>
+                <param name="premedication.id" mapping="[premedication_id]" domain="integer"/>
+                <param name="anesthesiolog.id" mapping="[anesthesiolog_id]" domain="integer"/>
+                <param name="anesthesist.id" mapping="[anesthesist_id]" domain="integer"/>
+                <param name="monitoring*.id" mapping="[monitoringIds]" domain="integer[]"/>
+
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkIsMcClosing"/>
+                <validation ref-id="checkControlSavingDone"/>
+            </validations>
+        </action>
+        <action id="deleteAnesthetic" form-submit-label="Удалить" name="Удаление лекарственного назначения">
+            <invocation>
+                <rest:rest method="DELETE">
+                    <rest:query>
+                        ${n2o.backend.path}/hospital/anesthetic-map/prescription/anesthetic?prescriptionId={id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены, что хотите удалить назначение?</confirmation-text>
+        </action>
+        <action id="deletePremedication" form-submit-label="Удалить" name="Удаление премедикации">
+            <invocation>
+                <rest:rest method="DELETE">
+                    <rest:query>
+                        ${n2o.backend.path}/hospital/anesthetic-map/prescription/premedication?prescriptionId={id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены, что хотите удалить премедикацию?</confirmation-text>
+        </action>
+
+    </actions>
+
+
+    <validations>
+        <condition id="isNumberConditionHeight" level="error">
+            <message>Значение должно быть числовым.</message>
+            <expression on="height">
+                <![CDATA[(typeof height == 'undefined') || (height == null) || (/^[0-9]*$/.test(height) == true)]]></expression>
+        </condition>
+        <condition id="isNumberConditionWeight" level="error">
+            <message>Значение должно быть числовым.</message>
+            <expression on="weight">
+                <![CDATA[(typeof weight == 'undefined') || (weight == null) || (/^[0-9]*$/.test(weight) == true)]]></expression>
+        </condition>
+
+        <constraint id="checkIsMcClosing" level="error" moment="before-action">
+            <message>Случай закрыт.</message>
+            <invocation>
+                <sql:sql><![CDATA[
+                    select not exists (select bdam.control_saving_done from
+                    hospital.basic_data_anesthetic_map bdam
+                    where bdam.id = :id) or (select c.closing_step_id is null from
+                    mc_case c
+                    left join hospital.basic_data_anesthetic_map bdam on c.id=bdam.uid_id
+                    where bdam.id = :id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true || [0][0][0] == null"/>
+        </constraint>
+
+        <constraint id="checkIsMcClosingCreateBeforeProcedure" level="error" moment="before-action">
+            <message>Случай закрыт.</message>
+            <invocation>
+                <sql:sql><![CDATA[
+                    select not exists (select bdam.control_saving_done from
+                    hospital.basic_data_anesthetic_map bdam
+                    where bdam.id = :id) or (select c.closing_step_id is null from
+                    mc_case c
+                    left join hospital.basic_data_anesthetic_map bdam on c.id=bdam.uid_id
+                    where bdam.id = :id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="basicId" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true || [0][0][0] == null"/>
+        </constraint>
+
+        <constraint id="checkControlSavingDone" level="error" moment="before-action">
+            <message>Редактирование невозможно, было произведено контрольное сохранение.</message>
+            <invocation>
+                <sql:sql><![CDATA[
+                    select not exists (select bdam.control_saving_done from
+                    hospital.basic_data_anesthetic_map bdam
+                    where bdam.id = :id) or (select bdam.control_saving_done is false from
+                    hospital.basic_data_anesthetic_map bdam
+                    where bdam.id = :id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true || [0][0][0] == null"/>
+        </constraint>
+
+    </validations>
+</object>

@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>department_report_settings</id>-->
+    <name>Настройки подразделения для отчетности</name>
+    <actions>
+        <action id="create" name="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into amb.md_department_report_settings(department_id,population,rural_population,child_population,date)
+                        values (:dep,:pop,:rural,:child,:date);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="substation.id" mapping="['dep']" domain="integer"/>
+                <param name="population" mapping="['pop']" domain="integer"/>
+                <param name="rural_population" mapping="['rural']" domain="integer"/>
+                <param name="child_population" mapping="['child']" domain="integer"/>
+                <param name="date" mapping="['date']" domain="date"/>
+            </in-parameters>
+        </action>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update amb.md_department_report_settings set department_id = :dep, population = :pop,rural_population = :rural,child_population = :child,date = :date where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="substation.id" mapping="['dep']" domain="integer"/>
+                <param name="population" mapping="['pop']" domain="integer"/>
+                <param name="rural_population" mapping="['rural']" domain="integer"/>
+                <param name="child_population" mapping="['child']" domain="integer"/>
+                <param name="date" mapping="['date']" domain="date"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from amb.md_department_report_settings where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="department_report_settings_Unique" level="error">
+            <message>
+                Настойка для подстанции уже существует!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.md_department_report_settings
+                    where (department_id = :dep)
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer" required="false"/>
+                <param name="substation.id" mapping="['dep']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <condition id="TotalPopulationLimit" level="error">
+            <expression>population >= (Number(rural_population) + Number(child_population))
+            </expression>
+            <message>Суммарная численность сельского и детского населения должна быть меньше или равна общей численности</message>
+        </condition>
+    </validations>
+</object>

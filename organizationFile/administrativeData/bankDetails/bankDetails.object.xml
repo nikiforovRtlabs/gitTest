@@ -1,0 +1,79 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Банковские реквизиты</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/stocks/bankDetails/save
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="bank.id" mapping="['bankId']"/>
+                <param name="inn" mapping="['inn']" domain="string" />
+                <param name="kpp" mapping="['kpp']" domain="string" />
+                <param name="okved" mapping="['okved']" domain="string" />
+                <param name="checkingAccount" mapping="['checkingAccount']" domain="string" />
+                <param name="openDate" mapping="['openDate']"/>
+                <param name="closeDate" mapping="['closeDate']"/>
+                <param name="org.id" mapping="['orgId']" value="#{stocks.orgId}" domain="integer" />
+            </in-parameters>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удаление">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/stocks/bankDetails?bankDetail={bankDetail}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['bankDetail']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить расчетный счет?</confirmation-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkINNFormat" level="error">
+            <message>Не верный формат ИНН</message>
+            <expression ><![CDATA[
+            var regex = new RegExp('^\\d{12}$');
+                var v = true;
+                if(typeof inn != 'undefined' && inn != null && inn != '')
+                    v = regex.test(inn);
+                v;
+           ]]></expression>
+        </condition>
+        <condition id="checkKPPFormat" level="error">
+            <message>Не верный формат КПП</message>
+            <expression ><![CDATA[
+            var regex = new RegExp('^[0-9]*$');
+                var v = true;
+                if(typeof kpp != 'undefined' && kpp != null && kpp != '')
+                    v = regex.test(kpp);
+                v;
+           ]]></expression>
+        </condition>
+        <condition id="checkOpenAndCloseDates" level="error">
+            <expression><![CDATA[
+                    (openDate != null && closeDate != null &&
+                    (!moment(openDate, 'DD.MM.YYYY').isAfter(moment(closeDate, 'DD.MM.YYYY'))))
+                    ||openDate == null||closeDate == null]]></expression>
+            <message>Дата открытия должна быть раньше даты закрытия.</message>
+        </condition>
+        <condition id="checkingAccountNumberOfDigits" level="error">
+            <expression><![CDATA[
+                    var regex = new RegExp('^\\d{20}$');
+                    var v = true;
+                    if(typeof checkingAccount != 'undefined' && checkingAccount != null && checkingAccount != '')
+                    v = regex.test(checkingAccount);
+                    v;
+                    ]]></expression>
+            <message>Должно быть 20 цифр.</message>
+        </condition>
+    </validations>
+
+</object>

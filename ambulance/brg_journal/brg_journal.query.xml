@@ -1,0 +1,209 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <name>Журнал бригад</name>
+    <object-id>brg_journal</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.sr_res_team_job srtj
+                join amb.sr_res_team srt on srt.id = srtj.team_id
+
+                left join public.md_resgroup_amb_profile rap on rap.id = srt.resource_id
+                left join public.md_ambulance_profile ap on ap.id = rap.profile_id
+
+                join amb.sr_res_team_job_resourse srtjr on srtjr.team_job_id=srtj.id
+                join sr_resource res on srtjr.resource_id = res.id
+                join pim_employee_position_resource pepr on res.id = pepr.id
+                join pim_employee_position respep on pepr.employee_position_id = respep.id
+                join pim_employee respe on respep.employee_id = respe.id
+                join pim_individual respi on respe.individual_id = respi.id
+
+                join sr_res_group srg on srg.id = srt.resource_id
+                join pim_organization po on po.id = srg.org_id
+                join pim_department pd on pd.id = srg.department_id
+                join amb.md_ambulance_change mac on mac.id = srtj.change_id
+                left join amb.sr_res_team_job_status_history srjsh on srjsh.id = (select id from amb.sr_res_team_job_status_history where team_job_id = srtj.id order by date_time desc,job_status_id desc, id desc limit 1)
+                left join amb.sr_res_team_job_status srtjstat on srtjstat.id = srjsh.job_status_id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from amb.sr_res_team_job srtj
+                join amb.sr_res_team srt on srt.id = srtj.team_id
+
+                join amb.sr_res_team_job_resourse srtjr on srtjr.team_job_id=srtj.id
+                join sr_resource res on srtjr.resource_id = res.id
+                join pim_employee_position_resource pepr on res.id = pepr.id
+                join pim_employee_position respep on pepr.employee_position_id = respep.id
+                join pim_employee respe on respep.employee_id = respe.id
+                join pim_individual respi on respe.individual_id = respi.id
+
+                join sr_res_group srg on srg.id = srt.resource_id
+                join pim_organization po on po.id = srg.org_id
+                join pim_department pd on pd.id = srg.department_id
+                join amb.md_ambulance_change mac on mac.id = srtj.change_id
+                left join amb.sr_res_team_job_status_history srjsh on srjsh.id = (select id from amb.sr_res_team_job_status_history where team_job_id = srtj.id order by date_time desc,job_status_id desc, id desc limit 1)
+                left join amb.sr_res_team_job_status srtjstat on srtjstat.id = srjsh.job_status_id <!--where srtjr.is_head and po.id = 490 and pd.id = 51 order by mac.id desc, srtjstat.code-->
+
+                where :where
+            </n2o:count-query>
+            <n2o:alias>brg</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <!-- поля таблицы -->
+        <!-- id наряда передаем на форму информации о бригаде и форму списка вызовов, для правильной выборки смены -->
+        <field>
+            <id>srtj.id</id>
+            <domain>integer</domain>
+            <name>Номер наряда</name>
+            <expression>srtj.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>brg.id</id>
+            <domain>integer</domain>
+            <expression>srt.id</expression>
+            <filters>
+                <filter type="eq" filter-field="brg.id">srt.id = :brg.id</filter>
+            </filters>
+            <display/>
+        </field>
+        <field>
+            <id>mac.id</id>
+            <domain>integer</domain>
+            <name>Смена</name>
+            <expression>mac.id</expression>
+            <display/>
+            <sorting>mac.id</sorting>
+        </field>
+        <field>
+            <id>brg.name</id>
+            <domain>string</domain>
+            <name>Бригада</name>
+            <expression>srg.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>brg.status</id>
+            <domain>string</domain>
+            <name>Состояние</name>
+            <expression>srtjstat.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>cal.call_number</id>
+            <domain>string</domain>
+            <name>Номер вызова</name>
+            <expression>(select cal.call_number from amb.md_ambulance_call cal where cal.brg_id = srtj.id order by id desc limit 1)</expression>
+            <display/>
+        </field>
+        <field>
+            <id>cal.address</id>
+            <domain>string</domain>
+            <name>Адрес</name>
+            <expression>(select aed.search_name from address_element_data aed where aed.id = (select cal.address_id from amb.md_ambulance_call cal where cal.brg_id = srtj.id order by id desc limit 1))</expression>
+            <display/>
+        </field>
+        <field>
+            <id>brg.head</id>
+            <domain>string</domain>
+            <name>Старший</name>
+            <expression>respi.surname||' '||left(initcap(respi.name),1)||'. '||left(initcap(respi.patr_name),1)||'.'</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="brg.head" default-value="false">
+                    srtjr.is_head = true
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>brg.cal_count</id>
+            <domain>integer</domain>
+            <name>Кол-во вызовов</name>
+            <expression>(select count(id) from amb.md_ambulance_call where brg_id=srtj.id)</expression>
+            <display/>
+        </field>
+
+        <!-- поля фильтра -->
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <name>Станция</name>
+            <expression>po.id</expression>
+            <filters>
+                <filter type="eq" filter-field="station.id" default-value="#{org.id?}">:expression = :station.id</filter>
+            </filters>
+        </field>
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <name>Подстанция</name>
+            <expression>pd.id</expression>
+            <filters>
+                <filter type="eq" filter-field="substation.id" default-value="#{dep.id?}">:expression = :substation.id</filter>
+            </filters>
+        </field>
+        <field>
+            <id>team_kind.id</id>
+            <domain>integer</domain>
+            <expression>srt.team_kind_id</expression>
+            <filters>
+                <filter type="eq" filter-field="team_kind.id">srt.team_kind_id = :team_kind.id</filter>
+            </filters>
+        </field>
+        <field>
+            <id>job_kind.id</id>
+            <domain>integer</domain>
+            <expression>srt.job_kind_id</expression>
+            <filters>
+                <filter type="eq" filter-field="job_kind.id">srt.job_kind_id = :job_kind.id</filter>
+            </filters>
+        </field>
+        <field>
+            <id>team_type.id</id>
+            <domain>integer</domain>
+            <expression>srt.team_type_id</expression>
+            <filters>
+                <filter type="eq" filter-field="team_type.id">srt.team_type_id = :team_type.id</filter>
+            </filters>
+        </field>
+        <field>
+            <id>amb_profile.id</id>
+            <domain>integer</domain>
+            <expression>ap.id</expression>
+            <filters>
+                <filter type="eq" filter-field="amb_profile.id">ap.id = :amb_profile.id</filter>
+            </filters>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <name>Период</name>
+            <expression>mac.from_time</expression>
+            <filters>
+                <filter type="more" filter-field="date.begin"><![CDATA[cast(mac.from_data as date) >= :date.begin]]></filter>
+                <filter type="less" filter-field="date.end"><![CDATA[cast(mac.from_data as date) <= :date.end]]></filter>
+            </filters>
+        </field>
+        <field>
+            <id>brg_stat.id</id>
+            <domain>integer</domain>
+            <expression>srtjstat.id</expression>
+            <sorting>srtjstat.id</sorting>
+            <filters>
+                <filter type="eq" filter-field="brg_stat.id">srtjstat.id = :brg_stat.id</filter>
+            </filters>
+        </field>
+        <field>
+            <id>jscolor.id</id>
+            <domain>string</domain>
+            <name>Цвет</name>
+            <expression>srtjstat.color</expression>
+            <display/>
+        </field>
+    </fields>
+</query>

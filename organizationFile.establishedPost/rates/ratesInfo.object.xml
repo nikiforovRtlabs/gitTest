@@ -1,0 +1,73 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Ставки</name>
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into pim_position_rates (id,         position_id,  rate,  start_date,  end_date)
+                    values (nextval('pim_position_rates_seq'), :position_id, (select round (:rate, 2)), :start_date, :end_date);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pos.id" mapping="['position_id']" domain="integer"/>
+                <param name="rate" mapping="['rate']" domain="numeric"/>
+                <param name="start_date" mapping="['start_date']" domain="date"/>
+                <param name="end_date" mapping="['end_date']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Ставка успешно сохранена в системе.
+            </success-text>
+        </action>
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_position_rates set
+                    rate = (select round (:rate, 2)),
+                    start_date = :start_date,
+                    end_date = :end_date
+                    where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="rate" mapping="['rate']" domain="numeric"/>
+                <param name="start_date" mapping="['start_date']" domain="date"/>
+                <param name="end_date" mapping="['end_date']" domain="date"/>
+            </in-parameters>
+            <success-text>
+                Ставка успешно изменена.
+            </success-text>
+        </action>
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_position_rates where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что Ставка должна быть удалена?
+            </confirmation-text>
+            <success-text>
+                Ставка успешно удалена.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <condition id="checkRateValue" level="error">
+            <expression>
+                <![CDATA[
+                ((rate != null) && (rate >= 0.02))
+                ]]>
+            </expression>
+            <message>Количество ставок должно быть больше или равно 0.02</message>
+        </condition>
+    </validations>
+</object>

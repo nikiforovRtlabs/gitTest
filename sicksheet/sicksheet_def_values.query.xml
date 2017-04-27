@@ -1,0 +1,333 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>sickdoc</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select</n2o:items-query>
+            <n2o:count-query>select 1</n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{org.id?}"/>
+            <search value="#{org.id?}">1=1</search>
+        </field>
+
+        <field>
+            <id>registeredClinicId</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{org.id?}"/>
+            <search value="#{org.id?}">1=1</search>
+        </field>
+
+        <field>
+            <id>creationDate</id>
+            <domain>date</domain>
+            <expression>current_date</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>depId</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{dep.id?}"/>
+            <search value="#{dep.id?}">1=1</search>
+        </field>
+        <field>
+            <id>emplPos</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{emplPos.id?}"/>
+            <search value="#{emplPos.id?}">1=1</search>
+        </field>
+
+        <field>
+            <id>disabilityReasonEdited.id</id>
+            <expression>
+                (case when :parentId::integer NOTNULL then (select disability_reason_edited_id from sickdoc.sickdoc_extended where id = :parentId) end)
+            </expression>
+        </field>
+        <field>
+            <id>disabilityReasonExt.id</id>
+            <expression>
+                (case when :parentId::integer NOTNULL then (select disability_reason_ext_id from sickdoc.sickdoc_extended where id = :parentId) end)
+            </expression>
+        </field>
+        <field>
+            <id>disabilityReason.id</id>
+            <expression>
+                (case when :parentId::integer NOTNULL then (select disability_reason_id from sickdoc.sickdoc_extended where id = :parentId) end)
+            </expression>
+        </field>
+        <field>
+            <id>individual.id</id>
+            <expression>
+                (case
+                when :mcase.id::integer NOTNULL then (select patient_id from mc_case where id = :mcase.id)
+                when :parentId::integer NOTNULL then (select individual_id from sickdoc.sickdoc where id = :parentId) end)
+            </expression>
+        </field>
+        <field>
+            <id>individual.name</id>
+            <expression>
+                (case
+                when :mcase.id::integer NOTNULL then
+                    (select i.surname||' '||i.name||' '||i.patr_name||' ('||to_char(i.birth_dt,'dd.mm.yyyy')||')'
+                     from mc_case c
+                     inner join pim_individual i ON i.id=c.patient_id
+                     where c.id = :mcase.id) end)
+            </expression>
+        </field>
+        <field>
+            <id>initialDiagnosis.id</id>
+            <expression>
+                (case when :parentId::integer NOTNULL then (select initial_diagnosis_id from sickdoc.sickdoc where id = :parentId)
+                when :mcase.id::integer NOTNULL then (select id from md_diagnosis where id = (select diagnos_id from mc_diagnosis where stage_id in (2, 3) and is_main is true and case_id=:mcase.id order by stage_id limit 1) limit 1)
+                 end)
+            </expression>
+        </field>
+        <field>
+            <id>finalDiagnosis.id</id>
+            <expression>
+                (case when :parentId::integer NOTNULL then (select final_diagnosis_id from  sickdoc.sickdoc where id = :parentId)
+                      when :mcase.id::integer NOTNULL then (select id from md_diagnosis where id = (select diagnos_id from mc_diagnosis where stage_id=4 and is_main is true and case_id=:mcase.id limit 1) limit 1)
+                end)
+            </expression>
+        </field>
+        <!--<field>
+            <id>journalId</id>
+            <domain>integer</domain>
+            <expression>(select sickdoc.journal_get_active_default(:clinicId, :depId))</expression>
+        </field>
+        <field>
+            <id>journalName</id>
+            <domain>string</domain>
+            <expression>
+                (select name from sickdoc.journal where id = (select sickdoc.journal_get_active_default(:clinicId, :depId)))
+            </expression>
+        </field>-->
+        <field>
+            <id>mcase.id</id>
+            <expression>
+                (case
+                when :mcase.id::integer NOTNULL then :mcase.id
+                when :parentId::integer NOTNULL then (select case_id from sickdoc.sickdoc where id = :parentId) end)
+            </expression>
+        </field>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>null</expression>
+        </field>
+        <field>
+            <id>parentId</id>
+            <domain>integer</domain>
+            <expression>null</expression>
+        </field>
+        <field>
+            <id>parentNumber</id>
+            <domain>string</domain>
+            <expression>
+                (case when :parentId::integer NOTNULL then (select number from sickdoc.sickdoc where id = :parentId) end)
+            </expression>
+        </field>
+        <field>
+            <id>period.begin</id>
+            <expression>
+                (case when :parentId::integer ISNULL then current_date
+                else (select end_dt from sickdoc.sickdoc where id = :parentId) + interval '1 day' end)
+            </expression>
+        </field>
+        <field>
+            <id>registrator.id</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{empl.id?}"/>
+            <search value="#{empl.id?}">1=1</search>
+        </field>
+        <field>
+            <id>registrator.name</id>
+            <domain>string</domain>
+            <display>
+                concat(
+                (select concat(i.surname, ' ' || left(i.name, 1) ||'.', ' ' || left(i.patr_name, 1) || '.')
+                from pim_individual i
+                join pim_employee e on e.individual_id = i.id where e.id = :registrator.id),
+                '    ' || (select short_name from pim_organization where id = :clinicId)
+                )
+            </display>
+        </field>
+        <field>
+            <id>registratorOfTransfered.name</id>
+            <domain>string</domain>
+            <display>
+                concat(
+                (select concat(i.surname, ' ' || left(i.name, 1) ||'.', ' ' || left(i.patr_name, 1) || '.')
+                from pim_individual i
+                join pim_employee e on e.individual_id = i.id where e.id = :registrator.id),
+                '    ' || (select short_name from pim_organization where id = :clinicId)
+                )
+            </display>
+        </field>
+        <field>
+            <id>workplaceType</id>
+            <domain>integer</domain>
+            <expression>1</expression>
+        </field>
+        <field>
+            <id>workplaceTypeId</id>
+            <domain>integer</domain>
+            <expression>(select workplace_type_id from sickdoc.sickdoc where id = :parentId)</expression>
+        </field>
+        <field>
+            <id>workplace.id</id>
+            <domain>integer</domain>
+            <expression>(select workplace_id from sickdoc.sickdoc where id = :parentId)</expression>
+        </field>
+        <field>
+            <id>workplacePrint</id>
+            <domain>string</domain>
+            <expression>(select workplace_print from sickdoc.sickdoc where id = :parentId)</expression>
+        </field>
+        <field>
+            <id>onPlacementService</id>
+            <domain>string</domain>
+            <expression>(select se.on_placement_service from sickdoc.sickdoc_extended se where id = :parentId)</expression>
+        </field>
+        <field>
+            <id>issuedClinicId</id>
+            <domain>integer</domain>
+            <expression>:issuedClinicId</expression>
+            <display value="#{org.id?}"/>
+            <search value="#{org.id?}" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>mcase.name</id>
+            <domain>string</domain>
+            <display>
+                ( select
+                  '№ ' || c.uid ||
+                  coalesce(' ' || to_char(c.open_date,'dd.mm.yyyy'), '') ||
+                  coalesce('-' || to_char(closing_step.outcome_date, 'dd.mm.yyyy'), '') || ' ' ||
+                  coalesce((select code || ' ' || name from md_diagnosis where id = (select diagnos_id from mc_diagnosis where id = c.main_diagnos_id)), 'Основной диагноз не указан')
+                from mc_case c
+                left join mc_step closing_step on closing_step.id = c.closing_step_id
+                where c.id = :mcase.id limit 1)
+            </display>
+        </field>
+
+        <field>
+            <id>issuedEmployee.id</id>
+            <expression>
+                (case
+                    when :mcase.id::integer NOTNULL and :isAnotherClinic is not true then :emplPos end
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>issuedEmployee.name</id>
+            <expression>
+                (case
+                when :mcase.id::integer NOTNULL and :isAnotherClinic is not true then
+                (select
+                    coalesce(coalesce(nullif(pep.code, ''), cast(pep.id as varchar))||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||coalesce(', '||emppd.name,'')||')')
+                    from pim_employee_position pep
+                    left join pim_employee pe on pep.employee_id = pe.id
+                    left join pim_individual pi on pe.individual_id = pi.id
+                    left join pim_position ppos on pep.position_id = ppos.id
+                    left join pim_department emppd on ppos.department_id = emppd.id
+                    where pep.id = :emplPos
+                    limit 1
+                    )
+                end
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>issuedEmployeePosition</id>
+            <expression>
+                (case
+                when :mcase.id::integer NOTNULL and :isAnotherClinic is not true then
+                    (select spn.name
+                    from pim_employee_position pep
+                    left join pim_employee pe on pep.employee_id = pe.id
+                    left join pim_position ppos on pep.position_id = ppos.id
+                    left join sickdoc.rf_position_link spl on spl.position_role_id = ppos.role_id
+                    left join sickdoc.rf_position_name spn on spn.id = spl.position_short_name_id
+                    where pep.id = :emplPos
+                    limit 1)
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>issuedEmployee.code</id>
+            <domain>string</domain>
+            <expression>
+                (case
+                when :mcase.id::integer NOTNULL and :isAnotherClinic is not true then
+                    (select sr.code
+                    from sr_resource sr
+                    join sr_res_kind srk on sr.res_kind_id = srk.id
+                    left join pim_employee_position_resource pepr on sr.id = pepr.id
+                    left join pim_employee_position pep on pepr.employee_position_id = pep.id
+                    where pep.id = :emplPos limit 1)
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>registratorId</id>
+            <domain>integer</domain>
+            <expression>:emplPos</expression>
+        </field>
+
+        <field>
+            <id>isAnotherClinic</id>
+            <domain>boolean</domain>
+            <expression>:isAnotherClinic</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>existsSameTime</id>
+            <name>Есть ЛН по совместительству</name>
+            <domain>boolean</domain>
+            <expression>false</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>hasMigratedFamilyMember</id>
+            <domain>boolean</domain>
+            <expression>false</expression>
+        </field>
+
+        <field>
+            <id>is_main_job</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+        </field>
+
+        <field>
+            <id>hasAvailableSicksheetNumbers</id>
+            <domain>boolean</domain>
+            <expression>
+                exists(SELECT distr.id
+                FROM sickdoc.bso_distr_record distr
+                INNER JOIN sickdoc.bso_distr_record_range ran ON ran.distr_record_id = distr.id
+                WHERE distr.receiver_id = :curEmplPos)
+            </expression>
+        </field>
+        <field>
+            <id>curEmplPos</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{emplPos.id?}"/>
+            <search value="#{emplPos.id?}">1=1</search>
+        </field>
+    </fields>
+</query>

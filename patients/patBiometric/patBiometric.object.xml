@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Биометрические данные</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    insert into public.pim_indiv_biometric(id,individual_id,biometric_type_id, is_main, file_name, url, create_dt )
+                    values(nextval('public.pim_indiv_biometric_seq'),:indiv_id, :type_id,
+                    case when :is_main is null then false else :is_main end, :file_name, :url, now()::date);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="attachment.filename" mapping="['file_name']" domain="string"/>
+                <param name="attachment.url" mapping="['url']" domain="string"/>
+                <param name="patient.id" mapping="['indiv_id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="isValid" mapping="['is_main']" domain="boolean"/>
+            </in-parameters>
+            <success-text>Биометрические данные добавлены.</success-text>
+        </action>
+        <action id="update">
+            <invocation>
+                <n2o:sql>
+                    update public.pim_indiv_biometric set
+                    biometric_type_id = :type_id,
+                    is_main = (case when :is_main is null then false else :is_main end),
+                    file_name = :file_name,
+                    url = :url
+                    where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="attachment.filename" mapping="['file_name']" domain="string"/>
+                <param name="attachment.url" mapping="['url']" domain="string"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="isValid" mapping="['is_main']" domain="boolean"/>
+            </in-parameters>
+            <success-text>Биометрические данные изменены.</success-text>
+        </action>
+        <action id="delete">
+            <invocation>
+                <n2o:sql>
+                    delete from pim_indiv_biometric where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <success-text>Биометрические данные удалены.</success-text>
+        </action>
+
+    </actions>
+    <validations>
+        <constraint id="checkMainContact" level="error">
+            <message>Уже имеются биометрические данные с признаком "основной" для данного вида.</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                    select count(*) as cnt
+                    from public.pim_indiv_biometric ic
+                    where ic.individual_id = :indiv_id
+                    and ic.biometric_type_id = :type_id
+                    and :is_main = true and ic.is_main = true
+                    and ic.url is not null
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['indiv_id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="isValid" mapping="['is_main']" domain="boolean"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="cnt" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

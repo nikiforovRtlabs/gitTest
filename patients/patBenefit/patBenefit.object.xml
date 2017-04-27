@@ -1,0 +1,136 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>patBenefit</id>-->
+    <name>Льготы</name>
+    <actions>
+        <action id="create" name="Создать">
+        <invocation>
+            <sql:sql>
+                insert into public.pci_benefit (patient_id,benefit_type_id,benefit_def_id,diagnos_id,
+                    from_dt,to_dt,doc_name,doc_number,doc_issuer,doc_issuer_dt,note,created_dt)
+                values (:party_id,:type,:benefit,:diagnos,:from_date,:to_date,:doc_name,:doc_number,
+                    :doc_issuer,:doc_issuer_dt,:note,to_timestamp(:created_dt, 'DD.MM.YYYY HH24:MI'))
+            </sql:sql>
+        </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['party_id']" domain="integer"/>
+                <param name="benefit_type.id" mapping="['type']" domain="integer"/>
+                <param name="benefit.id" mapping="['benefit']" domain="integer"/>
+                <param name="diagnos.id" mapping="['diagnos']" domain="integer"/>
+                <param name="from_dt" mapping="['from_date']" domain="date"/>
+                <param name="to_dt" mapping="['to_date']" domain="date"/>
+                <param name="doc_name" mapping="['doc_name']" domain="string"/>
+                <param name="doc_number" mapping="['doc_number']" domain="string"/>
+                <param name="doc_issuer" mapping="['doc_issuer']" domain="string"/>
+                <param name="doc_issuer_dt" mapping="['doc_issuer_dt']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="created_dt" mapping="['created_dt']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Льгота сохранена в системе.
+            </success-text>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    update public.pci_benefit set
+                     benefit_type_id = :type
+                    ,benefit_def_id = :benefit
+                    ,diagnos_id = :diagnos
+                    ,from_dt = :from_date
+                    ,to_dt = :to_date
+                    ,doc_name = :doc_name
+                    ,doc_number = :doc_number
+                    ,doc_issuer = :doc_issuer
+                    ,doc_issuer_dt = :doc_issuer_dt
+                    ,note = :note
+                    ,created_dt = to_timestamp(:created_dt, 'DD.MM.YYYY HH24:MI')
+                    where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <!--<param name="patient.id" mapping="['party_id']" domain="integer"/>-->
+                <param name="benefit_type.id" mapping="['type']" domain="integer"/>
+                <param name="patient.id" mapping="['party_id']" domain="integer"/>
+                <param name="benefit.id" mapping="['benefit']" domain="integer"/>
+                <param name="diagnos.id" mapping="['diagnos']" domain="integer"/>
+                <param name="from_dt" mapping="['from_date']" domain="date"/>
+                <param name="to_dt" mapping="['to_date']" domain="date"/>
+                <param name="doc_name" mapping="['doc_name']" domain="string"/>
+                <param name="doc_number" mapping="['doc_number']" domain="string"/>
+                <param name="doc_issuer" mapping="['doc_issuer']" domain="string"/>
+                <param name="doc_issuer_dt" mapping="['doc_issuer_dt']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="created_dt" mapping="['created_dt']" domain="string"/>
+            </in-parameters>
+            <success-text>
+                Измененная льгота сохранена в системе.
+            </success-text>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from public.pci_benefit where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="full_name" mapping="['full_name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что льгота "{full_name}" должна быть удалена?
+            </confirmation-text>
+            <success-text>
+                Льгота "{full_name}" успешно удалена.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <condition id="check_dates" level="error">
+            <expression><![CDATA[
+                ((to_dt == null) ||
+                (moment(to_dt, 'DD.MM.YYYY') >= moment(from_dt, 'DD.MM.YYYY'))
+                )]]>
+            </expression>
+            <message>Дата начала не должна быть больше даты окончания</message>
+        </condition>
+        <constraint id="checkUniqueBenefit" level="error">
+            <message>Даты действия льготы пересекаются с имеющимися записями.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*) as cnt
+                    from pci_benefit pb
+                    where pb.patient_id = :party_id
+                    and pb.benefit_def_id = :benefit
+                    and
+                    (
+                        (pb.from_dt <= cast(:from_date as date) and (pb.to_dt >= cast(:from_date as date) or pb.to_dt is null))
+                        or
+                        (pb.from_dt >= cast(:from_date as date) and (cast(:to_date as date) >= pb.from_dt or cast(:to_date as date) is null))
+                    )
+                    and (:id is null or pb.id != :id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['party_id']" domain="integer"/>
+                <param name="benefit.id" mapping="['benefit']" domain="integer"/>
+                <param name="from_dt" mapping="['from_date']" domain="date"/>
+                <param name="to_dt" mapping="['to_date']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="cnt" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

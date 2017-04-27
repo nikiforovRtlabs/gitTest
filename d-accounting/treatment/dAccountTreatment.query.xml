@@ -1,0 +1,235 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>dAccountTreatment</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from d_accounting.account d_ac
+                join d_accounting.register reg on reg.id=d_ac.register_id
+                join public.pim_organization org on org.id=d_ac.clinic_id
+                left join public.pim_indiv_code inc on inc.code = d_ac.patient_uid and
+                inc.type_id = (select ctype.id from pim_code_type ctype where ctype.code = 'UID' limit 1)
+                left join public.pim_individual ind on ind.id=inc.indiv_id
+                left join public.pim_gender ind_gen on ind_gen.id=ind.gender_id
+                left join public.pci_patient pat on pat.id = ind.id
+                left join public.md_soc_group sg on sg.id=pat.social_group_id
+                left join d_accounting.hiv_result hiv on hiv.id=d_ac.hiv_result_id
+                left join d_accounting.pat_d_group dgr on dgr.account_id = d_ac.id and dgr.to_dt is not null
+                left join d_accounting.amb_care_kind ckind on ckind.id=dgr.amb_kind_id
+                where not d_ac.is_removed and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(d_ac.id)
+                from d_accounting.account d_ac
+                join d_accounting.register reg on reg.id=d_ac.register_id
+                join public.pim_organization org on org.id=d_ac.clinic_id
+                left join public.pim_indiv_code inc on inc.code = d_ac.patient_uid and
+                inc.type_id = (select ctype.id from pim_code_type ctype where ctype.code = 'UID' limit 1)
+                left join public.pim_individual ind on ind.id=inc.indiv_id
+                left join public.pim_gender ind_gen on ind_gen.id=ind.gender_id
+                left join public.pci_patient pat on pat.id = ind.id
+                left join public.md_soc_group sg on sg.id=pat.social_group_id
+                left join d_accounting.hiv_result hiv on hiv.id=d_ac.hiv_result_id
+                left join d_accounting.pat_d_group dgr on dgr.account_id = d_ac.id and dgr.to_dt is not null
+                left join d_accounting.amb_care_kind ckind on ckind.id=dgr.amb_kind_id
+                where not d_ac.is_removed and :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>d_ac.id</expression>
+        </field>
+
+        <field>
+            <id>registerId</id>
+            <domain>integer</domain>
+            <expression>reg.id</expression>
+        </field>
+
+        <field>
+            <id>num</id>
+            <name>UID (номер карты д-учёта)</name>
+            <domain>integer</domain>
+            <expression>d_ac.num</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>ind.id</expression>
+        </field>
+
+        <field>
+            <id>fio</id>
+            <domain>string</domain>
+            <name>ФИО пациента</name>
+            <expression>initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name))</expression>
+        </field>
+
+        <field>
+            <id>gender.id</id>
+            <domain>integer</domain>
+            <expression>ind_gen.id</expression>
+        </field>
+
+        <field>
+            <id>gender.name</id>
+            <domain>string</domain>
+            <name>Пол</name>
+            <expression>ind_gen.name</expression>
+        </field>
+
+        <field>
+            <id>birth_dt</id>
+            <domain>date</domain>
+            <name>Дата рождения</name>
+            <expression>ind.birth_dt</expression>
+        </field>
+
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <name>Возраст</name>
+            <expression>date_part('year', age(ind.birth_dt))</expression>
+        </field>
+
+        <field>
+            <id>socGroup.id</id>
+            <domain>integer</domain>
+            <expression>sg.id</expression>
+        </field>
+
+        <field>
+            <id>socGroup.name</id>
+            <domain>string</domain>
+            <name>Соц. статус</name>
+            <expression>sg.name</expression>
+        </field>
+
+        <field>
+            <id>mc_diagnos.id</id>
+            <domain>integer</domain>
+            <expression>(SELECT cs.main_diagnos_id FROM d_accounting.account_case a_cs
+                JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                WHERE a_cs.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)</expression>
+        </field>
+
+        <field>
+            <id>diagnos.id</id>
+            <domain>integer</domain>
+            <expression>(SELECT mc_d.diagnos_id FROM d_accounting.account_case a_cs
+                JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                JOIN public.mc_diagnosis mc_d ON mc_d.id = cs.main_diagnos_id
+                WHERE a_cs.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)</expression>
+        </field>
+
+        <field>
+            <id>diagnos.name</id>
+            <name>Диагноз</name>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <expression>(select get_diagnosis_full_name((SELECT cs.main_diagnos_id FROM d_accounting.account_case a_cs
+                JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                WHERE a_cs.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)))</expression>
+        </field>
+
+        <field>
+            <id>hiv.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.hiv_result_id</expression>
+        </field>
+
+        <field>
+            <id>hiv.name</id>
+            <domain>string</domain>
+            <name>Наличие ВИЧ</name>
+            <expression>hiv.name</expression>
+        </field>
+
+        <field>
+            <id>regDate</id>
+            <domain>date</domain>
+            <name>Дата постановки на учёт</name>
+            <expression>d_ac.reg_dt</expression>
+        </field>
+
+        <field>
+            <id>ckind.id</id>
+            <domain>integer</domain>
+            <expression>ckind.id</expression>
+        </field>
+
+        <field>
+            <id>ckind.name</id>
+            <domain>string</domain>
+            <name>Вид помощи</name>
+            <expression>ckind.name</expression>
+        </field>
+
+        <field>
+            <id>mo.id</id>
+            <domain>integer</domain>
+            <expression>org.id</expression>
+        </field>
+
+        <field>
+            <id>moName</id>
+            <domain>string</domain>
+            <name>МО</name>
+            <expression>org.full_name</expression>
+        </field>
+
+        <field>
+            <id>activeCaseId</id>
+            <domain>integer</domain>
+            <expression>(select c.id from d_accounting.account_case ac join public.mc_case c on c.id=ac.case_id
+                where ac.account_id=d_ac.id and c.closing_step_id is null limit 1)</expression>
+        </field>
+
+        <field>
+            <id>activeCaseFundingId</id>
+            <domain>integer</domain>
+            <expression>(select c.funding_id from d_accounting.account_case ac join public.mc_case c on c.id=ac.case_id
+                join public.mc_case_type ct on ct.id=c.case_type_id
+                where ac.account_id=d_ac.id and c.closing_step_id is null and ct.case_mode_id=1
+                limit 1)</expression>
+        </field>
+
+        <field>
+            <id>activeCaseNum</id>
+            <domain>string</domain>
+            <expression>(select c.uid from d_accounting.account_case ac join public.mc_case c on c.id=ac.case_id
+                join public.mc_case_type ct on ct.id=c.case_type_id
+                where ac.account_id=d_ac.id and c.closing_step_id is null and ct.case_mode_id=1
+                limit 1)</expression>
+        </field>
+
+        <field>
+            <id>activeStepId</id>
+            <domain>integer</domain>
+            <expression>(select st.id from d_accounting.account_case ac
+                join public.mc_case c on c.id=ac.case_id join public.mc_step st on st.case_id=c.id
+                join public.mc_case_type ct on ct.id=c.case_type_id
+                where ac.account_id=d_ac.id and c.closing_step_id is null and ct.case_mode_id=1
+                order by st.admission_date desc limit 1)</expression>
+        </field>
+
+        <field>
+            <id>activePlanId</id>
+            <domain>integer</domain>
+            <expression>(select tp.id from d_accounting.treatment_plan tp
+                join public.mc_case c on c.id = tp.case_id
+                join public.mc_case_type ct on ct.id=c.case_type_id
+                where tp.account_id=d_ac.id and tp.fact_end_dt is null and ct.case_mode_id=1 limit 1)</expression>
+        </field>
+    </fields>
+</query>

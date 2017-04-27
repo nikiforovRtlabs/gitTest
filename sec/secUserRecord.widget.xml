@@ -1,0 +1,155 @@
+<form xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <query-id>secUser</query-id>
+    <name>Карточка пользователя</name>
+    <fs:field-set css-class="n2o-label-4">
+
+        <!--Тип-->
+        <ctrl:radio-group id="type" label="Тип" control-style="min-width:45px;width:20%;max-width:200px;"
+                          label-style="width:77px">
+            <ctrl:dependencies>
+                <ctrl:enabling-condition on="id">typeof id == 'undefined' || id == null</ctrl:enabling-condition>
+            </ctrl:dependencies>
+            <ctrl:default-model>
+                <ctrl:value field-id="id">1</ctrl:value>
+                <ctrl:value field-id="name">ФЛ</ctrl:value>
+            </ctrl:default-model>
+            <ctrl:options>
+                <ctrl:option>{"id":1, "name" : "ФЛ"}</ctrl:option>
+                <ctrl:option>{"id":2, "name" : "ЮЛ"}</ctrl:option>
+            </ctrl:options>
+        </ctrl:radio-group>
+
+
+        <!--Организации-->
+        <ctrl:output-text id="orgNames" dependency-condition="typeof id != 'undefined' &amp;&amp; id != null"/>
+
+        <!--Сотрудник-->
+        <ctrl:output-text id="individual.name" label="Сотрудник"
+                          dependency-condition="typeof id != 'undefined' &amp;&amp; id != null &amp;&amp; typeof type.id != 'undefined' &amp;&amp; type.id == 1"/>
+
+        <!--Логин-->
+        <ctrl:output-text id="login" label="Логин"
+                          dependency-condition="typeof id != 'undefined' &amp;&amp; id != null"/>
+
+
+        <!--Выбор организации-->
+        <ctrl:classifier id="org" label="МО" dependency-condition="typeof id == 'undefined' || id == null"
+                         css-class="n2o-control-9" control-style="min-width:300px;width:52%;max-width:600px;" label-style="width:77px">
+            <ctrl:default-model>
+                <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+            </ctrl:default-model>
+            <ctrl:dependencies>
+                <ctrl:required-condition>type.id == 2 || (individual.id != null &amp;&amp; loginStatus.id == 2)
+                </ctrl:required-condition>
+            </ctrl:dependencies>
+            <ctrl:query query-id="contextOrganization" value-field-id="id" label-field-id="name"/>
+        </ctrl:classifier>
+
+        <!--Выбор сотрудника-->
+        <!--<ctrl:classifier id="individual" label="ФИО" required="true"-->
+                         <!--dependency-condition="(typeof id == 'undefined' || id == null) &amp;&amp; typeof type.id != 'undefined' &amp;&amp; type.id == 1"-->
+                         <!--css-class="n2o-control-9" control-style="min-width:300px;width:60%;max-width:600px;" label-style="width:77px">-->
+            <!--<ctrl:query query-id="secIndividual" label-field-id="fullname"/>-->
+            <!--<ctrl:show-modal page-id="secIndividualSearch" result-container-id="main"/>-->
+        <!--</ctrl:classifier>-->
+
+        <rc:individual id="individual" required="true"
+                    label="ФИО"
+                    dependency-condition="(typeof id == 'undefined' || id == null) &amp;&amp; typeof type.id != 'undefined' &amp;&amp; type.id == 1"
+                    css-class="n2o-control-9"
+                    control-style="min-width:300px;width:60%;max-width:600px;"
+                    addNew="true"
+                    label-style="width:77px"/>
+
+
+        <!--Логин-->
+        <ctrl:input-text id="login" required="true"
+                         dependency-condition="(typeof id == 'undefined' || id == null )"
+                         css-class="n2o-control-5" label-style="width:77px;">
+            <ctrl:actions>
+
+
+                <ctrl:link label="Сформировать по ФИО">
+                    <ctrl:dependencies>
+                        <ctrl:visibility-condition>
+                            typeof individual.id != 'undefined' &amp;&amp; individual.id != -1 &amp;&amp; type.id == 1
+                        </ctrl:visibility-condition>
+                    </ctrl:dependencies>
+                    <ctrl:update-model query-id="loginGenerator" master-field-id="individual.fullName"
+                                       detail-field-id="name"
+                                       target="field"
+                                       value-field-id="login" target-field-id="login"/>
+                </ctrl:link>
+
+            </ctrl:actions>
+            <ctrl:validations>
+                <ctrl:validation ref-id="loginUnique"/>
+            </ctrl:validations>
+        </ctrl:input-text>
+
+
+        <!--email-->
+        <ctrl:input-text id="email" required="true"
+                         dependency-condition="typeof loginStatus == 'undefined' || loginStatus.id != 2"
+                         css-class="n2o-control-5" label-style="width:77px;">
+            <ctrl:actions>
+
+
+                <ctrl:link label="Получить из контактных данных">
+                    <ctrl:dependencies>
+                        <ctrl:visibility-condition>
+                            type.id == 2 &amp;&amp; org.id != null
+                        </ctrl:visibility-condition>
+                    </ctrl:dependencies>
+                    <ctrl:show-modal page-id="secOrgContacts" width="50%" detail-field-id="org.id"
+                                     master-field-id="org.id" result-container-id="main" value-field-id="value">
+                        <ctrl:pre-filters>
+                            <ctrl:pre-filter field-id="type.id" value="4"/>
+                        </ctrl:pre-filters>
+                    </ctrl:show-modal>
+
+                </ctrl:link>
+
+
+                <ctrl:link label="Получить из контактных данных">
+                    <ctrl:dependencies>
+                        <ctrl:visibility-condition>
+                            type.id == 1 &amp;&amp; individual.id != null
+                        </ctrl:visibility-condition>
+                    </ctrl:dependencies>
+                    <ctrl:show-modal page-id="secIndivContacts" width="50%" detail-field-id="indiv.id"
+                                     master-field-id="individual.id" result-container-id="main" value-field-id="value">
+                        <ctrl:pre-filters>
+                            <ctrl:pre-filter field-id="type.id" value="4"/>
+                        </ctrl:pre-filters>
+                    </ctrl:show-modal>
+                    <!--<ctrl:update-model query-id="secIndivContacts" target="field" value-field-id="value"-->
+                    <!--detail-field-id="indiv.id" master-field-id="individual.id">-->
+                    <!--<ctrl:pre-filters>-->
+                    <!--<ctrl:pre-filter field-id="type.id" value="4"/>-->
+                    <!--</ctrl:pre-filters>-->
+                    <!--</ctrl:update-model>-->
+                </ctrl:link>
+
+
+            </ctrl:actions>
+        </ctrl:input-text>
+    </fs:field-set>
+
+
+    <!--Меню комманд-->
+    <action-menu>
+        <menu-item id="update" label="Изменить">
+            <edit model="query">
+                <invoke-action action-id="update"/>
+            </edit>
+        </menu-item>
+        <menu-item id="resetPassword" label="Сбросить пароль">
+            <invoke-action action-id="resetPassword" confirmation="true"/>
+        </menu-item>
+    </action-menu>
+
+</form>

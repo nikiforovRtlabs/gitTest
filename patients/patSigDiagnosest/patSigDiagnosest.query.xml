@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>patSigDiagnosest</object-id>
+    <name>patSigDiagnosest</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query> SELECT :select
+                from (
+                    select indc.indiv_id as patient, get_diagnosis_full_name(cs.main_diagnos_id) as diagnos, d_reg.name as registr,
+                            d_ac.reg_dt, d_ac.unreg_dt, res.name as reasone, d_ac.is_removed
+                        from d_accounting.account d_ac
+                        join public.pim_indiv_code indc ON indc.code = d_ac.patient_uid AND indc.type_id =
+                                            (select ctype.id from pim_code_type ctype where ctype.code = 'UID' limit 1)
+                        join public.pim_organization org ON org.id = d_ac.clinic_id
+                        join d_accounting.register d_reg ON d_ac.register_id = d_reg.id
+                        JOIN d_accounting.account_case a_cs ON d_ac.id = a_cs.account_id
+                        JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                        LEFT JOIN d_accounting.pat_d_group pgr on d_ac.id = pgr.account_id
+                        LEFT JOIN d_accounting.unreg_reason res ON res.id = pgr.stop_reas_id
+                        LEFT JOIN sec_forbidden_org sfo on org.id = sfo.id
+                            where sfo.id is null
+                    union ALL
+                    select pd.patient_id, concat(md.code,' ',md.name), mnr.name, pd.reg_in_dt, pd.reg_out_dt, rur.name, 'false'
+                        from pci_dispensary pd
+                        join md_diagnosis  md on pd.diagnosis_id = md.id
+                        join md_nosol_registr mnr on pd.nosol_registr_id = mnr.id
+                        LEFT JOIN pci_unreg_reason rur on pd.reg_out_reason_id = rur.id
+                        left JOIN sec_forbidden_org sfo on sfo.id = pd.clinic_id
+                            where sfo.id is null
+                ) t
+                where :where AND NOT t.is_removed
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query> select count(*)
+                from (
+                    select indc.indiv_id as patient, get_diagnosis_full_name(cs.main_diagnos_id) as diagnos, d_reg.name as registr,
+                            d_ac.reg_dt, d_ac.unreg_dt, res.name as reasone, d_ac.is_removed
+                        from d_accounting.account d_ac
+                        join public.pim_indiv_code indc ON indc.code = d_ac.patient_uid AND indc.type_id =
+                                                (select ctype.id from pim_code_type ctype where ctype.code = 'UID' limit 1)
+                        join public.pim_organization org ON org.id = d_ac.clinic_id
+                        join d_accounting.register d_reg ON d_ac.register_id = d_reg.id
+                        JOIN d_accounting.account_case a_cs ON d_ac.id = a_cs.account_id
+                        JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                        LEFT JOIN d_accounting.pat_d_group pgr on d_ac.id = pgr.account_id
+                        LEFT JOIN d_accounting.unreg_reason res ON res.id = pgr.stop_reas_id
+                        LEFT JOIN sec_forbidden_org sfo on org.id = sfo.id
+                            where sfo.id is null
+                    union ALL
+                    select pd.patient_id, concat(md.code,' ',md.name), mnr.name, pd.reg_in_dt, pd.reg_out_dt, rur.name, 'false'
+                        from pci_dispensary pd
+                        join md_diagnosis  md on pd.diagnosis_id = md.id
+                        join md_nosol_registr mnr on pd.nosol_registr_id = mnr.id
+                        LEFT JOIN pci_unreg_reason rur on pd.reg_out_reason_id = rur.id
+                        left JOIN sec_forbidden_org sfo on sfo.id = pd.clinic_id
+                            where sfo.id is null
+                ) t
+                where :where AND NOT t.is_removed
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>row_number() over(ORDER BY t.reg_dt)</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>t.patient</expression>
+            <filters>
+                <filter type="eq" filter-field="patient.id">
+                    t.patient = :patient.id
+                </filter>
+            </filters>
+            <display/>
+        </field>
+
+
+        <field>
+            <id>diagnosName</id>
+            <name>Основной диагноз</name>
+            <domain>string</domain>
+            <expression>t.diagnos</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>fullName</id>
+            <name>Основной диагноз</name>
+            <domain>string</domain>
+            <expression>
+                concat(
+                t.diagnos
+                , ' '
+                , case when t.reg_dt is not null then to_char(t.reg_dt,'dd.mm.yyyy')end)
+            </expression>
+            <display/>
+
+
+        </field>
+
+        <field>
+            <id>reg_name</id>
+            <name>Система</name>
+            <domain>string</domain>
+            <expression>t.registr</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>regDate</id>
+            <domain>date</domain>
+            <expression>t.reg_dt</expression>
+            <name>Дата постановки на учет</name>
+            <display/>
+        </field>
+
+        <field>
+            <id>unregDate</id>
+            <domain>date</domain>
+            <expression>t.unreg_dt</expression>
+            <name>Дата снятия с учета</name>
+            <display/>
+        </field>
+        <field>
+            <id>reason</id>
+            <domain>string</domain>
+            <expression>t.reasone</expression>
+            <name>Причина снятия</name>
+            <display/>
+        </field>
+
+        <field>
+            <id>isValid</id>
+            <domain>boolean</domain>
+            <expression>:isValid</expression>
+            <filters>
+                <filter type="isNull" filter-field="isValid">((t.unreg_dt is Null) or  (t.unreg_dt not between t.reg_dt and current_date))</filter>
+            </filters>
+            <display/>
+        </field>
+
+    </fields>
+</query>

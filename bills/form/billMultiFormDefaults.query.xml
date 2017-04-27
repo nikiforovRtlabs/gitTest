@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>bills</object-id>
+    <name>billMultiForm</name>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select
+            </n2o:items-query>
+            <n2o:count-query>
+                SELECT 1
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>null</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>serviceIds</id>
+            <domain>integer[]</domain>
+            <expression>
+                :serviceIds
+            </expression>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>periodFrom</id>
+            <domain>date</domain>
+            <expression>
+                (select date_trunc('day', min(coalesce(sr.planned_date, sr.bdate, now()))) from sr_srv_rendered sr where sr.id in (:serviceIds))
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>periodTo</id>
+            <domain>date</domain>
+            <expression>
+                (select date_trunc('day', max(coalesce(sr.planned_date, sr.bdate, now()))) from sr_srv_rendered sr where sr.id in (:serviceIds))
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>finType.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select case (select count(ssr) from (select distinct sr.funding_id from sr_srv_rendered sr where sr.id in (:serviceIds)) as ssr) when 1
+                then (select distinct sr.funding_id from sr_srv_rendered sr where sr.id in (:serviceIds))
+                else null
+                end)
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+
+        <field>
+            <id>payer.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select case (select count(ssr) from (select distinct sr.customer_id from sr_srv_rendered sr where sr.id in (:serviceIds)) as ssr) when 1
+                    then (select distinct sr.customer_id from sr_srv_rendered sr where sr.id in (:serviceIds))
+                    else null
+                end)
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <!-- костыль - баг n2o преобразования в list -->
+        <field>
+            <id>services</id>
+            <domain>string</domain>
+            <expression>
+                (select array_to_string(ARRAY[ :serviceIds ], ','))
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+    </fields>
+</query>

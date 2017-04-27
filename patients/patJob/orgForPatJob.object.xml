@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <!--<id>orgForPatJob</id>-->
+    <name>Подразделение</name>
+    <actions>
+        <action id="create" name="Создать">
+        <invocation>
+            <rest:rest method="GET">
+                <rest:query>
+                ${n2o.backend.path}/patients/newOrg
+                </rest:query>
+            </rest:rest>
+        </invocation>
+            <in-parameters>
+                <param name="full_name" mapping="['fullName']" domain="string"/>
+                <param name="short_name" mapping="['shortName']" domain="string"/>
+                <!--<param name="from_dt" mapping="['from_dt']" domain="date"/>-->
+                <!--<param name="to_dt" mapping="['to_dt']" domain="date"/>-->
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[id]"/>
+            </out-parameters>
+            <success-text>
+                Организация сохранена в системе
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkUniqueOrg" level="error">
+            <!--todo NNO-542 Параметризация сообщений валидации на клиенте n2o.ver = 2.2-->
+            <message>Организация уже существует</message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from pim_organization pо
+                    where pо.full_name = :full_name
+                    and pо.short_name = :short_name
+                    and (:id is null or pо.id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="full_name" mapping="['full_name']" domain="string"/>
+                <param name="short_name" mapping="['short_name']" domain="short_name"/>
+                <!--<param name="from_dt" mapping="['from_dt']" domain="date"/>-->
+                <!--<param name="to_dt" mapping="['to_dt']" domain="date"/>-->
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

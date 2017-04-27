@@ -1,0 +1,120 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Доверенность</name>
+    <actions>
+        <action id="save" form-submit-label="Сохранить" >
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/trustDoc
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docType.id" mapping="['docTypeId']"/>
+                <param name="docNumber" mapping="['docNumber']" domain="string"/>
+                <param name="issueDate" mapping="['issueDate']"/>
+                <param name="endDate" mapping="['endDate']"/>
+                <param name="store.id" mapping="['storeId']"/>
+                <param name="employeePos.id" mapping="['empPosId']"/>
+                <param name="org.id" mapping="['orgId']" value="#{org.id}"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['displayedValue']"/>
+            </out-parameters>
+            <success-text>Доверенность № {docNumber} сохранена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="isActiveExists"/>
+                <validation ref-id="trustDocCheckUnique"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/inventory/trustDoc
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" required="false"/>
+            </in-parameters>
+            <success-text>Доверенность удалена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="expInvoiceConstraint"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="dates" level="error">
+            <expression>
+              <![CDATA[(endDate == null || issueDate ==null || (endDate!=null && issueDate!=null &&
+               (moment(issueDate,'DD.MM.YYYY HH:mm').isSame(moment(endDate,'DD.MM.YYYY HH:mm')) || moment(endDate,'DD.MM.YYYY HH:mm').isAfter(moment(issueDate,'DD.MM.YYYY HH:mm')))))]]>
+            </expression>
+            <message>Дата окончания должна быть позже даты выдачи</message>
+        </condition>
+
+        <constraint id="isActiveExists" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[select count(1) from inventory.trust_doc td
+                    where doc_type_id = :docTypeId
+                    and store_id = :storeId
+                    and employee_pos_id = :employeePosId
+                    and (end_dt is null
+                         or (end_dt is not null and issue_dt <= :issueDate and :issueDate <= end_dt))
+                    and (:id is null or td.id != :id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="docType.id" mapping="['docTypeId']"/>
+                <param name="store.id" mapping="['storeId']"/>
+                <param name="employeePos.id" mapping="['employeePosId']"/>
+                <param name="issueDate" mapping="['issueDate']"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Есть действующая доверенность</message>
+        </constraint>
+
+        <constraint id="trustDocCheckUnique" level="error">
+            <message>Доверенность с номером {docNumber} уже существует</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.trust_doc
+                    where number = cast(:docNumber as text)
+                    and doc_type_id = :docTypeId
+                    and org_id = :orgId
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['docNumber']" domain="string"/>
+                <param name="docType.id" mapping="['docTypeId']"/>
+                <param name="org.id" mapping="['orgId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="expInvoiceConstraint" level="error">
+            <message>
+                Удаление невозможно. Существует Расходная накладная, которая ссылается на доверенность: {docNumber}.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.exp_invoice where
+                    trust_doc_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['docNumber']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

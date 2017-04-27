@@ -1,0 +1,198 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>ambContext</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from sec_user u
+                left join n2o_context c on u.id = c.user_id
+                left join sec_user_party up on up.id = u.id
+                left join pim_individual i on i.id = up.party_id
+                left join pim_organization o on c.org_id = o.id
+                left join pim_department d on c.dep_id = d.id
+                left join pim_employee_position ep on c.empl_pos_id = ep.id and (ep.end_date is null or ep.end_date > now())
+                left join pim_employee e on ep.employee_id = e.id and (e.dismissal_dt is null or e.dismissal_dt > now())
+                left join pim_position p on p.id = coalesce(c.pos_id,ep.position_id)
+                left join pim_position_name pname on p.id = pname.position_id
+                left join pim_employee_position_resource r on r.employee_position_id = c.empl_pos_id
+                left join amb.md_ambulance_change mac on mac.clinic_id = o.id and coalesce(mac.department_id,0) = coalesce(d.id,0) and mac.state = 1
+                where :where order by dt desc
+            </n2o:items-query>
+            <n2o:count-query>select 1</n2o:count-query>
+            <n2o:alias>c</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <expression>c.id</expression>
+        </field>
+        <field>
+            <id>user.id</id>
+            <expression>c.user_id</expression>
+        </field>
+        <field>
+            <id>user.login</id>
+            <domain>String</domain>
+            <expression>lower(u.login)</expression>
+            <search>lower(u.login) = lower(:user.login)</search>
+        </field>
+        <field>
+            <id>individual.id</id>
+            <expression>i.id</expression>
+        </field>
+        <field>
+            <id>individual.surname</id>
+            <expression>i.surname</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <expression>o.id</expression>
+        </field>
+        <field>
+            <id>org.name</id>
+            <expression>coalesce(o.short_name, o.full_name)</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>org.shortName</id>-->
+            <!--<expression>o.short_name</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>org.addr</id>
+            <domain>integer</domain>
+            <display>
+                (select ppa.addr_id
+                    from pim_party_address ppa
+                    join pim_party_addr_to_addr_type ppatat on ppa.id = ppatat.party_address_id and ppatat.address_type_id = 6
+                    join address_element_data aed on ppa.addr_id = aed.id
+                    where ppa.party_id = o.id and ppa.is_valid = true)
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>org.addrname</id>
+            <domain>string</domain>
+            <display>
+                (select aed.search_name
+                from pim_party_address ppa
+                join pim_party_addr_to_addr_type ppatat on ppa.id = ppatat.party_address_id and ppatat.address_type_id = 6
+                join address_element_data aed on ppa.addr_id = aed.id
+                where ppa.party_id = o.id and ppa.is_valid = true)
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>dep.id</id>
+            <expression>d.id</expression>
+            <search/>
+        </field>
+        <field>
+            <id>dep.name</id>
+            <expression>d.name</expression>
+        </field>
+
+        <field>
+            <id>dep.addr</id>
+            <domain>integer</domain>
+            <display>
+                case when exists (select pda.addr_id
+                    from md_department_address pda
+                    left join address_element_data aed on aed.id = pda.addr_id
+                    where pda.dep_id = d.id and pda.is_display = true)
+                then (select pda.addr_id
+                    from md_department_address pda
+                    left join address_element_data aed on aed.id = pda.addr_id
+                    where pda.dep_id = d.id and pda.is_display = true)
+                else
+                (select ppa.addr_id
+                from pim_party_address ppa
+                join pim_party_addr_to_addr_type ppatat on ppa.id = ppatat.party_address_id and ppatat.address_type_id = 6
+                join address_element_data aed on ppa.addr_id = aed.id
+                where ppa.party_id = o.id and ppa.is_valid = true)
+                end
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>dep.addrname</id>
+            <domain>string</domain>
+            <display>
+                case when exists(select aed.search_name
+                from md_department_address pda
+                left join address_element_data aed on aed.id = pda.addr_id
+                where pda.dep_id = d.id and pda.is_display = true)
+                then (select aed.search_name
+                from md_department_address pda
+                left join address_element_data aed on aed.id = pda.addr_id
+                where pda.dep_id = d.id and pda.is_display = true)
+                else
+                (select aed.search_name
+                from pim_party_address ppa
+                join pim_party_addr_to_addr_type ppatat on ppa.id = ppatat.party_address_id and ppatat.address_type_id = 6
+                join address_element_data aed on ppa.addr_id = aed.id
+                where ppa.party_id = o.id and ppa.is_valid = true)
+                end
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>pos.id</id>
+            <expression>p.id</expression>
+        </field>
+        <field>
+            <id>pos.name</id>
+            <expression>p.name</expression>
+        </field>
+        <field>
+            <id>empl.id</id>
+            <expression>e.id</expression>
+        </field>
+        <field>
+            <id>emplPos.id</id>
+            <expression>ep.id</expression>
+        </field>
+
+        <field>
+            <id>emplPosRes.id</id>
+            <expression>r.id</expression>
+        </field>
+
+        <field>
+            <id>emplPosRes.name</id>
+            <expression>(case when r.id is null then null else (coalesce(i.surname, '') || ' '
+                || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end || ' ' || case coalesce(substring(i.patr_name for 1), '')
+                when '' then '' else substring(i.patr_name for 1) || '.' end || ', ' || coalesce(NULLIF(pname.name,''), NULLIF(p.name, ''))) end)
+            </expression>
+        </field>
+
+        <field>
+            <id>change.id</id>
+            <display>mac.id</display>
+            <search>change_id = :change.id</search>
+            <!--<search>change.id = :(select id from amb.md_ambulance_change where clinic_id = o.id and state  = 1)</search>-->
+        </field>
+        <field>
+            <id>change.data</id>
+            <display>to_char(mac.from_data,'dd.mm.yyyy')</display>
+        </field>
+        <field>
+            <id>change.date</id>
+            <domain>date</domain>
+            <display>mac.from_data</display>
+        </field>
+        <field>
+            <id>emppos.namePos</id>
+            <display>i.surname||' '||left(initcap(i.name),1)||'. '||left(initcap(i.patr_name),1)||'.'||'('||coalesce(p.name,'')||')'</display>
+            <!--<display>i.surname||' '||left(initcap(i.name),1)||'. '||left(initcap(i.patr_name),1)||'.'||'('||p.name||')'</display>-->
+        </field>
+    </fields>
+</query>

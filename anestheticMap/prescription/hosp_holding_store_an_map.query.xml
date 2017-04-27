@@ -1,0 +1,203 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+
+    <object-id>hosp_holding_store</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from
+                (select s.id as storeId, s.name as storeName, modifName, fs.name as fundingSource,
+                sum(ss.act_balance_mnei) as residue
+                from inventory.store s
+                join inventory.store_supply ss on ss.store_id = s.id
+                join inventory.batch b on b.id = ss.batch_id
+                join inventory.funding_source fs on fs.id = ss.funding_source_id
+                join
+                (select hm.id as modifId, hm.name as modifName from inventory.hold_modif hm
+                join inventory.form_param_value fpv on fpv.hold_modif_id = hm.id and fpv.value = :hold_dose_value and
+                fpv.unit_id = :hold_dose_measure_id and fpv.form_param_id = 3
+                left join inventory.form_param_value fpv2 on fpv2.hold_modif_id = hm.id and fpv2.form_param_id = 2
+                where ((fpv2.value is null and :concentration is null) or (fpv2.value = :concentration and fpv2.unit_id
+                = :concentrationMeasureId))
+                and hm.holding_id = :holding_id and hm.form_type_id = :hold_form_type_id and hm.mnei_id = :hold_mnei_id
+                and hm.write_off_unit_flag in (1,2)
+
+                ) as mod on mod.modifId = b.hold_modif_id
+                where :where
+                and (:availability.id=3 or (:availability.id in (1, 2) and
+                (:financialTypeId is null or (select count(1) from inventory.funding_source_payment_type fspt1 inner join inventory.funding_source fs1 on fs1.id = fspt1.funding_source_id
+                where fspt1.payment_type_id = :financialTypeId and fspt1.is_check_accounting = true
+                        and (fspt1.org_id is null or fspt1.org_id = :org_id) and (fs1.org_id is null or fs1.org_id = :org_id)) = 0 or
+                fs.id in (select fspt2.funding_source_id from inventory.funding_source_payment_type fspt2 inner join inventory.funding_source fs2 on fs2.id = fspt2.funding_source_id
+                where fspt2.payment_type_id = :financialTypeId and fspt2.is_check_accounting = true
+                        and (fspt2.org_id is null or fspt2.org_id = :org_id) and (fs2.org_id is null or fs2.org_id = :org_id)))))
+                group by s.id, modifName, fs.id) as t where residue != 0
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1) from (select 1
+                from
+                (select s.id as storeId, s.name as storeName, modifName, fs.name as fundingSource,
+                sum(ss.act_balance_mnei) as residue
+                from inventory.store s
+                join inventory.store_supply ss on ss.store_id = s.id
+                join inventory.batch b on b.id = ss.batch_id
+                join inventory.funding_source fs on fs.id = ss.funding_source_id
+                join
+                (select hm.id as modifId, hm.name as modifName from inventory.hold_modif hm
+                join inventory.form_param_value fpv on fpv.hold_modif_id = hm.id and fpv.value = :hold_dose_value and
+                fpv.unit_id = :hold_dose_measure_id and fpv.form_param_id = 3
+                left join inventory.form_param_value fpv2 on fpv2.hold_modif_id = hm.id and fpv2.form_param_id = 2
+                where ((fpv2.value is null and :concentration is null) or (fpv2.value = :concentration and fpv2.unit_id
+                = :concentrationMeasureId))
+                and hm.holding_id = :holding_id and hm.form_type_id = :hold_form_type_id and hm.mnei_id = :hold_mnei_id
+                and hm.write_off_unit_flag in (1,2)
+
+                ) as mod on mod.modifId = b.hold_modif_id
+                where :where
+                and (:availability.id=3 or (:availability.id in (1, 2) and
+                (:financialTypeId is null or (select count(1) from inventory.funding_source_payment_type fspt1 inner join inventory.funding_source fs1 on fs1.id = fspt1.funding_source_id
+                where fspt1.payment_type_id = :financialTypeId and fspt1.is_check_accounting = true
+                        and (fspt1.org_id is null or fspt1.org_id = :org_id) and (fs1.org_id is null or fs1.org_id = :org_id)) = 0 or
+                fs.id in (select fspt2.funding_source_id from inventory.funding_source_payment_type fspt2 inner join inventory.funding_source fs2 on fs2.id = fspt2.funding_source_id
+                where fspt2.payment_type_id = :financialTypeId and fspt2.is_check_accounting = true
+                        and (fspt2.org_id is null or fspt2.org_id = :org_id) and (fs2.org_id is null or fs2.org_id = :org_id)))))
+                group by s.id, modifName, fs.id) as t where residue != 0) as tt
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>store</id>
+            <domain>string</domain>
+            <name>Склад</name>
+            <display>storeName</display>
+        </field>
+
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>:org_id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>financialTypeId</id>
+            <domain>integer</domain>
+            <expression>:financialTypeId</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>modif</id>
+            <domain>string</domain>
+            <name>Модификация</name>
+            <display>modifName</display>
+        </field>
+
+        <field>
+            <id>fundingSource</id>
+            <domain>string</domain>
+            <name>Источник финансирования</name>
+            <display>fundingSource</display>
+        </field>
+
+        <field>
+            <id>residue</id>
+            <domain>integer</domain>
+            <name>Остаток</name>
+            <display>residue</display>
+        </field>
+
+        <field>
+            <id>holding_id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>hold_form_type_id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>hold_mnei_id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>hold_dose_value</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>hold_dose_measure_id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>concentration</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>concentrationMeasureId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>s.org_id = :orgId</search>
+        </field>
+
+        <field>
+            <id>availability.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(:availability.id != 1 or :availability.id = 1 and s.department_id = :departmentId)</search>
+        </field>
+
+        <field>
+            <id>departmentId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+    </fields>
+
+</query>

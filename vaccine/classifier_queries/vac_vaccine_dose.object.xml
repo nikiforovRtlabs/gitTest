@@ -1,0 +1,122 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>vac_vaccine_dose</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    insert into public.vac_vaccine_dose (vaccine_id, dose_id, def)
+                    values(:vaccine, :dose, (case when :def is null then false else :def end));
+                    update public.vac_vaccine_dose set def = false where vaccine_id = :vaccine and def is true and dose_id != :dose and :def is true;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="vaccine.id" mapping="['vaccine']" domain="integer"/>
+                <param name="dose.id" mapping="['dose']" domain="integer"/>
+                <param name="def" mapping="['def']" domain="boolean"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][1]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="defExists"/>
+            </validations>
+        </action>
+
+        <action id="update" name="Редактировать">
+            <invocation>
+                <sql:sql>
+                    update public.vac_vaccine_dose set def = false where vaccine_id = :vaccineId and def is true and :def is true;
+                    update public.vac_vaccine_dose set def = (case when :def is null then false else :def end)
+                    where vaccine_id = :vaccineId and dose_id = :oldDoseId;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['oldDoseId']" domain="integer"/>
+                <param name="vaccine.id" mapping="['vaccineId']" domain="integer"/>
+                <param name="def" mapping="['def']" domain="boolean"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="defExists2"/>
+                <validation ref-id="vaccineandDoseAreUsed"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from public.vac_vaccine_dose where vaccine_id = :vaccineId and dose_id = :doseId;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['doseId']" domain="integer"/>
+                <param name="vaccine.id" mapping="['vaccineId']" domain="integer"/>
+                <param name="def" mapping="['def']" domain="boolean"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="uniqueVaccineAndDose" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from public.vac_vaccine_dose
+                    where vaccine_id = :vaccine and dose_id = :dose
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="vaccine.id" mapping="['vaccine']" domain="integer"/>
+                <param name="dose.id" mapping="['dose']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Такая доза для данной вакцины уже существует</message>
+        </constraint>
+
+        <constraint id="vaccineandDoseAreUsed" level="warning">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from vac_inoculation where vaccine_id = :vaccine and dose_id = :dose;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="vaccine.id" mapping="['vaccine']" domain="integer"/>
+                <param name="id" mapping="['dose']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>В системе зарегистрированы прививки с данной дозой вакцины. Вы уверены, что хотите сохранить изменения дозы вакцины?</message>
+        </constraint>
+
+        <constraint id="defExists" level="warning">
+            <message>У данной вакцины уже есть доза по умолчанию. Текущая доза по умолчанию будет заменена на введенную. Вы уверены в совершаемом действии?</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from vac_vaccine_dose where vaccine_id = :vaccine and def is true and dose_id != :dose and :dose is not null and :def is true
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="vaccine.id" mapping="['vaccine']" domain="integer"/>
+                <param name="dose.id" mapping="['dose']" domain="integer"/>
+                <param name="def" mapping="['def']" domain="boolean"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="defExists2" level="warning">
+            <message>У данной вакцины уже есть доза по умолчанию. Текущая доза по умолчанию будет заменена на введенную. Вы уверены в совершаемом действии?</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from vac_vaccine_dose where vaccine_id = :vaccine and def is true and dose_id != :id and :def is true
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="vaccine.id" mapping="['vaccine']" domain="integer"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="def" mapping="['def']" domain="boolean"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

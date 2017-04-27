@@ -1,0 +1,260 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Спецификация</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить" name="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                     ${n2o.backend.path}/inventory/arrival-invoice/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc.id" mapping="['docId']"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="series" mapping="['series']"/>
+                <param name="expireDate" mapping="['expireDate']"/>
+                <param name="producer.id" mapping="['producerId']"/>
+                <param name="prodDate" mapping="['prodDate']"/>
+                <param name="certificate" mapping="['cert']"/>
+                <param name="amountWithVat" mapping="['amountWithVat']" domain="string"/>
+                <param name="priceWithVat" mapping="['priceWithVat']" domain="string"/>
+                <param name="vat" mapping="['vat']"/>
+                <param name="country.id" mapping="['countryId']"/>
+                <param name="quantity" mapping="['quantity']"/>
+                <param name="contractSpec.id" mapping="['contractSpecId']"/>
+                <param name="margin" mapping="['margin']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+               <validation ref-id="checkUnique"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE" >
+                    ${n2o.backend.path}/inventory/arrival-invoice/spec/delete
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить спецификацию?</confirmation-text>
+            <success-text>Спецификация удалена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="specificationIsExecuted"/>
+            </validations>
+        </action>
+
+        <action id="execute" form-submit-label="Провести" name="Провести">
+            <invocation>
+                <rest:rest method="GET" >
+                    ${n2o.backend.path}/inventory/execute/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['specId']"/>
+                <param name="executeDate.id" mapping="['executeDate']" domain="string"/>
+                <param name="docType.name" mapping="['docType']"/>
+                <param name="empPos.id" mapping="['empPosId']"/>
+                <param name="priceFromContract" mapping="['priceFromContract']"/>
+                <param name="store.id" mapping="['storeId']"/>
+                <param name="isEnabled" value="${n2o.inv.execute.arr.spec.with.different.prices}" domain="boolean"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Спецификация проведена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="comparePricesForExecutingError"/>
+                <validation ref-id="comparePricesForExecutingWarning"/>
+                <validation ref-id="emplPosIsEmpty"/>
+            </validations>
+        </action>
+
+        <action id="cancel" name="Отменить проводку">
+            <invocation>
+                <rest:rest method="GET" >
+                    ${n2o.backend.path}/inventory/execute/cancel/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['specId']"/>
+                <param name="docType.name" mapping="['docType']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <confirmation-text>Вы действительно хотите отменить проводку спецификации?</confirmation-text>
+            <success-text>Проводка спецификация отменена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="expSpecForPartyExists"/>
+                <validation ref-id="writeOffSpecForStoreSupExists"/>
+                <validation ref-id="returnSpecForStoreSupExists"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="checkUnique" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.arrival_spec
+                    where doc_id = cast(:docId as int)
+                    and hold_modif_id = :modifId
+                    and (series = cast(:series as text) or (series='' and :series is null))
+                    and (expire_dt = :expireDate::date or (expire_dt is null and :expireDate::date is null))
+                    and (producer_id = :producerId or (producer_id is null and :producerId is null))
+                    and (certificate = cast(:cert as text) or (certificate='' and :cert is null))
+                    and (amount_vat = cast(:amountWithVat as numeric) or (amount_vat=0 and :amountWithVat is null))
+                    and price_vat =  cast(:priceWithVat  as numeric)
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc.id" mapping="['docId']" domain="integer"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="series" mapping="['series']"/>
+                <param name="expireDate" mapping="['expireDate']" domain="date"/>
+                <param name="producer.id" mapping="['producerId']"/>
+                <param name="certificate" mapping="['cert']"/>
+                <param name="amountWithVat" mapping="['amountWithVat']" domain="string"/>
+                <param name="priceWithVat" mapping="['priceWithVat']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Спецификация с данными параметрами уже существует</message>
+        </constraint>
+
+        <constraint id="writeOffSpecForStoreSupExists" level="warning">
+            <message>Существует спецификация Акта списания на основе товарного запаса.Спецификация будет удалена.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.write_off_spec ws
+                    left outer join inventory.store_supply ss on ss.id=ws.store_sup_id
+                    left outer join inventory.arrival_spec spec on ss.id = spec.store_sup_id
+                    where spec.id = :id and ws.status_id = 1
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="expSpecForPartyExists" level="warning">
+            <message>Существует спецификация Расходного документа на основе партии.Спецификация будет удалена.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.exp_spec s
+                    left outer join inventory.batch batch on s.batch_id=batch.id
+                    left outer join inventory.exp_invoice inv on inv.id = s.doc_id
+                    left outer join inventory.store_supply ss on ss.batch_id=batch.id
+                    left outer join inventory.arrival_spec spec on ss.id = spec.store_sup_id
+                    left outer join inventory.arrival_invoice ai on ai.id = spec.doc_id
+                    where inv.send_store_id = ss.store_id
+                    and spec.price_vat=ss.price
+                    and s.fund_source_id = ss.funding_source_id
+                    and spec.id = :id and s.status_exp_id = 1
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="returnSpecForStoreSupExists" level="warning">
+            <message>Существует спецификация Возвратного документа на основе товарного запаса. Спецификация будет удалена.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.return_doc_spec rs
+                    left outer join inventory.store_supply ss on ss.id=rs.store_sup_id
+                    left outer join inventory.arrival_spec spec on ss.id = spec.store_sup_id
+                    where spec.id = :id and rs.status_id = 1
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="comparePrices" level="warning">
+            <message>Значения полей "Цена контракта" и  "Цена с НДС" не совпадают</message>
+            <expression>
+                (typeof priceWithVat == 'undefined' || priceWithVat == null || typeof priceFromContract == 'undefined' ||  priceFromContract==null
+                || typeof amountWithVat == 'undefined' || amountWithVat == null ||  amountWithVat == '' ||
+                (typeof priceWithVat != 'undefined' &amp;&amp; priceWithVat != null &amp;&amp;  typeof priceFromContract !='undefined'  &amp;&amp; priceFromContract != null
+                 &amp;&amp; priceWithVat == parseFloat(priceFromContract)))
+            </expression>
+        </condition>
+
+        <condition id="compareQuantities" level="warning">
+            <message>Значение поля превышает  "Остаток"</message>
+            <expression><![CDATA[
+                (typeof quantity == 'undefined' || quantity == null || typeof restQuantity == 'undefined' ||  restQuantity==null
+                ||
+                (typeof quantity != 'undefined' && quantity != null &&  typeof restQuantity !='undefined'  && restQuantity != null
+                && quantity <= parseFloat(restQuantity)))
+                 ]]>
+            </expression>
+        </condition>
+
+        <constraint id="comparePricesForExecutingWarning" level="warning">
+            <invocation>
+                <sql:sql>
+                   select count(1) from inventory.arrival_spec
+                          where price_vat != :priceFromContract::numeric and id = :specId and :isEnabled::boolean is true
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0] == 0"/>
+            <in-parameters>
+                <param name="id" mapping="['specId']"/>
+                <param name="priceFromContract" mapping="['priceFromContract']"/>
+                <param name="isEnabled" mapping="['isEnabled']" value="${n2o.inv.execute.arr.spec.with.different.prices}" domain="boolean"/>
+            </in-parameters>
+            <message>Цена спецификации отличается от цены из контракта. Продолжить операцию проводки?</message>
+        </constraint>
+
+        <constraint id="comparePricesForExecutingError" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.arrival_spec
+                           where price_vat != :priceFromContract::numeric and id = :specId and :isEnabled::boolean is false
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0] == 0"/>
+            <in-parameters>
+                <param name="id" mapping="['specId']"/>
+                <param name="priceFromContract" mapping="['priceFromContract']"/>
+                <param name="isEnabled" mapping="['isEnabled']" value="${n2o.inv.execute.arr.spec.with.different.prices}" domain="boolean"/>
+            </in-parameters>
+            <message>Невозможно завершить операцию. Цена спецификации отличается от цены из контракта.</message>
+        </constraint>
+
+        <constraint id="specificationIsExecuted" level="error">
+            <message>Удаление невозможно. Спецификация проведена.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.arrival_spec where status_id=2 and id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="emplPosIsEmpty" level="error">
+            <message>Операция не может быть завершена. Не указана должность в контексте пользователя</message>
+            <expression>typeof empPos!='undefined' &amp;&amp; empPos!=null &amp;&amp; empPos.id!=null</expression>
+        </condition>
+
+    </validations>
+</object>

@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from mc_step_result sr
+                left outer join mc_step_result_to_care_regimen srcr on srcr.step_result_id = sr.id
+                where is_closed = false and :where order by sr.id
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from mc_step_result sr
+                left outer join mc_step_result_to_care_regimen srcr on srcr.step_result_id = sr.id
+                where is_closed = false and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>sr.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>coalesce(sr.code || ' ', '') || sr.name</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>closed</id>
+            <domain>boolean</domain>
+            <expression>sr.is_closed</expression>
+        </field>
+        <field>
+            <id>regimenId</id>
+            <domain>integer</domain>
+            <expression>srcr.regimen_id</expression>
+            <search><![CDATA[
+                (:expression = :regimenId or :regimenId = '-1') and
+                (:dt::date is null or (srcr.from_dt is null or srcr.from_dt <= to_date(:dt, 'yyyy-MM-dd')) and (srcr.to_dt is null or srcr.to_dt > to_date(:dt, 'yyyy-MM-dd')))
+            ]]>
+            </search>
+        </field>
+        <field>
+            <id>dt</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+                ((sr.from_dt is null or sr.from_dt<=to_date(:dt, 'yyyy-MM-dd')) and (sr.to_dt is null or sr.to_dt>to_date(:dt, 'yyyy-MM-dd')))
+             ]]>
+            </search>
+        </field>
+
+
+    </fields>
+
+</query>

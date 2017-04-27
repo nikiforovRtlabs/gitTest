@@ -1,0 +1,238 @@
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <object-id>equipmentInfo</object-id>
+    <layout>stocks/n2o/ext/layout/equipmentLayout</layout>
+    <name>Оснащение</name>
+    <regions>
+        <region place="top" type="tabs">
+            <container id="equipment">
+                <wgt:table xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0">
+                    <wgt:name>Оборудование</wgt:name>
+                    <wgt:query-id>equipmentInfo</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="inventory_number" name="Инвентарный номер"/>
+                        <wgt:column column-field-id="name" name="Наименование"/>
+                        <wgt:column column-field-id="model" name="Модель"/>
+                        <wgt:column column-field-id="type.name" name="Тип"/>
+                        <wgt:column column-field-id="manufacturer.name" name="Производитель"/>
+                        <wgt:column column-field-id="room.name" name="Расположение"/>
+                        <wgt:column column-field-id="dicom_string" name="DICOM"/>
+                        <wgt:column column-field-id="stock_unit_state.name" name="Статус"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Добавить" context="false" id="create">
+                            <wgt:show-modal page-id="equipmentInfoForm" width="1000px" container-id="main" action-id="create"
+                                            refresh-on-close="true" focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Копировать" id="clone">
+                            <wgt:invoke-action action-id="clone" confirmation="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="delete">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!is_resource</wgt:expression>
+                                    <wgt:tooltip>Нельзя удалить оборудование, которое является ресурсом. Удалить оборудование можно после удаления ресурса.</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Добавить ресурс" context="true" id="createEquipmentUnitResource">
+                            <wgt:show-modal page-id="equipmentResourceStocks" width="860px" container-id="main" action-id="createEquipmentUnitResource" page-name="Ресурс"
+                                        refresh-on-close="false" model="default" detail-field-id="equipment_unit_id" master-field-id="id" focus-after-submit="true">
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>!is_resource</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Изменить ресурс" context="true" id="updateEquipmentUnitResource">
+                            <wgt:show-modal page-id="equipmentResourceStocks" width="860px" container-id="main" action-id="updateEquipmentUnitResource" page-name="Ресурс"
+                                        refresh-on-close="false" detail-field-id="id" after-submit="closeModal" refresh-after-submit="false" master-field-id="resource_id" focus-after-submit="false">
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>is_resource</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить ресурс" context="true" id="deleteEquipmentUnitResource">
+                            <wgt:invoke-action action-id="deleteEquipmentUnitResource" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>is_resource</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!has_group_resource</wgt:expression>
+                                    <wgt:tooltip>Нельзя удалить ресурс, который входит в составной</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+                    <wgt:filters opened="true">
+                        <ctrl:input-text id="name" label="Наименование"/>
+                        <ctrl:classifier id="department" label="Подразделение">
+                            <ctrl:query query-id="stocks_department_unit" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org_id" value="#{stocks.orgId}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="building" label="Здание">
+                            <ctrl:query query-id="stocks_building" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org_id" value="#{stocks.orgId}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="category" label="Категория" search-as-you-type="true">
+                            <ctrl:query query-id="stocks_equipment_category" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="type" label="Тип" search-as-you-type="true">
+                            <ctrl:query query-id="stocks_equipment_type" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="contract" label="Договор поставки" search-as-you-type="true">
+                            <ctrl:query query-id="stocks_fin_contract" value-field-id="id" label-field-id="number">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org_id" value="#{stocks.orgId}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="source_type" label="Источник приобретения" search-as-you-type="true">
+                            <ctrl:query query-id="stocks_equipment_source_type" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="manufacturer" label="Производитель" search-as-you-type="true">
+                            <ctrl:query query-id="stocks_organization" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <rc:address id="country" label="Страна производитель"
+                                    format="(1,s,0)(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)"
+                                    max-level="1" autocreate="false" />
+                        <ctrl:checkbox id="dicom" label="DICOM"/>
+                        <ctrl:classifier id="stock_unit_state" label="Статус">
+                            <ctrl:query query-id="stocks_unit_state" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="codeType">
+                                        <ctrl:value>equipment</ctrl:value>
+                                    </ctrl:pre-filter>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:select id="activity" label="Действующий">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Действующие"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Не действующие"}</ctrl:option>
+                                <ctrl:option>{"id":3, "name":"Все"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">3</ctrl:value>
+                                <ctrl:value field-id="name">Все</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:select>
+                    </wgt:filters>
+                </wgt:table>
+            </container>
+            <container id="transportDummy">
+                <wgt:custom src="n2o/widgets/dummy">
+                    <wgt:name>Транспортные средства</wgt:name>
+                    <wgt:query-id>home</wgt:query-id>
+                    <wgt:properties>
+                        <wgt:property key="src" value="home/home.html"/>
+                    </wgt:properties>
+                </wgt:custom>
+            </container>
+            <container id="informationSystems">
+                <pre-filters>
+                    <pre-filter field-id="org_id" value="#{stocks.orgId}"></pre-filter>
+                </pre-filters>
+
+                <wgt:table>
+                    <wgt:name>Информационные системы</wgt:name>
+                    <wgt:query-id>itSystem</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="name" name="Наименование ИС" />
+                        <wgt:column column-field-id="type.name" name="Тип ИС" />
+                        <wgt:column column-field-id="developer_name" name="Наименование разработчика" />
+                        <wgt:column column-field-id="implementation_date" name="Дата внедрения" />
+                        <wgt:column column-field-id="cost" name="Стоимость ИС (руб)" />
+                        <wgt:column column-field-id="is_on_support" name="На сопровождении">
+                            <wgt:icon>
+                                <wgt:switch><wgt:case value="true">icon-ok</wgt:case></wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+                        <wgt:column column-field-id="yearly_maintenance_cost" name="Сопровождение в год (руб)" />
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Добавить" id="create" context="false">
+                            <wgt:show-modal page-id="itSystem" width="500px" container-id="main" action-id="create"
+                                            refresh-on-close="true" focus-after-submit="true" create-more="false"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Изменить" id="update" context="true">
+                            <wgt:show-modal page-id="itSystem" container-id="main" width="500px" action-id="update"
+                                            refresh-on-close="true" focus-after-submit="true">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="delete">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:filters opened="true">
+                        <ctrl:input-text id="name" label="Наименование ИС" />
+                        <ctrl:input-text id="developer_name" label="Наименование разработчика" />
+                        <ctrl:checkbox id="is_on_support" label="На сопровождении" />
+                        <ctrl:classifier id="type" label="Тип">
+                            <ctrl:query query-id="itSystemTypes" value-field-id="oid" label-field-id="name" />
+                        </ctrl:classifier>
+                        <ctrl:date-interval id="period" label="Дата внедрения"/>
+                    </wgt:filters>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="center" type="none">
+            <container id="transportContainer" refresh-dependent-container="true">
+                <wgt:table ref-id="transport" />
+            </container>
+        </region>
+        <region place="bottom">
+            <container id="transportFormContainer" depends-on="transportContainer" refresh-dependent-container="true">
+                <wgt:form ref-id="transportForm" detail-field-id="id" master-field-id="id"/>
+            </container>
+            <container id="transportStatusContainer" depends-on="transportContainer" refresh-dependent-container="true">
+                <wgt:table ref-id="transportStatus" detail-field-id="transport_id" master-field-id="id"/>
+            </container>
+            <container id="groupResourcesList" depends-on="transportContainer" refresh-dependent-container="true" dependency-condition="transportContainer.is_resource">
+                <wgt:table ref-id="srResourceGroup" detail-field-id="resource_id" master-field-id="resource_id"/>
+            </container>
+        </region>
+        <region place="equipmentInfoTabs" type="tabs" width="1000px">
+            <container id="equipmentMainInfoTab" depends-on="equipment" refresh-dependent-container="true">
+                <wgt:form detail-field-id="id" master-field-id="id" style="width: 1000px" css-class="testclass">
+                    <wgt:name>Основная информация</wgt:name>
+                    <wgt:query-id>equipmentInfo</wgt:query-id>
+                    <fs:field-set ref-id="equipmentMainInfo"  label="Основные данные" field-label-location="left" header="line"/>
+                    <fs:field-set ref-id="equipmentLocation" label="Расположение" field-label-location="left" header="line" style="width:43%;float:left;"/>
+                    <fs:field-set ref-id="equipmentDICOM" label="DICOM" field-label-location="left" header="line" style="width:50%;float:left;"/>
+
+                    <wgt:edit after-submit="edit" refresh-after-submit="true" >
+                        <wgt:invoke-action action-id="update" />
+                    </wgt:edit>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="save" label="Изменить">
+                            <wgt:go-edit action-id="update"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+            </container>
+            <container id="equipmentStateInfoTab" depends-on="equipment" refresh-dependent-container="true">
+                <wgt:table ref-id="equipmentStateInfoTable" master-field-id="id" detail-field-id="equipment_id" />
+            </container>
+            <container id="equipmentGroupResourcesList" depends-on="equipment" refresh-dependent-container="true" dependency-condition="equipment.is_resource">
+                <wgt:table ref-id="srResourceGroup" detail-field-id="resource_id" master-field-id="resource_id"/>
+            </container>
+        </region> 
+    </regions>
+</page>

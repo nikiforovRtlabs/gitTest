@@ -1,0 +1,264 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>hospitalization</id>-->
+    <name>Госпитализация</name>
+    <object-id>hospitalization</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query> select :select
+                from amb.md_ambulance_call cal
+                left join amb.md_ambulance_call_note cn on cal.id = cn.call_id and cn.note_id = 21 and cn.note_active is true and cn.note_type is true
+                left join amb.md_ambulance_note_reason nr on cn.note_reason_id = nr.id
+                left join amb.md_ambulance_note n on cn.note_id = n.id
+                left join pim_employee_position pep on cn.registrator_id = pep.id
+                left join pim_employee pe on pep.employee_id = pe.id
+                left join pim_individual pi on pe.individual_id = pi.id
+                left join pim_position ppos on pep.position_id = ppos.id
+
+                left join pim_organization tplorg on cal.to_org_id = tplorg.id
+                left join pim_department tpldep on cal.to_department_id = tpldep.id
+                left join pim_party_address ppa on tplorg.id = ppa.party_id
+                left join pim_party_addr_to_addr_type ppatat on ppa.id = ppatat.party_address_id and ppatat.address_type_id = 6
+
+                left join address_element toael on cal.to_address_id = toael.id
+                left join address_element_data toaed on toael.id = toaed.id
+
+                left join md_diagnosis dia on cal.reason_diag = dia.id
+                left join amb.md_ambulance_change mac on cal.call_dt = mac.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from amb.md_ambulance_call cal
+                left join amb.md_ambulance_call_note cn on cal.id = cn.call_id and cn.note_id = 21 and cn.note_active is true and cn.note_type is true
+                left join amb.md_ambulance_note_reason nr on cn.note_reason_id = nr.id
+                left join amb.md_ambulance_note n on cn.note_id = n.id
+                left join pim_employee_position pep on cn.registrator_id = pep.id
+                left join pim_employee pe on pep.employee_id = pe.id
+                left join pim_individual pi on pe.individual_id = pi.id
+                left join pim_position ppos on pep.position_id = ppos.id
+
+                left join pim_organization tplorg on cal.to_org_id = tplorg.id
+                left join pim_department tpldep on cal.to_department_id = tpldep.id
+                left join address_element toael on cal.to_address_id = toael.id
+                left join address_element_data toaed on toael.id = toaed.id
+
+                left join md_diagnosis dia on cal.reason_diag = dia.id
+                join amb.md_ambulance_change mac on cal.call_dt = mac.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>cn</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>cn.id</expression>
+        </field>
+        <field>
+            <id>dt</id>
+            <domain>string</domain>
+            <name>Время</name>
+            <expression>to_char(cn.note_dt,'dd.mm.yyyy hh24:mi:ss')</expression>
+        </field>
+        <field>
+            <id>active</id>
+            <domain>boolean</domain>
+            <name>Активность</name>
+            <expression>cn.note_active</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>type</id>
+            <domain>boolean</domain>
+            <name>тип</name>
+            <expression>cn.note_type</expression>
+        </field>
+        <field>
+            <id>call_id</id>
+            <domain>integer</domain>
+            <name>Вызов</name>
+            <expression>cal.id</expression>
+        </field>
+        <field>
+            <id>call_number</id>
+            <domain>integer</domain>
+            <name>Вызов</name>
+            <display>cal.call_number</display>
+        </field>
+        <field>
+            <id>call_dt</id>
+            <domain>string</domain>
+            <name>Смена</name>
+            <display>to_char(mac.from_data,'dd.mm.yyyy')</display>
+        </field>
+        <field>
+            <id>call_time</id>
+            <domain>string</domain>
+            <name>Принят</name>
+            <expression>to_char(cal.from_time,'dd.mm.yyyy hh24:mi:ss')</expression>
+        </field>
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>dia.id</expression>
+        </field>
+        <field>
+            <id>diagnosis.name</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <expression>dia.name</expression>
+        </field>
+        <field>
+            <id>diagnosis.codename</id>
+            <domain>string</domain>
+            <name>Код и Наименование</name>
+            <expression>dia.code || ' ' ||dia.name</expression>
+            <search>upper(:expression) like upper('%'||:diagnosis.codename||'%')</search>
+        </field>
+        <field>
+            <id>employee.id</id>
+            <domain>string</domain>
+            <name>Принял</name>
+            <expression>pep.id</expression>
+        </field>
+        <field>
+            <id>employee.namePos</id>
+            <domain>string</domain>
+            <name>Регистратор</name>
+            <expression>pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||')'</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>note_reason.id</id>
+            <domain>integer</domain>
+            <expression>nr.id</expression>
+        </field>
+        <field>
+            <id>note_reason.nrId</id>
+            <domain>integer</domain>
+            <expression>nr.id</expression>
+        </field>
+        <field>
+            <id>note_reason.name</id>
+            <domain>string</domain>
+            <name>Причина</name>
+            <expression>nr.name</expression>
+        </field>
+        <field>
+            <id>note_reason.nrName</id>
+            <domain>string</domain>
+            <name>Причина</name>
+            <expression>nr.name</expression>
+        </field>
+        <field>
+            <id>descr</id>
+            <domain>string</domain>
+            <name>Причина: текст</name>
+            <expression>cn.note_description</expression>
+        </field>
+
+        <field>
+            <id>to_org.id</id>
+            <domain>integer</domain>
+            <expression>tplorg.id</expression>
+        </field>
+        <field>
+            <id>to_org.full_name</id>
+            <domain>string</domain>
+            <name>Организация адреса доставки</name>
+            <expression>tplorg.full_name</expression>
+        </field>
+        <field>
+            <id>to_org.addr</id>
+            <domain>integer</domain>
+            <expression>ppa.addr_id</expression>
+        </field>
+        <!--<field>-->
+        <!--<id>to_org.PRId</id>-->
+        <!--<domain>integer</domain>-->
+        <!--<expression>tplppr.id</expression>-->
+        <!--</field>-->
+        <field>
+            <id>to_department.id</id>
+            <domain>integer</domain>
+            <expression>tpldep.id</expression>
+        </field>
+        <field>
+            <id>to_department.name</id>
+            <domain>string</domain>
+            <name>Подразделение адреса доставки</name>
+            <expression>tpldep.name</expression>
+        </field>
+
+        <field>
+            <id>toaddr_data.id</id>
+            <domain>integer</domain>
+            <expression>toaed.id</expression>
+        </field>
+        <field>
+            <id>toaddr_data.search_name</id>
+            <domain>string</domain>
+            <name>Улица</name>
+            <expression>toaed.search_name</expression>
+            <!--<search>upper(:expression) like upper('%'||:addr_data.search_name||'%')</search>-->
+        </field>
+        <field>
+            <id>toaddr_data.displayName</id>
+            <domain>string</domain>
+            <name>Улица</name>
+            <expression>toaed.search_name</expression>
+            <!--<search>upper(:expression) like upper('%'||:addr_data.search_name||'%')</search>-->
+        </field>
+
+
+        <field>
+            <id>to_address</id>
+            <domain>string</domain>
+            <name>Адрес доставки</name>
+            <expression>adr__get_element_as_text(cal.to_address_id,'(1,s,0)(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)')</expression>
+        </field>
+        <!--<field>-->
+        <!--<id>to_street</id>-->
+        <!--<domain>string</domain>-->
+        <!--<name>Улица</name>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>to_house</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Дом</name>-->
+            <!--<expression>cal.</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>to_housing</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Корпус</name>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>to_apartment</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Квартира</name>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>to_porch</id>-->
+            <!--<domain>string\</domain>-->
+            <!--<name>Подъезд</name>-->
+        <!--</field>-->
+
+        <field>
+            <id>to_addr_descr</id>
+            <domain>string</domain>
+            <name>Адрес коментарии</name>
+            <expression>cal.to_description</expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>ad</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>ppa.addr_id</expression>-->
+        <!--</field>-->
+
+    </fields>
+</query>

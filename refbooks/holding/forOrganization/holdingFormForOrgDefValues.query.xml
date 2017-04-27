@@ -1,0 +1,138 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>holding</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select from
+                (select
+                h.id as hId, h.code as hCode, h.name as hName, h.latin_name as hLatinName, inn.name_rus as innRus, inn.id as innId,
+                cgroup.name as cgName, cgroup.id as cgId, is_vital,is_accounting, is_guaranty, ven
+                from inventory.common_holding h
+                left outer join inventory.commodity_group cgroup on h.commodity_group_id=cgroup.id
+                left outer join inventory.inn inn on inn.id=h.inn_id
+                union
+                select   -1 as hId, null,null,null,null,null,null,null,null,null, null, null) hold
+
+                where :where
+                order by :order
+
+            </n2o:items-query>
+            <n2o:count-query>select 1
+            </n2o:count-query>
+            <n2o:alias>h</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>commonHoldingFilter.id</id>
+            <domain>integer</domain>
+            <expression>hId</expression>
+        </field>
+        <field>
+            <id>commonPrototype.id</id>
+            <domain>integer</domain>
+            <expression>case when hId=-1 then null else hId end</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>hName</expression>
+        </field>
+        <field>
+            <id>latinName</id>
+            <domain>string</domain>
+            <name>Латинское</name>
+            <expression>hLatinName</expression>
+        </field>
+        <field>
+            <id>inn.name</id>
+            <domain>string</domain>
+            <name>МНН</name>
+            <expression>innRus</expression>
+        </field>
+        <field>
+            <id>inn.id</id>
+            <domain>integer</domain>
+            <expression>innId</expression>
+            <search>:expression= :inn.id</search>
+        </field>
+        <field>
+            <id>comGroup.name</id>
+            <domain>string</domain>
+            <name>Группа ТМЦ</name>
+            <expression>cgName</expression>
+        </field>
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>cgId</expression>
+        </field>
+        <field>
+            <id>vital</id>
+            <domain>boolean</domain>
+            <name>ЖВНЛП</name>
+            <expression>is_vital</expression>
+        </field>
+        <field>
+            <id>accounting</id>
+            <domain>boolean</domain>
+            <name>ПКУ</name>
+            <expression>is_accounting</expression>
+            <search>:expression = :accounting</search>
+        </field>
+        <field>
+            <id>guaranty</id>
+            <domain>boolean</domain>
+            <name>ПГГ</name>
+            <expression>is_guaranty</expression>
+            <search>:expression = :guaranty</search>
+        </field>
+        <field>
+            <id>ven.id</id>
+            <domain>integer</domain>
+            <expression>ven</expression>
+        </field>
+        <field>
+            <id>atcs</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(row_to_json(act_json)))
+                from (select atc.id, atc.name from inventory.atc atc where atc.id in (select atc_id from inventory.common_holding_atc where common_holding_id=hId)) as act_json)
+            </expression>
+        </field>
+        <field>
+            <id>pharmGroups</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(row_to_json(pg_json)))
+                from (select pg.id, pg.name from inventory.pharm_group pg where pg.id in (select pharm_group_id from inventory.common_holding_pharm_group where common_holding_id=hId)) as pg_json)
+            </expression>
+        </field>
+        <field>
+            <id>officialLists</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(row_to_json(ol_json)))
+                from (select ol.id, ol.name from inventory.official_list ol where ol.id in(select official_list_id from inventory.common_holding_official_list where common_holding_id=hId)) as ol_json)
+            </expression>
+        </field>
+        <field>
+            <id>diagnosisList</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(row_to_json(d_json)))
+                from (select d.id, d.name from md_diagnosis d where d.id in(select md_diagnosis_id from inventory.common_holding_diagnosis where common_holding_id=hId)) as d_json)
+            </expression>
+        </field>
+        <field>
+            <id>pharmActions</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(row_to_json(a_json)))
+                from (select a.id, a.name from inventory.pharm_action a where a.id in(select pharm_action_id from inventory.common_holding_pharm_action where common_holding_id=hId)) as a_json)
+            </expression>
+        </field>
+    </fields>
+</query>

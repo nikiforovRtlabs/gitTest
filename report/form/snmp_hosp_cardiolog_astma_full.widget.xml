@@ -1,0 +1,59 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<wgt:form xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+          xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+          xmlns:fs2="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+    <wgt:object-id>SNMPreport</wgt:object-id>
+    <wgt:name>Отчет по нозологии при госпитализации лиц, обслуженных бригадами скорой помощи (кардиология и бронхиальная астма)</wgt:name>
+    <wgt:edit model="default" refresh-after-submit="false" form-submit-label="Сформировать отчет">
+        <wgt:a href="${rmis.report.url}?__report=n2o/snmp_hosp_cardiolog_astma_full.rptdesign&amp;clinic_id=:station.id:&amp;department_id=:dep:&amp;from_dt=:date.begin:&amp;to_dt=:date.end:&amp;from_age=:age.begin:&amp;to_age=:age.end:&amp;__format=pdf"/>
+    </wgt:edit>
+    <fs2:field-set>
+        <ctrl:date-interval id="date" label="Период" format="DD.MM.YYYY" css-class="n2o-control-7 n2o-label-3" required="true">
+            <ctrl:default-model begin="today()" end="today()"/>
+        </ctrl:date-interval>
+        <ctrl:classifier id="station" label="Станция" search-are-you-type="true" css-class="n2o-control-7 n2o-label-3" required="true">
+            <ctrl:query query-id="station" value-field-id="id" label-field-id="name"/>
+            <ctrl:default-model>
+                <ctrl:value field-id="id">#{org.id}</ctrl:value>
+                <ctrl:value field-id="name">#{org.name}</ctrl:value>
+            </ctrl:default-model>
+        </ctrl:classifier>
+
+        <ctrl:hidden id="subst.id" default-value="#{dep.id}"/>
+        <ctrl:hidden id="subst.name" default-value="#{dep.name}"/>
+
+        <ctrl:multi-classifier id="substation" label="Подстанция" css-class="n2o-control-7 n2o-label-3">
+            <ctrl:query query-id="substation" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="dorgId" ref="station.id"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+            <ctrl:set-value-expression on-load="true" on-non-empty="false">
+                {
+                var o = new Object();
+                o.id = subst.id;
+                o.name = subst.name;
+                var a = [];
+                a[0] = o;
+                a;
+                }
+            </ctrl:set-value-expression>
+        </ctrl:multi-classifier>
+
+        <ctrl:hidden id="dep">
+            <ctrl:set-value-expression on="substation">
+                {var o = _.map(substation, function(val, key){ return val.id });
+                <!--o.join(',');-->
+                o = '[' + o + ']';
+                o;  }
+            </ctrl:set-value-expression>
+        </ctrl:hidden>
+    </fs2:field-set>
+    <fs2:field-set>
+        <fs2:row>
+            <ctrl:input-text id="age.begin" label="Возраст с" css-class="n2o-control-3 n2o-label-3" length="3"/>
+            <ctrl:input-text id="age.end" label="по" css-class="n2o-control-3 n2o-label-2" length="3"/>
+        </fs2:row>
+    </fs2:field-set>
+</wgt:form>
+

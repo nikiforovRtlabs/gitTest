@@ -1,0 +1,96 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>dAccount</object-id>
+    <name>dAccountTakeOffPatient</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from d_accounting.account d_ac
+                left join pim_indiv_code ic on ic.code = d_ac.patient_uid
+                left join pim_code_type ct on ct.id = ic.type_id and ct.code = 'UID'
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1) from d_accounting.account d_ac
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>d_ac.id</expression>
+        </field>
+
+        <field>
+            <id>unregDate</id>
+            <domain>date</domain>
+            <expression>d_ac.unreg_dt</expression>
+            <name>Дата снятия с учета</name>
+        </field>
+
+        <field>
+            <id>reason.id</id>
+            <name>Причина снятия с учёта</name>
+            <domain>integer</domain>
+            <expression>(SELECT pgr.stop_reas_id FROM d_accounting.pat_d_group pgr WHERE pgr.account_id = d_ac.id ORDER
+                BY pgr.from_dt DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>dgroup.id</id>
+            <domain>integer</domain>
+            <expression>(SELECT pgr.id FROM d_accounting.pat_d_group pgr WHERE pgr.account_id = d_ac.id ORDER
+                BY pgr.from_dt DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>minDate</id>
+            <domain>date</domain>
+            <expression>(SELECT pgr.from_dt FROM d_accounting.pat_d_group pgr WHERE pgr.account_id = d_ac.id ORDER
+                BY pgr.from_dt DESC LIMIT 1)</expression>
+        </field>
+
+        <field>
+            <id>unregDoctor.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.unreg_doctor_id</expression>
+        </field>
+        <field>
+            <id>commission.id</id>
+            <domain>integer</domain>
+            <expression>coalesce(d_ac.commission_id, :emplPos.id)</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>ic.indiv_id</expression>
+        </field>
+        <field>
+            <id>issueDate.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.commission_issue_id</expression>
+        </field>
+        <field>
+            <id>user.id</id>
+            <domain>integer</domain>
+            <search unavailable="true"/>
+            <display value="#{user.id}" unavailable="true"/>
+        </field>
+        <field>
+            <id>emplPos.id</id>
+            <domain>integer</domain>
+            <search unavailable="true"/>
+            <display value="#{emplPos.id}" unavailable="true"/>
+        </field>
+    </fields>
+</query>

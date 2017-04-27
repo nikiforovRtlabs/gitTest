@@ -1,0 +1,225 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <object-id>finContract</object-id>
+    <layout>inventory/n2o/layout/top-bottom-result</layout>
+    <name>Контракты</name>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="contractList" opened="true">
+                <wgt:table>
+                    <wgt:query-id>finContractList</wgt:query-id>
+                    <wgt:name>Контракты</wgt:name>
+                    <wgt:size>10</wgt:size>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false">
+                            <wgt:show-modal page-id="finContract" action-id="save" focus-after-submit="true" model="default"
+                                            width="90%" max-width="700px" min-width="700px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true">
+                            <wgt:show-modal page-id="finContract" action-id="save" container-id="main"
+                                            model="query"
+                                            width="90%" max-width="700px" min-width="700px"
+                                            master-field-id="id" detail-field-id="id" focus-after-submit="true" page-name="Контракт №{contractList.number} от {contractList.docDateString}"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>docStatus.id==1 || docStatus.id==null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="view" label="Просмотр" context="true"  icon="icon-eye-open" type="textAndIcon">
+                            <wgt:show-modal page-id="finContract" container-id="main" master-field-id="id" detail-field-id="id"
+                                            focus-after-submit="true" width="90%" max-width="600px" min-width="600px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" label="Удалить" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>docStatus.id==1 || docStatus.id==null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="accept" label="Подтвердить" context="true" icon="icon-ok-sign" type="textAndIcon">
+                            <wgt:invoke-action action-id="accept" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>(docStatus.id==1 || docStatus.id==null) &amp;&amp; specForContractExists==true</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="execute" label="Исполнить" context="true" icon="icon-ok" type="textAndIcon">
+                            <wgt:invoke-action action-id="execute" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>docStatus.id==2 &amp;&amp; countOfSpec == 0</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="revert_accept" label="Снять подтверждение" context="true" icon="icon-remove-sign" type="textAndIcon">
+                            <wgt:invoke-action action-id="revertAccept" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>docStatus.id==2 &amp;&amp; refFromArrInvoiceExists == false</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delivery_plan" label="График поставки" context="true" icon="icon-list" type="textAndIcon">
+                           <wgt:show-modal page-id="deliveryPlanForm"  model="default" width="90%"
+                                           master-field-id="id" detail-field-id="id">
+                           </wgt:show-modal>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="documentNumber"/>
+                        <wgt:column column-field-id="name"/>
+                        <wgt:column column-field-id="docDate"/>
+                        <wgt:column column-field-id="beginDate"/>
+                        <wgt:column column-field-id="endDate"/>
+                        <wgt:column column-field-id="fundSource.name"/>
+                        <wgt:column column-field-id="provider.name"/>
+                        <wgt:column column-field-id="sum" format="${inv.amount.format}"/>
+                        <wgt:column column-field-id="docStatus.name"/>
+                        <wgt:column column-field-id="isExceedSimbol" width="3%" tooltip-field-id="isExceedTooltip">
+                            <wgt:color>
+                                <wgt:switch value-field-id="exceedStatus">
+                                    <wgt:case value="0">badge badge-important</wgt:case>
+                                </wgt:switch>
+                            </wgt:color>
+                        </wgt:column>
+                    </wgt:columns>
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="docDate" direction="DESC"/>
+                    </wgt:sortings>
+                    <wgt:rows>
+                        <wgt:color>
+                            <wgt:switch value-field-id="docStatus.id">
+                                    <wgt:case value="1">success</wgt:case>
+                                    <wgt:case value="2">warning</wgt:case>
+                            </wgt:switch>
+                        </wgt:color>
+                    </wgt:rows>
+                    <wgt:filters position="top">
+                        <ctrl:date-interval id="docDate" label="Дата контракта">
+                            <ctrl:default-model begin="beginYear()" end="today()"/>
+                        </ctrl:date-interval>
+                        <ctrl:input-text id="number" label="Номер"/>
+                        <ctrl:input-text id="name" label="Наименование"/>
+                        <ctrl:classifier id="docStatus" label="Статус" search-as-you-type="true">
+                            <ctrl:query query-id="inv_finContractStatusType" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:multi-classifier id="providerList" label="Поставщик">
+                            <ctrl:query query-id="inv_orgForContract" label-field-id="name" value-field-id="id"/>
+                        </ctrl:multi-classifier>
+                        <ctrl:multi-classifier id="fundSourceList" label="Финансирование">
+                            <ctrl:query query-id="inv_fundingSource" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:multi-classifier>
+                    </wgt:filters>
+                    <wgt:paging mode="lazy"/>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="bottom" type="list">
+            <container id="contractSpecList" depends-on="contractList" opened="true" refresh-dependent-container="true">
+                <pre-filters>
+                    <pre-filter field-id="docStatus.id" ref="docStatus.id"/>
+                </pre-filters>
+                <wgt:table master-field-id="id" detail-field-id="contract.id">
+                    <wgt:query-id>finContractSpecList</wgt:query-id>
+                    <wgt:name>Спецификации</wgt:name>
+                   <wgt:size>10</wgt:size>
+                   <wgt:action-menu>
+                       <wgt:menu-item id="create" label="Добавить" context="false">
+                           <wgt:show-modal-form form-id="finContractSpec"
+                                                width="90%" max-width="650px" min-width="650px"
+                                                detail-field-id="contract.id" master-field-id="contract.id"
+                                                page-name="Контракт №{contractList.number} от {contractList.docDateString}. Добавление спецификации.">
+                               <wgt:edit create-more="true" focus-after-submit="true" model="default">
+                                   <wgt:invoke-action action-id="save"/>
+                               </wgt:edit>
+                           </wgt:show-modal-form>
+                           <wgt:conditions>
+                               <wgt:enabling-condition>
+                                   <wgt:expression>docStatus.id==1 || docStatus.id==2</wgt:expression>
+                               </wgt:enabling-condition>
+                           </wgt:conditions>
+                       </wgt:menu-item>
+                       <wgt:menu-item id="update" label="Изменить" context="true">
+                           <wgt:show-modal page-id="finContractSpec" action-id="save" container-id="main"
+                                           width="90%" max-width="650px" min-width="650px" model="query"
+                                           master-field-id="id" detail-field-id="id" focus-after-submit="true"/>
+                           <wgt:conditions>
+                               <wgt:visibility-condition>
+                                   <wgt:expression>status.id==1 || status.id==null</wgt:expression>
+                               </wgt:visibility-condition>
+                           </wgt:conditions>
+                       </wgt:menu-item>
+                       <wgt:menu-item id="view" label="Просмотр" context="true" icon="icon-eye-open" type="textAndIcon">
+                           <wgt:show-modal page-id="finContractSpec" container-id="main" focus-after-submit="true"
+                                           width="90%" max-width="650px" min-width="650px"  master-field-id="id" detail-field-id="id"/>
+                       </wgt:menu-item>
+                       <wgt:menu-item id="accept" label="Подтвердить" context="true" icon="icon-ok-sign" type="textAndIcon">
+                           <wgt:invoke-action action-id="accept" confirmation="true"/>
+                           <wgt:conditions>
+                               <wgt:visibility-condition>
+                                   <wgt:expression>(docStatus.id==2 &amp;&amp; (status.id==1 || status.id==null))</wgt:expression>
+                               </wgt:visibility-condition>
+                           </wgt:conditions>
+                       </wgt:menu-item>
+                       <wgt:menu-item id="revert_accept" label="Снять подтверждение" context="true" icon="icon-remove-sign" type="textAndIcon">
+                           <wgt:invoke-action action-id="revertAccept" confirmation="true"/>
+                           <wgt:conditions>
+                               <wgt:visibility-condition>
+                                   <wgt:expression>status.id==2</wgt:expression>
+                               </wgt:visibility-condition>
+                           </wgt:conditions>
+                       </wgt:menu-item>
+                       <wgt:menu-item id="delete" label="Удалить" context="true">
+                           <wgt:invoke-action action-id="delete" confirmation="true"/>
+                           <wgt:conditions>
+                               <wgt:enabling-condition>
+                                   <wgt:expression>status.id==1 || status.id==null</wgt:expression>
+                               </wgt:enabling-condition>
+                           </wgt:conditions>
+                       </wgt:menu-item>
+                   </wgt:action-menu>
+                   <wgt:columns>
+                       <wgt:column column-field-id="holdModif.name" width="20%"/>
+                       <wgt:column column-field-id="series"/>
+                       <wgt:column column-field-id="expireDate"/>
+                       <wgt:column column-field-id="quantity" format="${inv.quantity.format}"/>
+                       <wgt:column column-field-id="measure" width="10%"/>
+                       <wgt:column column-field-id="executionQuantity" width="10%"/>
+                       <wgt:column column-field-id="price" format="${inv.price.format}"/>
+                       <wgt:column column-field-id="amount" format="${inv.amount.format}"/>
+                       <wgt:column column-field-id="status.name"/>
+                   </wgt:columns>
+                   <wgt:rows>
+                       <wgt:color>
+                           <wgt:switch value-field-id="status.id">
+                               <wgt:case value="1">success</wgt:case>
+                               <wgt:case value="2">warning</wgt:case>
+                           </wgt:switch>
+                       </wgt:color>
+                   </wgt:rows>
+               </wgt:table>
+            </container>
+        </region>
+        <region place="result" type="list">
+            <container id="results" depends-on="contractSpecList" refresh-dependent-container="true" dependency-condition="contractSpecList.specCount!=null &amp;&amp; contractSpecList.specCount!=0">
+                <pre-filters>
+                    <pre-filter field-id="contract.id" ref="contract.id"/>
+                    <pre-filter field-id="specCount" ref="specCount"/>
+                </pre-filters>
+                <wgt:form ref-id="finContractSpecListResultForm" detail-field-id="contract.id" master-field-id="contract.id"/>
+            </container>
+        </region>
+    </regions>
+
+</page>

@@ -1,0 +1,272 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+
+    <object-id>hosp_prescription</object-id>
+    <layout>n2o/layout/top-bottom</layout>
+    <name>Просмотр лекарственного назначения</name>
+
+    <regions>
+        <region place="top" type="list">
+            <container id="main">
+                <wgt:form customize="jsp,css,js" src="hospital/n2o/custom/prescription/read/prescriptionRead">
+                    <wgt:edit model="query"/>
+                    <wgt:query-id>hosp_prescription_read</wgt:query-id>
+                    <wgt:object-id>hosp_prescription</wgt:object-id>
+
+                    <wgt:name>Информация о назначении</wgt:name>
+                    <fs:field-set>
+
+                        <fs:row>
+                            <ctrl:output-text id="administrationRoute" label="Способ введения:" control-style="width:300px;"/>
+                            <ctrl:output-text id="prescriptionPeriodicity.name" label="Периодичность:" control-style="width:300px;"/>
+                        </fs:row>
+
+                        <ctrl:hidden id="dayAmount">
+                            <ctrl:set-value-expression>
+                                <![CDATA[
+                               if(typeof periodBeginDt != 'undefined' && periodBeginDt != null &&
+                                  typeof periodEndDt != 'undefined' && periodEndDt != null &&
+                                  typeof prescriptionPeriodicity != 'undefined' && prescriptionPeriodicity != null && prescriptionPeriodicity.id != null)
+                               {
+                                    var periodEnd = moment(periodEndDt, 'DD.MM.YYYY');
+                                    var periodBegin = moment(periodBeginDt, 'DD.MM.YYYY');
+                                    var days = periodEnd.diff(periodBegin, 'days') + 1;
+
+                                    var interval = prescriptionPeriodicity.interval;
+                                    if(interval != null && interval != 0)
+                                    {
+                                        var daysWithInterval = Math.ceil(days / interval);
+                                        days = daysWithInterval;
+                                    }
+                                    dayAmount = days;
+                               }
+                               ]]>
+                            </ctrl:set-value-expression>
+                        </ctrl:hidden>
+
+                        <ctrl:hidden id="missedIntake">
+                            <ctrl:set-value-expression>
+                                <![CDATA[
+                                        var missed = 0;
+                                        if(typeof prescriptionPeriodicity != 'undefined' && prescriptionPeriodicity != null && prescriptionPeriodicity.times != null) {
+                                            var times = prescriptionPeriodicity.times.split(',');
+                                            for(var i = 0; i < times.length; i++) {
+                                                if (moment(times[i], 'HH:mm:ss').isBefore(moment(moment(periodBeginDt, 'DD.MM.YYYY HH:mm').format('HH:mm'),'HH:mm'))) {
+                                                    missed = missed + 1;
+                                                }
+
+                                                if (moment(times[i], 'HH:mm:ss').isAfter(moment(moment(periodEndDt, 'DD.MM.YYYY HH:mm').format('HH:mm'),'HH:mm'))) {
+                                                    missed = missed + 1;
+                                                }
+                                            }
+                                        }
+                                        missedIntake = missed;
+                                   ]]>
+                            </ctrl:set-value-expression>
+                        </ctrl:hidden>
+
+                        <fs:row>
+                            <ctrl:output-text id="visitTerm" label="Условия:" control-style="width:300px;"/>
+                            <ctrl:output-text id="dayAmountWithDates" label="Количество дней:" control-style="width:300px;">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[
+                                       if(typeof dayAmount != 'undefined' && dayAmount != null &&
+                                          typeof periodBeginDt != 'undefined' && periodBeginDt != null &&
+                                          typeof periodEndDt != 'undefined' && periodEndDt != null)
+                                          {
+                                            dayAmountWithDates = dayAmount + ' (' + periodBeginDt + ' - ' + periodEndDt + ')';
+                                          }
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:output-text id="doctor" label="Назначил:" control-style="width:300px;"/>
+                            <ctrl:output-text id="status" label="Статус:" control-style="width:300px;"/>
+
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:output-text id="holds" label="Препарат:" label-style="text-align: left;"/>
+                        </fs:row>
+
+                        <fs:row css-class="holdingRow holdingRowFirst">
+                            <ctrl:output-text id="holdings.0.name_holding" label="" css-class="holding"/>
+                            <ctrl:output-text id="holdings.0.single_dose" label="Разовая доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.0.daily_dose" label="Суточная доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.0.course_dose" label="Курсовая доза:" css-class="dose">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[if (typeof dayAmount != 'undefined' && dayAmount != null){
+                                        var cd = parseFloat(holdings[0].d_dose * dayAmount - holdings[0].s_dose * missedIntake).toFixed(3)*1;
+                                        cd + ' ' + holdings[0].dose_measure;
+                                        }]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+
+                        <fs:row css-class="holdingRow n2o-hidden">
+                            <ctrl:output-text id="holdings.1.name_holding" label="" css-class="holding"/>
+                            <ctrl:output-text id="holdings.1.single_dose" label="Разовая доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.1.daily_dose" label="Суточная доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.1.course_dose" label="Курсовая доза:" css-class="dose">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[if (typeof dayAmount != 'undefined' && dayAmount != null){
+                                        var cd = parseFloat(holdings[1].d_dose * dayAmount - holdings[1].s_dose * missedIntake).toFixed(3)*1;
+                                        cd + ' ' + holdings[1].dose_measure;
+                                        }]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+
+                        <fs:row css-class="holdingRow n2o-hidden">                                                     `
+                            <ctrl:output-text id="holdings.2.name_holding" label="" css-class="holding"/>
+                            <ctrl:output-text id="holdings.2.single_dose" label="Разовая доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.2.daily_dose" label="Суточная доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.2.course_dose" label="Курсовая доза:" css-class="dose">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[if (typeof dayAmount != 'undefined' && dayAmount != null){
+                                        var cd = parseFloat(holdings[2].d_dose * dayAmount - holdings[2].s_dose * missedIntake).toFixed(3)*1;
+                                        cd + ' ' + holdings[2].dose_measure;
+                                        }]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+
+                        <fs:row css-class="holdingRow n2o-hidden">
+                            <ctrl:output-text id="holdings.3.name_holding" label="" css-class="holding"/>
+                            <ctrl:output-text id="holdings.3.single_dose" label="Разовая доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.3.daily_dose" label="Суточная доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.3.course_dose" label="Курсовая доза:" css-class="dose">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[if (typeof dayAmount != 'undefined' && dayAmount != null){
+                                        var cd = parseFloat(holdings[3].d_dose * dayAmount - holdings[3].s_dose * missedIntake).toFixed(3)*1;
+                                        cd + ' ' + holdings[3].dose_measure;
+                                        }]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+
+                        <fs:row css-class="holdingRow n2o-hidden">
+                            <ctrl:output-text id="holdings.4.name_holding" label="" css-class="holding"/>
+                            <ctrl:output-text id="holdings.4.single_dose" label="Разовая доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.4.daily_dose" label="Суточная доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.4.course_dose" label="Курсовая доза:" css-class="dose">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[if (typeof dayAmount != 'undefined' && dayAmount != null){
+                                        var cd = parseFloat(holdings[4].d_dose * dayAmount - holdings[4].s_dose * missedIntake).toFixed(3)*1;
+                                        cd + ' ' + holdings[4].dose_measure;
+                                        }]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+
+                        <fs:row css-class="holdingRow n2o-hidden">
+                            <ctrl:output-text id="holdings.5.name_holding" label="" css-class="holding"/>
+                            <ctrl:output-text id="holdings.5.single_dose" label="Разовая доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.5.daily_dose" label="Суточная доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.5.course_dose" label="Курсовая доза:" css-class="dose">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[if (typeof dayAmount != 'undefined' && dayAmount != null){
+                                        var cd = parseFloat(holdings[5].d_dose * dayAmount - holdings[5].s_dose * missedIntake).toFixed(3)*1;
+                                        cd + ' ' + holdings[5].dose_measure;
+                                        }]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+
+                        <fs:row css-class="holdingRow n2o-hidden">
+                            <ctrl:output-text id="holdings.6.name_holding" label="" css-class="holding"/>
+                            <ctrl:output-text id="holdings.6.single_dose" label="Разовая доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.6.daily_dose" label="Суточная доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.6.course_dose" label="Курсовая доза:" css-class="dose">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[if (typeof dayAmount != 'undefined' && dayAmount != null){
+                                        var cd = parseFloat(holdings[6].d_dose * dayAmount - holdings[6].s_dose * missedIntake).toFixed(3)*1;
+                                        cd + ' ' + holdings[6].dose_measure;
+                                        }]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+
+                        <fs:row css-class="holdingRow n2o-hidden">
+                            <ctrl:output-text id="holdings.7.name_holding" label="" css-class="holding"/>
+                            <ctrl:output-text id="holdings.7.single_dose" label="Разовая доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.7.daily_dose" label="Суточная доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.7.course_dose" label="Курсовая доза:" css-class="dose">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[if (typeof dayAmount != 'undefined' && dayAmount != null){
+                                        var cd = parseFloat(holdings[7].d_dose * dayAmount - holdings[7].s_dose * missedIntake).toFixed(3)*1;
+                                        cd + ' ' + holdings[7].dose_measure;
+                                        }]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+
+                        <fs:row css-class="holdingRow n2o-hidden">
+                            <ctrl:output-text id="holdings.8.name_holding" label="" css-class="holding"/>
+                            <ctrl:output-text id="holdings.8.single_dose" label="Разовая доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.8.daily_dose" label="Суточная доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.8.course_dose" label="Курсовая доза:" css-class="dose">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[if (typeof dayAmount != 'undefined' && dayAmount != null){
+                                        var cd = parseFloat(holdings[8].d_dose * dayAmount - holdings[8].s_dose * missedIntake).toFixed(3)*1;
+                                        cd + ' ' + holdings[8].dose_measure;
+                                        }]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+
+                        <fs:row css-class="holdingRow n2o-hidden">
+                            <ctrl:output-text id="holdings.9.name_holding" label="" css-class="holding"/>
+                            <ctrl:output-text id="holdings.9.single_dose" label="Разовая доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.9.daily_dose" label="Суточная доза:" css-class="dose"/>
+                            <ctrl:output-text id="holdings.9.course_dose" label="Курсовая доза:" css-class="dose">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[if (typeof dayAmount != 'undefined' && dayAmount != null){
+                                        var cd = parseFloat(holdings[9].d_dose * dayAmount - holdings[9].s_dose * missedIntake).toFixed(3)*1;
+                                        cd + ' ' + holdings[9].dose_measure;
+                                        }]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+
+        <region place="bottom" type="tabs">
+            <container id="prescriptionExecutionList" depends-on="main">
+                <wgt:table master-field-id="id" detail-field-id="prescriptionId">
+                    <wgt:query-id>hosp_prescription_execution_list_read</wgt:query-id>
+                    <wgt:name>Расписание выполнения</wgt:name>
+                    <wgt:size>10</wgt:size>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="statusIcon" width="3%" tooltip-field-id="statusIconTooltip">
+                            <wgt:icon>
+                                <wgt:switch>
+                                    <wgt:case value="1">icon-time</wgt:case>
+                                    <wgt:case value="2">icon-ok</wgt:case>
+                                    <wgt:case value="3">icon-remove</wgt:case>
+                                </wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="prescriptionDt" format="date 'DD.MM.YYYY HH:mm'"/>
+                        <wgt:column column-field-id="executeDt" format="date 'DD.MM.YYYY HH:mm'"/>
+                        <wgt:column column-field-id="employee"/>
+                        <wgt:column column-field-id="holding" width="35%"/>
+                        <wgt:column column-field-id="count"/>
+                        <wgt:column column-field-id="comment"/>
+                    </wgt:columns>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+
+</page>

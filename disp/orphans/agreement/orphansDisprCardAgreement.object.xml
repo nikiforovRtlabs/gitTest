@@ -1,0 +1,351 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>disprCardAgreement</id>
+    <name>disprCardAgreement</name>
+
+    <actions>
+        <action id="agreeService" name="Согласиться">
+            <invocation>
+                <sp:stored-procedure name="disp.agreeServiceForPatient" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="agreeId" mapping="[0]"/>
+                <param name="serviceId" mapping="[1]"/>
+                <param name="agree" mapping="[2]"/>
+                <param name="denial" mapping="[3]"/>
+                <param name="agreeDate" mapping="[4]" domain="string"/>
+                <param name="mainId" mapping="[5]"/>
+            </in-parameters>
+        </action>
+
+
+
+
+        <action id="deniService" name="Отказ">
+            <invocation>
+                <sp:stored-procedure name="disp.orphansDenialServiceForPatient" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="agreeId" mapping="[0]"/>
+                <param name="serviceId" mapping="[1]"/>
+                <param name="agree" mapping="[2]"/>
+                <param name="denial" mapping="[3]"/>
+                <param name="agreeDate" mapping="[4]" domain="string"/>
+                <param name="mainId" mapping="[5]"/>
+            </in-parameters>
+        </action>
+        <action id="agreeDispr" name="Отказ/Согласие дис">
+            <invocation>
+                <sp:stored-procedure name="disp.orphansAgreeDisprForPatient" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="eventAgreeId" mapping="[0]"/>
+                <param name="generalDate" mapping="[1]" domain="string"/>
+                <param name="mainId" mapping="[2]"/>
+            </in-parameters>
+        </action>
+        <action id="deniDispr" name="Отказ/Согласие дис">
+            <invocation>
+                <sp:stored-procedure name="disp.orphansDeniDisprForPatient" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="eventAgreeId" mapping="[0]"/>
+                <param name="generalDeniDispr.id" mapping="[1]"/>
+                <param name="generalDate" mapping="[2]" domain="string"/>
+                <param name="mainId" mapping="[3]"/>
+            </in-parameters>
+        </action>
+
+
+        <action id="orphansAgreeDispr" name="Согласие дет.дис">
+            <invocation>
+                <sql:sql>
+                    update disp.md_event_patient set event_age = (SELECT CONCAT(date_part('year',age(to_date(:date, 'DD.MM.YYYY'), birth_dt)), '.', date_part('month',age(to_date(:date, 'DD.MM.YYYY'), birth_dt))) FROM pim_individual where id = (select indiv_id from disp.md_event_patient where id = :epid)) where id = :epid;
+                    select disp.orphans_agreement(:epid);
+                    select disp.orphansAgreeDisprForPatient(:id, :date, :epid);
+                </sql:sql>
+                <!--<sp:stored-procedure name="disp.orphans_agreement" data-source="jdbc/lsd"/>-->
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="event_patient_id" mapping="['epid']"/>
+                <param name="check_pres_group*.id" mapping="['checkSrv']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+                <param name="birthDate" mapping="['birthDate']" domain="string"/>
+                <param name="eventCode" mapping="['eventCode']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="notEmptyService"/>
+                <validation ref-id="setRequiredService"/>
+                <validation ref-id="validateExistsCaseWithSameInitGoal"/>
+            </validations>
+        </action>
+
+        <action id="orphansDeniDispr" name="Отказ дет.дис">
+            <invocation>
+                <sql:sql>
+                    select disp.callClearService(:epid);
+                    update disp.md_event_patient set event_age = (SELECT CONCAT(date_part('year',age(to_date(:date, 'DD.MM.YYYY'), birth_dt)), '.', date_part('month',age(to_date(:date, 'DD.MM.YYYY'), birth_dt))) FROM pim_individual where id = (select indiv_id from disp.md_event_patient where id = :epid)) where id = :epid;
+                    select disp.orphans_agreement(:epid);
+                    select disp.orphansDeniDisprForPatient(:id, :disprId, :date, :epid);
+                </sql:sql>
+            <!--<sp:stored-procedure name="disp.orphans_agreement" data-source="jdbc/lsd"/>-->
+        </invocation>
+        <in-parameters>
+            <param name="check_pres_group*.id" mapping="['checkSrv']"  domain="string"/>
+            <param name="id" mapping="['id']"/>
+            <param name="generalDeniDispr.id" mapping="['disprId']"/>
+            <param name="date" mapping="['date']" domain="string"/>
+            <param name="event_patient_id" mapping="['epid']"/>
+        </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="orphansDenialRenderService"/>
+                    </validations>
+        </action>
+
+
+
+        <action id="agreeServiceForPatientAll" name="Согласиться">
+            <invocation>
+                <sp:stored-procedure name="disp.agreeServiceForPatientAll" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="agreeId" mapping="[0]"/>
+                <param name="serviceId" mapping="[1]"/>
+                <param name="agree" mapping="[2]"/>
+                <param name="denial" mapping="[3]"/>
+                <param name="agreeDate" mapping="[4]" domain="string"/>
+                <param name="mainId" mapping="[5]"/>
+            </in-parameters>
+        </action>
+        <action id="denialServiceForPatientAll" name="Отказ">
+            <invocation>
+                <sp:stored-procedure name="disp.denialServiceForPatientAll" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="agreeId" mapping="[0]"/>
+                <param name="serviceId" mapping="[1]"/>
+                <param name="agree" mapping="[2]"/>
+                <param name="denial" mapping="[3]"/>
+                <param name="agreeDate" mapping="[4]" domain="string"/>
+                <param name="mainId" mapping="[5]"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="orphansDenialRenderService" level="warning" moment="before-action">
+            <message>Пациенту оказаны услуги. При отказе они будут очищены. Продолжить?</message>
+            <invocation>
+                <sql:sql>
+                    select disp.denialrenderingservice(2, :checkPresGroup,null,null,:id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                    <param name="check_pres_group*.id" mapping="['checkSrv']"  domain="string"/>
+                                        <param name="event_patient_id" mapping="['id']"/>
+
+            </in-parameters>
+            <out-parameters>
+                <param name="value" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0]=='true'"/>
+        </constraint>
+        <constraint id="correctDataInterval" level="error">
+            <invocation>
+                <sql:sql>
+                    SELECT now()>=to_date(:date, 'dd.mm.yyyy')
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Дата согласия не должна быть больше текущей даты</message>
+        </constraint>
+
+
+        <constraint id="correctDataInterval_2" level="error">
+            <invocation>
+                <sql:sql>
+                    SELECT to_date(:date, 'dd.mm.yyyy') >=to_date(:start, 'dd.mm.yyyy')
+                    and to_date(:end, 'dd.mm.yyyy') >=to_date(:date, 'dd.mm.yyyy')
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="start" mapping="['start']" domain="string"/>
+                <param name="end" mapping="['end']" domain="string"/>
+                <param name="startDate" mapping="['startDate']" domain="string"/>
+                <param name="endDate" mapping="['endDate']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Дата согласия должна входить в период проведения мероприятия {startDate} - {endDate}</message>
+        </constraint>
+
+        <constraint id="correctDataIntervalDenial" level="error">
+            <invocation>
+                <sql:sql>
+                    SELECT now()>=to_date(:date, 'dd.mm.yyyy')
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Дата отказа не должна быть больше текущей даты</message>
+        </constraint>
+
+
+        <constraint id="correctDataIntervalDenial_2" level="error">
+            <invocation>
+                <sql:sql>
+                    SELECT to_date(:date, 'dd.mm.yyyy') >=to_date(:start, 'dd.mm.yyyy')
+                    and to_date(:end, 'dd.mm.yyyy') >=to_date(:date, 'dd.mm.yyyy')
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="start" mapping="['start']" domain="string"/>
+                <param name="end" mapping="['end']" domain="string"/>
+                <param name="startDate" mapping="['startDate']" domain="string"/>
+                <param name="endDate" mapping="['endDate']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Дата отказа должна входить в период проведения мероприятия {startDate} - {endDate}</message>
+        </constraint>
+
+        <constraint id="correctDataDenial" level="error">
+            <invocation>
+                <sql:sql>
+                    SELECT to_date(:date, 'dd.mm.yyyy') >= to_date(:birthDate, 'dd.mm.yyyy')
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="birthDate" mapping="['birthDate']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Дата отказа не может быть раньше даты рождения</message>
+        </constraint>
+
+
+        <constraint id="correctData" level="error">
+            <invocation>
+                <sql:sql>
+                    SELECT to_date(:date, 'dd.mm.yyyy')>=to_date(:birthDate, 'dd.mm.yyyy')
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="birthDate" mapping="['birthDate']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Дата согласия не может быть раньше даты рождения</message>
+        </constraint>
+
+        <constraint id="notEmptyService" level="error">
+            <message>На возраст пациента "{value}" не было назначено услуг</message>
+            <invocation>
+                <sql:sql>
+                    select disp.check_pres_services_validate_agreement(:epid,
+                    (select CONCAT(date_part('year',age(to_date(:date, 'dd.mm.yyyy'), to_date(:birthDate,
+                    'dd.mm.yyyy'))), '.', date_part('month',age(to_date(:date, 'dd.mm.yyyy'), to_date(:birthDate,
+                    'dd.mm.yyyy'))))),:eventCode);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="birthDate" mapping="['birthDate']" domain="string"/>
+                <param name="eventCode" mapping="['eventCode']"/>
+                <param name="event_patient_id" mapping="['epid']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="value" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0]=='!'"/>
+        </constraint>
+
+
+        <constraint id="setRequiredService" level="error">
+            <message>Не назначены обязательные услуги : "{value}"</message>
+            <invocation>
+                <sql:sql>
+                    select disp.setrequiredserviceforpatientorphans(:checkPresGroup,
+                    :id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="check_pres_group*.id" mapping="['checkPresGroup']" domain="integer[]"/>
+                <param name="event_patient_id" mapping="['id']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="value" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0]=='true'"/>
+        </constraint>
+
+
+
+        <constraint id="setRequiredServiceDenial" level="error">
+            <message>Нельзя отказаться от обязательных услуг : "{value}"</message>
+            <invocation>
+                <sql:sql>
+                    select disp.setrequiredserviceforpatientorphansdenial(:checkPresGroup,
+                    :id );
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="check_pres_group*.id" mapping="['checkPresGroup']" domain="integer[]"/>
+                <param name="event_patient_id" mapping="['id']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="value" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0]=='true'"/>
+        </constraint>
+
+        <constraint id="validateExistsCaseWithSameInitGoal" level="warning">
+            <message>{mess}</message>
+            <invocation>
+                <sql:sql>
+                    select case when :id is null then (select disp.validate_exists_case_with_same_init_goal(:mepid))
+                           else null
+                           end;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="event_patient_id" mapping="['mepid']"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="mess" mapping="[0][0][0]" domain="string"/>
+            </out-parameters>
+            <result expression="[0][0][0] == null"/>
+        </constraint>
+
+        <!--<constraint id="correctDate" level="warning">
+            <invocation>
+                <sql:sql>
+                    select exists(select 1 from disp.md_event_patient mep
+                    left join pim_individual i on mep.indiv_id=i.id
+                    left join pci_patient pci on pci.id = i.id
+                    left join pci_patient_reg pcireg on pcireg.patient_id = i.id
+                    where pcireg.state_id = (select id from md_reg_state where code = '1') and mep.id = :mainId
+                    and to_date(:generalDate ,'DD.MM.YYYY')> pcireg.reg_dt
+                    and (pcireg.unreg_dt is null or pcireg.unreg_dt > to_date(:generalDate,'DD.MM.YYYY') )
+                    )
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['generalDate']" domain="string"/>
+                <param name="event_patient_id" mapping="['mainId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Дата согласия выходит за рамки дат прикрепления пациента</message>
+        </constraint>-->
+    </validations>
+</object>

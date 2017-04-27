@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                <![CDATA[
+                select :select from md_employee_position mep
+                inner join pim_employee_position pep on mep.id = pep.id
+                inner join pim_employee pe on pe.id = pep.employee_id
+                inner join pim_individual pi on pi.id = pe.individual_id
+                inner join pim_position pp on pp.id = pep.position_id
+                left join pim_organization po on pe.organization_id = po.id
+                where pep.start_date <= current_date and
+                (pep.end_date >= current_date or pep.end_date is null) and :where
+                order by pep.id
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                <![CDATA[
+                select count(1) from md_employee_position mep
+                inner join pim_employee_position pep on mep.id = pep.id
+                inner join pim_employee pe on pe.id = pep.employee_id
+                inner join pim_individual pi on pi.id = pe.individual_id
+                inner join pim_position pp on pp.id = pep.position_id
+                left join pim_organization po on pe.organization_id = po.id
+                where pep.start_date <= current_date and
+                (pep.end_date >= current_date or pep.end_date is null) and :where
+                ]]>
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>pep.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>posName</id>
+            <domain>string</domain>
+            <display unavailable="true" />
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>
+                coalesce(pi.surname,'')||coalesce(' '||pi.name,'')||coalesce(' '||pi.patr_name,'')||coalesce(' '||pp.name,'')||coalesce(' ('||po.short_name||')','')
+            </expression>
+            <search>
+                lower(pi.surname) || ' ' || lower(pi.name) || ' ' || lower(pi.patr_name) || ' ' || lower(pp.name) || ' ' || lower(po.short_name) like '%'||lower(:name)||'%'
+            </search>
+        </field>
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>pe.organization_id</expression>
+            <search>:expression = :orgId</search>
+        </field>
+
+        <field>
+            <id>depId</id>
+            <domain>integer</domain>
+            <expression>pp.department_id</expression>
+        </field>
+
+        <field>
+            <id>nameIndiv</id>
+            <domain>string</domain>
+            <expression>
+                coalesce(pi.surname, '') || ' ' || case coalesce(substring(pi.name for 1), '') when '' then '' else
+                substring(pi.name for 1) || '.' end || ' ' || case coalesce(substring(pi.patr_name for 1), '') when '' then ''
+                else substring(pi.patr_name for 1) || '.' end
+            </expression>
+            <search>upper(:expression) like '%'|| upper(:nameIndiv)||'%'</search>
+        </field>
+
+    </fields>
+
+</query>

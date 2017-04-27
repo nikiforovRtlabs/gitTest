@@ -1,0 +1,237 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Документы на изготовление</name>
+    <actions>
+        <action id="save">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/productionDoc
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="docType.id" mapping="['docTypeId']"/>
+                <param name="docNumber" mapping="['docNumber']" domain="string"/>
+                <param name="docDate" mapping="['docDate']"/>
+                <param name="baseDocType.id" mapping="['baseDocTypeId']"/>
+                <param name="baseDocNumber" mapping="['baseDocNumber']" domain="string"/>
+                <param name="appProdDocNumber.id" mapping="['appProdDocNumberId']"/>
+                <param name="baseDocDate" mapping="['baseDocDate']"/>
+                <param name="sendStore.id" mapping="['sendStoreId']"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+                <param name="arrStoreOpr.id" mapping="['arrStoreOprId']"/>
+                <param name="formulaDoc.id" mapping="['formulaDocId']"/>
+                <param name="expStoreOpr.id" mapping="['expStoreOprId']"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="mneiQuantity" mapping="['mneiQuantity']"/>
+                <param name="price" mapping="['price']"/>
+                <param name="amount" mapping="['amount']"/>
+                <param name="series" mapping="['series']" domain="string"/>
+                <param name="expireDate" mapping="['expireDate']"/>
+                <param name="certificate" mapping="['certificate']" domain="string"/>
+                <param name="prodDate" mapping="['prodDate']"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="status.id" mapping="['docStatusId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['displayedValue']"/>
+            </out-parameters>
+            <success-text>Документ на изготовление № {docNumber} сохранен</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="changeFormulaDoc"/>
+                <validation ref-id="clearFormulaDoc"/>
+                <validation ref-id="prodDocCheckUnique"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/inventory/productionDoc
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>При удалении Документа на изготовление будут удалены все его спецификации.
+                Вы уверены, что хотите удалить Документа на изготовление?
+            </confirmation-text>
+            <success-text>Документ и спецификации удалены</success-text>
+        </action>
+
+        <action id="execute" form-submit-label="Провести" name="Провести">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/inventory/execute
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="executeDate.id" mapping="['executeDate']" domain="string"/>
+                <param name="docType.name" mapping="['docType']"/>
+                <param name="empPos.id" mapping="['empPosId']"/>
+                <param name="sendStore.id" mapping="['storeId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Документ проведён</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="emplPosIsEmpty"/>
+            </validations>
+        </action>
+
+        <action id="cancel" form-submit-label="Отменить" name="Отменить">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/inventory/execute/cancel
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docType.name" mapping="['docType']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <confirmation-text>Вы действительно хотите отменить проводку документа?</confirmation-text>
+            <success-text>Проводка документа отменена</success-text>
+        </action>
+    </actions>
+
+    <validations>
+
+        <constraint id="prodDocCheckUnique" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.document d
+                    inner join inventory.production_doc pd on pd.id=d.id
+                    where int_doc_type_id = :docTypeId
+                    and org_id = :orgId
+                    and int_doc_number = :docNumber
+                    and (:id is null or d.id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['docNumber']" domain="string"/>
+                <param name="docType.id" mapping="['docTypeId']"/>
+                <param name="org.id" mapping="['orgId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Документ с таким номером уже существует.</message>
+        </constraint>
+
+        <constraint id="changeFormulaDoc" level="warning">
+            <message>При изменении поля "Пропись" существующие записи спецификации будут удалены. Сохранить с новой Прописью?
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.production_doc d
+                    where
+                    d.id = :id  and
+                    d.formula_doc_id != :formulaDocId and :formulaDocId is not null
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="formulaDoc.id" mapping="['formulaDocId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="clearFormulaDoc" level="warning">
+            <message>При очищении поля "Пропись" существующие записи спецификации будут удалены. Сохранить?
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.production_doc d
+                    where
+                    d.id = :id  and
+                    d.formula_doc_id is not null and :formulaDocId is null
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="formulaDoc.id" mapping="['formulaDocId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="emplPosIsEmpty" level="error">
+            <message>Операция не может быть завершена. Не указана должность в контексте пользователя</message>
+            <expression>typeof empPos!='undefined' &amp;&amp; empPos!=null &amp;&amp; empPos.id!=null</expression>
+        </condition>
+
+        <constraint id="writeOffDocForStoreSupExists" level="warning">
+            <message>Существуют спецификации Акта списания на основе товарных запасов.Спецификации будут удалены.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.write_off_spec s where
+                    s.store_sup_id in (select d.store_sup_id from inventory.production_doc d where d.id= :id)
+                    and s.status_id = 1
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="returnSpecForStoreSupExists" level="warning">
+            <message>Существуют спецификации Возвратного документа на основе товарных запасов. Спецификации будут удалены.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.return_doc_spec s where
+                    s.store_sup_id in (select d.store_sup_id from inventory.production_doc d where d.id= :id)
+                    and s.status_id = 1
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="expInvoiceForPartyExists" level="warning">
+            <message>Существуют спецификации Расходного документа на основе партий. Спецификации будут удалены.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.exp_spec s
+                    inner join inventory.exp_invoice inv on inv.id = s.doc_id
+                    inner join inventory.batch batch on s.batch_id=batch.id
+                    inner join inventory.store_supply ss on ss.batch_id=batch.id
+                    inner join inventory.production_doc pd on ss.id = pd.store_sup_id
+                    and pd.id = :id and s.status_exp_id = 1
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="checkQuantity" level="error">
+            <message>Значение некорректное или превышает максимально допустимое</message>
+            <expression on="quantity"><![CDATA[
+                var regex= new RegExp('^\\d{1,9}\\.\\d+$|^\\d{1,9}$');
+                regex.test(quantity);
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkMneiQuantity" level="error">
+            <message>Значение некорректное или превышает максимально допустимое</message>
+            <expression on="mneiQuantity"><![CDATA[
+                var regex= new RegExp('^\\d{1,9}\\.\\d+$|^\\d{1,9}$');
+                regex.test(mneiQuantity);
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+
+</object>

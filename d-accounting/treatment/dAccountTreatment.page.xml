@@ -1,0 +1,870 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-patient-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+    <object-id>dAccountTreatment</object-id>
+    <layout>d-account/n2o/ext/layout/treatmentLayout</layout>
+    <name>Пациенты д-учёта</name>
+    <regions>
+        <region place="filter-panel" type="none">
+            <container id="registerFilter" refresh-dependent-container="true">
+                <wgt:edit-form src="d-account/n2o/ext/css/d-accounting" css-class="register-filter" customize="css">
+                    <wgt:model>query</wgt:model>
+                    <wgt:query-id>registerFilter</wgt:query-id>
+                    <fs:field-set>
+                        <ctrl:classifier id="register" label="Регистр" autoselect="true" required="true">
+                            <ctrl:query query-id="dAccountRegisterToClinic" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="clinic.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:update-model target="form" query-id="registerFilterSet" master-field-id="register.id"
+                                               detail-field-id="register.id" value-field-id="id"/>
+                        </ctrl:classifier>
+                    </fs:field-set>
+                </wgt:edit-form>
+            </container>
+        </region>
+        <region place="top" type="none">
+            <container id="dAccount" refresh-dependent-container="true" depends-on="registerFilter">
+                <wgt:table master-field-id="register.id" detail-field-id="registerId">
+                    <wgt:query-id>dAccountTreatment</wgt:query-id>
+                    <wgt:size>5</wgt:size>
+                    <wgt:name>Пациенты д-учёта</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="num"/>
+                        <wgt:column column-field-id="fio"/>
+                        <wgt:column column-field-id="gender.name"/>
+                        <wgt:column column-field-id="birth_dt"/>
+                        <wgt:column column-field-id="age"/>
+                        <wgt:column column-field-id="socGroup.name"/>
+                        <wgt:column column-field-id="diagnos.name"/>
+                        <wgt:column column-field-id="hiv.name"/>
+                        <wgt:column column-field-id="regDate"/>
+                        <wgt:column column-field-id="ckind.name"/>
+                        <wgt:column column-field-id="moName"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="toPatient" label="Перейти в регистр"
+                                       icon="glyphicon glyphicon-arrow-right">
+                            <wgt:a href="#dAccountRegister" target="newWindow"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:filters opened="false">
+                        <rc:patient id="patient" label="Пациент" isFilter="true" control-style="width:350px;"/>
+                        <ctrl:date-time id="birth_dt" label="Дата рождения"/>
+                        <ctrl:classifier id="socGroup" label="Социальный статус" search-are-you-type="true">
+                            <ctrl:query query-id="socialGroups" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                    </wgt:filters>
+                </wgt:table>
+            </container>
+        </region>
+
+        <region place="observationPlan" type="list">
+            <container id="observationPlan" depends-on="dAccount" refresh-dependent-container="true">
+                <wgt:table detail-field-id="account.id" master-field-id="id">
+                    <wgt:query-id>observationPlan</wgt:query-id>
+                    <wgt:size>5</wgt:size>
+                    <wgt:name>План наблюдения</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="fromDt"/>
+                        <wgt:column column-field-id="toDt"/>
+                        <wgt:column column-field-id="period.name"/>
+                        <wgt:column column-field-id="weekDay.name"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="addObservPlan" label="Создать" icon="icon-plus" context="false">
+                            <wgt:show-modal page-id="dAccountObservPlan" action-id="create" refresh-on-close="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="showObservPlan" label="Просмотреть" context="true">
+                            <wgt:show-modal page-id="observationPlanShow" detail-field-id="plan.id" master-field-id="id"
+                                            refresh-on-close="true">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="account_id" ref="account.id"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delObservPlan" label="Удалить" context="true"
+                                       icon="glyphicon glyphicon-remove">
+                            <wgt:invoke-action action-id="deletePlan"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="closeObservPlan" label="Закрыть" context="true">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[(fromDt <= today()) && ((toDt == null) || (toDt > today()))]]></wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:invoke-action action-id="closePlan"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="addVisit" label="Явился" context="true">
+                            <wgt:show-modal page-id="observationPlan" detail-field-id="plan.id" master-field-id="id"
+                                            refresh-on-close="true">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="account_id" ref="account.id"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[(accountActiveCaseId != null)]]>
+                                    </wgt:expression>
+                                    <wgt:tooltip>Нет открытого случая!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:filters opened="false">
+                        <ctrl:date-time id="fromDt" label="Дата создания"/>
+                        <ctrl:classifier id="period" label="Периодичность" search-are-you-type="true" readonly="false">
+                            <ctrl:query query-id="dAccountTimePeriod" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                    </wgt:filters>
+                </wgt:table>
+            </container>
+            <container id="case" depends-on="dAccount" refresh-dependent-container="true">
+                <wgt:table detail-field-id="account.id" master-field-id="id">
+                    <wgt:name>Случаи</wgt:name>
+                    <wgt:query-id>dAccountCase</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="number"/>
+                        <wgt:column column-field-id="create_date"/>
+                        <wgt:column column-field-id="vrach.name"/>
+                        <wgt:column column-field-id="main_diagnos.caption"/>
+                        <wgt:column column-field-id="stage.name"/>
+                        <wgt:column column-field-id="closing_step.date"/>
+                    </wgt:columns>
+                    <wgt:filters opened="false">
+                        <ctrl:input-text id="number"/>
+                        <ctrl:date-time id="create_date"/>
+                        <ctrl:classifier id="main_diagnos" label="Диагноз" search-are-you-type="true">
+                            <ctrl:query query-id="phthisiatryDiagnosis" label-field-id="name" value-field-id="id"/>
+                            <ctrl:show-modal page-id="phthisiatryDiagnosisTree" result-container-id="diagnosis"
+                                             value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="vrach" label="Врач">
+                            <ctrl:show-modal page-id="phthisiatryResGroupIndiv" result-container-id="resource"
+                                             label-field-id="fio" value-field-id="employee_position_id"/>
+                        </ctrl:classifier>
+                        <ctrl:checkbox id="closeCase" label="Закрытые случаи">
+
+                        </ctrl:checkbox>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createCase" context="false" label="Создать" icon="icon-plus">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[(account.activeCaseId == null)]]>
+                                    </wgt:expression>
+                                    <wgt:tooltip>Открытый случай может быть только один!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:show-modal page-id="dAccountCaseCreate" action-id="create"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editCase" context="true" label="Изменить" icon="icon-pencil">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[((isInReestr == 0) && (closing_step.id == null))]]></wgt:expression>
+                                    <wgt:tooltip>Случай выгружен в счёт-реестр. Редактирование невозможно!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:show-modal page-id="dAccountCaseEdit" action-id="update"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteCase" context="true" label="Удалить" icon="glyphicon glyphicon-remove">
+                            <wgt:invoke-action action-id="deleteCase"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[((isInReestr == 0) && (closing_step.id == null))]]></wgt:expression>
+                                    <wgt:tooltip>Случай выгружен в счёт-реестр. Удаление невозможно!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="closeCase" label="Результат" context="true"
+                                       icon="glyphicons glyphicons-keys">
+                            <wgt:show-modal page-id="dAccountCaseClose" action-id="closeCase"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[(visit_exists && activeTreatmentPlan == null)]]></wgt:expression>
+                                    <wgt:tooltip>Невозможно внести результат, так как нет ни одного посещения или
+                                        имеется не закрытый план лечения.
+                                    </wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>closing_step.id == null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editCloseCase" label="Результат" context="true"
+                                       icon="glyphicons glyphicons-keys">
+                            <wgt:show-modal page-id="dAccountCaseCloseEdit" action-id="editCloseCase"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>closing_step.id != null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="reopen" label="Переоткрыть" context="true"
+                                       icon="glyphicons glyphicons-restart">
+                            <wgt:invoke-action action-id="reopen"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>closing_step.id != null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+            <container id="step" depends-on="case">
+                <wgt:table master-field-id="id" detail-field-id="case.id">
+                    <wgt:name>Посещения</wgt:name>
+                    <wgt:query-id>dAccountStep</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="admission_date"/>
+                        <wgt:column column-field-id="vrach_label"/>
+                        <wgt:column column-field-id="mainDiagnosCaption"/>
+                        <wgt:column column-field-id="service.name"/>
+                    </wgt:columns>
+                    <wgt:filters opened="false">
+                        <ctrl:date-time id="admission_date"/>
+                        <ctrl:classifier id="vrach" label="Врач">
+                            <ctrl:query query-id="phthisiatryResVrach" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="vrachOrg.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="main_diagnos" label="Диагноз" search-are-you-type="true">
+                            <ctrl:query query-id="phthisiatryDiagnosis" label-field-id="name" value-field-id="id"/>
+                            <ctrl:show-modal page-id="phthisiatryDiagnosisTree" result-container-id="diagnosis"
+                                             value-field-id="id"/>
+                        </ctrl:classifier>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="editStep" context="true" label="Изменить" icon="icon-pencil">
+                            <wgt:show-modal page-id="dAccountStepEdit" action-id="update"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteStep" context="true" label="Удалить" icon="glyphicon glyphicon-remove">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[(countPhisycalService == 0)]]>
+                                    </wgt:expression>
+                                    <wgt:tooltip>Невозможно удалить посещение, в рамках которого оказана услуга или
+                                        произведен осмотр!
+                                    </wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:invoke-action action-id="deleteDAccountStep"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="hosp_ref" label="Направления на госпитализацию">
+                            <wgt:sub-menu>
+                                <wgt:menu-item id="new" label="Новое" context="true">
+                                    <wgt:conditions>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>admission_date == today()</wgt:expression>
+                                            <wgt:tooltip>Не сегодняшняя явка</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                    </wgt:conditions>
+                                    <wgt:show-modal page-id="dAccountHospRefferal" master-field-id="id"
+                                                    detail-field-id="account.id">
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="edit" label="Просмотр" context="true">
+                                    <wgt:show-modal page-id="dAccountHospRefferalView" master-field-id="patient.id"
+                                                    detail-field-id="patient_id">
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+
+        <region place="treatmentPlan" type="list">
+            <container id="treatmentPlanContainer" depends-on="dAccount" refresh-dependent-container="true">
+                <wgt:table detail-field-id="account.id" master-field-id="id">
+                    <wgt:query-id>treatmentPlanList</wgt:query-id>
+                    <wgt:size>5</wgt:size>
+                    <wgt:name>Курс химиотерапии</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="num"/>
+                        <wgt:column column-field-id="create_dt"/>
+                        <wgt:column column-field-id="chemo_phase.name"/>
+                        <wgt:column column-field-id="chemo_regimen.name"/>
+                        <wgt:column column-field-id="treatment_result.name"/>
+                        <wgt:column column-field-id="end_dt"/>
+                        <wgt:column column-field-id="weight_from"/>
+                        <wgt:column column-field-id="weight_to"/>
+                    </wgt:columns>
+                    <wgt:filters>
+                        <ctrl:input-text id="num" label="№ карты лечения"/>
+                        <ctrl:date-time id="create_dt" label="Дата начала"/>
+                        <ctrl:classifier id="chemo_phase" label="Фаза ХТ" search-are-you-type="true">
+                            <ctrl:query query-id="chemoPhase" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="chemo_regimen" label="Режим ХТ" search-are-you-type="true">
+                            <ctrl:query query-id="chemoRegimen" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="treatment_result" label="Исход" search-are-you-type="true">
+                            <ctrl:query query-id="treatmentResult" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createTreatmentPlan" context="false" label="Создать" icon="icon-plus">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[((account.activeCaseId != null) && (account.activePlanId == null))]]>
+                                    </wgt:expression>
+                                    <wgt:tooltip>Имеется не закрытый план лечения или нет открытого случая.
+                                    </wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:show-modal-form
+                                    form-id="treatmentPlanCreate"
+                                    width="90%;max-width:900px;min-width:500px;"
+                                    refresh-on-close="true">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="createTreatmentPlan"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editTreatmentPlan" context="true" label="Изменить" icon="icon-pencil">
+                            <wgt:show-modal-form
+                                    form-id="treatmentPlanEdit"
+                                    width="90%;max-width:900px;min-width:500px;"
+                                    master-field-id="id"
+                                    detail-field-id="id"
+                                    refresh-on-close="true">
+                                <wgt:edit model="query">
+                                    <wgt:invoke-action action-id="update"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="deleteTreatmentPlan" context="true">
+                            <wgt:invoke-action action-id="deleteTreatmentPlan" confirmation="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="showTreatmentPlan" context="true" label="Просмотреть">
+                            <wgt:show-modal page-id="treatmentPlanShow"
+                                            master-field-id="id"
+                                            detail-field-id="id">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+            <container id="prescriptions" depends-on="treatmentPlanContainer">
+                <wgt:table detail-field-id="plan.id" master-field-id="id">
+                    <wgt:name>Лекарственные назначения</wgt:name>
+                    <wgt:query-id>dAccountPrescription</wgt:query-id>
+                    <wgt:size>5</wgt:size>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Добавить" context="false" id="create">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[(plan.case.id != null) && (plan.step.id != null)]]>
+                                    </wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:show-modal-form
+                                    form-id="hosp_prescription"
+                                    width="960px;"
+                                    refresh-on-close="true">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="createInDAccount"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Изменить" context="true" id="update">
+                            <wgt:show-modal-form
+                                    form-id="hosp_prescription"
+                                    width="960px;"
+                                    refresh-on-close="true"
+                                    master-field-id="id"
+                                    detail-field-id="id">
+                                <wgt:edit model="query">
+                                    <wgt:invoke-action action-id="save"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id == 1 || status.id == 2</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id == 1 || status.id == 2</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Подтвердить" id="confirm" context="true">
+                            <wgt:invoke-action action-id="confirm" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id == 1</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Отменить" context="true" id="cancel">
+                            <wgt:show-modal-form
+                                    form-id="hosp_prescription_cancel"
+                                    refresh-on-close="true">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="cancel"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id == 3</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Возобновить" context="true" id="resume">
+                            <wgt:invoke-action action-id="resume" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id == 5</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Просмотр" context="true" id="read">
+                            <wgt:show-modal
+                                    master-field-id="id"
+                                    detail-field-id="id"
+                                    width="90%;max-width:1024px;min-width:960px;"
+                                    page-id="hosp_prescription_read">
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id != 1</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Копировать" context="true" id="copy">
+                            <wgt:show-modal-form
+                                    form-id="hosp_prescription_copy"
+                                    width="960px;"
+                                    refresh-on-close="true"
+                                    master-field-id="id"
+                                    detail-field-id="id">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="createInDAccount"/>
+                                </wgt:edit>
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="plan" ref="plan"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal-form>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Продлить" context="true" id="prolong">
+                            <wgt:show-modal-form
+                                    form-id="hosp_prescription_prolong"
+                                    refresh-on-close="true"
+                                    master-field-id="id"
+                                    detail-field-id="id">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="prolong"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id == 3</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="name" width="20%">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="dose">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="periodBeginDt">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="periodEndDt">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="periodicity">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="visitTerm">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="statusName">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="doctorName">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+                    </wgt:columns>
+                    <wgt:rows>
+                        <wgt:color color-field-id="statusColor"/>
+                    </wgt:rows>
+
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="periodBeginDt" direction="ASC"/>
+                    </wgt:sortings>
+
+                    <wgt:filters>
+                        <ctrl:classifier id="hold" label="Препарат" search-are-you-type="true">
+                            <ctrl:query query-id="inv_holding" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="doctor" label="Врач" search-are-you-type="true">
+                            <ctrl:query query-id="hosp_resourceEmployeePositionResource" value-field-id="id"
+                                        label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="status" label="Статус" search-are-you-type="true">
+                            <ctrl:query query-id="prescriptionStatus" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                    </wgt:filters>
+                </wgt:table>
+            </container>
+            <container id="prescriptionScheduleList" depends-on="prescriptions" refresh-dependent-container="true">
+                <wgt:table detail-field-id="prescription.id" master-field-id="id">
+                    <wgt:name>Исполнение назначений</wgt:name>
+                    <wgt:query-id>dAccountPrescriptionSchedule</wgt:query-id>
+                    <wgt:size>5</wgt:size>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="statusIcon" width="5%" tooltip-field-id="statusIconTooltip">
+                            <wgt:icon>
+                                <wgt:switch>
+                                    <wgt:case value="1">icon-time</wgt:case>
+                                    <wgt:case value="2">icon-ok</wgt:case>
+                                    <wgt:case value="3">icon-remove</wgt:case>
+                                </wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="tm" width="3%">
+                            <wgt:color color-field-id="isPatientMedicamentColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="holding" width="15%">
+                            <wgt:color color-field-id="isPatientMedicamentColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="dose" width="10%">
+                            <wgt:color color-field-id="isPatientMedicamentColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="administrationRoute">
+                            <wgt:color color-field-id="isPatientMedicamentColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="visitTerm">
+                            <wgt:color color-field-id="isPatientMedicamentColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="note">
+                            <wgt:color color-field-id="isPatientMedicamentColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="cancelReason">
+                            <wgt:color color-field-id="isPatientMedicamentColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="funding" width="6%">
+                            <wgt:color color-field-id="isPatientMedicamentColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="executionDt" format="date 'DD.MM.YYYY HH:mm'" width="10%">
+                            <wgt:color color-field-id="isPatientMedicamentColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="modif" width="8%">
+                            <wgt:color color-field-id="isPatientMedicamentColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="store" width="8%">
+                            <wgt:color color-field-id="isPatientMedicamentColor"/>
+                        </wgt:column>
+
+                    </wgt:columns>
+
+                    <wgt:action-menu>
+
+                        <wgt:menu-item label="Выполнить" id="quickExecute" context="true">
+                            <wgt:invoke-action action-id="quickExecute" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>executionDt == null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Отменить выполнение" id="cancelExecute" context="true"
+                                       icon="icon-remove-circle">
+                            <wgt:invoke-action action-id="cancelExecute" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>executionDt != null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Отменить назначение" id="cancel" context="true" icon="icon-ban-circle">
+                            <wgt:show-modal-form
+                                    form-id="hosp_prescription_execution_cancel"
+                                    refresh-on-close="true"
+                                    master-field-id="prescription.scheduleIds"
+                                    detail-field-id="prescription.scheduleIds">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="cancelPrescriptionSchedule"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>executionDt == null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Изменить дату выполнения" id="changeExecuteDate" context="true">
+                            <wgt:show-modal-form
+                                    form-id="hosp_execution_date"
+                                    refresh-on-close="true"
+                                    master-field-id="prescription.scheduleIds"
+                                    detail-field-id="prescription.scheduleIds">
+                                <wgt:edit model="query">
+                                    <wgt:invoke-action action-id="changeExecuteDate"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>executionDt != null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+
+                    <wgt:filters opened="true">
+                        <ctrl:classifier id="hold" label="Препарат" search-are-you-type="true">
+                            <ctrl:query query-id="inv_holding" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+
+                        <ctrl:date-time id="dt" label="Дата" required="true" default-value="now()" format="DD.MM.YYYY">
+                        </ctrl:date-time>
+
+                        <ctrl:select id="status" label="Статус">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Запланировано"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Выполнено"}</ctrl:option>
+                                <ctrl:option>{"id":3, "name":"Отменено"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                                <ctrl:value field-id="name">Запланировано</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:select>
+
+                    </wgt:filters>
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="tm" direction="ASC"/>
+                    </wgt:sortings>
+
+                </wgt:table>
+
+            </container>
+        </region>
+
+        <region place="services" type="list">
+            <container id="physicalService" depends-on="dAccount" refresh-dependent-container="true">
+                <wgt:table detail-field-id="account.id" master-field-id="id">
+                    <wgt:query-id>physicalServiceList</wgt:query-id>
+                    <wgt:size>7</wgt:size>
+                    <wgt:name>Осмотры</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="plan.num"/>
+                        <wgt:column column-field-id="service"/>
+                        <wgt:column column-field-id="renderedDoctor"/>
+                        <wgt:column column-field-id="status"/>
+                        <wgt:column column-field-id="renderedDate" format="date 'DD.MM.YYYY HH:mm'"/>
+                    </wgt:columns>
+                    <wgt:filters>
+                        <ctrl:input-text id="num" label="№ карты лечения"/>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Добавить" context="false" id="createPhysicalService">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[((account.activeCaseId != null) && (account.activeStepId != null) && (account.activePlanId != null))]]>
+                                    </wgt:expression>
+                                    <wgt:tooltip>Невозможно добавить осмотр вне плана лечения.</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:open-page page-id="dAccountPhysicalServiceEdit"
+                                           width="50%"
+                                           refresh-on-close="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Изменить" context="true" id="updatePhysicalService">
+                            <wgt:open-page page-id="dAccountPhysicalServiceEdit"
+                                           width="50%"
+                                           detail-field-id="id"
+                                           master-field-id="id"
+                                           action-id="update"
+                                           refresh-on-close="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Печать" id="print" context="true">
+                            <wgt:a href="${rmis.report.url}?__report=protocol/:printForm:&amp;p=:protocolId:&amp;user_id=:user.id:&amp;__format=pdf"
+                                   target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>protocolId != null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+            <container id="services" depends-on="dAccount">
+                <wgt:table detail-field-id="account.id" master-field-id="id">
+                    <wgt:name>Назначение услуг</wgt:name>
+                    <wgt:query-id>dAccountServiceAndDirectionList</wgt:query-id>
+                    <wgt:size>15</wgt:size>
+                    <wgt:columns>
+                        <wgt:column column-field-id="plan.num"/>
+                        <wgt:column column-field-id="name"/>
+                        <wgt:column column-field-id="plannedDate" format="date 'DD.MM.YYYY HH:mm'"/>
+                        <wgt:column column-field-id="renderedDate" format="date 'DD.MM.YYYY HH:mm'"/>
+                        <wgt:column column-field-id="status"/>
+                        <wgt:column column-field-id="doctor"/>
+                        <wgt:column column-field-id="clinic.name"/>
+                    </wgt:columns>
+                    <wgt:filters>
+                        <ctrl:input-text id="num" label="№ карты лечения"/>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="assign" context="false" label="Назначить">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[((account.activeCaseId != null) && (account.activeStepId != null) && (account.activePlanId != null))]]></wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:show-modal page-id="dAccountServiceAndDirectionForm" width="50%"
+                                            refresh-on-close="true"
+                                            action-id="createPlannedService"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="edit" context="true" label="Изменить">
+                            <wgt:show-modal page-id="dAccountServiceAndDirectionForm" width="50%"
+                                            refresh-on-close="true"
+                                            action-id="updatePlannedService"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isAppointed == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isAppointed == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="В расписание" id="planning" context="false">
+                            <wgt:a href="${rmis.external.host}/plan/planning?organizationId=:account.mo.id:&amp;value=:account.patient.id:&amp;fundingSourceType.id=:account.activeCaseFundingId:&amp;caseId=:account.activeCaseId:&amp;stepId=:account.activeStepId:"
+                                   target="newWindow"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="appointmentCancelReason" context="true" label="Отмена">
+                            <wgt:show-modal-form form-id="appointmentCancelReason" refresh-on-close="true"
+                                                 master-field-id="appointmentId" detail-field-id="appointmentId">
+
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="appointmentCancelReason"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCancelAppointment == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="rendered" context="true" label="Внести результат">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status != 'Оказана'</wgt:expression>
+                                    <wgt:tooltip>Оказанная услуга!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:open-page page-id="serviceResult"
+                                           master-field-id="id" detail-field-id="id"
+                                           width="800px;" refresh-on-close="true">
+                            </wgt:open-page>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="showServiceResult" context="true" label="Просмотреть результат">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status == 'Оказана'</wgt:expression>
+                                    <wgt:tooltip>Оказанная услуга!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:open-page page-id="serviceResultShow"
+                                           master-field-id="id"
+                                           detail-field-id="id">
+                            </wgt:open-page>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Отменить результат" id="cancelRendered" context="true">
+                            <wgt:invoke-action action-id="cancelRendered" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[(isRendered == true &&((renderedDoctorEmployeePosition.id==null)||(employeePositionUser.id == renderedDoctorEmployeePosition.id)))]]></wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Печать" id="print" context="true">
+                            <wgt:a href="${rmis.report.url}?__report=protocol/:printForm:&amp;p=:protocolId:&amp;user_id=:user.id:&amp;__format=pdf"
+                                   target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>protocolId != null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+
+</page>

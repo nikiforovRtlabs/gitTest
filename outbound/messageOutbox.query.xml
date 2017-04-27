@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>messageOutbox</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from messenger.message_outbox mb
+                join messenger.message m on m.id=mb.message_id
+                join messenger.severity_level l on l.id=m.severity_level_id
+                join messenger.alert_type t on t.id=m.alert_type_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mb)
+                from messenger.message_outbox mb
+                join messenger.message m on m.id=mb.message_id
+                join messenger.severity_level l on l.id=m.severity_level_id
+                join messenger.alert_type t on t.id=m.alert_type_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>mb.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>recepientQueryType.id</id>
+            <domain>integer</domain>
+            <expression>(case when mb.recepient_query is null then 1 else 2 end)</expression>
+        </field>
+
+        <field>
+            <id>recepients</id>
+            <domain>integer[]</domain>
+            <expression>(select array_to_json(array_agg(row_to_json(ol_json)))
+                from (select u.id, ind.surname||' '||ind.name||' '||ind.patr_name||' ('||u.login||')' as name from messenger.message__user rec
+                left join sec_user u on rec.user_id=u.id
+                left join sec_user_party up on up.id=u.id
+                left join pim_individual ind on ind.id=up.party_id
+                where rec.msg_id=mb.message_id) as ol_json)
+            </expression>
+
+        </field>
+
+        <field>
+            <id>recepientQuery</id>
+            <domain>string</domain>
+            <expression>mb.recepient_query</expression>
+        </field>
+
+        <field>
+            <id>sendDate</id>
+            <domain>date</domain>
+            <expression>mb.send_date</expression>
+        </field>
+
+        <field>
+            <id>messageId</id>
+            <domain>integer</domain>
+            <expression>m.id</expression>
+        </field>
+        <field>
+            <id>level.id</id>
+            <domain>integer</domain>
+            <expression>m.severity_level_id</expression>
+        </field>
+        <field>
+            <id>alertType.id</id>
+            <domain>integer</domain>
+            <expression> m.alert_type_id</expression>
+        </field>
+        <field>
+            <id>caption</id>
+            <name>Заголовок</name>
+            <domain>string</domain>
+            <expression>m.caption</expression>
+        </field>
+        <field>
+            <id>text</id>
+            <name>Оповещение</name>
+            <domain>string</domain>
+            <expression>m.text</expression>
+        </field>
+    </fields>
+
+</query>

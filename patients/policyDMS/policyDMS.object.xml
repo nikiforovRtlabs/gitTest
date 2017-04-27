@@ -1,0 +1,108 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>policyDMS</name>
+
+    <actions>
+        <action id="create" form-submit-label="Сохранить" name="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/patients/{individualId}/documents
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient_id" mapping="['individualId']"/>
+                <param name="series.value" mapping="['series']" domain="string"/>
+                <param name="number.value" mapping="['number']" domain="string"/>
+                <param name="note" mapping="['note']"/>
+                <param name="expireDate" mapping="['expireDate']"/>
+                <param name="issueDate" mapping="['issueDate']"/>
+                <param name="birthDate" mapping="['birthDate']"/>
+                <param name="surname" mapping="['surname']"/>
+                <param name="name" mapping="['name']"/>
+                <param name="patrName" mapping="['patrName']"/>
+                <param name="issuerText" mapping="['issuerText']"/>
+                <param name="issuer.id" mapping="['issuerId']"/>
+                <param name="docType.id" mapping="['typeId']"/>
+                <param name="docType.name" mapping="['typeName']"/>
+                <param name="docType.code" mapping="['typeCode']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueDMSSeriesAndNumber"/>
+            </validations>
+        </action>
+        <action id="update" form-submit-label="Сохранить" name="Сохранить">
+            <invocation>
+                <rest:rest method="PUT">
+                    ${n2o.backend.path}/patients/{individualId}/documents/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient_id" mapping="['individualId']"/>
+                <param name="series.value" mapping="['series']" domain="string"/>
+                <param name="number.value" mapping="['number']" domain="string"/>
+                <param name="note" mapping="['note']"/>
+                <param name="expireDate" mapping="['expireDate']"/>
+                <param name="issueDate" mapping="['issueDate']"/>
+                <param name="birthDate" mapping="['birthDate']"/>
+                <param name="surname" mapping="['surname']"/>
+                <param name="name" mapping="['name']"/>
+                <param name="patrName" mapping="['patrName']"/>
+                <param name="issuerText" mapping="['issuerText']"/>
+                <param name="issuer.id" mapping="['issuerId']"/>
+                <param name="docType.id" mapping="['typeId']"/>
+                <param name="docType.name" mapping="['typeName']"/>
+                <param name="docType.code" mapping="['typeCode']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueDMSSeriesAndNumber"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/patients/{individualId}/documents/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient_id" mapping="['individualId']"/>
+                <param name="displayNumber" mapping="['displayNumber']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить запись "{displayNumber}"?</confirmation-text>
+            <success-text>Запись "{displayNumber}" удалена.</success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkUniqueDMSSeriesAndNumber" level="error">
+            <message>Уже существует полис ДМС с таким номером и серией.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*)
+                        from pim_individual_doc doc
+                        where doc.indiv_id != (:individualId)::integer and doc.type_id = (:typeId)::integer
+                        and upper(trim((case when doc.series is null then '' else doc.series end)||number)::text) =
+                        upper(trim((case when :series is null then '' else :series end)||:number)::text)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient_id" mapping="['individualId']"/>
+                <param name="docType.id" mapping="['typeId']"/>
+                <param name="series.value" mapping="['series']" domain="string"/>
+                <param name="number.value" mapping="['number']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

@@ -1,0 +1,177 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>postInfo</object-id>
+
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_post pst
+                inner join pim_department dep on (pst.department_id = dep.id)
+                inner join pim_organization org on (dep.org_id = org.id)
+                left  join inventory.store store on (store.id = pst.store_id)
+                where :where
+                order by pst.name
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(pst)
+                from md_post pst
+                inner join pim_department dep on (pst.department_id = dep.id)
+                inner join pim_organization org on (dep.org_id = org.id)
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pst_list</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>pst.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>pst.name</expression>
+            <filters>
+                <filter type="eq" filter-field="name">trim(upper(pst.name)) like trim(upper('%'||:name||'%'))</filter>
+            </filters>
+            <display/>
+        </field>
+
+        <field>
+            <id>pst.name</id>
+            <domain>string</domain>
+            <expression>pst.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>is_common</id>
+            <domain>boolean</domain>
+            <expression>pst.is_common</expression>
+            <filters>
+                <filter type="eq" filter-field="is_common">pst.is_common = :is_common</filter>
+            </filters>
+            <display/>
+        </field>
+
+        <field>
+            <id>is_over_ten_days</id>
+            <domain>boolean</domain>
+            <expression>pst.is_over_ten_days</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+
+        <field>
+            <id>is_remains_storage</id>
+            <domain>boolean</domain>
+            <expression>pst.is_remains_storage</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+
+        <field>
+            <id>allow_descendants</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>1=1</expression>
+            <filters>
+                <filter type="eq" filter-field="allow_descendants">
+                    1=1
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>dep.id</expression>
+            <filters>
+                <filter type="eq" filter-field="department.id">
+                    ( (dep.id = :department.id) or (:allow_descendants::boolean and dep.id in (select get_all_department_children(:department.id, :org.id )) ) )
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>department.name</id>
+            <domain>string</domain>
+            <expression>dep.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>org.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+
+        <field>
+            <id>org.name</id>
+            <domain>string</domain>
+            <expression>org.short_name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <expression>store.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+
+        <field>
+            <id>store.name</id>
+            <domain>string</domain>
+            <expression>store.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>activity.id</id>
+            <domain>integer</domain>
+            <expression>1=1</expression>
+            <filters auto-generate="true">
+                <filter type="eq" filter-field="activity.id"><![CDATA[
+                    (case
+                      when :activity.id = 1 then (pst.to_dt isnull or pst.to_dt >= current_date)
+                      when :activity.id = 2 then (pst.to_dt notnull and pst.to_dt < current_date)
+                      when :activity.id = 3 then true
+                     end)
+                    ]]>
+                </filter>
+            </filters>
+            <display/>
+        </field>
+
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <expression>pst.from_dt</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>to_dt</id>
+            <domain>date</domain>
+            <expression>pst.to_dt</expression>
+            <display/>
+        </field>
+
+    </fields>
+
+</query>

@@ -1,0 +1,146 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>storeSupply</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from (select hm.id hmid,hm.name hmname, fund.id fundid,fund.name fundname,s.id sid,s.name sname, cg.id cgid,cg.name cgname,
+                (select cm.mnemocode from cmn_measure cm where cm.id = hm.mnei_id) mnei, hm.mnei_id hmmnei_id,
+
+                inventory.get_quantity_info_string_for_store_supplies(sum(ss.act_balance_mnei),sum(ss.act_balance_arr),hm.id,fund.id,
+                s.id,to_date(:doc.docDate,'dd.MM.YYYY HH24:MI'), hm.price_unit_flag, hm.mnei_id, coalesce(hm.mnei_count_in_sec_pk,1)) quantity
+                from inventory.store_supply ss
+                left outer join inventory.batch batch on batch.id=ss.batch_id
+                left outer join inventory.store s on s.id=ss.store_id
+                left outer join inventory.funding_source fund on fund.id=ss.funding_source_id
+                left outer join inventory.hold_modif hm on hm.id=batch.hold_modif_id
+                left outer join inventory.holding h on h.id = hm.holding_id
+                left outer join inventory.commodity_group cg on cg.id=h.commodity_group_id group by hm.id, fund.id, s.id,cg.id) as store_supply
+                where store_supply.quantity !='0' and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(store_supply)
+                from (select hm.id hmid,hm.name hmname, fund.id fundid,fund.name fundname,s.id sid,s.name sname, cg.id cgid,cg.name cgname,
+                (select cm.mnemocode from cmn_measure cm where cm.id = hm.mnei_id) mnei, hm.mnei_id hmmnei_id,
+
+                inventory.get_quantity_info_string_for_store_supplies(sum(ss.act_balance_mnei),sum(ss.act_balance_arr),hm.id,fund.id,
+                s.id,to_date(:doc.docDate,'dd.MM.YYYY HH24:MI'), hm.price_unit_flag, hm.mnei_id, coalesce(hm.mnei_count_in_sec_pk,1)) quantity
+                from inventory.store_supply ss
+                left outer join inventory.batch batch on batch.id=ss.batch_id
+                left outer join inventory.store s on s.id=ss.store_id
+                left outer join inventory.funding_source fund on fund.id=ss.funding_source_id
+                left outer join inventory.hold_modif hm on hm.id=batch.hold_modif_id
+                left outer join inventory.holding h on h.id = hm.holding_id
+                left outer join inventory.commodity_group cg on cg.id=h.commodity_group_id group by hm.id, fund.id, s.id,cg.id) as store_supply
+                where store_supply.quantity !='0' and :where
+            </n2o:count-query>
+            <n2o:alias>ss</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>string</domain>
+            <expression>CONCAT(sid,'_',hmid,'_',cgid,'_',fundid)</expression>
+        </field>
+        <field>
+            <id>doc.id</id>
+            <domain>integer</domain>
+            <expression>(select :doc.id)</expression>
+        </field>
+        <field>
+            <id>doc.docDate</id>
+            <domain>string</domain>
+            <expression>(select :doc.docDate)</expression>
+        </field>
+        <field>
+            <id>doc.docDateString</id>
+            <domain>string</domain>
+            <expression>(select :doc.docDateString)</expression>
+        </field>
+        <field>
+            <id>doc.docNumber</id>
+            <domain>string</domain>
+            <expression>(select :doc.docNumber)</expression>
+        </field>
+        <field>
+            <id>doc.sendStore.id</id>
+            <domain>integer</domain>
+            <expression>sid</expression>
+            <search>:expression = :doc.sendStore.id</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>doc.sendStore.name</id>
+            <domain>string</domain>
+            <expression>sname</expression>
+            <name>Склад</name>
+        </field>
+        <field>
+            <id>holdModif.id</id>
+            <domain>integer</domain>
+            <expression>hmid</expression>
+            <search>:expression = :holdModif.id</search>
+        </field>
+        <field>
+            <id>holdModif.name</id>
+            <domain>string</domain>
+            <expression>hmname</expression>
+            <name>Наименование ЛС и ИМН</name>
+        </field>
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>cgid</expression>
+            <search>:expression = :comGroup.id</search>
+        </field>
+        <field>
+            <id>doc.comGroup.id</id>
+            <domain>integer</domain>
+            <expression>cgid</expression>
+            <search>:expression = :doc.comGroup.id or :doc.comGroup.id is null</search>
+        </field>
+        <field>
+            <id>comGroup.name</id>
+            <domain>string</domain>
+            <name>Товарная группа</name>
+            <expression>cgname</expression>
+        </field>
+        <field>
+            <id>doc.fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fundid</expression>
+            <search>:expression = :doc.fundSource.id or :doc.fundSource.id is null</search>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fundid</expression>
+            <search>:expression = :fundSource.id</search>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <name>Источник финансирования</name>
+            <expression>fundname</expression>
+        </field>
+        <field>
+            <id>quantityInfo</id>
+            <domain>string</domain>
+            <name>Кол-во</name>
+            <expression>quantity</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>mneiUnit.name</id>
+            <domain>string</domain>
+            <name>МНЕИ</name>
+            <expression>mnei</expression>
+        </field>
+        <field>
+            <id>mneiUnit.id</id>
+            <domain>integer</domain>
+            <expression>hmmnei_id</expression>
+        </field>
+    </fields>
+</query>

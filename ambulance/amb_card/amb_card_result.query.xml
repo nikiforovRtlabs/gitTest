@@ -1,0 +1,357 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>Карта вызова</name>
+    <object-id>amb_card_result</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.md_ambulance_call cal
+                left join amb.md_ambulance_call_result cr on cr.id = cal.id
+                left join mc_case cas on cas.id = cr.case_id
+                left join mc_step step on step.id = cas.closing_step_id
+                <!--смена для определения смены бригады спц-->
+                <!--должно вычисляться по бригаде, обслужившей вызов-->
+                join amb.md_ambulance_change mac on mac.id = COALESCE((select change_id from amb.sr_res_team_job where id = cal.brg_id), (select change_id from amb.sr_res_team_job_resourse where id = cal.emp_id))
+                left join mc_diagnosis masterd on masterd.id = step.main_diagnosis_id
+                left join md_diagnosis masterdiag on masterdiag.id = masterd.diagnos_id
+                left join md_diagnosis masterinjury on masterinjury.id = masterd.injury_reason_id
+                left join mc_disease_type mdist on mdist.id = masterd.disease_type_id
+                left join mc_diagnosis accompd on accompd.case_id = cas.id and accompd.is_main is false
+                left join md_diagnosis accompdiag on accompdiag.id = accompd.diagnos_id
+                left join md_diagnosis accompinjury on accompinjury.id = accompd.injury_reason_id
+                left join mc_disease_type accompdist on accompdist.id = accompd.disease_type_id
+                left join amb.md_ambulance_out_delay_reason delres on delres.id = cr.out_delay_reason_id
+                left join md_clinic policl on policl.id = cr.activ_visit_clinic_id
+                left join pim_organization poliorg on poliorg.id = policl.id
+                left join md_diagnosis deathdiag on deathdiag.id = cas.death_reason_diagnosis_id
+                left join pim_employee_position deathpep on deathpep.id = step.death_employee_id
+                left join pim_employee deathpe on deathpe.id = deathpep.employee_id
+                left join pim_individual deathpi on deathpi.id = deathpe.individual_id
+                left join pim_position deathppos on deathppos.id = deathpep.position_id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select 1
+            </n2o:count-query>
+            <n2o:alias>cal</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>cal.id</expression>
+        </field>
+        <!--вид-->
+        <field>
+            <id>call_kind.id</id>
+            <domain>integer</domain>
+            <expression>cal.call_kind_id</expression>
+        </field>
+        <!--результат оказания МП-->
+        <field>
+            <id>care_result.id</id>
+            <domain>integer</domain>
+            <name>Результат оказания МП</name>
+            <expression>step.outcome_id</expression>
+        </field>
+        <field>
+            <id>diagnosis_is_not_confirmed</id>
+            <domain>boolean</domain>
+            <expression>cr.diagnosis_is_not_confirmed</expression>
+        </field>
+
+        <!--результат-->
+        <field>
+            <id>step_result.id</id>
+            <domain>integer</domain>
+            <name>Результат выезда</name>
+            <expression>step.result_id</expression>
+        </field>
+
+        <field>
+            <id>spc_diag</id>
+            <domain>boolean</domain>
+            <expression>
+                case when exists (select * from amb.md_ambulance_call_on_base cob
+                join amb.md_ambulance_call child on child.id = cob.id
+                where cob.call_on_base_id = cal.id
+                and child.call_kind_id = 5)
+                then (select child.reason_diag from amb.md_ambulance_call_on_base cob
+                join amb.md_ambulance_call child on child.id = cob.id
+                where cob.call_on_base_id = cal.id
+                and child.call_kind_id = 5)
+                else null
+                end
+            </expression>
+        </field>
+
+        <!--диагноз-->
+        <field>
+            <id>master_diag.id</id>
+            <domain>integer</domain>
+            <name>Диагноз основной</name>
+            <expression>masterdiag.id</expression>
+        </field>
+
+        <field>
+            <id>master_injuryReason.id</id>
+            <domain>integer</domain>
+            <expression>masterinjury.id</expression>
+        </field>
+        <field>
+            <id>mdiadisease_type.id</id>
+            <domain>integer</domain>
+            <expression>mdist.id</expression>
+        </field>
+        <field>
+            <id>accomp_diag.id</id>
+            <domain>integer</domain>
+            <name>Диагноз сопутствующий</name>
+            <expression>accompdiag.id</expression>
+        </field>
+        <field>
+            <id>accomp_injuryReason.id</id>
+            <domain>integer</domain>
+            <expression>accompinjury.id</expression>
+        </field>
+        <field>
+            <id>accompdiadisease_type.id</id>
+            <domain>integer</domain>
+            <expression>accompdist.id</expression>
+        </field>
+
+        <field>
+            <id>take_birth.id</id>
+            <domain>integer</domain>
+            <expression>cr.take_birth_id</expression>
+        </field>
+
+        <field>
+            <id>recommendation.id</id>
+            <domain>integer</domain>
+            <display>
+                case when cr.need_exit_through is not null
+                then 1
+                else
+                    case when cr.activ_visit_clinic_id is not null
+                    then 2
+                    else 3
+                    end
+                end
+            </display>
+        </field>
+
+        <field>
+            <id>need_exit_through</id>
+            <domain>integer</domain>
+            <name>Больной нуждается в активном выезде через .. часов</name>
+            <expression>cr.need_exit_through</expression>
+        </field>
+
+        <!--рекомендации-->
+        <field>
+            <id>activ_visit_clinic.id</id>
+            <domain>integer</domain>
+            <name>Подлежит активному посещению врачом поликлиники</name>
+            <expression>poliorg.id</expression>
+        </field>
+        <field>
+            <id>activ_visit_clinic.name</id>
+            <domain>string</domain>
+            <name>Подлежит активному посещению врачом поликлиники</name>
+            <expression>coalesce(poliorg.full_name,poliorg.short_name)</expression>
+        </field>
+        <field>
+            <id>other_recommendations</id>
+            <domain>string</domain>
+            <name>Другие рекомендации</name>
+            <expression>cr.other_recommendations</expression>
+        </field>
+
+        <!--результат: Доставлен в больницу-->
+        <!--госпитализация-->
+        <field>
+            <id>to_org.id</id>
+            <domain>integer</domain>
+            <expression>cal.to_org_id</expression>
+        </field>
+
+        <field>
+            <id>to_department.id</id>
+            <domain>integer</domain>
+            <expression>cal.to_department_id</expression>
+        </field>
+
+        <field>
+            <id>toaddr_data.id</id>
+            <domain>integer</domain>
+            <expression>cal.to_address_id</expression>
+        </field>
+
+        <field>
+            <id>to_addr_descr</id>
+            <domain>string</domain>
+            <name>Доп. ориентиры</name>
+            <expression>cal.to_description</expression>
+        </field>
+
+        <!--условия видимости различных полей-->
+        <field>
+            <id>has_hosp</id>
+            <domain>boolean</domain>
+            <expression>
+                case when (select id from amb.md_ambulance_call_note where call_id = cal.id  and note_id = 21 and note_active is true and note_type is true) is not null then true else false end
+            </expression>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <!--Дата/Время выбытия  -  в зависимости от исхода это либо время приёма в МО, либо время передачи СПЦ, либо время завершения вызова-->
+        <field>
+            <id>stoutcome_date</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>step.outcome_date</expression>
+        </field>
+        <field>
+            <id>stoutcome_time</id>
+            <domain>string</domain>
+            <name>Время</name>
+            <expression>to_char(step.outcome_time, 'HH24:mi')</expression>
+        </field>
+
+        <!--Дежурный врач-->
+        <field>
+            <id>toclemployee.id</id>
+            <domain>integer</domain>
+            <name>Дежурный врач</name>
+            <expression>cr.receive_emp_id</expression>
+        </field>
+
+        <field>
+            <id>receive_emp</id>
+            <domain>string</domain>
+            <name>Дежурный врач: текст</name>
+            <expression>cr.receive_emp</expression>
+        </field>
+        <field>
+            <id>list_note</id>
+            <domain>string</domain>
+            <name>Примечание к сопроводительному листу</name>
+            <expression>cr.list_note</expression>
+        </field>
+
+        <field>
+            <id>death_date</id>
+            <domain>date</domain>
+            <name>Констатация смерти</name>
+            <expression>step.death_date</expression>
+        </field>
+        <field>
+            <id>death_time</id>
+            <domain>string</domain>
+            <name>Констатация смерти</name>
+            <expression>case when step.death_time is not null then to_char(step.death_time,'hh24:mi') else null end
+                <!--else '00:00' -->
+            </expression>
+        </field>
+
+        <!--Врач, констатировавший смерть-->
+        <field>
+            <id>deathemployee.id</id>
+            <domain>integer</domain>
+            <name>Принял</name>
+            <expression>deathpep.id</expression>
+        </field>
+        <field>
+            <id>deathemployee.namePos</id>
+            <domain>string</domain>
+            <name>Принял</name>
+            <expression>deathpi.surname||' '||left(initcap(deathpi.name),1)||'. '||left(initcap(deathpi.patr_name),1)||'.'||'('||deathppos.name||')'</expression>
+        </field>
+
+        <field>
+            <id>deathres</id>
+            <domain>string</domain>
+            <expression>
+                cas.death_reason
+            </expression>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>death_diag.id</id>
+            <domain>integer</domain>
+            <name>Посмертный диагноз</name>
+            <expression>deathdiag.id</expression>
+        </field>
+
+        <field>
+            <id>spc_brg.id</id>
+            <domain>integer</domain>
+            <name>СПЦ бригада</name>
+            <expression>cr.receive_brg</expression>
+        </field>
+        <field>
+            <id>spc_change.id</id>
+            <domain>integer</domain>
+            <expression>mac.id</expression>
+        </field>
+
+        <!--способ транспортировки-->
+        <field>
+            <id>transp_type.id</id>
+            <domain>integer</domain>
+            <name>Способ транспортировки</name>
+            <expression>cas.transporting_type_id</expression>
+        </field>
+
+        <field>
+            <id>condition_ns</id>
+            <domain>string</domain>
+            <name>Примечание к сопр.листу</name>
+            <expression>cr.list_note</expression>
+        </field>
+
+        <field>
+            <id>out_delay_reason.id</id>
+            <domain>integer</domain>
+            <name>Причина выезда с опозданием</name>
+            <expression>delres.id</expression>
+        </field>
+
+        <field>
+            <id>milage</id>
+            <domain>string</domain>
+            <name>Километраж</name>
+            <expression>cast(cr.milage as varchar(5))</expression>
+        </field>
+
+        <field>
+            <id>casenote</id>
+            <domain>string</domain>
+            <expression>
+                cas.note
+            </expression>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <!--регистратор КВ-->
+        <field>
+            <id>registrator.id</id>
+            <domain>integer</domain>
+            <expression>
+                cr.registrator_id
+            </expression>
+            <display value="#{emplPos.id?}" unavailable="true"/>
+        </field>
+    </fields>
+</query>

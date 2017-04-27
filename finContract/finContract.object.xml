@@ -1,0 +1,162 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Контракт</name>
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/fin-contract
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="finContractType.id" mapping="['finContractTypeId']"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="docDate" mapping="['docDate']"/>
+                <param name="validDate.begin" mapping="['beginDate']"/>
+                <param name="validDate.end" mapping="['endDate']"/>
+                <param name="sum" mapping="['sum']" domain="string"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+                <param name="provider.id" mapping="['providerId']"/>
+                <param name="customer.id" mapping="['customerId']"/>
+                <param name="comment" mapping="['comment']" domain="string"/>
+                <param name="isExecuted" mapping="['isExecuted']"/>
+                <param name="docStatus.id" mapping="['statusId']"/>
+                <param name="statusDate" mapping="['statusDate']"/>
+                <param name="deliveryDateList" mapping="['deliveryDateList']" domain="object[]"/>
+                <param name="deliveryPlanChanged" mapping="['deliveryPlanChanged']" domain="boolean"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['displayedValue']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="sumValueValidation"/>
+                <validation ref-id="deliveryPlanIsChanged"/>
+            </validations>
+            <success-text>Контракт №{docNumber} сохранен</success-text>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from fin_contract where id= :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>При удалении Контракта будут удалены и его спецификации. Вы действительно хотите удалить запись?</confirmation-text>
+            <success-text>Контракт и его спецификации успешно удалены.</success-text>
+        </action>
+
+        <action id="accept" name="Подтвердить">
+            <invocation>
+                <sql:sql>
+                    update fin_contract set
+                       status_id=(select id from fin_contract_status_type where code='ACCEPTED'),
+                       status_dt=current_date
+                    where id = :id;
+
+                    update inventory.fin_contract_spec set
+                       status_id=(select id from fin_contract_status_type where code='ACCEPTED'),
+                       status_dt=current_date
+                    where doc_id= :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Изменить статус Контракта на "Подтверждён"?</confirmation-text>
+            <success-text>Статус Контракта изменён на "Подтверждён"</success-text>
+        </action>
+
+        <action id="revertAccept" name="Снять подтверждение">
+            <invocation>
+                <sql:sql>
+                    update fin_contract set
+                    status_id=(select id from fin_contract_status_type where code='DRAFT'),
+                    status_dt=current_date
+                    where id = :id;
+
+                    update inventory.fin_contract_spec set
+                    status_id=(select id from fin_contract_status_type where code='DRAFT'),
+                    status_dt=current_date
+                    where doc_id= :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Изменить статус Контракта на "Черновик"?</confirmation-text>
+            <success-text>Статус Контракта изменён на "Черновик"</success-text>
+        </action>
+
+        <action id="execute" name="Исполнить" form-submit-label="Исполнить">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/inventory/fin-contract/setExecutedStatus
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['contractId']"/>
+            </in-parameters>
+            <confirmation-text>Изменить статус договора/контракта на "Исполнен"?</confirmation-text>
+            <success-text>Статус Контракта изменён на "Исполнен"</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="sumValueValidation" level="error">
+            <message>Значение некорректное или превышает максимально допустимое</message>
+            <expression on="sum">
+                <![CDATA[
+                var regex = new RegExp('^\\d{1,17}\\.\\d+$|^\\d{1,17}$');
+                regex.test(sum);
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="deliveryPlanIsChanged" level="warning">
+            <message>При изменении Графика поставок данные будут измененны в спецификациях. Вы уверены, что хотите сохранить изменения?
+            </message>
+            <expression>
+                <![CDATA[
+                 typeof id=='undefined' || id==null ||
+                 (typeof deliveryPlanChanged =='undefined' || deliveryPlanChanged == null || deliveryPlanChanged == '' || deliveryPlanChanged == false || deliveryPlanChanged =='false')
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="deliveryDateInNotValid" level="error">
+            <message>Не входит в период действия контракта</message>
+            <expression on="planIsValid"><![CDATA[ planIsValid==true ||  planIsValid=='true']]></expression>
+        </condition>
+
+        <constraint id="checkUnique" level="error">
+            <message>
+                Контракт с номером {number} уже зарегистрирован.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from fin_contract f
+                    inner join public.fin_contractor c on c.contract_id=f.id and c.role_id=(select id from fin_contractor_role r where r.code='CUSTOMER')
+                    where f.number=:number
+                    and f.type_id=:finContractTypeId
+                    and c.organization_id = :customerId
+                    and (f.id!=:id or :id is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="finContractType.id" mapping="['finContractTypeId']"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="customer.id" mapping="['customerId']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+</object>

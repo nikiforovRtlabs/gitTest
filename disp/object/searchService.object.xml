@@ -1,0 +1,123 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>searchService</name>
+
+    <actions>
+        <action id="search" name="поиск услуги">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    select disp.saveEventServiceFromSearch(:id, :service_rendered_id, :case_id, :date, :resource_srg_id,
+                    :service_type_id, :hasCreateService, :link_id, :event_service_id, :org_id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="service_rendered.id" mapping="['service_rendered_id']" domain="integer"/>
+                <param name="case_id" mapping="['case_id']" domain="integer"/>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="resource.srg_id" mapping="['resource_srg_id']" domain="integer"/>
+                <param name="service_type.id" mapping="['service_type_id']" domain="integer"/>
+                <param name="hasCreateService" mapping="['hasCreateService']" domain="boolean"/>
+                <param name="link_id" mapping="['link_id']" domain="integer"/>
+                <param name="event_service_id" mapping="['event_service_id']" domain="integer"/>
+                <param name="org.id" mapping="['org_id']" domain="integer"/>
+                <param name="service_patient_id"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="is_service_changed" mapping="[0][0][0]" domain="string"/>
+            </out-parameters>
+            <success-text>{is_service_changed}</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="serviceInBill"/>
+                <validation ref-id="assertServiceLink"/>
+            </validations>
+        </action>
+        <action id="clearService" name="Удалить">
+            <invocation>
+                <sp:stored-procedure name="disp.clearService" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="service.render_id" mapping="[0]"/>
+                <param name="service_patient_id" mapping="[1]"/>
+                <param name="case_id" mapping="[2]"/>
+                <param name="event_service_id" mapping="[3]"/>
+            </in-parameters>
+            <!--<confirmation-text>Услуга {service.name} была оказана, данные об оказании будут утеряны</confirmation-text>-->
+        </action>
+    </actions>
+    <validations>
+        <constraint id="serviceInBill" level="error">
+            <message>На случай сформирован счет-реестр, действие запрещено</message>
+            <invocation>
+                <sql:sql>
+                    select disp.service_validate3(:id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="service_patient_id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="checkDateByCase" level="error">
+            <invocation>
+                <sql:sql><![CDATA[
+                    SELECT CASE WHEN to_date(:open_date_before_year, 'DD.MM.YYYY') > to_date(:date, 'DD.MM.YYYY') THEN 1 ELSE 2 END;
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="case_id" mapping="['case']"/>
+                <param name="open_date_before_year" mapping="['open_date_before_year']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 2"/>
+            <message>Дата оказания услуги должна быть не ранее {open_date_before_year}</message>
+        </constraint>
+        <condition id="checkDateCurrentDate" level="error">
+            <message>Дата оказания не должна превышать текущую дату</message>
+            <expression on="date">
+                <![CDATA[
+                        var now = moment(); now.diff(moment(date, 'DD.MM.YYYY')) >= 0;
+                ]]>
+            </expression>
+        </condition>
+        <constraint id="checkDateAfterEvent" level="error">
+            <invocation>
+                <sql:sql><![CDATA[
+                    select count(*) from mc_case mc
+                    join mc_step ms on mc.closing_step_id = ms.id
+                    where ms.admission_date < to_date(:date, 'DD.MM.YYYY') and mc.id = :case_id
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="case_id" mapping="['case_id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Дата оказания услуги должна быть не позднее даты посещения терапевта</message>
+        </constraint>
+        <constraint id="assertServiceLink" level="error">
+            <invocation>
+                <sql:sql><![CDATA[
+                    select count(1) from disp.md_event_service_link l
+                    inner join disp.md_event_service_patient p on p.service_id = l.event_service_id
+                    where p.event_patient_id = :eventPatientId and l.service_id = :renderServiceId
+                    and (:link_id is null or :link_id <> l.id)
+                ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="service_rendered.id" mapping="['renderServiceId']"/>
+                <param name="id" mapping="['eventPatientId']"/>
+                <param name="link_id" mapping="['link_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Выбранная услуга уже оказана пациенту в рамках мероприятия</message>
+        </constraint>
+    </validations>
+</object>

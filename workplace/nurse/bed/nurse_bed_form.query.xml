@@ -1,0 +1,122 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>nurse_bed</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select
+                FROM sr_res_group_relationship srgr
+                    LEFT JOIN md_bed_resource mbr ON mbr.id = srgr.resource_id
+                    LEFT JOIN md_bed mb ON mb.id = mbr.bed_id
+                    LEFT OUTER JOIN md_bed_profile bp ON bp.id = mb.bed_profile_id
+                    LEFT JOIN pim_room pr ON pr.id = mb.room_id
+                    JOIN sr_res_group srg ON srg.id = srgr.group_id
+                    JOIN mc_step s ON s.res_group_id = srg.id
+                    JOIN hsp_record r ON r.id = s.id
+                    JOIN mc_case c ON c.id = s.case_id
+                WHERE :where
+                ORDER BY :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                SELECT count(1)
+                FROM sr_res_group_relationship srgr
+                    LEFT JOIN md_bed_resource mbr ON mbr.id = srgr.resource_id
+                    LEFT JOIN md_bed mb ON mb.id = mbr.bed_id
+                    LEFT OUTER JOIN md_bed_profile bp ON bp.id = mb.bed_profile_id
+                    LEFT JOIN pim_room pr ON pr.id = mb.room_id
+                    JOIN sr_res_group srg ON srg.id = srgr.group_id
+                    JOIN mc_step s ON s.res_group_id = srg.id
+                    JOIN hsp_record r ON r.id = s.id
+                    JOIN mc_case c ON c.id = s.case_id
+                WHERE :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>srgr.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>departmentId</id>
+            <domain>integer</domain>
+            <expression>r.department_id</expression>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>resGroupId</id>
+            <domain>integer</domain>
+            <expression>srg.id</expression>
+        </field>
+
+        <field>
+            <id>case.step.id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <search>s.id = :case.step.id</search>
+        </field>
+
+        <field>
+            <id>beginDate</id>
+            <domain>date</domain>
+            <expression>srgr.bdatetime</expression>
+        </field>
+
+        <field>
+            <id>endDate</id>
+            <domain>date</domain>
+            <expression>srgr.edatetime</expression>
+        </field>
+
+        <field>
+            <id>bedResource.id</id>
+            <domain>integer</domain>
+            <expression>srgr.resource_id</expression>
+        </field>
+
+        <field>
+            <id>bedResource.name</id>
+            <domain>string</domain>
+            <expression>'Койка № '||mb.number|| COALESCE (' - '||bp.name, '')</expression>
+        </field>
+
+        <field>
+            <id>isLastRelation</id>
+            <domain>boolean</domain>
+            <expression>(select rs.id = srgr.id from sr_res_group_relationship rs
+                join sr_res_role rr on rr.id = rs.role_id
+                where rs.group_id = srg.id and rr.kind_id = 5 order by rs.bdatetime desc limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>isClosed</id>
+            <domain>boolean</domain>
+            <expression>s.outcome_date is not null</expression>
+        </field>
+
+        <field>
+            <id>medRoom.id</id>
+            <domain>integer</domain>
+            <expression>mb.room_id</expression>
+        </field>
+
+    </fields>
+
+
+</query>

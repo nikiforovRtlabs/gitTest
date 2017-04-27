@@ -1,0 +1,188 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+
+    <object-id>infoPanel</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from pim_individual i
+                join pci_patient p on i.id = p.id
+                join pim_gender g on g.id = i.gender_id
+                left join md_soc_group sg on sg.id = p.social_group_id
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>select 1</n2o:count-query>
+
+            <n2o:alias>i</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>i.id = :patient.id</search>
+        </field>
+        <field>
+            <id>birthday</id>
+            <domain>date</domain>
+            <expression>to_char(i.birth_dt, 'dd.MM.yyyy')</expression>
+        </field>
+        <field>
+            <id>gender.name</id>
+            <domain>string</domain>
+            <expression>g.name</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>coalesce(i.surname, '') || ' ' || coalesce(i.name, '') || ' ' || coalesce(i.patr_name, '')</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <display>date_part('year', age(i.birth_dt))</display>
+            <name>Возраст</name>
+        </field>
+        <field>
+            <id>insurance</id>
+            <domain>string</domain>
+            <display>get_min_priority_oms_doc(i.id)</display>
+            <name>Страховой полис</name>
+        </field>
+        <field>
+            <id>document</id>
+            <domain>string</domain>
+            <display>get_min_priority_identy_doc(i.id)</display>
+            <name>Документ</name>
+        </field>
+        <field>
+            <id>registered_address</id>
+            <domain>string</domain>
+            <display>(select adr__get_search_name(pa.addr_id) from pim_party_address pa
+                join pim_party_addr_to_addr_type patat on patat.party_address_id = pa.id
+                join pim_address_type t on t.id = patat.address_type_id and t.code = 'REGISTER'
+                where pa.party_id = i.id
+                and pa.is_valid = true)</display>
+            <name>Адрес регистрации</name>
+        </field>
+        <field>
+            <id>residence_address</id>
+            <domain>string</domain>
+            <display>(select adr__get_search_name(pa.addr_id) from pim_party_address pa
+                join pim_party_addr_to_addr_type patat on patat.party_address_id = pa.id
+                join pim_address_type t on t.id = patat.address_type_id and t.code = 'ACTUAL'
+                where pa.party_id = i.id
+                and pa.is_valid = true)</display>
+            <name>Адрес проживания</name>
+        </field>
+        <field>
+            <id>work</id>
+            <domain>string</domain>
+            <display>get_job_org_name(i.id)</display>
+            <name>Место работы</name>
+        </field>
+        <field>
+            <id>social_situation</id>
+            <domain>string</domain>
+            <display>sg.name</display>
+            <name>Социальное положение</name>
+        </field>
+        <field>
+            <id>preferential_category</id>
+            <domain>string</domain>
+            <display>(select bt.name || ':' || bd.name from pci_benefit b
+                left join pci_benefit_type bt on bt.id = b.benefit_type_id
+                left join pci_benefit_definition bd on bd.id = b.benefit_def_id
+                where b.patient_id = p.id
+                and (b.from_dt is null or b.from_dt &lt;= now())
+                and (b.to_dt is null or b.to_dt &gt;= now()) limit 1)</display>
+            <name>Льготные категории</name>
+        </field>
+        <field>
+            <id>agreement</id>
+            <domain>boolean</domain>
+            <display>(exists (select 1 from pim_indiv_agreement ia
+                where ia.indiv_id = i.id
+                and (ia.from_dt is null or ia.from_dt &lt;= now())
+                and (ia.to_dt is null or ia.to_dt &gt;= now()) limit 1))</display>
+            <name>Соглашения</name>
+        </field>
+        <field>
+            <id>attachments</id>
+            <domain>string</domain>
+            <display>(select o.short_name || ' ' || pr.reg_dt || ' ' || rt.name || ' ' || cd.name
+                from pci_patient_reg pr
+                left join md_reg_type rt on rt.id = pr.type_id
+                left join md_reg_state rs on rs.id = pr.state_id and rs.code = '1'
+                left join pim_organization o on o.id = pr.clinic_id
+                left join md_clinic_district cd on cd.id = pr.district_id
+                where pr.patient_id = p.id
+                limit 1)</display>
+            <name>Прикрепления пациента</name>
+        </field>
+        <field>
+            <id>dispensary</id>
+            <domain>string</domain>
+            <display>(select d.code || ' ' || d.name
+                from pci_dispensary disp
+                left join md_diagnosis d on d.id = disp.diagnosis_id
+                where disp.patient_id = p.id
+                and (disp.reg_out_dt is null)
+                limit 1)</display>
+            <name>Диспансерный учет</name>
+        </field>
+        <field>
+            <id>date_last_visit_lpu</id>
+            <domain>date</domain>
+            <display>(select to_char(max(s.admission_date), 'dd.MM.yyyy')
+                from mc_case c
+                left join mc_step s on s.case_id = c.id
+                where c.patient_id = p.id)</display>
+            <name>Дата последнего визита в ЛПУ</name>
+        </field>
+        <field>
+            <id>hospitalized</id>
+            <domain>string</domain>
+            <display>(select to_char(c.open_date, 'dd.MM.yyyy') || ' ' || diag.code
+                from mc_case c
+                left join mc_case_type ct on ct.id = c.case_type_id
+                left join mc_diagnosis d on d.id = c.main_diagnos_id
+                left join md_diagnosis diag on d.diagnos_id = diag.id
+                where c.patient_id = p.id
+                and ct.case_mode_id = 2
+                and c.open_date &lt;= now()
+                and c.closing_step_id is null
+                order by c.open_date
+                limit 1)</display>
+            <name>Госпитализирован</name>
+        </field>
+        <field>
+            <id>served_by_outpatient</id>
+            <domain>string</domain>
+            <display>(select to_char(c.open_date, 'dd.MM.yyyy') || ' ' || diag.code
+                from mc_case c
+                left join mc_case_type ct on ct.id = c.case_type_id
+                left join mc_diagnosis d on d.id = c.main_diagnos_id
+                left join md_diagnosis diag on d.diagnos_id = diag.id
+                where c.patient_id = p.id
+                and ct.case_mode_id = 1
+                and c.open_date &lt;= now()
+                and c.closing_step_id is null
+                order by c.open_date
+                limit 1)</display>
+            <name>Обслуживается амбулаторно</name>
+        </field>
+    </fields>
+</query>

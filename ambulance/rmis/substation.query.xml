@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <!--<id>substation</id>-->
+    <name>Подстанция</name>
+    <object-id>substation</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from pim_department d
+                join pim_organization o on d.org_id = o.id
+                left join md_department_address pda on pda.dep_id = d.id and pda.is_display = true
+                where ((d.to_dt is null) or (d.to_dt >cast(now() as date))) and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(d)
+                from pim_department d
+                join pim_organization o on d.org_id = o.id
+                left join md_department_address pda on pda.dep_id = d.id and pda.is_display = true
+                where ((d.to_dt is null) or (d.to_dt >cast(now() as date))) and :where
+            </n2o:count-query>
+            <n2o:alias>d</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>d.id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <display>d.name</display>
+            <name>Наименование</name>
+            <search>trim(upper(d.name)) like trim(upper('%'||:name||'%'))</search>
+            <sorting>d.name</sorting>
+        </field>
+        <field>
+            <id>dorgId</id>
+            <domain>integer</domain>
+            <name>Станция</name>
+            <expression>d.org_id</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>o.id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>org.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Станция</name>-->
+            <!--<expression>coalesce(o.short_name,o.full_name)</expression>-->
+            <!--<search>upper(:expression) like upper('%'||:name||'%')</search>-->
+        <!--</field>-->
+        <field>
+            <id>addr</id>
+            <domain>integer</domain>
+            <name>Адрес</name>
+            <expression>pda.addr_id</expression>
+        </field>
+
+        <field>
+            <id>change</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(ig) from (
+                select
+                macs.id as id,
+                to_char(macs.change_begin,'HH24:mi') as changeSet_begin,
+                to_char(macs.change_period,'hh24') as changeSet_inter,
+                to_char(macs.change_begin,'HH24:mi') as btime,
+                to_char(macs.change_begin+macs.change_period,'HH24:mi') as etime
+                from amb.md_ambulance_change_setting macs
+                where macs.clinic_id = :dorgId and
+                (macs.department_id is null or macs.department_id = d.id)
+                order by macs.department_id
+                limit 1) as ig)
+            </expression>
+        </field>
+    </fields>
+</query>

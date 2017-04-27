@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>addr_def_level_setting</id>-->
+    <name>Настройка значения адреса (умолчание)</name>
+    <actions>
+        <action id="create" name="Добавить">
+            <invocation>
+                <sql:sql>
+                    select amb.add_def_addr_level_setting (:scopeId,:settingId,coalesce(:depScope,:orgScope,:globScope),:value
+                    ,:station,:substation);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="scope.id" mapping="['scopeId']" domain="integer"/>
+                <param name="setting.id" mapping="['settingId']" domain="string"/>
+                <param name="scopeId" mapping="['globScope']" domain="integer"/>
+                <param name="station.scopeId" mapping="['orgScope']" domain="integer"/>
+                <param name="substation.scopeId" mapping="['depScope']" domain="integer"/>
+                <!--<param name="route.scopeId" mapping="['routeScope']" domain="integer"/>-->
+                <param name="address.id" mapping="['value']" domain="integer"/>
+                <param name="station.id" mapping="['station']" domain="integer"/>
+                <param name="substation.id" mapping="['substation']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    update public.cmn_setting_value set value = cast(:value as varchar)
+                    where scope_id = coalesce(:depScope,:orgScope,:globScope) and setting_id = :settingId;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <!--<param name="scope.id" mapping="['scopeId']" domain="integer"/>-->
+                <param name="setting.id" mapping="['settingId']" domain="string"/>
+                <param name="scopeId" mapping="['globScope']" domain="integer"/>
+                <param name="station.scopeId" mapping="['orgScope']" domain="integer"/>
+                <param name="substation.scopeId" mapping="['depScope']" domain="integer"/>
+                <!--<param name="route.scopeId" mapping="['routeScope']" domain="integer"/>-->
+                <param name="address.id" mapping="['value']" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkUniqueAddrSetting" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*)
+                    from public.cmn_setting_value csv
+                    join public.cmn_scope csc on csc.id = csv.scope_id
+                    where
+                    csv.setting_id = :settingId and
+                    csv.scope_id = coalesce(:depScope,:orgScope,:globScope) and
+                    csc.type_id = :scopeId
+                    and (:id is null or cast(csv.scope_id as varchar)||csv.setting_id != :id)
+                    ]]>
+                    <!--(csv.scope_id = :orgScope or (csv.scope_id <> :orgScope)) and-->
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" required="false"/>
+                <param name="scope.id" mapping="['scopeId']" domain="integer"/>
+                <param name="setting.id" mapping="['settingId']" domain="string"/>
+                <param name="scopeId" mapping="['globScope']" domain="integer"/>
+                <param name="station.scopeId" mapping="['orgScope']" domain="integer" required="false"/>
+                <param name="substation.scopeId" mapping="['depScope']" domain="integer"/>
+                <!--<param name="route.scopeId" mapping="['routeScope']" domain="integer"/>-->
+                <param name="address.id" mapping="['value']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Настройка уже существует в системе</message>
+        </constraint>
+    </validations>
+</object>

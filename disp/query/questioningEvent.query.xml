@@ -1,0 +1,689 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <id>questioningEvent</id>
+    <name>Анкетирование</name>
+    <object-id>questioningEvent</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_questioning meq
+                left join disp.md_event_patient mep on mep.id = meq.id
+                left join disp.md_event me on me.id = mep.event_id
+                left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service_patient_agreement mespa on mespa.service_id = mesp.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join SR_RES_GROUP msrg on msrg.id = mes.resource_id
+
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                left join (select ssr.id, msr.case_id, ssr.service_id, ssr.res_group_id, ssr.bdate from MD_SRV_RENDERED msr
+                left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep.case_id and ssr.service_id = mes.service_id
+                left join SR_RES_GROUP srg on srg.id = ssr.res_group_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(meq)
+                from disp.md_event_questioning meq
+                left join disp.md_event_patient mep on mep.id = meq.id
+                left join disp.md_event me on me.id = mep.event_id
+                left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service_patient_agreement mespa on mespa.service_id = mesp.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join SR_RES_GROUP msrg on msrg.id = mes.resource_id
+
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                left join (select ssr.id, msr.case_id, ssr.service_id, ssr.res_group_id, ssr.bdate from MD_SRV_RENDERED msr
+                left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep.case_id and ssr.service_id = mes.service_id
+                left join SR_RES_GROUP srg on srg.id = ssr.res_group_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>meq</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>meqId</id>
+            <domain>Integer</domain>
+            <display>meq.id</display>
+            <search>meq.id = :meqId and mnds.code = 'Д1.02'</search>
+        </field>
+        <field>
+            <id>mep_id</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+        </field>
+        <field>
+            <id>case_id</id>
+            <domain>Integer</domain>
+            <display>mep.case_id</display>
+            <search>mep.case_id = :case_id</search>
+        </field>
+        <field>
+            <id>service_id</id>
+            <domain>Integer</domain>
+            <display>mes.service_id</display>
+            <search>mes.service_id= :service_id</search>
+        </field>
+        <field>
+            <id>ssr_id</id>
+            <domain>integer</domain>
+            <display>ssr.id</display>
+        </field>
+        <field>
+            <id>org_id</id>
+            <domain>Integer</domain>
+            <display>me.org_id</display>
+            <search>me.org_id = :org_id</search>
+        </field>
+        <field>
+            <id>emplPos.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search value="#{emplPos.id?}">1=1</search>
+        </field>
+        <field>
+            <id>resource.id</id>
+            <domain>Integer</domain>
+            <expression>
+                CASE WHEN mes.district_check=TRUE and srg.id IS NULL and (select count(dsrgd.id) from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                where dppr.patient_id = mep.indiv_id) = 1 THEN COALESCE(
+                (select srg.id from SR_RES_GROUP_SERVICE srgs
+                join SR_RES_GROUP srg on srg.id = srgs.group_id
+                join SR_RES_GROUP_RELATIONSHIP srgr on srg.id = srgr.group_id
+                join pim_employee_position_resource epr on epr.id = srgr.resource_id and epr.employee_position_id = :emplPos.id
+                where srg.is_system = false and srgs.srv_type_id = mes.service_id limit 1),
+                (select dsrg.id from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                left join SR_RES_GROUP dsrg on dsrg.id = dsrgs.group_id
+                where dppr.patient_id = mep.indiv_id))
+                ELSE COALESCE(srg.id,
+                (select srg.id from SR_RES_GROUP_SERVICE srgs
+                join SR_RES_GROUP srg on srg.id = srgs.group_id
+                join SR_RES_GROUP_RELATIONSHIP srgr on srg.id = srgr.group_id
+                join pim_employee_position_resource epr on epr.id = srgr.resource_id and epr.employee_position_id = :emplPos.id
+                where srg.is_system = false and srgs.srv_type_id = mes.service_id limit 1), msrg.id)
+                END
+            </expression>
+            <display>
+                :expression
+            </display>
+        </field>
+        <field>
+            <id>resource.srg_id</id>
+            <domain>Integer</domain>
+            <expression>
+                CASE WHEN mes.district_check=TRUE and srg.id IS NULL and (select count(dsrgd.id) from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                where dppr.patient_id = mep.indiv_id) = 1 THEN COALESCE(
+                (select srg.id from SR_RES_GROUP_SERVICE srgs
+                join SR_RES_GROUP srg on srg.id = srgs.group_id
+                join SR_RES_GROUP_RELATIONSHIP srgr on srg.id = srgr.group_id
+                join pim_employee_position_resource epr on epr.id = srgr.resource_id and epr.employee_position_id = :emplPos.id
+                where srg.is_system = false and srgs.srv_type_id = mes.service_id limit 1),
+                (select dsrg.id from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                left join SR_RES_GROUP dsrg on dsrg.id = dsrgs.group_id
+                where dppr.patient_id = mep.indiv_id))
+                ELSE COALESCE(srg.id,
+                (select srg.id from SR_RES_GROUP_SERVICE srgs
+                join SR_RES_GROUP srg on srg.id = srgs.group_id
+                join SR_RES_GROUP_RELATIONSHIP srgr on srg.id = srgr.group_id
+                join pim_employee_position_resource epr on epr.id = srgr.resource_id and epr.employee_position_id = :emplPos.id
+                where srg.is_system = false and srgs.srv_type_id = mes.service_id limit 1), msrg.id)
+                END
+            </expression>
+            <display>
+                :expression
+            </display>
+        </field>
+        <field>
+            <id>resource.name</id>
+            <domain>Integer</domain>
+            <expression>
+                CASE WHEN mes.district_check=TRUE and srg.name IS NULL and (select count(dsrgd.id) from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                where dppr.patient_id = mep.indiv_id) = 1 THEN COALESCE(
+                (select srg.name from SR_RES_GROUP_SERVICE srgs
+                join SR_RES_GROUP srg on srg.id = srgs.group_id
+                join SR_RES_GROUP_RELATIONSHIP srgr on srg.id = srgr.group_id
+                join pim_employee_position_resource epr on epr.id = srgr.resource_id and epr.employee_position_id = :emplPos.id
+                where srg.is_system = false and srgs.srv_type_id = mes.service_id limit 1),
+                (select dsrg.name from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                left join SR_RES_GROUP dsrg on dsrg.id = dsrgs.group_id
+                where dppr.patient_id = mep.indiv_id))
+                ELSE COALESCE(srg.name,
+                (select srg.name from SR_RES_GROUP_SERVICE srgs
+                join SR_RES_GROUP srg on srg.id = srgs.group_id
+                join SR_RES_GROUP_RELATIONSHIP srgr on srg.id = srgr.group_id
+                join pim_employee_position_resource epr on epr.id = srgr.resource_id and epr.employee_position_id = :emplPos.id
+                where srg.is_system = false and srgs.srv_type_id = mes.service_id limit 1), msrg.name)
+                END
+            </expression>
+            <display>
+                :expression
+            </display>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <expression>COALESCE(ssr.bdate, mespa.agree_date, current_date)</expression>
+            <display>COALESCE(ssr.bdate, mespa.agree_date, current_date)</display>
+        </field>
+        <field>
+            <id>q1.id</id>
+            <domain>Integer</domain>
+            <display>meq.q1</display>
+            <search>meq.q1 = :q1.id</search>
+        </field>
+        <field>
+            <id>q2.id</id>
+            <domain>Integer</domain>
+            <display>meq.q2</display>
+            <search>meq.q2 = :q2.id</search>
+        </field>
+        <field>
+            <id>q3.id</id>
+            <domain>Integer</domain>
+            <display>meq.q3</display>
+            <search>meq.q3 = :q3.id</search>
+        </field>
+        <field>
+            <id>q4.id</id>
+            <domain>Integer</domain>
+            <display>meq.q4</display>
+            <search>meq.q4 = :q4.id</search>
+        </field>
+        <field>
+            <id>q5.id</id>
+            <domain>Integer</domain>
+            <display>meq.q5</display>
+            <search>meq.q5 = :q5.id</search>
+        </field>
+        <field>
+            <id>q6.id</id>
+            <domain>Integer</domain>
+            <display>meq.q6</display>
+            <search>meq.q6 = :q6.id</search>
+        </field>
+        <field>
+            <id>q7.id</id>
+            <domain>Integer</domain>
+            <display>meq.q7</display>
+            <search>meq.q7 = :q7.id</search>
+        </field>
+        <field>
+            <id>q8.id</id>
+            <domain>Integer</domain>
+            <display>meq.q8</display>
+            <search>meq.q8 = :q8.id</search>
+        </field>
+        <field>
+            <id>q9.id</id>
+            <domain>Integer</domain>
+            <display>meq.q9</display>
+            <search>meq.q9 = :q9.id</search>
+        </field>
+        <field>
+            <id>q10.id</id>
+            <domain>Integer</domain>
+            <display>meq.q10</display>
+            <search>meq.q10 = :q10.id</search>
+        </field>
+        <field>
+            <id>q11.id</id>
+            <domain>Integer</domain>
+            <display>meq.q11</display>
+            <search>meq.q11 = :q11.id</search>
+        </field>
+        <field>
+            <id>q12.id</id>
+            <domain>Integer</domain>
+            <display>meq.q12</display>
+            <search>meq.q12 = :q12.id</search>
+        </field>
+        <field>
+            <id>q13.id</id>
+            <domain>Integer</domain>
+            <display>meq.q13</display>
+            <search>meq.q13 = :q13.id</search>
+        </field>
+        <field>
+            <id>q14.id</id>
+            <domain>Integer</domain>
+            <display>meq.q14</display>
+            <search>meq.q14 = :q14.id</search>
+        </field>
+        <field>
+            <id>q15.id</id>
+            <domain>Integer</domain>
+            <display>meq.q15</display>
+            <search>meq.q15 = :q15.id</search>
+        </field>
+        <field>
+            <id>q16.id</id>
+            <domain>Integer</domain>
+            <display>meq.q16</display>
+            <search>meq.q16 = :q16.id</search>
+        </field>
+        <field>
+            <id>q17.id</id>
+            <domain>Integer</domain>
+            <display>meq.q17</display>
+            <search>meq.q17 = :q17.id</search>
+        </field>
+        <field>
+            <id>q18.id</id>
+            <domain>Integer</domain>
+            <display>meq.q18</display>
+            <search>meq.q18 = :q18.id</search>
+        </field>
+        <field>
+            <id>q19.id</id>
+            <domain>Integer</domain>
+            <display>meq.q19</display>
+            <search>meq.q19 = :q19.id</search>
+        </field>
+        <field>
+            <id>q20.id</id>
+            <domain>Integer</domain>
+            <display>meq.q20</display>
+            <search>meq.q20 = :q20.id</search>
+        </field>
+        <field>
+            <id>q21.id</id>
+            <domain>Integer</domain>
+            <display>meq.q21</display>
+            <search>meq.q21 = :q21.id</search>
+        </field>
+        <field>
+            <id>q22.id</id>
+            <domain>Integer</domain>
+            <display>meq.q22</display>
+            <search>meq.q22 = :q22.id</search>
+        </field>
+        <field>
+            <id>q23.id</id>
+            <domain>Integer</domain>
+            <display>meq.q23</display>
+            <search>meq.q23 = :q23.id</search>
+        </field>
+        <field>
+            <id>q24.id</id>
+            <domain>Integer</domain>
+            <display>meq.q24</display>
+            <search>meq.q24 = :q24.id</search>
+        </field>
+        <field>
+            <id>q25.id</id>
+            <domain>Integer</domain>
+            <display>meq.q25</display>
+            <search>meq.q25 = :q25.id</search>
+        </field>
+        <field>
+            <id>q26.id</id>
+            <domain>Integer</domain>
+            <display>meq.q26</display>
+            <search>meq.q26 = :q26.id</search>
+        </field>
+        <field>
+            <id>q27.id</id>
+            <domain>Integer</domain>
+            <display>meq.q27</display>
+            <search>meq.q27 = :q27.id</search>
+        </field>
+        <field>
+            <id>q28.id</id>
+            <domain>Integer</domain>
+            <display>meq.q28</display>
+            <search>meq.q28 = :q28.id</search>
+        </field>
+        <field>
+            <id>q29.id</id>
+            <domain>Integer</domain>
+            <display>meq.q29</display>
+            <search>meq.q29 = :q29.id</search>
+        </field>
+        <field>
+            <id>q30.id</id>
+            <domain>Integer</domain>
+            <display>meq.q30</display>
+            <search>meq.q30 = :q30.id</search>
+        </field>
+        <field>
+            <id>q31.id</id>
+            <domain>Integer</domain>
+            <display>meq.q31</display>
+            <search>meq.q31 = :q31.id</search>
+        </field>
+        <field>
+            <id>q32.id</id>
+            <domain>Integer</domain>
+            <display>meq.q32</display>
+            <search>meq.q32 = :q32.id</search>
+        </field>
+        <field>
+            <id>q33.id</id>
+            <domain>Integer</domain>
+            <display>meq.q33</display>
+            <search>meq.q33 = :q33.id</search>
+        </field>
+        <field>
+            <id>q34.id</id>
+            <domain>Integer</domain>
+            <display>meq.q34</display>
+            <search>meq.q34 = :q34.id</search>
+        </field>
+        <field>
+            <id>q35.id</id>
+            <domain>Integer</domain>
+            <display>meq.q35</display>
+            <search>meq.q35 = :q35.id</search>
+        </field>
+        <field>
+            <id>q36.id</id>
+            <domain>Integer</domain>
+            <display>meq.q36</display>
+            <search>meq.q36 = :q36.id</search>
+        </field>
+        <field>
+            <id>q37.id</id>
+            <domain>Integer</domain>
+            <display>meq.q37</display>
+            <search>meq.q37 = :q37.id</search>
+        </field>
+        <field>
+            <id>q38.id</id>
+            <domain>Integer</domain>
+            <display>meq.q38</display>
+            <search>meq.q38 = :q38.id</search>
+        </field>
+        <field>
+            <id>q39.id</id>
+            <domain>Integer</domain>
+            <display>meq.q39</display>
+            <search>meq.q39 = :q39.id</search>
+        </field>
+        <field>
+            <id>q40.id</id>
+            <domain>Integer</domain>
+            <display>meq.q40</display>
+            <search>meq.q40 = :q40.id</search>
+        </field>
+        <field>
+            <id>q41.id</id>
+            <domain>Integer</domain>
+            <display>meq.q41</display>
+            <search>meq.q41 = :q41.id</search>
+        </field>
+        <field>
+            <id>q42.id</id>
+            <domain>Integer</domain>
+            <display>meq.q42</display>
+            <search>meq.q42 = :q42.id</search>
+        </field>
+        <field>
+            <id>q43.id</id>
+            <domain>Integer</domain>
+            <display>meq.q43</display>
+            <search>meq.q43 = :q43.id</search>
+        </field>
+        <field>
+            <id>q44.id</id>
+            <domain>Integer</domain>
+            <display>meq.q44</display>
+            <search>meq.q44 = :q44.id</search>
+        </field>
+        <field>
+            <id>q45.id</id>
+            <domain>Integer</domain>
+            <display>meq.q45</display>
+            <search>meq.q45 = :q45.id</search>
+        </field>
+        <field>
+            <id>q46.id</id>
+            <domain>Integer</domain>
+            <display>meq.q46</display>
+            <search>meq.q46 = :q46.id</search>
+        </field>
+        <field>
+            <id>q47</id>
+            <domain>string</domain>
+            <display>meq.q47</display>
+            <search>meq.q47 = :q47</search>
+        </field>
+        <field>
+            <id>q48</id>
+            <domain>string</domain>
+            <display>meq.q48</display>
+            <search>meq.q48 = :q48</search>
+        </field>
+        <field>
+            <id>q49</id>
+            <domain>string</domain>
+            <display>meq.q49</display>
+            <search>meq.q49 = :q49</search>
+        </field>
+        <field>
+            <id>q50</id>
+            <domain>string</domain>
+            <display>meq.q50</display>
+            <search>meq.q50 = :q50</search>
+        </field>
+
+
+        <field>
+            <id>qa1.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa1</display>
+            <search>meq.qa1 = :qa1.id</search>
+        </field>
+        <field>
+            <id>qa2.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa2</display>
+            <search>meq.qa2 = :qa2.id</search>
+        </field>
+        <field>
+            <id>qa3.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa3</display>
+            <search>meq.qa3 = :qa3.id</search>
+        </field>
+        <field>
+            <id>qa4.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa4</display>
+            <search>meq.qa4 = :qa4.id</search>
+        </field>
+        <field>
+            <id>qa5</id>
+            <domain>string</domain>
+            <display>meq.qa5</display>
+            <search>meq.qa5 = :qa5</search>
+        </field>
+        <field>
+            <id>qa6.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa6</display>
+            <search>meq.qa6 = :qa6.id</search>
+        </field>
+        <field>
+            <id>qa7.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa7</display>
+            <search>meq.qa7 = :qa7.id</search>
+        </field>
+        <field>
+            <id>qa8.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa8</display>
+            <search>meq.qa8 = :qa8.id</search>
+        </field>
+        <field>
+            <id>qa9.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa9</display>
+            <search>meq.qa9 = :qa9.id</search>
+        </field>
+        <field>
+            <id>qa10.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa10</display>
+            <search>meq.qa10 = :qa10.id</search>
+        </field>
+        <field>
+            <id>qa11.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa11</display>
+            <search>meq.qa11 = :qa11.id</search>
+        </field>
+        <field>
+            <id>qa12.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa12</display>
+            <search>meq.qa12 = :qa12.id</search>
+        </field>
+        <field>
+            <id>qa13.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa13</display>
+            <search>meq.qa13 = :qa13.id</search>
+        </field>
+        <field>
+            <id>qa14.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa14</display>
+            <search>meq.qa14 = :qa14.id</search>
+        </field>
+        <field>
+            <id>qa15.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa15</display>
+            <search>meq.qa15 = :qa15.id</search>
+        </field>
+        <field>
+            <id>qa16.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa16</display>
+            <search>meq.qa16 = :qa16.id</search>
+        </field>
+        <field>
+            <id>qa17.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa17</display>
+            <search>meq.qa17 = :qa17.id</search>
+        </field>
+        <field>
+            <id>qa18.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa18</display>
+            <search>meq.qa18 = :qa18.id</search>
+        </field>
+        <field>
+            <id>qa19.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa19</display>
+            <search>meq.qa19 = :qa19.id</search>
+        </field>
+        <field>
+            <id>qa20.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa20</display>
+            <search>meq.qa20 = :qa20.id</search>
+        </field>
+        <field>
+            <id>qa21.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa21</display>
+            <search>meq.qa21 = :qa21.id</search>
+        </field>
+        <field>
+            <id>qa22.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa22</display>
+            <search>meq.qa22 = :qa22.id</search>
+        </field>
+        <field>
+            <id>qa23.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa23</display>
+            <search>meq.qa23 = :qa23.id</search>
+        </field>
+        <field>
+            <id>qa24.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa24</display>
+            <search>meq.qa24 = :qa24.id</search>
+        </field>
+        <field>
+            <id>qa25.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa25</display>
+            <search>meq.qa25 = :qa25.id</search>
+        </field>
+        <field>
+            <id>qa26.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa26</display>
+            <search>meq.qa26 = :qa26.id</search>
+        </field>
+        <field>
+            <id>qa27.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa27</display>
+            <search>meq.qa27 = :qa27.id</search>
+        </field>
+        <field>
+            <id>qa28.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa28</display>
+            <search>meq.qa28 = :qa28.id</search>
+        </field>
+        <field>
+            <id>qa29.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa29</display>
+            <search>meq.qa29 = :qa29.id</search>
+        </field>
+        <field>
+            <id>qa30.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa30</display>
+            <search>meq.qa30 = :qa30.id</search>
+        </field>
+        <field>
+            <id>qa31.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa31</display>
+            <search>meq.qa31 = :qa31.id</search>
+        </field>
+        <field>
+            <id>qa32.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa32</display>
+            <search>meq.qa32 = :qa32.id</search>
+        </field>
+        <field>
+            <id>qa33.id</id>
+            <domain>Integer</domain>
+            <display>meq.qa33</display>
+            <search>meq.qa33 = :qa33.id</search>
+        </field>
+
+    </fields>
+</query>

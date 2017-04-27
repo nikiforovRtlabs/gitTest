@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<field-set xmlns="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+           xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <row>
+        <ctrl:input-text id="owner_org" label="Организация" readonly="true"/>
+    </row>
+    <row>
+        <ctrl:classifier id="resource" label="Ресурс" required="true" css-class="n2o-control-8 n2o-label-8" autoselect-alone="true">
+            <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="orgId" ref="owner_org_id"/>
+                    <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                    <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+        <ctrl:date-time id="date" label="Дата оказания" required="true" css-class="n2o-control-5 n2o-label-5" />
+    </row>
+    <row>
+        <ctrl:classifier id="main_diagnosis" label="Основной диагноз" required="true">
+            <ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name"/>
+        </ctrl:classifier>
+    </row>
+        <row>
+            <ctrl:checkbox id="is_suspicion" label="Подозрение" css-class="n2o-control-4 n2o-label-4">
+                <ctrl:set-value-expression on="main_diagnosis">
+                    if ((main_diagnosis==null)||(main_diagnosis &amp;&amp; typeof main_diagnosis.id== 'undefined' ))
+                    null
+                    else throw('!');
+                </ctrl:set-value-expression>
+            </ctrl:checkbox>
+        </row>
+        <ctrl:classifier id="disease" label="Характер заболевания">
+            <ctrl:query query-id="disprCardDiagnosisDis" value-field-id="id" label-field-id="name"/>
+            <ctrl:dependencies>
+                <ctrl:required-condition on="is_suspicion,main_diagnosis">(((typeof is_suspicion ==
+                    'undefined')||(is_suspicion==false)||(is_suspicion==null))
+                    &amp;&amp;(( typeof main_diagnosis != 'undefined' )&amp;&amp;(main_diagnosis.id!=null)&amp;&amp;(main_diagnosis.code.indexOf('Z')
+                    == -1))
+                    )
+                </ctrl:required-condition>
+            </ctrl:dependencies>
+            <ctrl:set-value-expression on="main_diagnosis" on-load="false" on-non-empty="true">
+                if ((main_diagnosis!=null)&amp;&amp;(!main_diagnosis || typeof main_diagnosis.code!= 'undefined' )&amp;&amp;(main_diagnosis.code.indexOf('Z')==
+                0))
+                {var o = new Object(); o.id=parseInt(character); o.code = '40'; o.name = 'Прочее (для Z00-Z99)'; o;} else throw '!'
+            </ctrl:set-value-expression>
+        </ctrl:classifier>
+
+
+    <row>
+        <ctrl:text-area id="conclusion" label="Заключение" rows="3" />
+        <ctrl:text-area id="recommendations" label="Рекомендации" rows="3" />
+    </row>
+    <row>
+        <ctrl:checkbox id="isSecond" label="Пролечен/Обследован" dependency-condition="/F10.*/.test(main_diagnosis.code) || /F11.*/.test(main_diagnosis.code) || /F12.*/.test(main_diagnosis.code)
+                        || /F13.*/.test(main_diagnosis.code) || /F14.*/.test(main_diagnosis.code) || /F15.*/.test(main_diagnosis.code) || /F16.*/.test(main_diagnosis.code) || /F17.*/.test(main_diagnosis.code)
+                        || /F18.*/.test(main_diagnosis.code) || /F19.*/.test(main_diagnosis.code) || /A15.*/.test(main_diagnosis.code) || /A16.*/.test(main_diagnosis.code) || /A17.*/.test(main_diagnosis.code)
+                        || /A18.*/.test(main_diagnosis.code) || /A19.*/.test(main_diagnosis.code) || /B20.*/.test(main_diagnosis.code) || /B21.*/.test(main_diagnosis.code) || /B22.*/.test(main_diagnosis.code)
+                        || /B23.*/.test(main_diagnosis.code) || /B24.*/.test(main_diagnosis.code) || /A30.*/.test(main_diagnosis.code) || /A50.*/.test(main_diagnosis.code) || /A51.*/.test(main_diagnosis.code)
+                        || /A52.*/.test(main_diagnosis.code) || /A53.*/.test(main_diagnosis.code) || /A55.*/.test(main_diagnosis.code) || /A57.*/.test(main_diagnosis.code)"/>
+    </row>
+    <row>
+        <ctrl:classifier id="second_org" label="МО лечения" required="true" depends-on="isSecond" dependency-condition="isSecond == true">
+            <ctrl:query query-id="organization" value-field-id="id" label-field-id="short_name"/>
+        </ctrl:classifier>
+        <ctrl:date-time id="refDate" label="Дата справки" required="true" depends-on="isSecond" dependency-condition="isSecond == true" css-class="n2o-control-5 n2o-label-5"/>
+    </row>
+    <row>
+        <ctrl:classifier id="diagnosis" label="Диагноз" depends-on="isSecond" dependency-condition="isSecond == true">
+            <ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name"/>
+        </ctrl:classifier>
+    </row>
+</field-set>

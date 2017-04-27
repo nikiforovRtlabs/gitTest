@@ -1,0 +1,201 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <name>поиск услуги</name>
+    <object-id>searchService</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                inner join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                inner join disp.md_event_service_link mesl on mesl.case_id = mep.case_id and mesl.event_service_id = mes.id
+                left join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                left join disp.md_event me on me.id = mep.event_id
+                left join PIM_ORGANIZATION po on po.id = ssr.org_id
+                left join sr_service ss on ss.id = ssr.service_id
+                left join SR_RES_GROUP srg on srg.id = ssr.res_group_id
+                where :where
+
+                UNION ALL
+
+                select :select
+                from disp.md_event_patient mep
+                inner join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join disp.md_event_service_link mesl on mesl.case_id = mep.case_id and mesl.event_service_id = mes.id
+                left join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                left join disp.md_event me on me.id = mep.event_id
+                left join PIM_ORGANIZATION po on po.id = ssr.org_id
+                left join sr_service ss on ss.id = ssr.service_id
+                left join SR_RES_GROUP srg on srg.id = ssr.res_group_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mep)
+                from disp.md_event_patient mep
+                inner join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join disp.md_event_service_link mesl on mesl.case_id = mep.case_id and mesl.event_service_id = mes.id
+                left join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                left join disp.md_event me on me.id = mep.event_id
+                left join PIM_ORGANIZATION po on po.id = ssr.org_id
+                left join sr_service ss on ss.id = ssr.service_id
+                left join SR_RES_GROUP srg on srg.id = ssr.res_group_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+            <search>mep.id = :id</search>
+        </field>
+        <field>
+            <id>link_id</id>
+            <domain>Integer</domain>
+            <display>mesl.id</display>
+        </field>
+        <field>
+            <id>event_service_id</id>
+            <domain>Integer</domain>
+            <display>mes.id</display>
+        </field>
+        <field>
+            <id>service_patient_id</id>
+            <domain>Integer</domain>
+            <display>mesp.id</display>
+            <search>mesp.id = :service_patient_id</search>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :patient.id</search>
+
+        </field>
+
+        <field>
+            <id>contextOrg</id>
+            <domain>Integer</domain>
+            <display value="#{org.id?}" unavailable="true"/>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>Integer</domain>
+            <display>COALESCE(po.id, mes.org_id)</display>
+            <search>(mes.org_id = :org.id or po.id =:org.id)</search>
+        </field>
+        <field>
+            <id>org.name</id>
+            <domain>string</domain>
+            <display>COALESCE(po.short_name, (select short_name from PIM_ORGANIZATION where id = mes.org_id))</display>
+        </field>
+        <field>
+            <id>case_id</id>
+            <domain>Integer</domain>
+            <display>mep.case_id</display>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <display>ssr.bdate</display>
+        </field>
+        <field>
+            <id>service_rendered.id</id>
+            <domain>integer</domain>
+            <display>ssr.id</display>
+        </field>
+        <field>
+            <id>service_rendered.resource.id</id>
+            <domain>integer</domain>
+            <display>ssr.res_group_id</display>
+        </field>
+        <field>
+            <id>service_rendered.resource.name</id>
+            <domain>string</domain>
+            <display>srg.name</display>
+        </field>
+        <field>
+            <id>service_rendered.date</id>
+            <domain>date</domain>
+            <display>ssr.bdate</display>
+        </field>
+        <field>
+            <id>service_rendered.name</id>
+            <domain>string</domain>
+            <display>CASE WHEN ssr.id IS NOT NULL THEN concat(ss.name, ' / ', ssr.bdate, ' / ', srg.name)
+                ELSE NULL
+                END</display>
+        </field>
+        <field>
+            <id>hasCreateService</id>
+            <domain>boolean</domain>
+            <display>mesl.is_created</display>
+        </field>
+        <field>
+            <id>service_type.id</id>
+            <domain>integer</domain>
+            <display>ssr.service_id</display>
+            <expression>coalesce(ssr.service_id, case when me.org_id = mes.org_id then null else mes.service_id end)</expression>
+            <search unavailable="true"/>
+        </field>
+
+
+        <field>
+            <id>service_type_id</id>
+            <domain>integer</domain>
+            <display>:expression</display>
+            <expression>mes.service_id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>service_type_name</id>
+            <domain>integer</domain>
+            <display>:expression</display>
+            <expression>(select concat_ws(' ', code, name) from sr_service where id=mes.service_id)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>resource_id</id>
+            <domain>integer</domain>
+            <display>:expression</display>
+            <expression>mes.resource_id</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>resource_name</id>
+            <domain>integer</domain>
+            <display>:expression</display>
+            <expression>(select name from sr_res_group where id=mes.resource_id)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>open_date_before_year</id>
+            <domain>date</domain>
+            <display>to_char(((select open_date from mc_case where id = mep.case_id) - interval '1 year'), 'DD.MM.YYYY')</display>
+        </field>
+        <field>
+            <id>resource.srg_id</id>
+            <domain>integer</domain>
+            <display>(case when ssr.id is not null then srg.id
+                                                   else (case when me.org_id = mes.org_id then null
+                                                                                          else mes.resource_id
+                                                         end)
+                      end)
+            </display>
+        </field>
+        <field>
+            <id>eventOrg</id>
+            <domain>Integer</domain>
+            <display>me.org_id</display>
+        </field>
+    </fields>
+</query>

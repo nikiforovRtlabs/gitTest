@@ -1,0 +1,244 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>reservation</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hsp_reservation hr
+
+                inner join md_referral r on r.id = hr.referral_id
+                inner join pci_patient pat on pat.id = r.patient_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+
+                left join fin_funding_source_type fund on fund.id = hr.funding_id
+
+
+                left join md_referral_type ref_type on r.referral_type_id = ref_type.id
+
+                left join pim_organization ref_org on ref_org.id = r.ref_organization_id
+                left join pim_department ref_dep on ref_dep.id = r.ref_department_id
+
+                left join md_diagnosis ref_diag on ref_diag.id = r.diagnosis_id
+
+                left join pim_organization recv_org on recv_org.id = r.recv_organization_id
+
+                left join md_ref_document_status st on st.id = r.status_id
+                left join md_referral_cancel_reason creason on creason.id = r.cancel_reason_id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(r)
+                from hsp_reservation hr
+                inner join md_referral r on r.id = hr.referral_id
+                inner join pci_patient pat on pat.id = r.patient_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+
+                where :where
+            </n2o:count-query>
+
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>hr.id</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>pat_ind.id</expression>
+        </field>
+
+        <field>
+            <id>patientName</id>
+            <domain>string</domain>
+            <expression>coalesce(pat_ind.surname, '') || ' ' || coalesce(pat_ind.name, '') || ' ' || coalesce(pat_ind.patr_name, '')</expression>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <display value="#{org.id?}" unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>rreferral.id</id>
+            <domain>integer</domain>
+            <expression>hr.referral_id</expression>
+        </field>
+
+        <field>
+            <id>referralOrganizationRole.id</id>
+            <domain>integer</domain>
+            <expression>
+                (case when r.ref_organization_role_id is not null then r.ref_organization_role_id else
+                case when (select count(rtp) from pim_party_role_to_party rtp where party_id = r.ref_organization_id) = 1 then (select role_id from pim_party_role_to_party where party_id = r.ref_organization_id) else null
+                end end)
+            </expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>referralOrganizationRole.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<expression>-->
+                <!--coalesce((select name from pim_party_role where id = r.ref_organization_role), (select name from pim_party_role where code='CLINIC_ORGANIZATION' limit 1))-->
+            <!--</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>referralOrganization.id</id>
+            <domain>integer</domain>
+            <expression>r.ref_organization_id</expression>
+        </field>
+
+        <field>
+            <id>referralOrganization.name</id>
+            <domain>string</domain>
+            <expression>coalesce(ref_org.short_name, ref_org.full_name)</expression>
+        </field>
+
+        <field>
+            <id>refDepartment.id</id>
+            <domain>integer</domain>
+            <expression>r.ref_department_id</expression>
+        </field>
+
+        <field>
+            <id>refDepartment.name</id>
+            <domain>string</domain>
+            <expression>ref_dep.name</expression>
+        </field>
+
+        <field>
+            <id>referralDate</id>
+            <domain>date</domain>
+            <expression>r.referral_date</expression>
+        </field>
+
+        <field>
+            <id>orderNumber</id>
+            <domain>string</domain>
+            <expression>r.order_number</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosis.id</id>
+            <domain>integer</domain>
+            <expression>r.diagnosis_id</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosis.name</id>
+            <domain>string</domain>
+            <expression>ref_diag.code || ' ' || ref_diag.name</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosisComment</id>
+            <domain>string</domain>
+            <expression>r.diagnosis_comment</expression>
+        </field>
+
+        <!--Планирование-->
+
+        <field>
+            <id>plannedDate</id>
+            <domain>date</domain>
+            <expression>hr.planned_date_from</expression>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>hr.department_id</expression>
+        </field>
+
+        <field>
+            <id>regimen.id</id>
+            <domain>integer</domain>
+            <expression>hr.regimen_id</expression>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>hr.profile_id</expression>
+        </field>
+
+        <field>
+            <id>bedProfile.id</id>
+            <domain>integer</domain>
+            <expression>hr.bed_profile_id</expression>
+        </field>
+
+        <field>
+            <id>duration</id>
+            <domain>integer</domain>
+            <expression>hr.number_of_days</expression>
+        </field>
+
+        <field>
+            <id>issuePlannedDate</id>
+            <domain>date</domain>
+            <expression>hr.issue_planned_date</expression>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>hr.funding_id</expression>
+        </field>
+
+        <field>
+            <id>financialType.name</id>
+            <domain>string</domain>
+            <expression>fund.name</expression>
+        </field>
+
+        <!--Статус-->
+
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>(select status_id from hospital.reservation__status where reservation_id = hr.id order by begin_dt desc limit 1)</expression>
+        </field>
+
+        <field>
+            <id>status.name</id>
+            <domain>string</domain>
+            <expression>
+                (
+                    select coalesce(s.name || ' (' || to_char(rs.begin_dt, 'dd/MM/yyyy') || ')', '')
+                    from hospital.reservation__status rs
+                    join hospital.reservation_status s on s.id = rs.status_id
+                    where rs.reservation_id = hr.id
+                    order by rs.begin_dt desc
+                    limit 1
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>avgBedDays</id>
+            <domain>integer</domain>
+            <expression>
+                (select case when sv.value is not null and sv.value != '' then sv.value else s.default_value end from cmn_setting s
+                left join cmn_setting_value sv on sv.setting_id = s.id
+                left join cmn_scope sc on sc.id = sv.scope_id
+                left join cmn_scope_type st on st.id = sc.type_id and st.code = 'Global'
+                where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.avgBedDays' limit 1)
+            </expression>
+        </field>
+
+    </fields>
+</query>

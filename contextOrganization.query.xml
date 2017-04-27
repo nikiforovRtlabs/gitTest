@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+
+    <name>Организации</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from "public".pim_organization o
+                join "public".md_clinic mc on mc.id = o.id
+                where  :where order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from "public".pim_organization o
+                join "public".md_clinic mc on mc.id = o.id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <expression>o.id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <name>Наименование</name>
+            <domain>String</domain>
+            <expression>coalesce(o.short_name, o.full_name)</expression>
+            <search>lower(:expression) like '%'||lower(:name)||'%'</search>
+        </field>
+        <field>
+            <id>fullName</id>
+            <name>Наименование</name>
+            <domain>String</domain>
+            <expression>o.full_name</expression>
+            <display>coalesce(o.short_name,'')||' ('||coalesce(o.full_name,'')||')'</display>
+            <search>o.full_name like '%'||:fullName||'%'</search>
+        </field>
+        <field>
+            <!-- фильтр организаций, где пользователь является сотрудником-->
+            <id>userId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+            <search type="eq">((:keyTypeId != 1) or exists (select organization_id from pim_employee e join sec_user_party up on up.id = :userId where o.id = e.organization_id and e.individual_id = up.party_id))</search>
+        </field>
+        <field>
+            <id>keyTypeId</id>
+            <!-- поле требуется для фильтрация организаций по сотруднику, если тип ключа - по должности-->
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <!--фильтр доступных орагнизаций пользователя-->
+            <id>userOrg</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+            <search type="eq">exists (select 1 from "public".sec_user_org uo where uo.org_id = mc.id and uo.user_id = :userOrg)</search>
+        </field>
+    </fields>
+</query>

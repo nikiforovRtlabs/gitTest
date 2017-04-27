@@ -1,0 +1,204 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+
+    <name>Образование</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+
+                    <!--
+                    -->
+                    insert into pim_employee_education(id,
+                    from_dt, hours, series_name, to_dt, level_id, type_id, educational_org_id,
+                    employee_id, speciality_id, targeted_selection,
+                    region_subject
+                    )
+                    values
+                    (nextval('pim_employee_education_seq'),
+                    :from_dt, :hours, :series_name, :to_dt, :level_id, :type_id, :educational_org_id,
+                    :employee_id, :speciality_id, :targeted_selection,
+                    (cast(:region_subject as json) #>> '{id}')::integer
+
+
+                    );
+
+                    insert into pim_employee_certificate(id,
+                        chair, honour, cert_speciality_id, employee_id,
+                        education_id,
+                        honour_type_id,
+                        qualifying_category_id, science_speciality, diploma_speciality_id, indiv_doc_id, series, number,
+                        type_id, issuer_id, issue_dt, year, shown_as_speciality
+                    )
+                    values
+                    (nextval('pim_employee_certificate_seq'),
+                        :chair, :honour, :cert_speciality_id, :employee_id,
+                        (select currval('pim_employee_education_seq'))::integer,
+                        :honour_type_id,
+                        :qualifying_category_id, :science_speciality, :diploma_speciality_id, :indiv_doc_id, :series, :number,
+                        :doc_type_id, :issuer_id, :issue_dt, :year, :shown_as_speciality
+                    );
+
+                </sql:sql>
+
+
+            </invocation>
+            <in-parameters>
+
+                <!--
+                <param name="id" mapping="['id']" domain="integer"/>
+                -->
+
+                <!--<param name="pee.id" mapping="['pee_id']" domain="integer"/>-->
+                <param name="emp.id" mapping="['employee_id']" domain="integer"/>
+                <param name="edl.id" mapping="['level_id']" domain="integer"/>
+                <param name="edu_type.id" mapping="['type_id']" domain="integer"/>
+                <param name="edu_org.id" mapping="['educational_org_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <param name="spec.id" mapping="['speciality_id']" domain="integer"/>
+                <param name="series_name" mapping="['series_name']" domain="string"/>
+                <param name="hours" mapping="['hours']" domain="integer"/>
+
+                <param name="emp_cert.id" mapping="['emp_cert_id']" domain="integer"/>
+                <param name="qual_cat.id" mapping="['qualifying_category_id']" domain="integer"/>
+                <param name="diploma_spec.id" mapping="['diploma_speciality_id']" domain="integer"/>
+                <param name="series" mapping="['series']" domain="string"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="year" mapping="['year']" domain="integer"/>
+                <param name="issue_dt" mapping="['issue_dt']" domain="date"/>
+                <param name="pee.id" mapping="['education_id']" domain="integer"/>
+
+                <param name="targeted_selection" mapping="['targeted_selection']" domain="boolean"/>
+                <param name="address.id" mapping="['region_subject']" domain="integer"/>
+                <param name="shown_as_speciality" mapping="['shown_as_speciality']" domain="boolean"/>
+
+            </in-parameters>
+            <out-parameters>
+                <param name="pee.id" mapping="[0][0]" domain="integer"/>
+                <param name="emp_cert.id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Информация об образовании сотрудника {ind_fio} успешно сохранена в системе.
+            </success-text>
+        </action>
+
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_employee_education set
+                        from_dt = :from_dt,
+                        hours = :hours,
+                        series_name = :series_name,
+                        to_dt = :to_dt,
+                        level_id = :level_id,
+                        type_id = :type_id,
+                        educational_org_id = :educational_org_id,
+                        employee_id = :employee_id,
+                        speciality_id = :speciality_id,
+                        targeted_selection = :targeted_selection,
+                        region_subject = (cast(:region_subject as json) #>> '{id}')::integer
+                    where id = :education_id;
+
+                    with updated as (
+                        update pim_employee_certificate set
+                        chair = :chair,
+                        honour = :honour,
+                        cert_speciality_id = :cert_speciality_id,
+                        employee_id = :employee_id,
+                        education_id = :education_id,
+                        honour_type_id = :honour_type_id,
+                        qualifying_category_id = :qualifying_category_id,
+                        science_speciality = :science_speciality,
+                        diploma_speciality_id = :diploma_speciality_id,
+                        indiv_doc_id = :indiv_doc_id,
+                        series = :series,
+                        number = :number,
+                        type_id = :doc_type_id,
+                        issuer_id = :issuer_id,
+                        issue_dt = :issue_dt,
+                        year = :year,
+                        shown_as_speciality = :shown_as_speciality
+                        where id = :emp_cert_id
+                        returning id
+                    )
+                    insert into pim_employee_certificate(id,
+                    chair, honour, cert_speciality_id, employee_id,
+                    education_id,
+                    honour_type_id,
+                    qualifying_category_id, science_speciality, diploma_speciality_id, indiv_doc_id, series, number,
+                    type_id, issuer_id, issue_dt, year, shown_as_speciality
+                    )
+                    select
+                    nextval('pim_employee_certificate_seq'),
+                    :chair, :honour, :cert_speciality_id, :employee_id,
+                    :education_id,
+                    :honour_type_id,
+                    :qualifying_category_id, :science_speciality, :diploma_speciality_id, :indiv_doc_id, :series, :number,
+                    :doc_type_id, :issuer_id, :issue_dt, :year, :shown_as_speciality
+                    where not exists(select 1 from updated);
+
+                </sql:sql>
+                <!-- выше приведена конструкция-аналог upsert-а для postgresql  -->
+            </invocation>
+            <in-parameters>
+
+                <param name="pee.id" mapping="['pee_id']" domain="integer"/>
+                <param name="emp.id" mapping="['employee_id']" domain="integer"/>
+                <param name="edl.id" mapping="['level_id']" domain="integer"/>
+                <param name="edu_type.id" mapping="['type_id']" domain="integer"/>
+                <param name="edu_org.id" mapping="['educational_org_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <param name="spec.id" mapping="['speciality_id']" domain="integer"/>
+                <param name="series_name" mapping="['series_name']" domain="string"/>
+                <param name="hours" mapping="['hours']" domain="integer"/>
+
+                <param name="emp_cert.id" mapping="['emp_cert_id']" domain="integer"/>
+                <param name="qual_cat.id" mapping="['qualifying_category_id']" domain="integer"/>
+                <param name="diploma_spec.id" mapping="['diploma_speciality_id']" domain="integer"/>
+                <param name="series" mapping="['series']" domain="string"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="year" mapping="['year']" domain="integer"/>
+                <param name="issue_dt" mapping="['issue_dt']" domain="date"/>
+                <param name="pee.id" mapping="['education_id']" domain="integer"/>
+
+                <param name="targeted_selection" mapping="['targeted_selection']" domain="boolean"/>
+                <param name="address.id" mapping="['region_subject']" domain="integer"/>
+                <param name="shown_as_speciality" mapping="['shown_as_speciality']" domain="boolean"/>
+
+
+            </in-parameters>
+            <success-text>
+                Информация об образовании сотрудника "{ind_fio}" успешно изменена.
+            </success-text>
+
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    <!-- порядок удаления важен -->
+                    delete from public.pim_employee_certificate where id = :emp_cert_id;
+                    delete from public.pim_employee_education where id = :pee_id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pee.id" mapping="['pee_id']" domain="integer"/>
+                <param name="emp_cert.id" mapping="['emp_cert_id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что информация об образовании сотрудника "{ind_fio}" должна быть удалена?
+            </confirmation-text>
+            <success-text>
+                Информация об образовании сотрудника "{ind_fio}" успешно удалена.
+            </success-text>
+
+        </action>
+
+    </actions>
+
+
+</object>

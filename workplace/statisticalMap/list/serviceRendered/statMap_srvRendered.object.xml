@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Услуги</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/hospital/stat-map/md-srv-rendered
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="step.case.id" mapping="['caseId']"/>
+                <param name="step.patient.id" mapping="['patientId']"/>
+                <param name="bdate" mapping="['bdate']"/>
+                <param name="step.id" mapping="['stepId']"/>
+                <param name="doctor.id" mapping="['doctorId']"/>
+                <param name="service.id" mapping="['serviceId']"/>
+                <param name="financialType.id" mapping="['financialTypeId']"/>
+                <param name="quantity" mapping="['quantity']"/>
+                <param name="anesthesiaType.id" mapping="['anesthesiaTypeId']"/>
+                <param name="complicationType.id" mapping="['complicationTypeId']"/>
+                <param name="step.clinic.id" mapping="['clinicId']"/>
+                <param name="resGroupId" mapping="['resourceGroupId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/hospital/stat-map/md-srv-rendered?id={id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены, что хотите удалить услугу ?</confirmation-text>
+        </action>
+
+    </actions>
+
+    <validations>
+
+        <constraint id="checkServiceDate" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[select :bdate >= admission_date + coalesce(admission_time, '00:00') and (outcome_date is null or :bdate <= outcome_date + coalesce(outcome_time, '00:00') ) from mc_step where id=:stepId]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="step.id" mapping="['stepId']"/>
+                <param name="bdate" mapping="['bdate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+            <message>Дата оказания услуги должна соответствовать датам пребывания в отделении.</message>
+        </constraint>
+
+        <condition id="checkServiceQuantity" level="error">
+            <message>Проверьте корректность введенного значения</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]+\$');
+                regex.test(quantity);
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="isServiceProtocolExist" level="warning">
+            <message>Для редактируемой услуги есть заполненный протокол. При сохранении протокол будет удален.</message>
+            <invocation>
+                <sql:sql>
+                    select count(msp.*), (case when :mainServiceId = (select service_id from sr_srv_rendered where id = :serviceRenderedId) then 0 else 1 end)
+                    from  md_srv_protocol msp
+                    join sr_srv_rendered ssr on ssr.id = msp.srv_rendered_id
+                    where ssr.id = :serviceRenderedId
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['serviceRenderedId']" domain="integer"/>
+                <param name="service.id" mapping="['mainServiceId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0 || [0][0][1] == 0"/>
+        </constraint>
+
+    </validations>
+
+</object>

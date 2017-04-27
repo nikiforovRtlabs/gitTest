@@ -1,0 +1,145 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>call_double_search</id>-->
+    <name>Список вызовов</name>
+    <object-id>call_double</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.md_ambulance_call cal
+                left join amb.md_ambulance_call_note cn on cal.id = cn.call_id and cn.note_id in (8,9) and cn.note_active is true and cn.note_type is true
+                left join amb.md_ambulance_call_double macd on macd.call_note_id = cn.id
+                left join amb.md_ambulance_call duble on macd.call_id = duble.id
+
+                left join amb.md_ambulance_change mac on duble.call_dt = mac.id
+
+                left join pim_employee_position pep on cn.registrator_id = pep.id
+                left join pim_employee pe on pep.employee_id = pe.id
+                left join pim_individual pi on pe.individual_id = pi.id
+                left join pim_position ppos on pep.position_id = ppos.id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from amb.md_ambulance_call cal
+                left join amb.md_ambulance_call_note cn on cal.id = cn.call_id and cn.note_id in (8,9) and cn.note_active is true and cn.note_type is true
+                left join amb.md_ambulance_call_double macd on macd.call_note_id = cn.id
+                left join amb.md_ambulance_call duble on macd.call_id = duble.id
+
+                left join amb.md_ambulance_change mac on duble.call_dt = mac.id
+
+                left join pim_employee_position pep on cn.registrator_id = pep.id
+                left join pim_employee pe on pep.employee_id = pe.id
+                left join pim_individual pi on pe.individual_id = pi.id
+                left join pim_position ppos on pep.position_id = ppos.id
+
+                where :where
+            </n2o:count-query>
+            <n2o:alias>cal</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>call_id</id>
+            <domain>integer</domain>
+            <name>Вызов</name>
+            <expression>cal.id</expression>
+            <!--<search unavailable="true"/>-->
+        </field>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Исходный вызов</name>
+            <expression>duble.id</expression>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>integer</domain>
+            <name>Номер</name>
+            <expression>duble.call_number</expression>
+            <!--<search></search>-->
+        </field>
+        <field>
+            <id>change.id</id>
+            <domain>integer</domain>
+            <expression>mac.id</expression>
+        </field>
+        <field>
+            <id>change.data</id>
+            <domain>date</domain>
+            <name>Смена</name>
+            <expression>mac.from_data</expression>
+            <!--<search unavailable="true"/>-->
+        </field>
+
+        <field>
+            <id>change_data</id>
+            <domain>string</domain>
+            <name>Смена</name>
+            <expression>to_char(mac.from_data,'DD.MM.YYYY')</expression>
+            <!--<search unavailable="true"/>-->
+        </field>
+
+        <field>
+            <id>from_time</id>
+            <domain>time</domain>
+            <name>Время приема вызова</name>
+            <expression>duble.from_time</expression>
+        </field>
+        <field>
+            <id>ftime</id>
+            <domain>time</domain>
+            <name>Время приема вызова</name>
+            <expression>to_char(duble.from_time,'dd.mm.yyyy hh24:mi:ss')</expression>
+            <!--<search>cal.from_time between (cast(:from_time as timestamp) - CAST(ns.elapsed_time as interval)) and (cast(:from_time as timestamp) + cast(ns.elapsed_time as interval))</search>-->
+        </field>
+        <field>
+            <id>to_time</id>
+            <domain>time</domain>
+            <name>Время окончания вызова</name>
+            <expression>to_char(duble.to_time,'dd.mm.yyyy hh24:mi')</expression>
+        </field>
+
+        <field>
+            <id>employee.id</id>
+            <domain>string</domain>
+            <name>Принял</name>
+            <expression>pep.id</expression>
+        </field>
+        <field>
+            <id>employee.namePos</id>
+            <domain>string</domain>
+            <name>Регистратор</name>
+            <expression>pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||')'</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <!--<field>-->
+            <!--<id>note.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>man.id</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>note_active</id>
+            <domain>boolean</domain>
+            <expression>cn.note_active</expression>
+        </field>
+        <field>
+            <id>note_type</id>
+            <domain>boolean</domain>
+            <expression>cn.note_type</expression>
+        </field>
+
+
+        <field>
+            <id>has_note</id>
+            <domain>boolean</domain>
+            <expression>case when macd.call_id is null then false else true end</expression>
+        </field>
+    </fields>
+</query>

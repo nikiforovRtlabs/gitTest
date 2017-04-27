@@ -1,0 +1,146 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>ambTreatmentTemplate</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from services_template st
+                left join md_standard std on std.id = st.standard_id
+                where st.is_holding is true
+                and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(st)
+                from services_template st
+                where st.is_holding is true
+                and :where
+            </n2o:count-query>
+            <n2o:alias>st</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>st.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>st.name</expression>
+            <name>Наименование</name>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <expression>st.note</expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>st.clinic_id</expression>
+            <search value="#{org.id?}">(:expression = :orgId or :orgId is null)</search>
+        </field>
+
+        <field>
+            <id>period.begin</id>
+            <domain>date</domain>
+            <name>Дата начала</name>
+            <expression>st.begin_date</expression>
+            <search>
+                <![CDATA[
+                    ((st.begin_date is null and st.end_date is null)
+                        or (st.end_date is null or st.end_date >= :period.begin))
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>period.end</id>
+            <domain>date</domain>
+            <name>Дата окончания</name>
+            <expression>st.end_date</expression>
+            <search>
+                <![CDATA[
+                    ((st.begin_date is null and st.end_date is null)
+                        or (st.begin_date is null or st.begin_date <= :period.end))
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>template.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(
+                :template.id = 1 and st.is_service is true and st.is_holding is not true or
+                :template.id = 2 and st.is_holding is true and st.is_service is not true or
+                :template.id = 3 and st.is_service is true and st.is_holding is true)
+            </search>
+        </field>
+
+        <field>
+            <id>typeIcon</id>
+            <name/>
+            <expression>(case
+                when st.is_service is true and st.is_holding is true then '3' else
+                    case when st.is_service is true then '1' else
+                        case when st.is_holding is true then '2'
+                end end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>typeIconTooltip</id>
+            <name>statusIconTooltip</name>
+            <expression>(case
+                when st.is_service is true and st.is_holding is true then 'Составной шаблон' else
+                    case when st.is_service is true then 'Шаблон услуг' else
+                        case when st.is_holding is true then 'Шаблон препаратов'
+                end end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <expression>(case when st.is_service is true and st.is_holding is true then 3 else
+                    case when st.is_service is true and st.is_holding is not true then 1 else
+                        case when st.is_holding is true and st.is_service is not true then 2
+                end end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>standard.name</id>
+            <domain>string</domain>
+            <expression>std.name</expression>
+            <name>Стандарт</name>
+        </field>
+
+        <field>
+            <id>standard.id</id>
+            <domain>integer</domain>
+            <expression>st.standard_id</expression>
+        </field>
+
+        <field>
+            <id>byStandard</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>(case when (:byStandard) then st.standard_id is not null end)</search>
+        </field>
+
+    </fields>
+</query>

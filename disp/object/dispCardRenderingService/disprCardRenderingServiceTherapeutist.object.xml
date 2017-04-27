@@ -1,0 +1,130 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>disprCardRenderingServiceTherapeutist</id>
+    <name>disprCardRenderingServiceTherapeutist</name>
+
+    <actions>
+        <action id="update" name="Изменить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/dispensary/saveTherapeutist
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="event_patient_id" mapping="['eventPatientId']"/>
+                <param name="ssr_id" mapping="['serviceRenderedId']"/>
+                <param name="case_id" mapping="['caseId']"/>
+                <param name="date" mapping="['date']"/>
+                <param name="resource.srg_id" mapping="['resGroupId']"/>
+                <param name="main_diagnosis.id" mapping="['mainDiagnosisId']"/>
+                <param name="other_diagnos_1.id" mapping="['otherDiagnos1Id']"/>
+                <param name="other_diagnos_2.id" mapping="['otherDiagnos2Id']"/>
+                <param name="disease.id" mapping="['diseaseId']"/>
+                <param name="counsel" mapping="['counsel']" domain="string"/>
+                <param name="reference" mapping="['reference']" domain="string"/>
+                <param name="service_type_id" mapping="['serviceId']"/>
+                <param name="is_suspicion" mapping="['suspicion']"/>
+                <param name="make_d" mapping="['makeD']" domain="boolean"/>
+                <param name="nosol_registr.id" mapping="['nosolRegistrId']" domain="integer"/>
+                <param name="is_mobile_medical_teams" mapping="['mobileMedicalTeams']"/>
+                <param name="mep_id" mapping="['mepId']" required="false"/>
+                <param name="id" required="false"/>
+                <param name="contextOrg" mapping="['org']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="ssr_id" mapping="['id']"/>
+
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="caseEndDateChangedCondition"/>
+                <validation ref-id="serviceInBill"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="checkDate" level="error">
+            <invocation>
+                <sql:sql> <![CDATA[
+                    select count(*) from mc_case mc
+                    left join (select ssr.id, msr.case_id, ssr.service_id, ssr.res_group_id, ssr.bdate from MD_SRV_RENDERED msr
+                    left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mc.id
+                    where ssr.bdate > :date and mc.id = :case_id and (:serviceRenderedId is null or ssr.id <> :serviceRenderedId)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="case_id" mapping="['case_id']"/>
+                <param name="date" mapping="['date']"/>
+                <param name="ssr_id" mapping="['serviceRenderedId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Дата оказания услуги терапевта не должна быть ранее услуг случая</message>
+        </constraint>
+        <constraint id="checkDateBeforeEvent" level="error">
+            <invocation>
+                <sql:sql> <![CDATA[
+                    select count(*) from mc_case mc
+                    where mc.open_date > :date and mc.id = :case_id
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="case_id" mapping="['case_id']"/>
+                <param name="date" mapping="['date']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Указана дата вне рамок случая диспансеризации, воспользуйтесь формой поиска оказанных услуг</message>
+        </constraint>
+        <condition id="checkDateCurrentDate" level="error">
+            <message>Дата оказания не должна превышать текущую дату</message>
+            <expression on="date">
+                <![CDATA[
+                        var now = moment(); now.diff(moment(date, 'DD.MM.YYYY')) >= 0;
+                ]]>
+            </expression>
+        </condition>
+        <constraint id="caseEndDateChangedCondition" level="warning">
+            <message>Дата закрытия случая будет изменена. Продолжить?</message>
+            <invocation>
+                <sql:sql><![CDATA[
+                        select count(1) from disp.md_event_patient mep
+                        join mc_case mc on mc.id = mep.case_id
+                        left join mc_step ms on ms.id = mc.closing_step_id
+                        where mep.id = :id and ((ms.outcome_date is null) or (ms.outcome_date = :date))
+                        ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="mep_id" mapping="['id']"/>
+                <param name="date" mapping="['date']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 1"/>
+        </constraint>
+        <constraint id="serviceInBill" level="error">
+            <message>На случай сформирован счет-реестр, действие запрещено</message>
+            <invocation>
+                <sql:sql>
+                    select disp.service_validate3(:id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+    <!--<validations>-->
+        <!--<condition id="checkAgreem" level="error" check-before-submit="true">-->
+            <!--<expression>agreeService == true</expression>-->
+            <!--<message>Пациент не дал согласие на оказание услуги!</message>-->
+        <!--</condition>-->
+    <!--</validations>-->
+
+</object>

@@ -1,0 +1,161 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+
+    <object-id>transferAct</object-id>
+    <layout>n2o/layout/single</layout>
+    <containers>
+        <container id="main" place="single">
+            <wgt:form src="/custom/transferActForm" customize="jsp" detail-field-id="id" master-field-id="id"
+                      style="width: 100%">
+                <wgt:query-id>transferAct</wgt:query-id>
+                <wgt:edit model="query-or-default" condition="isExecuted == false &amp;&amp; existsExecutedSpec == false" after-submit="closeModal">
+                    <wgt:invoke-action action-id="save"/>
+                </wgt:edit>
+
+                <wgt:name>Редактирование акта переброски</wgt:name>
+
+                <fs:field-set header="line" style="margin-left: 20px" field-label-location="left">
+                    <ctrl:hidden id="org.id" default-value="#{org.id?}"/>
+                    <fs:row>
+                        <ctrl:classifier id="docType" label="Тип документа" search-as-you-type="true" required="true"  css-class="n2o-label-5 n2o-control-7">
+                            <ctrl:query query-id="inv_documentType" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="sectionId" value="2"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">2</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+
+                        <ctrl:input-text id="docNumber" label="Номер" label-style="width: 70px" control-style="width: 110px">
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="expInvCheckUnique"/>
+                            </ctrl:validations>
+                            <ctrl:dependencies>
+                                <ctrl:required-condition>typeof id!='undefined' &amp;&amp; id!=null</ctrl:required-condition>
+                            </ctrl:dependencies>
+                        </ctrl:input-text>
+
+                        <ctrl:date-time id="docDate" label="Дата" default-value="today()" required="true"
+                                        format="DD.MM.YYYY"  label-style="width: 40px" control-style="width: 130px"/>
+                    </fs:row>
+                </fs:field-set>
+
+                <fs:field-set  header="line" style="margin-left: 20px">
+                    <fs:row>
+                        <ctrl:classifier id="sendStore" label="Отправитель" search-as-you-type="true" required="true" autoselect="true">
+                            <ctrl:query query-id="inv_storeWithRespPerson" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="storeTypeId" value="1"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>typeof existsSpec=='undefined' || existsSpec ==null || existsSpec==false</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="recStore" label="Получатель" search-as-you-type="true" required="true"
+                                         depends-on="sendStore" autoselect="true">
+                            <ctrl:query query-id="inv_storeWithRespPerson" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="storeTypeId" value="1"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:classifier id="emplPos" autoselect="true" visible="false">
+                            <ctrl:query query-id="inv_empPosition" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="id" value="#{emplPos.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="sendRespEmpPos" label="МОЛ отправителя" search-as-you-type="true" depends-on="sendStore">
+                            <ctrl:query query-id="inv_respPerson" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on="sendStore" on-load="false">if(sendStore.respPerson.id!=null)sendStore.respPerson; else emplPos;</ctrl:set-value-expression>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="recRespEmpPos" label="МОЛ получателя" search-as-you-type="true" depends-on="recStore">
+                            <ctrl:query query-id="inv_respPerson" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on="recStore" on-load="false">if(recStore.respPerson.id!=null) recStore.respPerson;</ctrl:set-value-expression>
+                        </ctrl:classifier>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:classifier id="storeOprExp" label="Операция расхода" search-as-you-type="true" autoselect="true" readonly="true"
+                                         required="true" depends-on="sendStore">
+                            <ctrl:query query-id="inv_storeOperation" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="oprTypeId" value="2"/>
+                                    <ctrl:pre-filter field-id="recTypeId" ref="recStore.storeTypeId"/>
+                                    <ctrl:pre-filter field-id="sendTypeId" ref="sendStore.storeTypeId"/>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="code" value="12"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="storeOprArr" label="Операция прихода" search-as-you-type="true" autoselect="true" readonly="true"
+                                         required="true" depends-on="recStore">
+                            <ctrl:query query-id="inv_storeOperation" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="oprTypeId" value="1"/>
+                                    <ctrl:pre-filter field-id="recTypeId" ref="recStore.storeTypeId"/>
+                                    <ctrl:pre-filter field-id="sendTypeId" ref="sendStore.storeTypeId"/>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="code" value="13"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                    </fs:row>
+                </fs:field-set>
+
+                <fs:field-set header="line">
+                    <fs:row>
+                        <ctrl:select-tree id="fundSource" label="Источник финансирования" ajax="false" label-style="width: 180px" search="true" depends-on="sendStore">
+                            <ctrl:inheritance-nodes query-id="inv_fundingSource_inheritance" parent-field-id="parentId"
+                                                    has-children-field-id="hasChildren" search-field-id="name"
+                                                    label-field-id="name" icon-field-id="iconId">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:inheritance-nodes>
+                        </ctrl:select-tree>
+                    </fs:row>
+                </fs:field-set>
+
+                <fs:field-set header="line">
+                    <ctrl:select-tree id="newFundSource" ajax="false" label="Новый источник" search="true" label-style="width: 120px; margin-left: 5px">
+                        <ctrl:inheritance-nodes query-id="inv_fundingSource_inheritance" parent-field-id="parentId"
+                                                has-children-field-id="hasChildren" search-field-id="name"
+                                                label-field-id="name" icon-field-id="iconId">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                            </ctrl:pre-filters>
+                        </ctrl:inheritance-nodes>
+                    </ctrl:select-tree>
+                </fs:field-set>
+                <fs:field-set style="margin-left: 20px">
+                    <ctrl:text-area id="note" label="Примечание" rows="1" control-style="width:625px;"/>
+                </fs:field-set>
+            </wgt:form>
+        </container>
+    </containers>
+</page>

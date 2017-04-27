@@ -1,0 +1,209 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0">
+    <name>paymentControl</name>
+
+    <actions>
+
+        <action id="read">
+            <invocation/>
+        </action>
+
+        <action id="updatePlanning" form-submit-label="Сохранить">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="TASK">
+                            <wf:note>Проверяем есть ли счет на услугу</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    SELECT :modify is null and exists(select 1 from public.fin_bill_spec_item bsi where bsi.service_id = :serviceId );
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="modify" mapping="['modify']" domain="boolean"/>
+                                <param name="id" mapping="['serviceId']" domain="integer"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="4"/>
+                                <wf:result value="true" next-task-id="3"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:user-task id="3" template="payment/n2o/workflow/default.html">
+                            <wf:note>Оповещение</wf:note>
+                            <wf:description>
+                                Создан счет на услугу! Отменить услугу с ранее созданным счетом?
+                            </wf:description>
+                            <wf:choices>
+                                <wf:choice title="Да" next-task-id="2"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="2" in-parameters-context-type="TASK">
+                            <wf:note>Проверяем есть ли еще услуги в счете</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    <![CDATA[select :modify is null and exists(select 1 from public.fin_bill_spec_item spec where
+                                spec.bill_id = (select bsi.bill_id from public.fin_bill_spec_item bsi where bsi.service_id = :serviceId)
+                                and spec.service_id <> :id);]]>
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="modify" mapping="['modify']" domain="boolean"/>
+                                <param name="id" mapping="['serviceId']" domain="integer"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="4"/>
+                                <wf:result value="true" next-task-id="5"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:user-task id="5" template="payment/n2o/workflow/default.html">
+                            <wf:note>Оповещение</wf:note>
+                            <wf:description>
+                                В счете выбранной услуги содержаться другие услуги! Отменить выбранную услугу, исключив ее из спецификации счета?
+                            </wf:description>
+                            <wf:choices>
+                                <wf:choice title="Да" next-task-id="4"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="4" in-parameters-context-type="ACTION">
+                            <wf:note>Удаляем услугу/счет</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="POST">
+                                    ${n2o.backend.path}/payment/appointment/modify
+                                </rest:rest>
+                            </wf:invocation>
+                        </wf:service-task>
+
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="appointmentId" mapping="['appointmentId']" domain="integer"/>
+                <param name="cancelReason.id" mapping="['cancelReasonId']" domain="integer"/>
+                <param name="modify" mapping="['modify']" domain="boolean"/>
+                <param name="id" mapping="['serviceId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters/>
+            <success-text>
+                Запись успешно отменена/пренесена
+            </success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="createNoRecordService" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/payment/appointment/norecord
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="org.id" mapping="['orgId']" domain="integer"/>
+                <param name="funding.id" mapping="['fundingId']" domain="integer"/>
+                <param name="contract.id" mapping="['contractId']" domain="integer"/>
+                <param name="service*.id" mapping="['serviceIds']" domain="integer[]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="deleteNoRecordService" form-submit-label="Удалить">
+            <invocation>
+            <wf:workflow start-task-id="1">
+                <wf:tasks>
+                    <wf:service-task id="1" in-parameters-context-type="ACTION">
+                        <wf:note>Проверяем есть ли счет на услугу</wf:note>
+                        <wf:invocation>
+                            <rest:rest method="GET">
+                                ${n2o.backend.path}/payment/appointment/selected/check-bill
+                            </rest:rest>
+                        </wf:invocation>
+                        <wf:out-parameters>
+                            <param name="wf_result" mapping="['result']"/>
+                        </wf:out-parameters>
+                        <wf:results>
+                            <wf:result value="false" next-task-id="4"/>
+                            <wf:result value="true" next-task-id="3"/>
+                        </wf:results>
+                    </wf:service-task>
+
+                    <wf:user-task id="3" template="payment/n2o/workflow/default.html">
+                        <wf:note>Оповещение</wf:note>
+                        <wf:description>
+                            Создан счет на услугу! Удалить услугу с ранее созданным счетом?
+                        </wf:description>
+                        <wf:choices>
+                            <wf:choice title="Да" next-task-id="2"/>
+                        </wf:choices>
+                    </wf:user-task>
+
+                    <wf:service-task id="2" in-parameters-context-type="ACTION">
+                        <wf:note>Проверяем есть ли еще услуги в счете</wf:note>
+                        <wf:invocation>
+                            <rest:rest method="GET">
+                                ${n2o.backend.path}/payment/appointment/selected/check-bill-spec
+                            </rest:rest>
+                        </wf:invocation>
+                        <wf:out-parameters>
+                            <param name="wf_result" mapping="['result']"/>
+                        </wf:out-parameters>
+                        <wf:results>
+                            <wf:result value="false" next-task-id="4"/>
+                            <wf:result value="true" next-task-id="5"/>
+                        </wf:results>
+                    </wf:service-task>
+
+                    <wf:user-task id="5" template="payment/n2o/workflow/default.html">
+                        <wf:note>Оповещение</wf:note>
+                        <wf:description>
+                            В счете выбранной услуги содержаться другие услуги! Удалить выбранную услугу, исключив ее из спецификации счета?
+                        </wf:description>
+                        <wf:choices>
+                            <wf:choice title="Да" next-task-id="4"/>
+                        </wf:choices>
+                    </wf:user-task>
+
+                    <wf:service-task id="4" in-parameters-context-type="ACTION">
+                        <wf:note>Удаляем услугу/счет</wf:note>
+                        <wf:invocation>
+                            <rest:rest method="DELETE">
+                                ${n2o.backend.path}/payment/appointment/norecord
+                            </rest:rest>
+                        </wf:invocation>
+                    </wf:service-task>
+
+                </wf:tasks>
+            </wf:workflow>
+        </invocation>
+        <in-parameters>
+            <param name="id" mapping="[id]" domain="integer"/>
+        </in-parameters>
+        <union-by-parameter union-parameter-name="id" output-parameter-name="list" />
+
+        <out-parameters/>
+        <success-text>
+            Запись успешно удалена
+        </success-text>
+        <validations activate="nothing"/>
+    </action>
+
+    </actions>
+
+    <validations>
+    </validations>
+
+</object>

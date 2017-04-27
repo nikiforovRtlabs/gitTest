@@ -1,0 +1,396 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>sickdoc</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sickdoc.sickdoc s
+                join sickdoc.sickdoc_extended se on s.id = se.id
+                join sickdoc.rf_kind kind on kind.id = s.kind_id
+                join md_sicklist_state state on state.id = s.state_id
+                left join md_sicklist_type type on type.id=s.type_id
+                left join md_sl_readytowork_other rwo ON rwo.id = s.ready_to_work_other_id
+                left join sickdoc.journal sj on sj.id = s.journal_id
+                left join sickdoc.sickdoc sp on sp.id = s.parent_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from sickdoc.sickdoc s
+                join sickdoc.sickdoc_extended se on s.id = se.id
+                join sickdoc.rf_kind kind on kind.id = s.kind_id
+                join md_sicklist_state state on state.id = s.state_id
+                left join md_sicklist_type type on type.id=s.type_id
+                left join md_sl_readytowork_other rwo ON rwo.id = s.ready_to_work_other_id
+                left join sickdoc.journal sj on sj.id = s.journal_id
+                left join sickdoc.sickdoc sp on sp.id = s.parent_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+        <field>
+            <id>beginDt</id>
+            <domain>date</domain>
+            <name>Открыт</name>
+            <expression>s.begin_dt</expression>
+            <search>
+                <![CDATA[
+                (:beginDt.begin::date is null or :expression >= :beginDt.begin) and
+                (:beginDt.end::date is null or :expression <= :beginDt.end)
+                ]]>
+            </search>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>beginDt.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>beginDt.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>closedEmployee.id</id>
+            <domain>integer</domain>
+            <expression>
+                (case when state.code = '3' then
+                  (select p.id from sickdoc.period p
+                   where p.sickdoc_id = s.id
+                   order by p.from_dt desc
+                   limit 1)
+                end)
+            </expression>
+            <search>:expression = :closedEmployee.id</search>
+        </field>
+        <field>
+            <id>closedEmployee.name</id>
+            <domain>string</domain>
+            <name>Закрыл</name>
+            <expression>
+                (case when state.code in ('3','5') then
+                  (select concat(i.surname, ' ' || left(i.name, 1) || '.', ' ' || left(i.patr_name, 1) || '.', ', ' || pp.name)
+                   from sickdoc.period p
+                   join pim_employee_position ep on ep.id = p.issued_employee_id
+                   join pim_position pp on pp.id = ep.position_id
+                   join pim_employee e on e.id = ep.employee_id
+                   join pim_individual i on i.id = e.individual_id
+                   where p.sickdoc_id = s.id
+                   order by p.from_dt desc
+                   limit 1)
+                end)
+            </expression>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>closedOrContinuedDt</id>
+            <domain>date</domain>
+            <name>Закрыт/продлен</name>
+            <expression>s.end_dt</expression>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>duration</id>
+            <domain>string</domain>
+            <name>Длительность</name>
+            <expression>s.days</expression>
+        </field>
+        <field>
+            <id>type.name</id>
+            <domain>string</domain>
+            <name>Первичный/Продолжение</name>
+            <expression>
+                (case
+                    when s.type_id = 1 then 'Первичный'
+                    when s.type_id = 2 then 'Продолжение'
+                    when s.type_id = 3 AND sp.type_id = 1 then 'Первичный (дубликат)'
+                    when s.type_id = 3 AND sp.type_id = 2 then 'Продолжение (дубликат)'
+                end)
+            </expression>
+        </field>
+        <field>
+            <id>journal.name</id>
+            <domain>string</domain>
+            <name>Журнал</name>
+            <expression>sj.name</expression>
+        </field>
+        <field>
+            <id>curClinicId</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{org.id?}"/>
+            <search value="#{org.id?}">1=1</search>
+        </field>
+        <field>
+            <id>isContinue</id>
+            <domain>boolean</domain>
+            <expression>s.parent_id NOTNULL and type.code != '3'</expression>
+        </field>
+        <field>
+            <id>isDuplicate</id>
+            <domain>boolean</domain>
+            <expression>type.code = '3'</expression>
+        </field>
+        <field>
+            <id>isAnnuled</id>
+            <domain>boolean</domain>
+            <expression>state.code = '5'</expression>
+        </field>
+        <field>
+            <id>isClosed</id>
+            <domain>boolean</domain>
+            <expression>state.code = '3'</expression>
+        </field>
+        <field>
+            <id>isOpened</id>
+            <domain>boolean</domain>
+            <expression>state.code = '2'</expression>
+        </field>
+        <field>
+            <id>isRequest</id>
+            <domain>boolean</domain>
+            <expression>state.code = '1'</expression>
+        </field>
+        <field>
+            <id>issueClinicFilter.id</id>
+            <domain>integer</domain>
+            <expression>s.clinic_id</expression>
+            <search>:expression = :issueClinicFilter.id</search>
+        </field>
+        <field>
+            <id>workplaceId</id>
+            <domain>integer</domain>
+            <expression>s.workplace_id</expression>
+            <search unavailable="false"/>
+        </field>
+        <field>
+            <id>issuedEmployee.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select p.issued_employee_id
+                from sickdoc.period p
+                where p.sickdoc_id = s.id
+                order by p.from_dt asc
+                limit 1)
+            </expression>
+            <search>:expression = :issuedEmployee.id</search>
+        </field>
+        <field>
+            <id>issuedEmployee.name</id>
+            <domain>string</domain>
+            <name>Выписал</name>
+            <expression>
+                (select concat(i.surname, ' ' || left(i.name, 1) || '.', ' ' || left(i.patr_name, 1) || '.', ', ' || pp.name)
+                from sickdoc.period p
+                join pim_employee_position ep on ep.id = p.issued_employee_id
+                join pim_position pp on pp.id = ep.position_id
+                join pim_employee e on e.id = ep.employee_id
+                join pim_individual i on i.id = e.individual_id
+                where p.sickdoc_id = s.id
+                order by p.from_dt asc
+                limit 1)
+            </expression>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>issueClinic.id</id>
+            <domain>integer</domain>
+            <expression>s.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>registeredClinicId</id>
+            <domain>integer</domain>
+            <expression>s.registered_clinic_id</expression>
+        </field>
+        <field>
+            <id>issueClinic.name</id>
+            <domain>integer</domain>
+            <name>МО</name>
+            <expression>
+                (select o.short_name from pim_organization o where o.id = s.clinic_id)
+            </expression>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>hasContinue</id>
+            <domain>boolean</domain>
+            <expression>
+                (exists(select 1 from sickdoc.sickdoc where parent_id = s.id and type_id = 2))
+            </expression>
+        </field>
+        <field>
+            <id>isParentForDublicate</id>
+            <domain>boolean</domain>
+            <expression>
+                (exists(select 1 from sickdoc.sickdoc where parent_id = s.id and type_id = 3))
+            </expression>
+        </field>
+        <field>
+            <id>hasMaxCountOfPeriods</id>
+            <domain>boolean</domain>
+            <expression>(sickdoc.sickdoc_has_max_available_count_of_periods(s.id))</expression>
+        </field>
+        <field>
+            <id>kindCode</id>
+            <domain>string</domain>
+            <expression>kind.code</expression>
+            <search>:expression = :kindCode</search>
+        </field>
+        <field>
+            <id>parentId</id>
+            <expression>s.parent_id</expression>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>s.individual_id</expression>
+            <search>:expression = :patient.id</search>
+        </field>
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>
+                (select concat(i.surname, ' ' || left(i.name, 1) || '.', ' ' || left( (case when trim(i.patr_name) in ('',null) then null else trim(i.patr_name) end ), 1) || '.', ' (' || to_char(i.birth_dt, 'DD.MM.YYYY') || ')')
+                from pim_individual i
+                where i.id = s.individual_id)
+            </expression>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>readyToWorkDt</id>
+            <expression>s.ready_to_work_dt</expression>
+        </field>
+        <field>
+            <id>readyToWorkOther.id</id>
+            <expression>s.ready_to_work_other_id</expression>
+        </field>
+        <field>
+            <id>rowColor</id>
+            <domain>string</domain>
+            <display>
+                <![CDATA[
+                (case
+                    when state.code in ('1','2') and s.end_dt < current_date then 'expired'
+                    when state.code = '1' then 'request'
+                    when state.code = '2' then 'opened'
+                    when state.code = '3' then 'closed'
+                    when state.code = '4' then 'expired'
+                    when state.code = '5' then 'annulled'
+                end)
+                ]]>
+            </display>
+        </field>
+        <field>
+            <id>sicksheet_number</id>
+            <domain>string</domain>
+            <name>Номер</name>
+            <expression>s.number</expression>
+            <search>:expression = :sicksheet_number</search>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>workplace.id</id>
+            <domain>integer</domain>
+            <expression>s.workplace_id</expression>
+            <search>:expression = :workplace.id</search>
+        </field>
+        <field>
+            <id>workplace.name</id>
+            <domain>string</domain>
+            <name>Место работы</name>
+            <expression>
+                coalesce(s.workplace_print, (select o.short_name from pim_organization o where o.id = s.workplace_id))
+            </expression>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>withoutNumber</id>
+            <domain>boolean</domain>
+            <expression>s.number ISNULL</expression>
+            <search>:expression = :withoutNumber::bool</search>
+        </field>
+        <field>
+            <id>workplaceTypeId</id>
+            <domain>integer</domain>
+            <expression>s.workplace_type_id</expression>
+        </field>
+        <field>
+            <id>isMainWorkplace</id>
+            <domain>boolean</domain>
+            <expression>s.workplace_type_id = 1</expression>
+        </field>
+        <field>
+            <id>transferFromOtherClinic</id>
+            <domain>boolean</domain>
+            <expression>s.transfer_from_clinic = true</expression>
+        </field>
+        <field>
+            <id>isIssuedFromOtherClinic</id>
+            <domain>boolean</domain>
+            <expression><![CDATA[s.clinic_id <> :curClinicId]]></expression>
+        </field>
+        <field>
+            <id>isRegistrClinic</id>
+            <domain>boolean</domain>
+            <expression>s.registered_clinic_id = :curClinicId</expression>
+        </field>
+        <field>
+            <id>isPrimary</id>
+            <domain>boolean</domain>
+            <expression>s.type_id = 1</expression>
+        </field>
+        <field>
+            <id>isContinuation</id>
+            <domain>boolean</domain>
+            <expression>s.type_id = 2</expression>
+        </field>
+        <field>
+            <id>isDublicate</id>
+            <domain>boolean</domain>
+            <expression>s.type_id = 3</expression>
+        </field>
+        <field>
+            <id>isStillIll</id>
+            <domain>boolean</domain>
+            <expression>rwo.code = '31'</expression>
+        </field>
+        <field>
+            <id>journal.id</id>
+            <domain>integer</domain>
+            <expression>s.journal_id</expression>
+            <search>:expression = :journal.id</search>
+        </field>
+        <field>
+            <id>state.id</id>
+            <domain>integer</domain>
+            <expression>s.state_id</expression>
+            <search><![CDATA[
+                (case when :state.id = 4 then (s.state_id in (1,2) and s.end_dt < current_date) else (:expression = :state.id) end)
+                ]]>
+            </search>
+        </field>
+
+
+    </fields>
+</query>

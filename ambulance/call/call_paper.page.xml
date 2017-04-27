@@ -1,0 +1,666 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <!--<id>call_paper</id>-->
+    <name>Вызов по бумажной технологии</name>
+    <object-id>call_paper</object-id>
+    <layout>n2o/layout/single</layout>
+    <regions>
+        <region place="single" type="none">
+            <container id="call_paper" place="single">
+                <wgt:form src="ext/css/amb03-control-container-ambcard" customize="css" css-class="card-from n2o-form">
+                    <wgt:name>Карта вызова (врача)</wgt:name>
+                    <!--todo 1.27 ?(не помню)-->
+                    <wgt:query-id>call_paper</wgt:query-id>
+                    <wgt:default-values-query-id>call_paper_def</wgt:default-values-query-id>
+                    <!--<wgt:object-id>call_paper</wgt:object-id>-->
+                    <fs:field-set>
+
+                        <ctrl:output-text id="errorText" label="Отсутствует открытая смена, создание карты без смены невозможна!"
+                                          dependency-condition="change == null" label-style="color:red;width:100%;font-weight: bold;">
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="nullChange"/>
+                            </ctrl:validations>
+
+                        </ctrl:output-text>
+                    </fs:field-set>
+
+                    <fs:field-set field-label-location="left" header="none">
+
+                        <fs:row>
+                            <ctrl:date-time id="data" label="Смена" required="true"  css-class="ambcard-langlabel ambcard-birth_dt" default-value="today()" dependency-condition="(typeof id == 'undefined') || (id == null)">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="AfterDatacheck" side="client"/>
+                                    <ctrl:validation ref-id="BeforDatacheck" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:date-time>
+
+                            <!--<ctrl:input-text id="number2" label="№" required="true" css-class="ambcard-kurzlabel  ambcard-number ambcard-boldtext" dependency-condition="(typeof id == 'undefined') || (id == null)" copied="false">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="NumberUnique" side="client,server"/>
+                                    <ctrl:validation ref-id="inArrNumber" side="client,server"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>-->
+
+                            <ctrl:classifier id="number" label="№" label-style="width:30px;" css-class="ambcard-kind" dependency-condition="(typeof id == 'undefined') || (id == null)"
+                                             required="true" search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="amb_call_number" value-field-id="id" label-field-id="number">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org_id" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="dep_id" value="#{dep.id?}"/>
+                                    <ctrl:pre-filter field-id="change.data" ref="data"/>
+                                    <ctrl:pre-filter field-id="isUsed" value="false"/>
+                                </ctrl:pre-filters>
+                                    </ctrl:query>
+                                <ctrl:validations>
+                                   <!-- <ctrl:validation ref-id="NumberUnique" side="client,server"/>
+                                    <ctrl:validation ref-id="inArrNumber" side="client,server"/>-->
+                                </ctrl:validations>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="call_kind" label="Вид" label-style="width:30px;" css-class="ambcard-kind" dependency-condition="(typeof id == 'undefined') || (id == null)" required="true" search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="call_kind" value-field-id="id" label-field-id="code"/>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="call_type" label="Тип" dependency-condition="(typeof id == 'undefined') || (id == null)" required="true" css-class="ambcard-type" search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="call_type" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="employee" label="Принял" required="true" css-class="ambcard-remp ambcard-boldtext" dependency-condition="(typeof id == 'undefined') || (id == null)" search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="employee" label-field-id="namePos" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="statId" value="#{org.id?}"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">#{emplPos.id?}</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+                            <!--спц-->
+
+                            <ctrl:classifier id="parent_call" label="Вызов №" dependency-condition="(call_kind.id == 5)" css-class="ambcard-parent_amb_call" search-as-you-type="true">
+                                <ctrl:query query-id="call" value-field-id="id" label-field-id="num_change">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="station" value="#{org.id?}"/>
+                                        <!--<ctrl:pre-filter field-id="change.fdata" ref="date"/>-->
+                                        <!--<ctrl:pre-filter field-id="substation" ref="#{dep.id?}"/>-->
+                                        <ctrl:pre-filter field-id="brg.id" ref="parbrg.id"/>
+                                        <ctrl:pre-filter field-id="to_time" type="isNull"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <!--повторный вызов-->
+                            <ctrl:date-time id="date" label="Исходный вызов: Смена" dependency-condition="((typeof id == 'undefined') || (id == null))&amp;&amp;((call_type.id == 2)||(call_type.id == 3))"
+                                            css-class="ambcard-parent_amb_data" default-value="today()">
+                            </ctrl:date-time>
+                            <ctrl:classifier id="parent_call" label="№" dependency-condition="((typeof id == 'undefined') || (id == null))&amp;&amp;((call_type.id == 2)||(call_type.id == 3))" css-class="ambcard-parent_amb_call" search-as-you-type="true">
+                                <ctrl:query query-id="call" value-field-id="id" label-field-id="number">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="station" value="#{org.id?}"/>
+                                        <ctrl:pre-filter field-id="change.fdata" ref="date"/>
+                                        <ctrl:pre-filter field-id="substation" value="#{dep.id?}"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="need_exit_through" label="Активный выезд через" css-class="ambcard-address-house" dependency-condition="(call_type.id == 3)"/>
+                            <ctrl:output-text id="day" label="часа(ов)" css-class="ambcard-age" dependency-condition="(call_type.id == 3)"/>
+
+                            <ctrl:hidden id="source">
+                                <ctrl:set-value-expression on="call_kind,call_type,parent_call">
+                                    if ((call_kind.id == 5)||(call_type.id == 2)||(call_type.id == 3)) parent_call; else throw '!'
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+
+                            <!--амбулаторный-->
+                            <ctrl:classifier id="brg" label="Бригада" dependency-condition="(call_kind.id == 7)" css-class="ambcard-parent_amb_brg" search-as-you-type="true">
+                                <ctrl:query query-id="ambbrg" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="station.id" value="#{org.id?}"/>
+                                        <!--<ctrl:pre-filter field-id="is_free" value="true"/>-->
+                                        <!--<ctrl:pre-filter field-id="change.id" value="#{change.id}"/>-->
+                                        <!--<ctrl:pre-filter field-id="is_edate" value="false"/>-->
+                                        <ctrl:pre-filter field-id="change.data" ref="data"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="emp" label="Сотрудник" dependency-condition="call_kind.id == 7" css-class="ambcard-parent_amb_emp" search-as-you-type="true">
+                                <ctrl:query query-id="job_resource" value-field-id="id" label-field-id="res_name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="station.id" value="#{org.id?}"/>
+                                        <!--<ctrl:pre-filter field-id="change.id" value="#{change.id}"/>-->
+                                        <ctrl:pre-filter field-id="change.data" ref="data"/>
+                                        <ctrl:pre-filter field-id="res_kind.id" value="1"/>
+                                        <ctrl:pre-filter field-id="is_start" value="true"/>
+                                        <!--<ctrl:pre-filter field-id="is_edate" value="false"/>-->
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="checkAmb"/>
+                                </ctrl:validations>
+                            </ctrl:classifier>
+
+                            <!--в пути-->
+                            <ctrl:classifier id="brg" label="Бригада" dependency-condition="(call_type.id == 4)" css-class="ambcard-parent_amb_brg" search-as-you-type="true">
+                                <ctrl:query query-id="ambbrg" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="station.id" value="#{org.id?}"/>
+                                        <!--<ctrl:pre-filter field-id="is_free" value="false"/>-->
+                                        <!--<ctrl:pre-filter field-id="is_edate" value="false"/>-->
+                                        <ctrl:pre-filter field-id="change.data" ref="data"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                    <!--требует доработки-->
+                    <fs:field-set>
+                        <fs:row>
+                            <ctrl:hidden id="call_begin">
+                                <ctrl:set-value-expression on="">
+
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+                            <!--изменить query, т.к. из наряда выбираем-->
+                            <ctrl:classifier id="brg" label="Бригада" css-class="ambcard-transmit" dependency-condition="(typeof call_kind == 'undefined') || (call_kind == null)|| (call_kind.id != 7)" search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="ambbrg" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="station.id" value="#{org.id?}"/>
+                                        <!--<ctrl:pre-filter field-id="is_free" value="true"/>-->
+                                        <!--<ctrl:pre-filter field-id="change.id" ref="change.id"/>-->
+                                        <ctrl:pre-filter field-id="change.data" ref="data"/>
+                                        <!--<ctrl:pre-filter field-id="is_edate" value="false"/>-->
+                                        <!--<ctrl:pre-filter field-id="bdate" type="more" value=""-->
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="transmit" label="Способ передачи" css-class="ambcard-transmit ambcard-boldtext" dependency-condition="(typeof id == 'undefined') || (id == null)" search-as-you-type="true">
+                                <ctrl:query query-id="transmit" label-field-id="name" value-field-id="id"/>
+                                <!--<ctrl:default-model>-->
+                                    <!--<ctrl:value field-id="id">2</ctrl:value>-->
+                                    <!--<ctrl:value field-id="name">по рации</ctrl:value>-->
+                                <!--</ctrl:default-model>-->
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        (typeof brg != 'undefined')&amp;&amp;(brg != null)&amp;&amp;(brg.id != null)
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="route_reg" label="Передал" css-class="ambcard-remp ambcard-boldtext" dependency-condition="(typeof id == 'undefined') || (id == null)" search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="employee" label-field-id="namePos" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="statId" value="#{org.id?}"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        (typeof brg != 'undefined')&amp;&amp;(brg != null)&amp;&amp;(typeof brg.id != 'undefined')&amp;&amp;(brg.id != null)
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="line" label="Время (часы, минуты)" field-label-location="top" css-class="ambcard-fstime_03">
+                        <fs:row>
+                            <ctrl:masked-input id="receipt_time" label="Прием вызова" css-class="ambcard-time" mask="99:99" required="true" dependency-condition="(typeof id == 'undefined') || (id == null)" copied="false"/>
+
+                            <ctrl:masked-input id="transmit_time" label="Передан бригаде" css-class="ambcard-time" mask="99:99" dependency-condition="(typeof id == 'undefined') || (id == null)" copied="false"> <!--required="true"-->
+                                <ctrl:set-value-expression on="receipt_time,end_time">
+                                    if (call_kind.id == 7) (receipt_time); else throw '!'
+                                </ctrl:set-value-expression>
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        (typeof brg != 'undefined')&amp;&amp;(brg != null)&amp;&amp;(brg.id != null)
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:masked-input>
+                            <ctrl:masked-input id="exit_time" label="Выезд с п/ст" css-class="ambcard-time" mask="99:99" copied="false">
+                                <ctrl:set-value-expression on="receipt_time,end_time">
+                                    if (call_kind.id == 7) (receipt_time); else throw '!'
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+
+                            <ctrl:masked-input id="coming_time" label="Прибытие на вызов" css-class="ambcard-time" mask="99:99" copied="false"> <!--required="true"-->
+                                <ctrl:set-value-expression on="receipt_time,end_time">
+                                    if (call_kind.id == 7) (receipt_time); else throw '!'
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+
+                            <ctrl:hidden id="actual_change" default-value="change.data"/>
+                            <!--<ctrl:hidden id="stat_time">-->
+                                <!--<ctrl:set-value-expression on="brg">-->
+                                    <!--brg.stat_time-->
+                                <!--</ctrl:set-value-expression>-->
+                            <!--</ctrl:hidden>-->
+
+                            <ctrl:masked-input id="end_time" label="Окончание вызова" css-class="ambcard-time" mask="99:99" dependency-condition="(typeof id == 'undefined') || (id == null)" copied="false">
+                                <ctrl:dependencies>
+                                    <!--(data < actual_change) ||-->
+                                    <ctrl:required-condition>
+                                        <![CDATA[
+                                             (data < actual_change) ||(brg.stat_time > receipt_time)
+                                        ]]>
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:masked-input>
+
+                            <ctrl:masked-input id="calltime" label="Длитель- ность" css-class="ambcard-time" readonly="true" dependency-condition="(typeof id == 'undefined') || (id == null)" copied="false">
+                                <ctrl:set-value-expression on="receipt_time,end_time">
+                                    if ((typeof end_time != 'undefined')&amp;&amp;(end_time != null)&amp;&amp;(end_time != '__:__'))
+                                       if (moment(end_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60 >= 0) (moment(end_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60); else 1440 + (moment(end_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60)
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set field-label-location="left" css-class="ambcard-fsnotes_03">
+                        <ctrl:output-text id="notes" readonly="true" label="" label-style="width:0;" copied="false">
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="checkCallPaperTime" side="client,server"/>
+                            </ctrl:validations>
+                        </ctrl:output-text>
+                    </fs:field-set>
+                    <fs:field-set header="line" label="Вызов" css-class="ambcard-fscall">
+                        <fs:row>
+                            <ctrl:classifier id="source.caller_reason" label="Повод" search-as-you-type="true" dependency-condition="(typeof call_kind == 'undefined') || (call_kind == null) || (call_kind.id != 3)&amp;&amp;(call_kind.id !=4)&amp;&amp;(call_kind.id != 5)"
+                                             css-class="ambcard-reason_03" required="true">
+                                <ctrl:query query-id="caller_reason" value-field-id="id" label-field-id="name"/>
+                                <!--<ctrl:update-model query-id="caller_reason" master-field-id="source.caller_reason" detail-field-id="id" value-field-id="is_psycho" target-field-id="source.is_psycho"/>-->
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="call_reason_is_psycho" side="client"/>
+                                    <ctrl:validation ref-id="call_reason_is_alco" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="source.diagnosis" label="Диагноз-повод" dependency-condition="(call_kind.id == 3)||(call_kind.id ==4)||(call_kind.id == 5)"
+                                             css-class="ambcard-reason_03" required="true" search-as-you-type="true">
+                                <ctrl:query query-id="amb_diagnosis" value-field-id="id" label-field-id="codename"/>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="diag_is_psycho" side="client"/>
+                                    <ctrl:validation ref-id="call_reason_is_alco" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="source.reason_note" label="" css-class="ambcard-reason_note_03"/>
+                            <ctrl:checkbox id="source.is_group" label="Гр." css-class="ambcard-is_group"/>
+                            <ctrl:checkbox id="source.caller_reason.is_psycho" label="П" css-class="ambcard-is_group" dependency-condition="(typeof call_kind == 'undefined') || (call_kind == null) || (call_kind.id != 3)&amp;&amp;(call_kind.id !=4)&amp;&amp;(call_kind.id != 5)">
+                            </ctrl:checkbox>
+                            <ctrl:checkbox id="source.diagnosis.is_psycho" label="П" css-class="ambcard-is_group" dependency-condition="(call_kind.id == 3)||(call_kind.id ==4)||(call_kind.id == 5)">
+                            </ctrl:checkbox>
+                            <ctrl:checkbox id="source.is_alco" label="А" css-class="ambcard-is_group"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="sum_sufferer" label="Количество пострадавших" dependency-condition="group == true"
+                                             css-class="ambcard-sum_sufferer"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="source.call_place" label="Место вызова" css-class="ambcard-address" required="true" search-as-you-type="true">
+                                <ctrl:query query-id="call_place" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression on="call_kind,call_type" on-load="false" on-non-empty="false">
+                                    if ((call_kind.id != 5) &amp;&amp; (call_type.id != 2)&amp;&amp;(call_type.id != 3)&amp;&amp;(call_kind.id != 7))
+                                    {
+                                    var o = new Object();
+                                    o.id = 2;
+                                    o.name = 'квартира';
+                                    o.search = false;
+                                    o;
+                                    }else if (call_kind.id == 7)
+                                    {
+                                    var o = new Object();
+                                    o.id = 13;
+                                    o.name = 'подстанция';
+                                    o.search = true;
+                                    o;
+                                    }else {throw '!'}
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:input-text id="source.place_note" label="" css-class="ambcard-address-note" label-style="width:0;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:hidden id="station.id" default-value="#{org.id?}"/>
+                            <ctrl:hidden id="station.name" default-value="#{org.name?}"/>
+                            <ctrl:hidden id="station.addr" default-value="#{org.addr?}"/>
+                            <ctrl:hidden id="station.addrname" default-value="#{org.addrname}"/>
+                            <ctrl:classifier id="source.org" label="Организация" css-class="ambcard-address-org" search-as-you-type="true" dependency-condition="(source.call_place.search == true)">
+                                <ctrl:query query-id="amborg" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="PRId" ref="call_place.PRId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression on="source.call_place" on-load="false" on-non-empty="true">
+                                    if ((source.call_place.search == true)&amp;&amp;(source.call_place.id == 13)) {
+                                    var o = new Object();
+                                    o.id = station.id;
+                                    o.name = station.name;
+                                    o.addr = station.addr;
+                                    o.addrname = station.addrname;
+                                    o;
+                                    } else if ((source.call_place.search == true)&amp;&amp;(source.call_place.id != 13))
+                                    throw '!'
+                                    else null
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                            <ctrl:hidden id="substation.id" default-value="#{dep.id?}"/>
+                            <ctrl:hidden id="substation.name" default-value="#{dep.name?}"/>
+                            <ctrl:hidden id="substation.addr" default-value="#{dep.addr?}"/>
+                            <ctrl:hidden id="substation.addrname" default-value="#{dep.addrname?}"/>
+                            <ctrl:classifier id="source.department" label="Подразделение" dependency-condition="(source.call_place.search == true)" css-class="ambcard-address-dep" search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="ambdep" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="dorgId" ref="source.org.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression on="source.call_place" on-load="false" on-non-empty="true">
+                                    if ((source.call_place.search == true)&amp;&amp;(source.call_place.id == 13)) {
+                                    var o = new Object();
+                                    o.id = substation.id;
+                                    o.name = substation.name;
+                                    o.addr = substation.addr;
+                                    o.addrname = substation.addrname;
+                                    o;
+                                    } else if ((source.call_place.search == true)&amp;&amp;(source.call_place.id != 13))
+                                    throw '!'
+                                    else null
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <!--RMISNNO-205 задача на set-value-expression и validation-->
+                            <!--todo RMISNNO-206 задача на ограничения уровня отображения-->
+                            <!--<ctrl:hidden id="source.addr_data">-->
+                                <!--<ctrl:set-value-expression on="source.call_place,source.org,source.department" on-load="false" on-non-empty="true">-->
+                                    <!--if ((typeof source.department != 'undefined') &amp;&amp;(source.department != null)  &amp;&amp;(source.department.addr != null)){-->
+                                    <!--var o = new Object();-->
+                                    <!--o.id = source.department.addr;-->
+                                    <!--o.displayName = source.department.addrname;-->
+                                    <!--o;-->
+                                    <!--} else if ((typeof source.org != 'undefined') &amp;&amp;(source.org != null)  &amp;&amp;(source.org.addr != null)) {-->
+                                    <!--var o = new Object();-->
+                                    <!--o.id = source.org.addr;-->
+                                    <!--o.displayName = source.org.addrname;-->
+                                    <!--o;-->
+                                    <!--} else throw '!';-->
+                                <!--</ctrl:set-value-expression>-->
+                            <!--</ctrl:hidden>-->
+
+                            <!--todo RMISNNO-331 будет default-value-->
+                            <ctrl:hidden id="source.addr_data.id" default-value="#{addr_parent?}"/>
+
+                            <!--todo HOTANALYTICS-2432 address_parent = ref-->
+                            <rc:address id="source.addr_data" label="Адрес вызова" css-class="ambcard-address-street">
+                                <rc:set-value-expression on="source.call_place,source.org,source.department" on-load="false" on-non-empty="true" on-invisible="false">
+                                    if ((typeof source.department != 'undefined') &amp;&amp;(source.department != null)  &amp;&amp;(source.department.addr != null)){
+                                    var o = new Object();
+                                    o.id = source.department.addr;
+                                    o.displayName = source.department.addrname;
+                                    o;
+                                    } else if ((typeof source.org != 'undefined') &amp;&amp;(source.org != null)  &amp;&amp;(source.org.addr != null)) {
+                                    var o = new Object();
+                                    o.id = source.org.addr;
+                                    o.displayName = source.org.addrname;
+                                    o;
+                                    } else throw '!';
+                                </rc:set-value-expression>
+                            </rc:address>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="source.addr_descr" label="Доп. ориентиры" css-class="ambcard-address-street">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="checkAdSource" side="client"/>
+                                    <ctrl:validation ref-id="insins" side="client,server"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="none" label="Вызвал" css-class="ambcard-fscaller">
+                        <fs:row>
+                            <ctrl:classifier id="source.caller" label="Вызвал" css-class="ambcard-caller" search-as-you-type="true">
+                                <ctrl:query query-id="caller" value-field-id="id" label-field-id="name"/>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">22</ctrl:value>
+                                    <ctrl:value field-id="name">сам(а)</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="source.caller_note" label="" label-style="width:0;"/>
+                            <ctrl:masked-input id="source.phone" label="Телефон" mask="8(999)999-99-99" default-value="8(843)___-__-__" css-class="ambcard-phone"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="source.employee_med" label="Сотрудник МО" dependency-condition="((source.caller.id == 6))&amp;&amp;(call_kind.id != 7)" css-class="ambcard-label" search-as-you-type="true">
+                                <ctrl:query query-id="employee" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="statId" ref="source.org.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+
+                    <fs:field-set header="line" label="Пациент" field-label-location="left" css-class="ambcard-fsresult">
+                        <fs:row>
+                            <ctrl:input-text id="indDoc" label="Номер документа УДЛ/ОМС" css-class="ambcard-enp" label-style="width:200px;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="source.individual" label="Пациент" css-class="ambcard-label" control-style="width:675px;" copied="false" search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="patientsSearch" value-field-id="id" label-field-id="displayName">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="document" ref="indDoc"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:show-modal page-id="patientsList" result-container-id="pats" width="42%"/>
+                                <ctrl:update-model query-id="RegClinicCalculate" master-field-id="source.individual.id" detail-field-id="indiv" target-field-id="source.attachment.name" value-field-id="name" target="field"/>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="patUniqueCallPaper" side="client"/>
+                                </ctrl:validations>
+                                <ctrl:actions>
+                                    <ctrl:button icon="icon-plus" type="icon" label="Создать">
+                                        <ctrl:a href="/pats/patients/new?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html" target="newWindow"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition>!is_offline</ctrl:visibility-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                    <ctrl:button icon="icon-pencil" type="icon" label="Редактировать">
+                                        <ctrl:a href="/pats/patients/:individual.id:/edit?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html" target="newWindow"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:enabling-condition>individual.id != null</ctrl:enabling-condition>
+                                            <ctrl:visibility-condition>!is_offline</ctrl:visibility-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                </ctrl:actions>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <!--<ctrl:classifier id="source.attachment" label="Прикреплен к" css-class="ambcard-label ambcard-individual" autoselect-alone="true" readonly="true">-->
+                                <!--<ctrl:query query-id="amborg" value-field-id="id" label-field-id="name">-->
+                                    <!--<ctrl:pre-filters>-->
+                                        <!--<ctrl:pre-filter field-id="id" ref="source.individual.attachment"/>-->
+                                        <!--<ctrl:pre-filter field-id="PRId" value="2"/>-->
+                                    <!--</ctrl:pre-filters>-->
+                                <!--</ctrl:query>-->
+                            <!--</ctrl:classifier>-->
+                            <ctrl:input-text id="source.attachment.name" label="Прикреплен к" css-class="ambcard-label ambcard-individual" readonly="true"/>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="none" css-class="ambcard-fspatientfio" field-label-location="left" >
+                        <fs:row>
+                            <ctrl:input-text id="source.individual.surname" label="Фамилия" css-class="ambcard-label" copied="false">
+                                <ctrl:set-value-expression on="source.individual" silent-mode="true">
+                                    if ((typeof source.individual != 'undefined')&amp;&amp;(source.individual != null)&amp;&amp;(source.individual.id != null))
+                                    source.individual.surname; else throw '!'
+                                </ctrl:set-value-expression>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        (typeof source.individual == 'undefined')||(source.individual == null)|| (typeof source.individual.id == 'undefined')||(source.individual.id == null)||(source.individual.can_modif == true)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="source.individual.name" label="Имя" css-class="ambcard-label" copied="false">
+                                <ctrl:set-value-expression on="source.individual" silent-mode="true">
+                                    if ((typeof source.individual != 'undefined')&amp;&amp;(source.individual != null)&amp;&amp;(source.individual.id != null))
+                                    source.individual.name; else throw '!'
+                                </ctrl:set-value-expression>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        (typeof source.individual == 'undefined')||(source.individual == null)|| (typeof source.individual.id == 'undefined')||(source.individual.id == null) ||(source.individual.can_modif == true)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="source.individual.patrName" label="Отчество" css-class="ambcard-label" copied="false">
+                                <ctrl:set-value-expression silent-mode="true">
+                                    if ((typeof source.individual != 'undefined')&amp;&amp;(source.individual != null)&amp;&amp;(source.individual.id != null))
+                                    source.individual.patrName; else throw '!'
+                                </ctrl:set-value-expression>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        (typeof source.individual == 'undefined')||(source.individual == null)|| (typeof source.individual.id == 'undefined')||(source.individual.id == null)||(source.individual.can_modif == true)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="none" label="" css-class="ambcard-fspatientage" field-label-location="left">
+                        <fs:row>
+                            <!--todo 2.4.1-->
+                            <ctrl:hidden id="bd">
+                                <ctrl:set-value-expression on="source.individual" on-load="true" on-non-empty="true" on-invisible="true">
+                                    if ((typeof source.individual != 'undefined')&amp;&amp;(source.individual != null)&amp;&amp;(source.individual.id != null)) source.individual.birthDateWithAge; else null;
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+                            <ctrl:date-time id="source.individual.birthDate" label="Дата рожд." css-class="ambcard-label ambcard-birth_dt" copied="false">
+                                <ctrl:set-value-expression on="bd" on-load="true" on-non-empty="true" on-invisible="true">
+                                    if ((typeof bd != 'undefined')&amp;&amp;(bd != null))
+                                    moment(bd.substring(0,10),'DD.MM.YYYY').format('DD.MM.YYYY HH:mm')
+                                    ; else throw '!'
+                                </ctrl:set-value-expression>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="checkAge" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:date-time>
+                            <ctrl:classifier id="source.gender" label="Пол" css-class="ambcard-gender" copied="false" search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="amb_gender" value-field-id="id" label-field-id="name">
+                                    <!--<ctrl:pre-filters>-->
+                                        <!--<ctrl:pre-filter field-id="id" ref="source.individual.genderId"/>-->
+                                    <!--</ctrl:pre-filters>-->
+                                </ctrl:query>
+                                <ctrl:set-value-expression on="source.individual" on-non-empty="true" silent-mode="true">
+                                    <!--if ((typeof source.individual != 'undefined')&amp;&amp;(source.individual != null)&amp;&amp;(source.individual.gender != null))-->
+                                    {
+                                    var o = new Object();
+                                    o.id = source.individual.genderId;
+                                    o.name = source.individual.genderName;
+                                    o;
+                                    }
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:masked-input id="source.age_years" label="Возраст" css-class="ambcard-age-y" copied="false" mask="?999">
+                                <ctrl:set-value-expression>
+                                    if ((source.individual.birthDate != null)&amp;&amp;(moment().diff(moment(source.individual.birthDate, 'DD.MM.YYYY'), 'years')>=1 )) moment().diff(moment(source.individual.birthDate, 'DD.MM.YYYY'), 'years'); else null
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+                            <ctrl:masked-input id="source.age_months" label="л." css-class="ambcard-age" copied="false" mask="?99">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[
+                                    if  ((source.individual.birthDate != null)&&(moment().diff(moment(source.individual.birthDate, 'DD.MM.YYYY'), 'years')< 1) && (moment().diff(moment(source.individual.birthDate, 'DD.MM.YYYY'), 'months')>=1)) moment().diff(moment(source.individual.birthDate, 'DD.MM.YYYY'), 'months'); else null
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+                            <ctrl:masked-input id="source.age_days" label="мес." css-class="ambcard-age" copied="false" mask="?99">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[
+                                    if  ((source.individual.birthDate != null)&&(moment().diff(moment(source.individual.birthDate, 'DD.MM.YYYY'), 'years')< 1) && (moment().diff(moment(source.individual.birthDate, 'DD.MM.YYYY'), 'months')<1)) moment().diff(moment(source.individual.birthDate, 'DD.MM.YYYY'), 'days'); else null
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+                            <ctrl:output-text id="day" label="дн." css-class="ambcard-age"/>
+                        </fs:row>
+                        <!--<fs:row>-->
+                            <!--<ctrl:classifier id="citizenship_type" label="Житель" copied="false" search-as-you-type="true" autoselect-alone="true">-->
+                                <!--<ctrl:query query-id="citizenship_type" label-field-id="name" value-field-id="id"/>-->
+                            <!--</ctrl:classifier>-->
+                        <!--</fs:row>-->
+                    </fs:field-set>
+
+                    <fs:field-set header="line" label="Перевозка" dependency-condition="((call_kind.id == 3)||(call_kind.id ==4)||(source.has_hosp == true))" css-class="ambcard-fsaddress">
+                        <fs:row>
+                            <ctrl:classifier id="source.to_org" label="Организация" css-class="ambcard-address-org" search-as-you-type="true">
+                                <ctrl:query query-id="amborg" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="PRId" value="2"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="source.to_department" label="Подразделение" css-class="ambcard-address-dep" search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="ambdep" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="dorgId" ref="source.to_org.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <!--RMISNNO-205 задача на set-value-expression и validation-->
+                            <!--todo RMISNNO-206 задача на ограничения уровня отображения-->
+                            <!--<ctrl:hidden id="source.toaddr_data">-->
+                                <!--<ctrl:set-value-expression on="source.to_org,source.to_department" on-load="false" on-non-empty="true">-->
+                                    <!--if ((typeof source.to_department != 'undefined') &amp;&amp;(source.to_department != null)  &amp;&amp;(source.to_department.addr != null)){-->
+                                    <!--var o = new Object();-->
+                                    <!--o.id = source.to_department.addr;-->
+                                    <!--o.displayName = source.to_department.addrname;-->
+                                    <!--o;-->
+                                    <!--} else if ((typeof source.to_org != 'undefined') &amp;&amp;(source.to_org != null)  &amp;&amp;(source.to_org.addr != null)) {-->
+                                    <!--var o = new Object();-->
+                                    <!--o.id = source.to_org.addr;-->
+                                    <!--o.displayName = source.to_org.addrname;-->
+                                    <!--o;-->
+                                    <!--} else null;-->
+                                <!--</ctrl:set-value-expression>-->
+                            <!--</ctrl:hidden>-->
+
+                            <!--todo RMISNNO-331 будет default-value-->
+                            <ctrl:hidden id="source.toaddr_data.id" default-value="#{addr_parent?}"/>
+
+                            <!--todo HOTANALYTICS-2432 address_parent = ref-->
+                            <rc:address id="source.toaddr_data" label="Адрес" css-class="ambcard-address-street">
+                                <rc:set-value-expression on="source.to_org,source.to_department" on-load="false" on-non-empty="true" on-invisible="false">
+                                    if ((typeof source.to_department != 'undefined') &amp;&amp;(source.to_department != null)  &amp;&amp;(source.to_department.addr != null)){
+                                    var o = new Object();
+                                    o.id = source.to_department.addr;
+                                    o.displayName = source.to_department.addrname;
+                                    o;
+                                    } else if ((typeof source.to_org != 'undefined') &amp;&amp;(source.to_org != null)  &amp;&amp;(source.to_org.addr != null)) {
+                                    var o = new Object();
+                                    o.id = source.to_org.addr;
+                                    o.displayName = source.to_org.addrname;
+                                    o;
+                                    } else null;
+                                </rc:set-value-expression>
+                            </rc:address>
+                        </fs:row>
+                        <fs:row>
+                            <!--<ctrl:input-text id="source.to_house" label="д." css-class="ambcard-address-house"/>-->
+                            <!--<ctrl:input-text id="source.to_housing" label="кор." css-class="ambcard-address-numbers"/>-->
+                            <!--<ctrl:input-text id="source.to_apartment" label="кв." css-class="ambcard-address-numbers"/>-->
+                            <!--<ctrl:input-text id="source.to_porch" label="под." css-class="ambcard-address-numbers"/>-->
+                            <!--<ctrl:input-text id="source.to_addr_descr" label="" css-class="ambcard-address-to_descr" label-style="width:0;"/>-->
+                            <ctrl:input-text id="source.to_addr_descr" label="Доп. ориентиры" css-class="ambcard-address-street"/>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="line" css-class="ambcard-fsresult">
+                        <ctrl:text-area id="source.comment" label="Примечание" rows="2" css-class="ambcard-label ambcard-note"/>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+    </regions>
+</page>

@@ -1,0 +1,159 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>change_setting</id>-->
+    <name>Настройка смены</name>
+    <actions>
+        <action id="create" name="Добавить">
+            <invocation>
+                <sql:sql>
+                      insert into amb.md_ambulance_change_setting
+                    (id,scope_type_id,clinic_id,route_id,department_id,change_begin,change_period)
+                        values
+                    (nextval('amb.md_ambulance_change_setting_id_seq'),
+                    :scopeId,
+                    case lower(:sCode) when 'global' then null::integer else :orgId end,
+                    :routeId,
+                    case lower(:sCode) when 'department' then :departmentId else null::integer end,
+                    cast(:change_begin as time),
+                    cast(:change_period||' hour' as interval)
+                    );
+                    <!--select amb.forced_open_ambulance_change (:orgId,coalesce(:departmentId,:sub));-->
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="scope.id" mapping="['scopeId']" domain="integer"/>
+                <param name="scope.code" mapping="['sCode']" domain="string"/>
+                <param name="station.id" mapping="['orgId']" domain="integer"/>
+                <param name="route.id" mapping="['routeId']" domain="integer"/>
+                <param name="substation.id" mapping="['departmentId']" domain="integer"/>
+                <param name="sub" mapping="['sub']" domain="integer" value="#{dep.id}"/>
+                <param name="change_begin" mapping="['change_begin']" domain="string"/>
+                <param name="change_period" mapping="['change_period']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    update amb.md_ambulance_change_setting set
+                    scope_type_id=:scopeId,
+                    clinic_id = case lower(:sCode) when 'global' then null::integer else :orgId end,
+                    route_id=:routeId,
+                    department_id = case lower(:sCode) when 'department' then :departmentId else null::integer end,
+                    change_begin=cast(:change_begin as time),
+                    change_period=cast(:change_period||' hour' as interval)
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="scope.id" mapping="['scopeId']" domain="integer"/>
+                <param name="scope.code" mapping="['sCode']" domain="string"/>
+                <param name="station.id" mapping="['orgId']" domain="integer"/>
+                <param name="route.id" mapping="['routeId']" domain="integer"/>
+                <param name="substation.id" mapping="['departmentId']" domain="integer"/>
+                <param name="change_begin" mapping="['change_begin']" domain="string"/>
+                <param name="change_period" mapping="['change_period']" domain="string"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from amb.md_ambulance_change_setting where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="forced_open">
+            <invocation>
+                <sql:sql>
+                    select amb.forced_open_ambulance_change (:org,:dep,:reg,:user);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="station.id" mapping="['org']" domain="integer" value="#{org.id}"/>
+                <param name="substation.id" mapping="['dep']" domain="integer" value="#{dep.id}"/>
+                <param name="registrator" mapping="['reg']" domain="integer" value="#{emplPos.id}"/>
+                <param name="user" mapping="['user']" domain="integer" value="#{user.id}"/>
+            </in-parameters>
+        </action>
+
+    </actions>
+    <validations>
+        <constraint id="checkUniqueChangesettingWar" level="warning">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.md_ambulance_change_setting
+                    where clinic_id = :orgId
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer" required="false"/>
+                <param name="station.id" mapping="['orgId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Настройка для станции уже существует в системе</message>
+        </constraint>
+        <constraint id="checkUniqueChangesetting" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.md_ambulance_change_setting
+                    where (
+                    scope_type_id = :scopeId
+                    and (case lower(:sCode) when 'department' then department_id = :departmentId else true end)
+                    and case lower(:sCode) when 'global' then true else clinic_id =  :orgId end)
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" required="false"/>
+                <param name="scope.id" mapping="['scopeId']" domain="integer"/>
+                <param name="scope.code" mapping="['sCode']" domain="string"/>
+                <param name="station.id" mapping="['orgId']" domain="integer"/>
+                <!--<param name="route.id" mapping="['routeId']" domain="integer"/>-->
+                <param name="substation.id" mapping="['departmentId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Настройка уже существует в системе</message>
+        </constraint>
+
+        <constraint id="checkUniqueChangeDepsetting" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.md_ambulance_change_setting
+                    where
+                    (
+                    clinic_id = :orgId and department_id = :departmentId
+                    and (:id is null or id != :id)
+                    )
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" required="false"/>
+                <param name="station.id" mapping="['orgId']" domain="integer"/>
+                <param name="substation.id" mapping="['departmentId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Настройка для указанного подразделения уже существует в системе</message>
+        </constraint>
+
+
+        <condition id="checkChangeRoute" level="error">
+            <expression>
+                (typeof scope != 'undefined') &amp;&amp; (scope.id != null) &amp;&amp; (scope.code != 'Route')
+            </expression>
+            <message>Настройка по уровню 'Направление' не доступна, используйте уровень подстанции.</message>
+        </condition>
+    </validations>
+</object>

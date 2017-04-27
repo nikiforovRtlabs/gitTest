@@ -1,0 +1,221 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<table xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <id>EventPatient</id>
+    <name>Пациенты</name>
+    <query-id>eventPatients</query-id>
+    <columns>
+        <column column-field-id="fio"/>
+        <column column-field-id="birthday"/>
+        <column column-field-id="ambCard"/>
+        <column column-field-id="target_date.name"/>
+        <column column-field-id="open_date_1.name"/>
+        <column column-field-id="end_date_1.name"/>
+        <column column-field-id="is_2_stage">
+            <checkbox>
+            </checkbox>
+        </column>
+        <column column-field-id="is_d">
+            <checkbox>
+            </checkbox>
+        </column>
+        <column column-field-id="health_group.name"/>
+        <column column-field-id="overview">
+            <!--<color color-field-id="overview_color"/>-->
+            <color>
+                <switch value-field-id="overview_color">
+                    <case value="1">text-error</case>
+                    <case value="2">text-warning</case>
+                    <case value="3">text-success</case>
+                    <default>text-success</default>
+                </switch>
+            </color>
+        </column>
+    </columns>
+    <filters position="top">
+        <n2o:input-text id="fio"/>
+        <n2o:date-time id="birthday"/>
+        <n2o:input-text id="ambCard"/>
+        <n2o:classifier id="gender" label="Пол">
+            <n2o:query query-id="dispGender" value-field-id="id" label-field-id="name"/>
+        </n2o:classifier>
+        <n2o:input-text id="o_number">
+            <n2o:validations>
+                <n2o:validation ref-id="correctFormat"/>
+            </n2o:validations>
+        </n2o:input-text>
+        <n2o:classifier id="address" label="Адрес">
+            <n2o:query query-id="addressData" value-field-id="id" label-field-id="search_name"/>
+        </n2o:classifier>
+        <n2o:classifier label="Группа здоровья" id="health_group">
+            <n2o:query query-id="dispHealthGroup" value-field-id="id" label-field-id="name"/>
+        </n2o:classifier>
+        <n2o:checkbox id="is_d"/>
+        <n2o:checkbox id="is_2_stage"/>
+        <n2o:date-interval id="target_date" format="DD.MM.YYYY" label="Плановая дата"/>
+        <n2o:date-interval id="open_date_1" format="DD.MM.YYYY" label="Дата начала"/>
+        <n2o:checkbox id="status" default-value="true"/>
+        <n2o:checkbox id="status2"/>
+        <n2o:checkbox id="statusPatientInEvent"/>
+        <n2o:classifier id="overview_search" label="Результат">
+            <n2o:query query-id="overview" value-field-id="id" label-field-id="name"/>
+        </n2o:classifier>
+    </filters>
+
+    <action-menu>
+        <group>
+        <menu-item id="sub" label="Еще">
+            <sub-menu>
+                <menu-item id="addPatient" label="Добавить пациента" context="false" icon="icon-plus-sign" type="textAndIcon">
+                    <show-modal page-id="patientSearchService" container-id="main" action-id="addPatient" master-field-id="id"
+                                detail-field-id="id" width="650px"/>
+                    <conditions>
+                        <enabling-condition>
+                            <expression>event.enable==1</expression>
+                            <tooltip>Период проведения мероприятия истек или не наступил</tooltip>
+                        </enabling-condition>
+                    </conditions>
+                    
+                    
+                </menu-item>
+                <menu-item id="editPresFroPatient" label="Изменить назначения" context="true" icon="icon-exclamation-sign" type="textAndIcon">
+                    <show-modal page-id="patientSearchServicePrescription" container-id="main" master-field-id="id"
+                                detail-field-id="event_patient_id" action-id="update"/>
+                    <conditions>
+                        <enabling-condition>
+                            <expression>hasBill==0</expression>
+                            <tooltip>На случай сформирован счет-реестр, изменять назначения запрещено</tooltip>
+                        </enabling-condition>
+                    </conditions>
+                </menu-item>
+                <menu-item label="ЭМК" id="emk" context="true" icon="icon-share-alt" type="textAndIcon">
+                    <a href="/cases/patient/:indivId:/case/:caseId:/edit?backUrl=%2Fresource%2F0%2Fhtml%2Fself-close.html" target="newWindow" />
+                    <conditions>
+                        <enabling-condition>
+                            <expression>checkDC >= 1</expression>
+                            <tooltip>Пациент еще не начал проходить мероприятие!</tooltip>
+                        </enabling-condition>
+                    </conditions>
+                </menu-item>
+                <menu-item id="removePatient" label="Удалить пациента" context="true" icon="icon-remove-sign" type="textAndIcon">
+                    <invoke-action action-id="removePatient" confirmation="true"  />
+                </menu-item>
+            </sub-menu>
+        </menu-item>
+        <menu-item id="sub_planned" label="Планирование" icon="icon-calendar">
+            <sub-menu>
+                <menu-item label="Автоматическое" id="planning" context="false" icon="icon-calendar" type="text">
+                    <show-modal page-id="customSelectPatients" container-id="main" action-id="setPlannedDate" master-field-id="id"
+                                detail-field-id="id"/>
+                    <!--<invoke-action action-id="setPlannedDate" confirmation="true"/>-->
+                </menu-item>
+                <menu-item label="Ручное" id="planning2" context="true" icon="icon-calendar" type="text">
+                    <show-modal page-id="manualSetPlannedDate" action-id="manualSetPlannedDate" container-id="main" master-field-id="id"
+                                detail-field-id="id" width="255px"/>
+                </menu-item>
+            </sub-menu>
+        </menu-item>
+        <menu-item label="Согласие" id="agreement" context="true" icon="icon-ok-circle" type="textAndIcon">
+            <show-modal page-id="disprCardAgreeForm" action-id="agreeDispr" container-id="generalInfo" master-field-id="id"
+                        detail-field-id="mainId" width="255px" />
+            <conditions>
+                <visibility-condition>
+                    <expression>(hasServices!=null)||(check_pres_group)</expression>
+                </visibility-condition>
+            </conditions>
+        </menu-item>
+
+        <menu-item label="Согласие" id="agreement2" context="true" icon="icon-ok-circle" type="textAndIcon" >
+            <show-modal page-id="disprCardAgreeFormWithOutService" container-id="generalInfo" master-field-id="id"
+                        detail-field-id="mainId" width="260px"/>
+                        <conditions>
+                            <visibility-condition>
+                                <expression>(hasServices==null)&amp;&amp;(!check_pres_group)</expression>
+                            </visibility-condition>
+                        </conditions>
+        </menu-item>
+
+        <menu-item label="Отказ" id="denial" context="true" icon="icon-remove-circle" type="textAndIcon" >
+            <show-modal page-id="disprCardDeniForm" action-id="deniDispr" container-id="generalInfo" master-field-id="id"
+                        detail-field-id="mainId" width="750px"/>
+            <conditions>
+                <visibility-condition>
+                    <expression>(hasServices!=null)||(check_pres_group)</expression>
+                </visibility-condition>
+            </conditions>
+        </menu-item>
+
+        <menu-item label="Отказ" id="denial2" context="true" icon="icon-remove-circle" type="textAndIcon" >
+            <show-modal page-id="disprCardDeniFormWithOutService" container-id="generalInfo" master-field-id="id"
+                        detail-field-id="mainId" width="260px"/>
+            <conditions>
+                <visibility-condition>
+                    <expression>(hasServices==null)&amp;&amp;(!check_pres_group)</expression>
+                </visibility-condition>
+            </conditions>
+        </menu-item>
+        </group>
+        <group>
+        <menu-item label="Анкетирование" id="questioning" context="true" icon="icon-bullhorn" type="textAndIcon">
+            <open-page page-id="questioningEvent" container-id="main" master-field-id="id" detail-field-id="meqId" refresh-on-close="true">
+                <pre-filters>
+                    <pre-filter field-id="eventId" ref="event.id"/>
+                </pre-filters>
+            </open-page>
+            <conditions>
+                <enabling-condition>
+                    <expression>agreeAnketa == true</expression>
+                    <tooltip>Пациент не дал согласие на анкетирование!</tooltip>
+                </enabling-condition>
+                <visibility-condition>
+                    <expression>event_age_before_75 == 1</expression>
+                </visibility-condition>
+            </conditions>
+        </menu-item>
+        <menu-item label="Анкетирование" id="questioningAfter75" context="true" icon="icon-bullhorn" type="textAndIcon">
+            <open-page page-id="questioningEventAfter75" container-id="main" master-field-id="id" detail-field-id="meqId" refresh-on-close="true"/>
+            <conditions>
+                <enabling-condition>
+                    <expression>agreeAnketa == true</expression>
+                    <tooltip>Пациент не дал согласие на анкетирование!</tooltip>
+                </enabling-condition>
+                <visibility-condition>
+                    <expression>event_age_before_75 == 2</expression>
+                </visibility-condition>
+            </conditions>
+        </menu-item>
+        <menu-item label="Антропометрия" id="anthropometry" context="true" icon="icon-info-sign" type="textAndIcon">
+            <show-modal width="650px" page-id="anthropometryEvent" container-id="main" master-field-id="id" detail-field-id="meaId" refresh-on-close="true" >
+                <pre-filters>
+                    <pre-filter field-id="eventId" ref="event.id"/>
+                </pre-filters>
+            </show-modal>
+            <conditions>
+                <enabling-condition>
+                    <expression>agreeAntro == true</expression>
+                    <tooltip>Пациент не дал согласие на антропометрию!</tooltip>
+                </enabling-condition>
+                <enabling-condition>
+                    <expression>renderedAnketa == true</expression>
+                    <tooltip>Пациент не прошел анкетирование</tooltip>
+                </enabling-condition>
+            </conditions>
+        </menu-item>
+        </group>
+        <group>
+        <menu-item label="Карточка" id="card" context="true" icon="icon-book" type="textAndIcon" color="btn-success">
+            <open-page page-id="DisprCard" container-id="patientData" master-field-id="id" detail-field-id="id" refresh-on-close="true">
+                <pre-filters>
+                    <pre-filter field-id="eventId" ref="event.id"/>
+                </pre-filters>
+            </open-page>
+            <conditions>
+                <enabling-condition>
+                    <expression>checkDC >= 2</expression>
+                    <tooltip>Пациент не прошел анкетирование или антропометрию!</tooltip>
+                </enabling-condition>
+            </conditions>
+        </menu-item>
+        </group>
+    </action-menu>
+</table>

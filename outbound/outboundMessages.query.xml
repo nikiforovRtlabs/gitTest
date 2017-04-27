@@ -1,0 +1,146 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>messageOutbox</object-id>
+    <name>outboundMessages</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from messenger.message_outbox mb
+                join messenger.message m on m.id=mb.message_id
+                join messenger.severity_level l on l.id=m.severity_level_id
+                join messenger.alert_type alert on alert.id=m.alert_type_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mb)
+                from messenger.message_outbox mb
+                join messenger.message m on m.id=mb.message_id
+                join messenger.severity_level l on l.id=m.severity_level_id
+                join messenger.alert_type alert on alert.id=m.alert_type_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mb</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>mb.id</expression>
+        </field>
+
+        <field>
+            <id>recipientsAsString</id>
+            <domain>string</domain>
+            <name>Получатели</name>
+            <expression>case when mb.recepient_query is null then (select string_agg(ind.surname||' '||ind.name||' '||ind.patr_name||' ('||u.login||')', ',') from messenger.message__user rec
+                left join sec_user u on rec.user_id=u.id
+                left join sec_user_party up on up.id=u.id
+                left join pim_individual ind on ind.id=up.party_id
+                where rec.msg_id=mb.message_id) else mb.recepient_query end</expression>
+        </field>
+
+        <field>
+            <id>caption</id>
+            <name>Заголовок</name>
+            <domain>string</domain>
+            <expression>m.caption</expression>
+            <search>upper(:expression) like '%'||upper(:caption)||'%'</search>
+        </field>
+        <field>
+            <id>level.id</id>
+            <domain>integer</domain>
+            <expression>l.id</expression>
+        </field>
+        <field>
+            <id>level.name</id>
+            <name>Уровень важности</name>
+            <domain>string</domain>
+            <expression>l.name</expression>
+        </field>
+        <field>
+            <id>alertType.id</id>
+            <domain>integer</domain>
+            <expression>alert.id</expression>
+        </field>
+        <field>
+            <id>alertType.name</id>
+            <name>Способ отображения</name>
+            <domain>string</domain>
+            <expression>alert.name</expression>
+        </field>
+        <field>
+            <id>text</id>
+            <name>Текст оповещения</name>
+            <domain>string</domain>
+            <expression>m.text</expression>
+            <search>upper(:expression) like '%'||upper(:text)||'%'</search>
+        </field>
+
+        <field>
+            <id>recepientQuery</id>
+            <domain>string</domain>
+            <expression>mb.recepient_query</expression>
+        </field>
+
+        <field>
+            <id>messageId</id>
+            <domain>integer</domain>
+            <expression>mb.message_id</expression>
+        </field>
+
+        <field>
+            <id>recepientIds</id>
+            <domain>integer[]</domain>
+            <expression>((select array_to_json(array_agg(ol_json))
+                from (select rec.user_id from messenger.message__user rec where rec.msg_id=mb.message_id) as ol_json))
+            </expression>
+        </field>
+
+        <field>
+            <id>sendDate.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>sendDate.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>sendDate</id>
+            <name>Дата отправки</name>
+            <expression>
+                mb.send_date
+            </expression>
+            <search><![CDATA[
+                (
+                :sendDate.begin::date is null and :sendDate.end::date is null or
+                (:sendDate.begin::date is null or mb.send_date >= :sendDate.begin) and
+                (:sendDate.end::date is null or mb.send_date <= :sendDate.end)
+                )
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>sendSelect.id</id>
+            <domain>integer</domain>
+            <expression>(case when mb.send_date is not null then 1 else 2 end)</expression>
+            <search>:expression = :sendSelect.id</search>
+        </field>
+
+        <!--<field>-->
+            <!--<id>copy</id>-->
+            <!--<domain>boolean</domain>-->
+            <!--<display unavailable="true"/>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+    </fields>
+</query>

@@ -1,0 +1,167 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>anestheticMap</object-id>
+    <name>patientBeforeProcedure_default</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from hospital.basic_data_anesthetic_map b
+                left join mc_case cs on b.uid_id = cs.id
+                left join hospital.md_srv_rendered_oper msro on b.md_srv_rendered_oper_id = msro.id
+                left join md_srv_rendered msr on msr.id = msro.service_id
+                left join mc_step step on step.id = msr.step_id
+                left join sr_srv_rendered ssr on ssr.id = msr.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:alias>b</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>duringOperation</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>(case when exists(select of.id from hospital.operation_flow of
+                where of.anesthetic_map_id=b.id)
+                then true else false end)
+            </expression>
+        </field>
+        <field>
+            <id>operationJournalId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>b.md_srv_rendered_oper_id</expression>
+        </field>
+
+        <field>
+            <id>basic.patient.id</id>
+            <domain>integer</domain>
+            <expression>b.patient_id</expression>
+        </field>
+
+        <field>
+            <id>basicId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>b.id</expression>
+        </field>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>b.uid_id</expression>
+        </field>
+        <field>
+            <id>case.patient.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>cs.patient_id</expression>
+        </field>
+        <field>
+            <id>case.step.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>msr.step_id</expression>
+        </field>
+        <field>
+            <id>case.service.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>msro.service_id</expression>
+        </field>
+        <field>
+            <id>case.step.department.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>(select hr.department_id from hsp_record hr where hr.id = step.id)</expression>
+        </field>
+        <field>
+            <id>case.organization.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>step._clinic_id</expression>
+        </field>
+
+        <field>
+            <id>case.financialTypeId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>(select ffs.id from
+                inventory.funding_source ffs
+                inner join inventory.funding_source_payment_type fspt1 on fspt1.funding_source_id = ffs.id
+                inner join fin_funding_source_type ffst on ffst.id=fspt1.payment_type_id
+                where ssr.funding_id = ffst.id and fspt1.is_check_accounting = true
+                and (fspt1.org_id is null or fspt1.org_id = step._clinic_id)
+                and (ffs.org_id is null or ffs.org_id = step._clinic_id)
+                order by fspt1.funding_source_id asc
+                limit 1)</expression>
+        </field>
+
+        <field>
+            <id>case.financialTypeName</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(select ffs.name from
+                inventory.funding_source ffs
+                inner join inventory.funding_source_payment_type fspt1 on fspt1.funding_source_id = ffs.id
+                inner join fin_funding_source_type ffst on ffst.id=fspt1.payment_type_id
+                where ssr.funding_id=ffst.id and fspt1.is_check_accounting = true
+                and (fspt1.org_id is null or fspt1.org_id = step._clinic_id)
+                and (ffs.org_id is null or ffs.org_id = step._clinic_id)
+                order by fspt1.funding_source_id asc
+                limit 1)</expression>
+        </field>
+
+        <field>
+            <id>beginDate</id>
+            <domain>date</domain>
+            <display/>
+            <expression>date(ssr.planned_date + ssr.planned_time - time '00:10')</expression>
+        </field>
+        <field>
+            <id>beginTime</id>
+            <domain>string</domain>
+            <display/>
+            <expression>to_char((ssr.planned_date + ssr.planned_time - time '00:10'),'hh24:mi')</expression>
+        </field>
+
+
+        <field>
+            <id>premedication.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>null</expression>
+        </field>
+        <field>
+            <id>anesthetic.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>null</expression>
+        </field>
+
+        <field>
+            <id>anesthesiolog.id</id>
+            <domain>integer</domain>
+            <display value="#{emplPosRes.id?}"/>
+            <expression>null</expression>
+        </field>
+        <field>
+            <id>anesthesiolog.name</id>
+            <domain>string</domain>
+            <display value="#{emplPosRes.name?}"/>
+            <expression>null</expression>
+        </field>
+        <field>
+            <id>controlSavingDone</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression> b.control_saving_done
+            </expression>
+        </field>
+
+    </fields>
+</query>

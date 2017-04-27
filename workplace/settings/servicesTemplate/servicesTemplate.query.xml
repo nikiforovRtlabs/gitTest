@@ -1,0 +1,202 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>servicesTemplate</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from services_template st
+                left join md_standard std on std.id = st.standard_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(st)
+                from services_template st
+                where :where
+            </n2o:count-query>
+            <n2o:alias>st</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>st.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>st.name</expression>
+            <name>Наименование</name>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <expression>st.note</expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>st.clinic_id</expression>
+            <search value="#{org.id?}">(:expression = :orgId or :orgId is null)</search>
+        </field>
+
+        <field>
+            <id>period.begin</id>
+            <domain>date</domain>
+            <name>Дата начала</name>
+            <expression>st.begin_date</expression>
+        </field>
+
+        <field>
+            <id>period.end</id>
+            <domain>date</domain>
+            <name>Дата окончания</name>
+            <expression>st.end_date</expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>accessLevel.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display unavailable="true"/>-->
+            <!--<search>(-->
+                <!--:accessLevel.id = 1 and exists(select id from services_template_access where template_id = st.id and user_id is not null) or-->
+                <!--:accessLevel.id = 2 and exists(select id from services_template_access where template_id = st.id and position_id is not null) or-->
+                <!--:accessLevel.id = 3 and exists(select id from services_template_access where template_id = st.id and department_id is not null))-->
+            <!--</search>-->
+        <!--</field>-->
+
+        <field>
+            <id>template.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(
+                :template.id = 1 and st.is_service is true and st.is_holding is not true or
+                :template.id = 2 and st.is_holding is true and st.is_service is not true or
+                :template.id = 3 and st.is_service is true and st.is_holding is true)
+            </search>
+        </field>
+
+        <!--<field>-->
+            <!--<id>department.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display unavailable="true"/>-->
+            <!--<search>exists(select id from services_template_access where template_id = st.id and department_id = :department.id)</search>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>positionRole.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<search>exists(select id from services_template_access where template_id = st.id and position_id = :positionRole.id)</search>-->
+            <!--<display unavailable="true"/>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>levelName</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Уровень доступа</name>-->
+            <!--<expression>(select array_to_string(array_agg(levelName), ', ')-->
+                <!--from (-->
+                    <!--select (case when ss.user_id is not null then 'Пользователь' else-->
+                        <!--case when ss.position_id is not null then 'Должность' else-->
+                        <!--case when ss.department_id is not null then 'Подразделение' else 'Организация'-->
+                        <!--end end end) as levelName-->
+                    <!--from services_template_access ss-->
+                    <!--where template_id = st.id-->
+                    <!--group by levelName-->
+                <!--) access-->
+            <!--)-->
+            <!--</expression>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>organizationFile.departments</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Подразделение</name>-->
+            <!--<expression>(select array_to_string(array_agg(name), ', ')-->
+                <!--from (-->
+                    <!--select d.name from services_template_access a-->
+                    <!--inner join pim_department d on d.id = a.department_id-->
+                    <!--where a.template_id = st.id-->
+                <!--) department-->
+            <!--)-->
+            <!--</expression>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>positions</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Должность</name>-->
+            <!--<expression>(select array_to_string(array_agg(name), ', ')-->
+                <!--from (-->
+                <!--select pos.name from services_template_access a-->
+                <!--inner join pim_position_role pos on pos.id = a.position_id-->
+                <!--where a.template_id = st.id-->
+                <!--) position-->
+            <!--)-->
+            <!--</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>typeIcon</id>
+            <name/>
+            <expression>(case
+                when st.is_service is true and st.is_holding is true then '3' else
+                    case when st.is_service is true then '1' else
+                        case when st.is_holding is true then '2'
+                end end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>typeIconTooltip</id>
+            <name>statusIconTooltip</name>
+            <expression>(case
+                when st.is_service is true and st.is_holding is true then 'Составной шаблон' else
+                    case when st.is_service is true then 'Шаблон услуг' else
+                        case when st.is_holding is true then 'Шаблон препаратов'
+                end end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <expression>(case when st.is_service is true and st.is_holding is true then 3 else
+                    case when st.is_service is true and st.is_holding is not true then 1 else
+                        case when st.is_holding is true and st.is_service is not true then 2
+                end end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>standard.name</id>
+            <domain>string</domain>
+            <expression>std.name</expression>
+            <name>Стандарт</name>
+        </field>
+
+        <field>
+            <id>standard.id</id>
+            <domain>integer</domain>
+            <expression>st.standard_id</expression>
+        </field>
+
+        <field>
+            <id>byStandard</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>(case when (:byStandard) then st.standard_id is not null end)</search>
+        </field>
+
+    </fields>
+</query>

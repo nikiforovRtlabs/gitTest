@@ -1,0 +1,156 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>agreementReportList</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from indicators.report_user ru
+                join indicators.dimension_date d on ru.dim_date_id = d.id
+                inner join indicators.report r on ru.report_id = r.id
+                inner join indicators.report_partitions p on ru.partition_id = p.id
+                inner join indicators.report_status s on ru.status_id = s.id
+                left join public.pim_organization o on o.id = ru.clinic_id
+                left join sec_user_party up on up.id = ru.user_id
+                left join pim_individual ind on ind.id = up.party_id
+                where :where and (ru.status_id = 3 or ru.status_id = 4) and r.code not like '%_svod'
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(ru) from indicators.report_user ru
+                inner join indicators.report r on ru.report_id = r.id
+                inner join indicators.report_partitions p on ru.partition_id = p.id
+                inner join indicators.report_status s on ru.status_id = s.id
+                where :where and (ru.status_id = 3 or ru.status_id = 4) and r.code not like '%_svod'
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <name>Идентификатор</name>
+            <domain>integer</domain>
+            <expression>ru.id</expression>
+        </field>
+
+        <field>
+            <id>reportId</id>
+            <name>Идентификатор отчета</name>
+            <domain>integer</domain>
+            <expression>ru.report_id</expression>
+        </field>
+
+        <field>
+            <id>reportName</id>
+            <name>Наименование отчета</name>
+            <domain>string</domain>
+            <expression>r.name</expression>
+            <search>upper(r.name) like '%'||upper(:reportName)||'%'</search>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>partitionId</id>
+            <name>Идентификатор раздела</name>
+            <domain>integer</domain>
+            <expression>ru.partition_id</expression>
+        </field>
+
+        <field>
+            <id>partitionName</id>
+            <name>Раздел</name>
+            <domain>string</domain>
+            <expression>p.name</expression>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>dimensionDate</id>
+            <name>Период формирования</name>
+            <domain>string</domain>
+            <expression>
+                (case when d.dimension_date_def_id=1 then d.year_||''
+                when d.dimension_date_def_id=2 and d.half_of_year=1 then 'Первое полугодие '||d.year_
+                when d.dimension_date_def_id=2 and d.half_of_year=2 then 'Второе полугодие '||d.year_
+                when d.dimension_date_def_id=3 and d.quarter_of_year=1 then '1 квартал '||d.year_
+                when d.dimension_date_def_id=3 and d.quarter_of_year=2 then '2 квартал '||d.year_
+                when d.dimension_date_def_id=3 and d.quarter_of_year=3 then '3 квартал '||d.year_
+                when d.dimension_date_def_id=3 and d.quarter_of_year=4 then '4 квартал '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=1 then 'Январь '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=2 then 'Февраль '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=3 then 'Март '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=4 then 'Апрель '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=5 then 'Май '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=6 then 'Июнь '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=7 then 'Июль '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=8 then 'Август '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=9 then 'Сентябрь '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=10 then 'Октябрь '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=11 then 'Ноябрь '||d.year_
+                when d.dimension_date_def_id=4 and d.month_of_year=12 then 'Декабрь '||d.year_
+                when d.dimension_date_def_id=5 then d.week_of_year||' неделя '||d.year_
+                end)
+            </expression>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>statusId</id>
+            <name>Идентификатор статуса отчета</name>
+            <domain>integer</domain>
+            <expression>ru.status_id</expression>
+        </field>
+
+        <field>
+            <id>statusName</id>
+            <name>Cтатуса отчета</name>
+            <domain>string</domain>
+            <expression>s.name</expression>
+            <search>upper(s.name) like '%'||upper(:statusName)||'%'</search>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>whenChange</id>
+            <name>Дата последнего изменения</name>
+            <domain>date</domain>
+            <expression>ru.aud_when</expression>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <name>Идентификатор МО</name>
+            <domain>integer</domain>
+            <expression>ru.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>clinicName</id>
+            <name>МО</name>
+            <domain>string</domain>
+            <expression>o.short_name</expression>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>userName</id>
+            <name>Исполнитель</name>
+            <domain>string</domain>
+            <expression>ind.surname||' '||ind.name||' '||ind.patr_name</expression>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>readyDate</id>
+            <name>Дата готовности</name>
+            <domain>date</domain>
+            <expression>ru.ready_date</expression>
+            <sorting/>
+        </field>
+    </fields>
+</query>

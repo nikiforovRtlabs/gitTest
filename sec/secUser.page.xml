@@ -1,0 +1,261 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <object-id>secUser</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>Список пользователей</name>
+    <regions>
+        <region place="single" type="none">
+            <container id="users">
+                <wgt:table>
+                    <wgt:query-id>secUser</wgt:query-id>
+                    <wgt:size>20</wgt:size>
+
+                    <!--Цвета-->
+                    <wgt:rows>
+                        <wgt:color>
+                            <wgt:switch value-field-id="blocked">
+                                <wgt:case value="true">error</wgt:case>
+                            </wgt:switch>
+                        </wgt:color>
+                    </wgt:rows>
+
+
+                    <!--КОЛОНКИ-->
+                    <wgt:columns>
+                        <wgt:column column-field-id="login" width="15%">
+                            <wgt:color>
+                                <wgt:switch value-field-id="withoutLogin">
+                                    <wgt:case value="true">text-error</wgt:case>
+                                </wgt:switch>
+                            </wgt:color>
+                        </wgt:column>
+                        <wgt:column column-field-id="type.name" width="7%"/>
+                        <wgt:column column-field-id="orgNames" width="18%"/>
+                        <wgt:column column-field-id="individual.name" width="20%"/>
+                        <wgt:column column-field-id="userAccessKeys" width="40%">
+                            <wgt:color>
+                                <wgt:switch value-field-id="withoutAccessKeys">
+                                    <wgt:case value="true">text-error</wgt:case>
+                                </wgt:switch>
+                            </wgt:color>
+                        </wgt:column>
+                    </wgt:columns>
+
+
+                    <!--ФИЛЬТРЫ-->
+                    <wgt:filters position="left" opened="true">
+                        <!--логин-->
+                        <ctrl:input-text id="login">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>
+                                    loginRequired.id == 1
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                            <ctrl:set-value-expression on="loginRequired">
+                                if (typeof loginRequired != 'undefined' &amp;&amp; typeof loginRequired.id !=
+                                'undefined' &amp;&amp; loginRequired.id == 2) {
+                                null;
+                                } else throw '!';
+                            </ctrl:set-value-expression>
+                        </ctrl:input-text>]
+
+                        <!--тип-->
+                        <ctrl:select id="type" label="Тип">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name" : "ФЛ"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name" : "ЮЛ"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:set-value-expression on="loginRequired">
+                                if (typeof loginRequired != 'undefined' &amp;&amp; typeof loginRequired.id !=
+                                'undefined' &amp;&amp; loginRequired.id == 2) {
+                                var o = new Object();
+                                o.id = 1;
+                                o.name = 'ФЛ';
+                                o;
+                                } else throw '!';
+                            </ctrl:set-value-expression>
+                        </ctrl:select>
+
+                        <!--организация-->
+                        <ctrl:classifier id="org" label="МО">
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+                                <ctrl:value field-id="name">#{org.name?}</ctrl:value>
+                            </ctrl:default-model>
+                            <ctrl:query query-id="contextOrganization" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <!--ФИО-->
+                        <!--<ctrl:classifier id="individual" label="ФИО" dependency-condition="type.id == 1">-->
+                            <!--<ctrl:query query-id="secIndividual" label-field-id="fullname"/>-->
+                        <!--</ctrl:classifier>-->
+
+                        <rc:individual id="individual" label="ФИО" dependency-condition="type.id == 1"/>
+                        
+                        <!-- Статус блокирования пользователя -->
+                        <ctrl:radio-group id="status" label="Статус">
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                            </ctrl:default-model>
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name" : "Все"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name" : "Не заблокированные"}</ctrl:option>
+                                <ctrl:option>{"id":3, "name" : "Заблокированные"}</ctrl:option>
+                            </ctrl:options>
+                        </ctrl:radio-group>
+
+                        <!--Логин нужен?-->
+                        <ctrl:radio-group id="loginRequired" label="Наличие логина" required="true">
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                            </ctrl:default-model>
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name" : "Логин назначен"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name" : "Логин не назначен"}</ctrl:option>
+                            </ctrl:options>
+                        </ctrl:radio-group>
+
+                        <!--Ключи нужны?-->
+                        <ctrl:radio-group id="accessKeysRequired" label="Наличие ключей доступа">
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                            </ctrl:default-model>
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name" : "Не важно"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name" : "Назначены"}</ctrl:option>
+                                <ctrl:option>{"id":3, "name" : "Не назначены"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:set-value-expression on="loginRequired">
+                                if (loginRequired.id == 2) {
+                                var o = new Object();
+                                o.id = 3;
+                                o.name = 'Не назначены';
+                                o;
+                                } else throw '!';
+                            </ctrl:set-value-expression>
+                        </ctrl:radio-group>
+                    </wgt:filters>
+
+
+                    <!--Меню комманд-->
+                    <wgt:action-menu>
+
+                        <wgt:group>
+                            <!--Создание-->
+                            <wgt:menu-item id="create" type="icon" color="btn-success">
+                                <wgt:show-modal-form form-id="secUserRecord" master-field-id="id" detail-field-id="id"
+                                                     page-name="Создание пользователя" width="600px">
+                                    <wgt:edit model="default" focus-after-submit="true">
+                                        <wgt:invoke-action action-id="create"/>
+                                    </wgt:edit>
+                                </wgt:show-modal-form>
+                            </wgt:menu-item>
+                            <!--Редактирование-->
+                            <wgt:menu-item id="view" context="true" type="icon" icon="glyphicons glyphicons-user"
+                                           label="Карточка пользователя">
+                                <wgt:show-modal-form form-id="secUserRecord" master-field-id="id" detail-field-id="id"
+                                                     width="40%"/>
+                                <wgt:conditions>
+                                    <wgt:visibility-condition>
+                                        <wgt:expression>!withoutLogin</wgt:expression>
+                                    </wgt:visibility-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                            <!--Назначение логина-->
+                            <wgt:menu-item id="setLogin" context="true" type="icon" label="Назначить логин"
+                                           icon="icomoon-user-plus" color="btn btn-primary" default="true">
+                                <wgt:show-modal-form form-id="secEmployeeLogin" master-field-id="id"
+                                                     detail-field-id="id"
+                                                     width="40%" refresh-on-close="true"
+                                                     page-name="Назначение логина для {users.individual.name}">
+                                    <wgt:edit model="query">
+                                        <wgt:invoke-action action-id="update"/>
+                                    </wgt:edit>
+                                </wgt:show-modal-form>
+                                <wgt:conditions>
+                                    <wgt:visibility-condition>
+                                        <wgt:expression>withoutLogin</wgt:expression>
+                                    </wgt:visibility-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                            <wgt:menu-item id="additional" type="icon">
+                                <wgt:sub-menu>
+                                    <!--Добавление пользователя в МО-->
+                                    <wgt:menu-item id="addUserToOrg" label="Добавить пользователя в МО"
+                                                   icon="glyphicons glyphicons-user-add" type="icon" context="false">
+                                        <wgt:show-modal-form form-id="secAddUserOrg"
+                                                             page-name="Добавление пользователя в МО">
+                                            <wgt:edit model="default">
+                                                <wgt:invoke-action action-id="addUserToOrg"/>
+                                            </wgt:edit>
+                                        </wgt:show-modal-form>
+                                    </wgt:menu-item>
+                                    <!--Удаление пользователя из МО-->
+                                    <wgt:menu-item id="deleteUserFromOrg" label="Удалить пользователя из МО"
+                                                   icon="glyphicons glyphicons-user-remove" type="icon" context="false">
+                                        <wgt:show-modal-form form-id="secDeleteUserOrg"
+                                                             page-name="Удаление пользователя из МО">
+                                            <wgt:edit model="default">
+                                                <wgt:invoke-action action-id="deleteUserFromOrg"/>
+                                            </wgt:edit>
+                                        </wgt:show-modal-form>
+                                    </wgt:menu-item>
+                                </wgt:sub-menu>
+                            </wgt:menu-item>
+
+                        </wgt:group>
+                        <wgt:group>
+                            <wgt:menu-item id="block" label="Заблокировать пользователя"
+                                           icon="glyphicons glyphicons-ban" type="icon" context="true"
+                                           color="btn-danger">
+                                <wgt:invoke-action action-id="block" confirmation="true"/>
+                                <wgt:conditions>
+                                    <wgt:visibility-condition>
+                                        <wgt:expression>!blocked</wgt:expression>
+                                    </wgt:visibility-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                            <wgt:menu-item id="unlock" label="Разблокировать пользователя"
+                                           icon="glyphicons glyphicons-ok" type="icon" context="true"
+                                           color="btn-success">
+                                <wgt:invoke-action action-id="unlock" confirmation="true"/>
+                                <wgt:conditions>
+                                    <wgt:visibility-condition>
+                                        <wgt:expression>blocked</wgt:expression>
+                                    </wgt:visibility-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                            <!--Удаление-->
+                            <wgt:menu-item id="delete" context="true" type="icon">
+                                <wgt:conditions>
+                                    <wgt:visibility-condition>
+                                        <wgt:expression>!withoutLogin</wgt:expression>
+                                    </wgt:visibility-condition>
+                                </wgt:conditions>
+                                <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            </wgt:menu-item>
+                        </wgt:group>
+
+
+                        <!--Настройка доступа-->
+                        <wgt:menu-item id="accessSettings" context="true" type="icon" icon="icomoon-key"
+                                       label="Настройка ключей доступа" color="btn btn-primary" default="true">
+                            <wgt:open-page page-id="secAccessKey" master-field-id="userInfo.id"
+                                           detail-field-id="user.id"
+                                           refresh-on-close="true"
+                                           page-name="Ключи доступа - {users.login} {users.individual.name}"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>!withoutLogin</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>

@@ -1,0 +1,142 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Социальное положение</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        UPDATE pci_patient_social_group
+                        SET to_dt = cast(cast(:from_dt as date) - cast('1 day' as interval) as date),
+                            from_dt = case
+                            when from_dt >= :from_dt
+                                then cast(cast(:from_dt as date)- cast('1 day' as interval) as date)
+                                else from_dt
+                            end
+                        WHERE id in
+                            (select psg.id
+                            from pci_patient_social_group psg
+                            WHERE psg.patient_id = :patient_id
+                                and psg.to_dt is null
+                                and psg.from_dt < :from_dt
+                                and (:id is null or psg.id != :id));
+
+                        insert into public.pci_patient_social_group (id, patient_id, social_group_id, from_dt, to_dt)
+                            values (nextval('public.pci_patient_social_group_seq'), :patient_id, :socGroup, :from_dt, :to_dt)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="socGroup.id" mapping="['socGroup']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[1][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Запись о социальном положении пациента сохранено в системе.
+            </success-text>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    update public.pci_patient_social_group set social_group_id = :socGroup, from_dt = :from_dt, to_dt = :to_dt where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="socGroup.id" mapping="['socGroup']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <success-text>
+                Измененние записи о социальном положении пациента сохранено в системе.
+            </success-text>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from public.pci_patient_social_group where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="full_name" mapping="['full_name']" domain="string"/>
+                <!--<param name="from_dt" mapping="['from_dt']" domain="date"/>-->
+                <!--<param name="to_dt" mapping="['to_dt']" domain="date"/>-->
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что хотите удалить запись о социальном положении "{full_name}"?
+            </confirmation-text>
+            <success-text>
+                Запись о социальном положении "{full_name}" успешно удалена.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkUniqueSocGroup" level="error" moment="before-action">
+            <message>Для указанного периода дат уже существует запись о социальном положении.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*)
+                        from pci_patient_social_group psg
+                        where psg.patient_id = :patient_id
+                            and not (psg.from_dt > cast(:to_dt as date) and cast(:to_dt as date) is not null and psg.from_dt is not null
+                            or psg.to_dt < :from_dt and psg.to_dt is not null)
+                            and (:id is null or psg.id !=:id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="checkDate" level="error" moment="before-action">
+            <message>Дата окончания должна быть позже даты начала.</message>
+            <expression on="to_dt"><![CDATA[
+                ((to_dt == null) ||
+                (moment(to_dt, 'DD.MM.YYYY') >= moment(from_dt, 'DD.MM.YYYY'))
+                )
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="checkCrossSocGroup" level="warning" moment="before-action">
+            <message>Действующие записи будут закрыты датой {dt}.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*), to_char(cast(cast(:from_dt as date) - cast('1 day' as interval) as date),'dd.mm.yyyy')
+                        from pci_patient_social_group psg
+                        where psg.patient_id = :patient_id
+                            and :id is null
+                            and psg.from_dt < :from_dt
+                            and psg.to_dt is null
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="dt" mapping="[0][0][1]" domain="date"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+</object>

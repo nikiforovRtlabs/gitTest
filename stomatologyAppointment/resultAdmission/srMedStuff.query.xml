@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <name>srMedStuff</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select
+                FROM pim_employee_position_resource AS r
+                INNER JOIN pim_employee_position AS p
+                ON r.employee_position_id = p.id
+                INNER JOIN pim_employee AS e
+                ON p.employee_id = e.id
+                INNER JOIN pim_individual AS i
+                ON e.individual_id = i.id
+                INNER JOIN pim_position AS pp
+                ON p.position_id = pp.id
+                LEFT JOIN pim_position_name pname
+                ON pp.id = pname.position_id AND (pname.sex_id IS NULL OR pname.sex_id = i.gender_id)
+                LEFT JOIN pim_position_role ppr ON pp.role_id = ppr.id
+                INNER JOIN pim_position_category ppc ON ppr.category_id = ppc.id
+                WHERE ppc.code = '2' and :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(r)
+                FROM pim_employee_position_resource AS r
+                INNER JOIN pim_employee_position AS p
+                ON r.employee_position_id = p.id
+                INNER JOIN pim_employee AS e
+                ON p.employee_id = e.id
+                INNER JOIN pim_individual AS i
+                ON e.individual_id = i.id
+                INNER JOIN pim_position AS pp
+                ON p.position_id = pp.id
+                LEFT JOIN pim_position_name pname
+                ON pp.id = pname.position_id AND (pname.sex_id IS NULL OR pname.sex_id = i.gender_id)
+                LEFT JOIN pim_position_role ppr ON pp.role_id = ppr.id
+                INNER JOIN pim_position_category ppc ON ppr.category_id = ppc.id
+                WHERE ppc.code = '2' and :where
+            </n2o:count-query>
+            <n2o:alias>r</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>r.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <expression>
+                coalesce(i.surname, '') || ' ' || CASE coalesce(substring(i.name FOR 1), '')
+                WHEN ''
+                THEN ''
+                ELSE substring(i.name FOR 1) || '.' END || ' ' ||
+                CASE coalesce(substring(i.patr_name FOR 1), '')
+                WHEN ''
+                THEN ''
+                ELSE substring(i.patr_name FOR 1) || '.' END || ', '
+                || CASE coalesce(pname.name, '')
+                WHEN ''
+                THEN coalesce(pp.name, '')
+                ELSE pname.name END
+            </expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <name>Организаия</name>
+            <expression>e.organization_id</expression>
+        </field>
+
+        <field>
+            <id>notEndDate</id>
+            <domain>boolean</domain>
+            <expression>:notEndDate</expression>
+            <search>
+                <![CDATA[
+                    (p.end_date is null or p.end_date >= current_date)
+                ]]>
+            </search>
+        </field>
+
+    </fields>
+</query>

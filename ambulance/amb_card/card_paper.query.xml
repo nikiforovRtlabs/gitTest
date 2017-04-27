@@ -1,0 +1,1854 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>card_paper</id>-->
+    <name>Карта вызова по бумажной технологии</name>
+    <object-id>card_paper</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.md_ambulance_call cal
+                <!--для результата-->
+                left join amb.md_ambulance_call_result cr on cr.id = cal.id
+                left join mc_case cas on cas.id = cr.case_id
+                left join mc_step step on step.id = cas.closing_step_id
+                <!--смена-->
+                join amb.md_ambulance_change mac on mac.id = cal.call_dt
+                <!--вид-->
+                <!--join amb.md_ambulance_call_kind ck on ck.id = cal.call_kind_id-->
+                <!--тип-->
+                <!--join amb.md_ambulance_call_type act on act.id = cal.call_type_id-->
+                <!--регистратор КТ-->
+                join pim_employee_position pep on pep.id = cal.registrator_id
+                join pim_employee pe on pe.id = pep.employee_id
+                join pim_individual pi on pi.id = pe.individual_id
+                join pim_position ppos on ppos.id = pep.position_id
+                <!--обслужили вызов--> <!--новое определение бригады-->
+                left join sr_srv_rendered ssren on ssren.id = cr.srv_rendered_id
+                left join sr_res_group srg on srg.id = ssren.res_group_id
+                <!--бригада наверно иначе, пока не знаю точно как-->
+                left join amb.sr_res_team_job srtj on srtj.id = cal.brg_id
+                left join amb.sr_res_team srt on srt.id = srtj.team_id
+                left join sr_res_group teamsrg on teamsrg.id = srt.resource_id
+                <!--left join sr_res_group srg on srt.resource_id = srg.id-->
+                <!--состав бригады на момент обслуживания-->
+                join sr_res_group_relationship srgrD on srgrD.group_id = srg.id and srgrD.role_id = 1
+                left join sr_resource srdoc on srdoc.id = srgrD.resource_id
+                left join pim_employee_position_resource peprdoc on peprdoc.id = srdoc.id
+                left join pim_employee_position pepdoc on pepdoc.id = peprdoc.employee_position_id
+                left join pim_employee pedoc on pedoc.id = pepdoc.employee_id
+                left join pim_individual pidoc on pidoc.id = pedoc.individual_id
+                left join pim_position pposdoc on pposdoc.id = pepdoc.position_id
+                <!--left join sr_res_group_relationship srgrP1 on srg.id = srgrP1.group_id and srgrP1.role_id = 13-->
+                <!--left join sr_resource srpar1 on srgrP1.resource_id = srpar1.id-->
+                <!--left join pim_employee_position_resource peprpar1 on srpar1.id = peprpar1.id-->
+                <!--left join pim_employee_position peppar1 on peprpar1.employee_position_id = peppar1.id-->
+                <!--left join pim_employee pepar1 on peppar1.employee_id = pepar1.id-->
+                <!--left join pim_individual pipar1 on pepar1.individual_id = pipar1.id-->
+                <!--left join pim_position ppospar1 on peppar1.position_id = ppospar1.id-->
+                <!--left join sr_res_group_relationship srgrP2 on srg.id = srgrP2.group_id and srgrP2.role_id = 13-->
+                <!--left join sr_resource srpar2 on srgrP2.resource_id = srpar2.id-->
+                <!--left join pim_employee_position_resource peprpar2 on srpar2.id = peprpar2.id-->
+                <!--left join pim_employee_position peppar2 on peprpar2.employee_position_id = peppar2.id-->
+                <!--left join pim_employee pepar2 on peppar2.employee_id = pepar2.id-->
+                <!--left join pim_individual pipar2 on pepar2.individual_id = pipar2.id-->
+                <!--left join pim_position ppospar2 on peppar2.position_id = ppospar2.id-->
+
+                <!--сотрудник (для амбулаторного)-->
+                left join amb.sr_res_team_job_resourse srtjr on srtjr.id = cal.emp_id
+                left join sr_resource sr on sr.id = srtjr.resource_id
+                left join sr_res_kind srk on srk.id = sr.res_kind_id
+                left join pim_employee_position_resource respepr on respepr.id = sr.id
+                left join pim_employee_position respep on respep.id = respepr.employee_position_id
+                left join pim_employee respe on respe.id = respep.employee_id
+                left join pim_individual respi on respi.id = respe.individual_id
+                left join pim_position resppos on resppos.id = respep.position_id
+                left join pim_organization resemppo on resemppo.id = respe.organization_id
+                <!--способ передачи-->
+                <!--join amb.md_ambulance_transmit_state ts on ts.id = cr.transmit_state_id-->
+                <!--время - вычисляемые поля-->
+                <!--left join amb.md_ambcall_state_history mash on amb.search_call_state_hist(cal.id) = mash.id-->
+                <!--!   left join amb.md_ambcall_state_history mash on cal.id = mash.call_id-->
+                <!--!   left join amb.md_ambulance_call_state macs on macs.id = mash.state_id-->
+                <!--отметки, коментарии-->
+
+                <!--адрес вызова-->
+                <!--join amb.md_ambulance_call_place pl on pl.id = cal.call_place_id-->
+                <!--left join pim_organization plorg on plorg.id = cal.place_org_id-->
+                <!--left join pim_department pldep on pldep.id = cal.place_department_id-->
+                left join address_element ael on ael.id = cal.address_id
+                <!--left join address_element_data aed on aed.id = ael.id-->
+                left join address_element_type aet on aet.id = ael.type_id
+                <!--вызывает-->
+                <!--left join amb.md_ambulance_caller ac on ac.id = cal.caller_id-->
+                <!--left join pim_employee caleremp on caleremp.id = cal.employee_id-->
+                <!--left join pim_individual calerind on calerind.id  =caleremp.individual_id-->
+                <!--пациент-->
+                join pci_patient pcp on cal.patient_id = pcp.id
+                join pim_individual pip on pcp.id = pip.id
+                <!--join pim_individual pip on pip.id = cal.patient_id-->
+                <!--left join pim_gender pg on pg.id = pip.gender_id-->
+                <!--left join md_soc_group sg on sg.id = pcp.social_group_id-->
+                <!--left join md_soc_group casesg on casesg.id = cas.soc_group_id-->
+                left join pci_patient_part_case pppc on pppc.patient_id = pcp.id
+                left join pci_part_case pcase on pcase.id = pppc.part_case_id
+                <!--!-->
+                <!--документы-->
+                left join pim_individual_doc idoc on idoc.indiv_id = pip.id and idoc.is_active is true and idoc.type_id in (select type_id from pim_doc_type_category where category_id = 1)
+                left join pim_doc_type doct on doct.id = idoc.type_id
+                left join pim_doc_type_category dtc on dtc.type_id = doct.id
+                <!--left join pim_indiv_doc_detail idd on idd.doc_id = idoc.id-->
+                <!--left join pim_organization smoorg on smoorg.id = idoc.issuer_id-->
+                <!--left join pim_party_role_to_party smopprtp on smopprtp.party_id = smoorg.id-->
+                <!--left join pim_party_role smoppr on smoppr.code = 'MEDICAL_INSURANCE_ORGANIZATION'-->
+                left join pim_indiv_code pic on pic.indiv_id = cal.patient_id and pic.type_id = (select id from pim_code_type where code='ENP')
+                <!--&lt;!&ndash;адрес&ndash;&gt;-->
+                <!--left join pim_party_address patad on patad.party_id = pcp.id-->
+                <!--left join pim_party_addr_to_addr_type patadtotype on patadtotype.party_address_id = patad.id-->
+                <!--left join pim_address_type patadtype on patadtype.id = patadtotype.address_type_id-->
+                <!--left join address_element patael on patad.addr_id = patael.id-->
+                <!--left join pim_register_type patreg on patad.register_type_id = patreg.id-->
+                <!--left join amb.pim_citizenship_type ship on ship.id = cr.citizenship_type_id-->
+                <!--left join pci_patient_job patjob on patjob.patient_id = pcp.id-->
+                <!--left join pim_organization patorg on patjob.organization_id = patorg.id-->
+                <!--left join pim_profession_working patwork on patwork.id = patjob.profession_working_id-->
+                <!--!-->
+                <!--диагноз-->
+                <!--основной-->
+                left join mc_diagnosis masterd on masterd.id = step.main_diagnosis_id and masterd.is_main is true
+                left join md_diagnosis masterdiag on masterdiag.id = masterd.diagnos_id
+                left join mc_disease_type mdist on mdist.id = masterd.disease_type_id
+                <!--будет потом иначе, пока просто для создания выборки - не иначе, всё как надо-->
+                <!--сопутствующий-->
+                left join mc_diagnosis accompd on accompd.case_id = cas.id and accompd.is_main is false
+                left join md_diagnosis accompdiag on accompdiag.id = accompd.diagnos_id
+                left join mc_disease_type accompdist on accompdist.id = accompd.disease_type_id
+                <!--результат (какой ещё параметр для однозначного определения, что данное значение для скорой) -->
+                left join mc_step_result stepres on stepres.id = step.result_id and stepres.is_closed is true
+                <!--left join mc_step_care_result careres on careres.id = step.outcome_id-->
+                <!--вызов-->
+                left join amb.md_ambulance_caller_reason crea on crea.id = cal.caller_reason_id
+                <!--left join amb.md_ambulance_call_reason macr on macr.id = cr.call_reason_id-->
+                <!--left join amb.md_ambulance_reason_accident mara on mara.id = cr.reason_accident_id-->
+                left join md_diagnosis dia on dia.id = cal.reason_diag
+                <!--времени с начала заболевания-->
+                <!--left join mc_time_gone tgone on tgone.id = cas.time_gone_id-->
+                <!--данные по бригаде-->
+                <!--join pim_organization po on po.id = cal.station_id-->
+                <!--left join amb.md_ambulance_route rou on rou.id = cal.route_id-->
+                <!--join pim_department pd on pd.id = cal.substation_id-->
+
+                <!--Диспетчер направления-->
+                left join amb.md_ambcall_state_history mash on mash.call_id = cal.id and mash.state_id = (select id from amb.md_ambulance_call_state where code = '4')
+                <!--left join amb.md_ambulance_call_state macs on macs.id = mash.state_id-->
+                <!---left join pim_employee_position routepep on mash.registrator_id = routepep.id and macs.e_code = '4'-->
+                join pim_employee_position routepep on routepep.id = mash.registrator_id     <!--and macs.e_code = '4'  -->                <!-- без истории состояний не получиться(-->
+                <!--join pim_employee routepe on routepe.id = routepep.employee_id-->
+                <!--join pim_individual routepi on routepi.id = routepe.individual_id-->
+                <!--join pim_position routeppos on routeppos.id = routepep.position_id-->
+                <!--left join amb.md_ambulance_out_delay_reason delres on delres.id = cr.out_delay_reason_id-->
+                <!--рекомендации-->
+                <!--посещение врачом поликлиники-->
+                left join md_clinic policl on policl.id = cr.activ_visit_clinic_id
+                left join pim_organization poliorg on poliorg.id = policl.id
+                <!--результат: Доставлен в больницу-->
+                <!--госпитализация-->
+                <!--left join pim_organization tplorg on tplorg.id = cal.to_org_id-->
+                <!--left join pim_department tpldep on tpldep.id = cal.to_department_id-->
+                <!--left join address_element toael on toael.id = cal.to_address_id-->
+                <!--left join address_element_data toaed on toaed.id = toael.id-->
+                <!--Диагноз приёмного отделения-->
+                <!--сомнения вызывает, т.к. скорее всего надо тащить по другому: из случая уже для приема в МО-->
+                left join mc_diagnosis clind on clind.id = cr.receive_mkb_id and clind.stage_id = 2
+                left join md_diagnosis clinddiag on clinddiag.id = clind.diagnos_id
+                <!--способ транспортировки-->
+                <!--left join mc_transporting_type tt on tt.id = cas.transporting_type_id-->
+                <!--Дежурный врач-->
+                <!--left join pim_employee_position toclpep on toclpep.id = cr.receive_emp_id-->
+                <!--left join pim_employee toclpe on toclpe.id = toclpep.employee_id-->
+                <!--left join pim_individual toclpi on toclpi.id = toclpe.individual_id-->
+                <!--left join pim_position toclppos on toclppos.id = toclpep.position_id-->
+                <!--смерть-->
+                left join md_diagnosis deathdiag on deathdiag.id = cas.death_reason_diagnosis_id
+                <!--left join pim_employee_position deathpep on deathpep.id = step.death_employee_id-->
+                <!--left join pim_employee deathpe on deathpe.id = deathpep.employee_id-->
+                <!--left join pim_individual deathpi on deathpi.id = deathpe.individual_id-->
+                <!--left join pim_position deathppos on deathppos.id = deathpep.position_id-->
+                <!--видимо для протоколов-->
+                left join sr_srv_rendered ssr on ssr.id = cr.srv_rendered_id
+                left join md_srv_protocol sp on sp.srv_rendered_id = cr.srv_rendered_id
+                left join md_ehr_protocol p on p.id = sp.protocol_id
+                <!--and lower(p.template_path) like lower('%emergency call card%')-->
+                <!--left join pim_department spd on spd.id = cal.substation_id-->
+                <!--дополнительно по вызову-->
+                <!--!-->
+                <!--left join amb.md_ambulance_call_note macn on cal.id = macn.call_id and macn.note_active is true and macn.note_type is true-->
+                <!--left join amb.md_ambulance_call_double macd on macd.call_note_id = macn.id-->
+                <!--left join amb.md_ambulance_call parcal on parcal.id = macd.call_id-->
+                <!--left join amb.md_ambulance_change parmac on parcal.call_dt = parmac.id-->
+                <!--!-->
+                <!--where cal.id = 4 and :where-->
+
+                <!--регистратор КВ-->
+                join pim_employee_position kvpep on kvpep.id = cr.registrator_id
+                join pim_employee kvpe on kvpe.id = kvpep.employee_id
+                join pim_individual kvpi on kvpi.id = kvpe.individual_id
+                join pim_position kvppos on kvppos.id = kvpep.position_id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select 1
+            </n2o:count-query>
+            <n2o:alias>cal</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>cal.id</expression>
+        </field>
+        <field>
+            <id>control</id>
+            <domain>integer</domain>
+            <name>Контроль</name>
+            <expression>cal.control</expression>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>integer</domain>
+            <name>Номер</name>
+            <expression>cal.call_number</expression>
+        </field>
+        <field>
+            <id>mark</id>
+            <domain>integer</domain>
+            <name>Признак</name>
+            <expression>cal.call_mark</expression>
+        </field>
+
+        <!--смена-->
+        <field>
+            <id>data</id>
+            <domain>date</domain>
+            <expression>mac.from_data</expression>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>change.id</id>
+            <domain>integer</domain>
+            <expression>mac.id</expression>
+        </field>
+
+        <field>
+            <id>change_ftime</id>
+            <domain>string</domain>
+            <name>Смена</name>
+            <!--<expression>cast(mac.from_data as date)</expression>-->
+            <expression>
+                (select to_char(macs.change_begin,'dd.mm.yyyy')
+                from amb.md_ambulance_change_setting macs
+                <!--join amb.md_ambulance_change mac on mac.setting_id = macs.id-->
+                where macs.clinic_id = cal.station_id and (macs.department_id is null or macs.department_id = cal.substation_id)
+                order by macs.department_id
+                limit 1)
+            </expression>
+        </field>
+
+        <!--вид-->
+        <field>
+            <id>call_kind.id</id>
+            <domain>integer</domain>
+            <!--<expression>ck.id</expression>-->
+            <expression>cal.call_kind_id</expression>
+        </field>
+
+        <!--тип-->
+        <field>
+            <id>call_type.id</id>
+            <domain>integer</domain>
+            <!--<expression>act.id</expression>-->
+            <expression>cal.call_type_id</expression>
+        </field>
+
+        <!--регистратор-->
+        <field>
+            <id>employee.id</id>
+            <domain>string</domain>
+            <name>Принял</name>
+            <expression>pep.id</expression>
+            <!--<display></display>-->
+        </field>
+        <field>
+            <id>employee.namePos</id>
+            <domain>string</domain>
+            <name>Принял</name>
+            <expression>pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||pep.code||')'</expression>
+        </field>
+        <!--обслужили вызов-->
+        <!--бригада наверно иначе, пока не знаю точно как пока для формирования страницы этого достаточно-->
+        <!--<field>-->
+            <!--<id>brg.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>srg.id</expression>-->
+        <!--</field>-->
+        <field>
+            <id>brg.id</id>
+            <domain>integer</domain>
+            <expression>srt.id</expression>
+        </field>
+        <field>
+            <id>brg.name</id>
+            <domain>string</domain>
+            <name>Бригада</name>
+            <expression>teamsrg.name</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>brg.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Бригада</name>-->
+            <!--<expression>-->
+                <!--case-->
+                <!--when cal.emp_id is not null then 'АМБ'-->
+                <!--when cal.brg_id is not null and calres.srv_rendered_id is not null then rensrg.name-->
+                <!--else srg.name-->
+                <!--end-->
+            <!--</expression>-->
+        <!--</field>-->
+
+        <!--сотрудник (для амбулаторного)-->
+        <field>
+            <id>emp.id</id>
+            <domain>integer</domain>
+            <expression>srtjr.id</expression>
+            <!--<expression></expression>-->
+        </field>
+        <!--<field>-->
+            <!--<id>emp.res_name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Сотрудник</name>-->
+            <!--<expression>respep.id||': '||respi.surname||' '||left(initcap(respi.name),1)||'. '||left(initcap(respi.patr_name),1)||'.'||'('||resppos.name||')'</expression>-->
+        <!--</field>-->
+        <!--способ передачи-->
+        <field>
+            <id>transmit.id</id>
+            <domain>integer</domain>
+            <!--<expression>ts.id</expression>-->
+            <expression>cr.transmit_state_id</expression>
+        </field>
+        <!--время - вычисляемые поля-->
+        <field>
+            <id>from_time</id>
+            <domain>date</domain>
+            <name>Принят</name>
+            <expression>cal.from_time</expression>
+        </field>
+        <field>
+            <id>ftime</id>
+            <domain>string</domain>
+            <name>Принят</name>
+            <expression>to_char(cal.from_time,'dd.mm.yyyy hh24:mi')</expression>
+        </field>
+        <field>
+            <id>receipt_time</id>
+            <domain>string</domain>
+            <name>Время приема</name>
+            <expression>to_char(cal.from_time,'hh24:mi')</expression>
+        </field>
+        <field>
+            <id>transmit_time</id>
+            <domain>string</domain>
+            <name>Передан бригаде</name>
+            <expression>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '5' and mash.call_id = cal.id
+                    order by mash.date_time desc limit 1) is not null
+                then
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '5' and mash.call_id = cal.id
+                    order by mash.date_time desc limit 1)
+                else
+                    <!--'00:00'-->
+                    null
+                end
+            </expression>
+        </field>
+        <field>
+            <id>exit_time</id>
+            <domain>string</domain>
+            <name>Выезд с п/ст</name>
+            <expression>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '6' and mash.call_id = cal.id
+                    order by mash.date_time desc limit 1) is not null
+                then
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '6' and mash.call_id = cal.id
+                    order by mash.date_time desc limit 1)
+                else
+                    null
+                    <!--'00:00'-->
+                end
+            </expression>
+        </field>
+        <field>
+            <id>coming_time</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Прибытие на вызов</name>
+            <!--<expression>case when macs.e_code = '7' then cast(mash.date_time as time) else cast('00:00:00' as time) end</expression>-->
+            <expression>
+                case when
+                (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                else
+                null
+                <!--'00:00'-->
+                end
+            </expression>
+        </field>
+        <!--<field>-->
+            <!--<id>coming_time</id>-->
+            <!--<domain>time</domain>-->
+            <!--<name>Прибытие на вызов</name>-->
+            <!--<expression>case when macs.e_code = '7' then macsh.date_time else cast('00:00:00' as time) end</expression>-->
+        <!--</field>-->
+        <field>
+            <id>transportation_time</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Начало транспортировки</name>
+            <!--<expression>case when macs.e_code = '8' then cast(mash.date_time as time) else cast('00:00:00' as time) end</expression>-->
+            <expression>
+                case when
+                (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '8' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '8' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                else
+                null
+                <!--'00:00'-->
+                end
+            </expression>
+        </field>
+        <field>
+            <id>toclinic_time</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Прибытие в МО</name>
+            <!--<expression>case when macs.e_code = '9' then cast(mash.date_time as time) else cast('00:00:00' as time) end</expression>-->
+            <expression>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '9' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '9' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                else
+                    null
+                    <!--'00:00'-->
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>time_transmit</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Ожидание бригады</name>
+            <display>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                    to_char((select date_time from amb.md_ambcall_state_history mash
+                            left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                            where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) - cal.from_time,'hh24:mi')
+                else
+                    null
+                    <!--'00:00'-->
+                end
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>time_arrival</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Доезд</name>
+            <display>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                    to_char(
+                            (select date_time from amb.md_ambcall_state_history mash
+                            left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                            where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time asc limit 1) -
+                            (select date_time from amb.md_ambcall_state_history mash
+                            left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                            where macs.code = '5' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                            ,'hh24:mi')
+                else
+                    null
+                    <!--'00:00'-->
+                end
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>time_patient</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>У больного</name>
+            <display>
+                case when
+                    (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                    left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                    where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                    to_char(
+                        cal.to_time -
+                        (select date_time from amb.md_ambcall_state_history mash
+                        left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                        where macs.code = '7' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                        ,'hh24:mi')
+                else
+                    null
+                    <!--'00:00'-->
+                end
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>end_time</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Окончание вызова</name>
+            <!--<expression>case when macs.e_code = '10' then macsh.date_time else cast('00:00:00' as time) end</expression>-->
+            <!--<expression>cal.to_time</expression>-->
+            <expression>to_char(cal.to_time,'HH24:mi')</expression>
+        </field>
+        <field>
+            <id>end_date</id>
+            <domain>date</domain>
+            <display>cast(cal.to_time as date)</display>
+        </field>
+        <field>
+            <id>to_time</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Время окончания вызова</name>
+            <expression>to_char(cal.to_time,'dd.mm.yyyy hh24:mi')</expression>
+        </field>
+        <field>
+            <id>tosubstation_time</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Возвращение на п/ст</name>
+            <!--<expression>case when macs.e_code = '11' then cast(mash.date_time as time) else cast('00:00:00' as time) end</expression>-->
+            <expression>
+                case when
+                (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '11' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1) is not null
+                then
+                (select to_char(date_time,'hh24:mi') from amb.md_ambcall_state_history mash
+                left join amb.md_ambulance_call_state macs on macs.id = mash.state_id
+                where macs.code = '11' and mash.call_id = cal.id
+                order by mash.date_time desc limit 1)
+                else
+                null
+                <!--'00:00'-->
+                end
+            </expression>
+        </field>
+        <field>
+            <id>death_date</id>
+            <domain>date</domain>
+            <name>Констатация смерти</name>
+            <expression>step.death_date</expression>
+        </field>
+        <field>
+            <id>death_time</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Констатация смерти</name>
+            <!--<expression>step.death_time</expression>-->
+            <expression>case when step.death_time is not null then to_char(step.death_time,'hh24:mi') else null
+                <!--else '00:00' -->
+                end</expression>
+        </field>
+        <!--причина смерти-->
+        <field>
+            <id>death_reason</id>
+            <domain>string</domain>
+            <name>Причина смерти</name>
+            <expression>cas.death_reason</expression>
+        </field>
+        <field>
+            <id>deathdiag.id</id>
+            <domain>integer</domain>
+            <name>Посмертный диагноз</name>
+            <expression>deathdiag.id</expression>
+        </field>
+        <!--Врач, констатировавший смерть-->
+        <field>
+            <id>deathemployee.id</id>
+            <domain>string</domain>
+            <name>Принял</name>
+            <!--<expression>deathpep.id</expression>-->
+            <expression>step.death_employee_id</expression>
+        </field>
+
+        <!--Длительность ожидания (пока не завершен)-->
+        <field>
+            <id>time</id>
+            <domain>time</domain>
+            <name>Длительность</name>
+            <expression>case when cal.to_time is null then cast((now() - mash.date_time) as time) else null end</expression>
+        </field>
+        <!--Длительность вызова-->
+        <field>
+            <id>calltime</id>
+            <!--<domain>time</domain>-->
+            <domain>string</domain>
+            <name>Длительность</name>
+            <!--<expression>case when cal.to_time is not null then cast((cal.to_time - cal.from_time) as time) else null end</expression>-->
+            <expression>to_char((cal.to_time - cal.from_time),'hh24:mi')</expression>
+        </field>
+
+        <field>
+            <id>call_place.id</id>
+            <domain>integer</domain>
+            <!--<expression>pl.id</expression>-->
+            <expression>cal.call_place_id</expression>
+        </field>
+
+        <field>
+            <id>place_note</id>
+            <domain>string</domain>
+            <name>Место вызова: примечания</name>
+            <expression>cal.call_place_note</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <!--<expression>plorg.id</expression>-->
+            <expression>cal.place_org_id</expression>
+        </field>
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <!--<expression>pldep.id</expression>-->
+            <expression>cal.place_department_id</expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>adressId</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>cal.address_id</expression>-->
+        <!--</field>-->
+        <field>
+            <id>address</id>
+            <domain>string</domain>
+            <name>Адрес вызова</name>
+            <!--<expression>concat (adr__get_element_as_text(cal.address_id, '(4,s,0)(6,s,1)(7,s,1)(8,s,1)'),adr__get_element_as_text(cal.address_id, '(2,s,0)'))</expression>-->
+            <expression>
+                case when ael.name is not null then aet.short_name||'. '||ael.name else '' end|| case when cal.house is not null then ' д.'||cal.house else '' end|| case when cal.apartment is not null then ' кв.'||cal.apartment else '' end||case when cal.description is not null then ' /'||cal.description else '' end
+            </expression>
+        </field>
+        <field>
+            <id>addr_data.id</id>
+            <domain>integer</domain>
+            <expression>ael.id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>addr_data.search_name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Улица</name>-->
+            <!--<expression>aed.search_name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>house</id>
+            <domain>string</domain>
+            <name>Дом</name>
+            <expression>cal.house</expression>
+        </field>
+        <field>
+            <id>housing</id>
+            <domain>string</domain>
+            <name>Корпус</name>
+            <expression>cal.housing</expression>
+        </field>
+        <field>
+            <id>apartment</id>
+            <domain>string</domain>
+            <name>Квартира</name>
+            <expression>cal.apartment</expression>
+        </field>
+        <field>
+            <id>porch</id>
+            <domain>string\</domain>
+            <name>Подъезд</name>
+            <expression>cal.porch</expression>
+        </field>
+        <field>
+            <id>floor</id>
+            <domain>string</domain>
+            <name>Этаж</name>
+            <expression>cal.floor</expression>
+        </field>
+        <field>
+            <id>door_code</id>
+            <domain>string</domain>
+            <name>Код подъезда</name>
+            <expression>cal.door_code</expression>
+        </field>
+        <field>
+            <id>addr_descr</id>
+            <domain>string</domain>
+            <name>Адрес коментарии</name>
+            <expression>cal.description</expression>
+        </field>
+        <!--вызвал-->
+        <field>
+            <id>caller.id</id>
+            <domain>integer</domain>
+            <!--<expression>ac.id</expression>-->
+            <expression>cal.caller_id</expression>
+        </field>
+        <field>
+            <id>employee_med.id</id>
+            <domain>integer</domain>
+            <!--<expression>caleremp.id</expression>-->
+            <expression>cal.employee_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>employee_med.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>ФИО сотрудника</name>-->
+            <!--<expression>calerind.surname||' '||left(initcap(calerind.name),1)||'. '||left(initcap(calerind.patr_name),1)||'.'</expression>-->
+        <!--</field>-->
+        <field>
+            <id>caller_note</id>
+            <domain>string</domain>
+            <expression>cal.caller_note</expression>
+        </field>
+        <!--пациент-->
+        <!--<field>-->
+            <!--<id>indId</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>pip.id</expression>-->
+        <!--</field>-->
+        <field>
+            <id>individual.id</id>
+            <domain>integer</domain>
+            <expression>pip.id</expression>
+        </field>
+        <field>
+            <id>individual.indiv</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>pip.surname||' '||pip.name||' '||pip.patr_name</expression>
+            <!--<search>upper(:expression) like upper ('%'||:individual.indiv||'%')</search>-->
+        </field>
+        <field>
+            <id>individual.surname</id>
+            <domain>string</domain>
+            <name>Фамилия</name>
+            <expression>pip.surname</expression>
+            <!--<search>upper(pip.surname) like upper('%'||:individual.surname||'%')</search>-->
+        </field>
+        <field>
+            <id>individual.name</id>
+            <domain>string</domain>
+            <name>Имя</name>
+            <expression>pip.name</expression>
+            <search>upper(pip.name) like upper('%'||:individual.name||'%')</search>
+        </field>
+        <field>
+            <id>individual.patrName</id>
+            <domain>string</domain>
+            <name>Отчество</name>
+            <expression>pip.patr_name</expression>
+            <!--<search>upper(pip.patr_name) like upper('%'||:individual.patrName||'%')</search>-->
+        </field>
+        <field>
+            <id>individual.age</id>
+            <domain>string</domain>
+            <name>Возраст</name>
+            <!--<expression>get_age(cast (pip.birth_dt as date),cast(now() as date))</expression>-->
+            <expression>case when get_age(cast (pip.birth_dt as date),cast(now() as date)) = -1 then '' else CAST(get_age(cast (pip.birth_dt as date),cast(now() as date)) as varchar(3)) end</expression>
+        </field>
+        <field>
+            <id>individual.birthDate</id>
+            <domain>date</domain>
+            <name>ДР</name>
+            <expression>pip.birth_dt</expression>
+        </field>
+        <!--<field>-->
+        <!--<id>birth_dt</id>-->
+        <!--<domain>date</domain>-->
+        <!--<name>ДР</name>-->
+        <!--<expression>-->
+        <!--case when cal.age_years is not null then-->
+        <!--date_trunc('year', now() - (cast(cast(cal.age_years as varchar(3))||' year' as interval)))-->
+        <!--else-->
+        <!--case when cal.age_months is not null then-->
+        <!--date_trunc('month', now() - (cast(cast(cal.age_months as varchar(3))||' month' as interval)))-->
+        <!--else-->
+        <!--case when cal.age_days is not null then-->
+        <!--date_trunc('day', now() - (cast(cast(cal.age_days as varchar(3))||' day' as interval)))-->
+        <!--end-->
+        <!--end-->
+        <!--end-->
+        <!--</expression>-->
+        <!--&lt;!&ndash;<display>pip.birth_dt</display>&ndash;&gt;-->
+        <!--</field>-->
+
+        <field>
+            <id>patFIO</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>pip.surname||' '||pip.name||' '||pip.patr_name||case when pip.birth_dt is not null then ' '||to_char(pip.birth_dt,'dd.mm.yyyy') else '' end</expression>
+            <!--<search>upper(:expression) like ('%'||:patFIO||'%')</search>-->
+        </field>
+        <field>
+            <id>gender.id</id>
+            <domain>integer</domain>
+            <!--<expression>pg.id</expression>-->
+            <expression>pip.gender_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>gender.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Пол</name>-->
+            <!--<expression>lower(left(initcap(pg.name),1))</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+        <!--<id>gender.name</id>-->
+        <!--<domain>string</domain>-->
+        <!--<name>Пол</name>-->
+        <!--<expression>pg.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>chronic</id>
+            <domain>boolean</domain>
+            <name>Хронический</name>
+            <expression>cal.is_chronic</expression>
+        </field>
+        <field>
+            <id>age_years</id>
+            <domain>integer</domain>
+            <name>Возраст: лет</name>
+            <expression>cal.age_years</expression>
+        </field>
+        <field>
+            <id>age_months</id>
+            <domain>integer</domain>
+            <name>Возраст: мес</name>
+            <expression>cal.age_months</expression>
+        </field>
+        <field>
+            <id>age_days</id>
+            <domain>integer</domain>
+            <name>Возраст: дн</name>
+            <expression>cal.age_days</expression>
+        </field>
+
+        <field>
+            <id>age_y</id>
+            <domain>integer</domain>
+            <name>Возраст: лет</name>
+            <expression>
+                <![CDATA[
+                case when (amb.get_age_full(pip.birth_dt,cast(now() as date))<>'0 day')
+                            and (cast(amb.get_age_full(pip.birth_dt,cast(now() as date)) as varchar(9)) like '%year%')
+                    then
+                        cast(split_part(cast(amb.get_age_full(pip.birth_dt,cast(now() as date)) as varchar(9)), ' ', 1) as integer)
+                end
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>age_m</id>
+            <domain>integer</domain>
+            <name>Возраст: мес</name>
+            <expression>
+                <![CDATA[
+                case when (amb.get_age_full(pip.birth_dt,cast(now() as date))<>'0 day')
+                            and (cast(amb.get_age_full(pip.birth_dt,cast(now() as date)) as varchar(9)) like '%month%')
+                    then
+                        cast(split_part(cast(amb.get_age_full(pip.birth_dt,cast(now() as date)) as varchar(9)), ' ', 1) as integer)
+                end
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>age_d</id>
+            <domain>integer</domain>
+            <name>Возраст: дн</name>
+            <expression>
+                <![CDATA[
+                case when (amb.get_age_full(pip.birth_dt,cast(now() as date))<>'0 day')
+                            and (cast(amb.get_age_full(pip.birth_dt,cast(now() as date)) as varchar(9)) like '%day%')
+                    then
+                        cast(split_part(cast(amb.get_age_full(pip.birth_dt,cast(now() as date)) as varchar(9)), ' ', 1) as integer)
+                end
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>indsocGroup.id</id>
+            <domain>integer</domain>
+            <name>Социальная группа</name>
+            <!--<expression>sg.id</expression>-->
+            <expression>pcp.social_group_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>indsocGroup.name</id>-->
+            <!--<domain>String</domain>-->
+            <!--<name>Социальная группа</name>-->
+            <!--<expression>sg.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>casesocGroup.id</id>
+            <domain>integer</domain>
+            <name>Социальная группа</name>
+            <!--<expression>casesg.id</expression>-->
+            <expression>cas.soc_group_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>casesocGroup.name</id>-->
+            <!--<domain>String</domain>-->
+            <!--<name>Социальная группа</name>-->
+            <!--<expression>casesg.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>part_case.id</id>
+            <domain>integer</domain>
+            <name>Особый случай</name>
+            <expression>pcase.id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>part_case.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Особый случай</name>-->
+            <!--<expression>pcase.name</expression>-->
+        <!--</field>-->
+        <!--документы-->
+
+        <!--!-->
+        <field>
+            <id>enp.id</id>
+            <domain>integer</domain>
+            <name>ЕНП</name>
+            <expression>pic.id</expression>
+        </field>
+        <field>
+            <id>enp.code</id>
+            <domain>string</domain>
+            <name>ЕНП</name>
+            <expression>pic.code</expression>
+        </field>
+        <field>
+            <id>enp.indiv</id>
+            <domain>integer</domain>
+            <expression>pic.indiv_id</expression>
+        </field>
+
+        <field>
+            <id>docType.id</id>
+            <domain>integer</domain>
+            <name>Документ УДЛ</name>
+            <expression>doct.id</expression>
+        </field>
+        <field>
+            <id>docType.name</id>
+            <domain>string</domain>
+            <name>Документ УДЛ</name>
+            <expression>doct.name</expression>
+            <!--<search>dt.priority is not null</search>-->
+            <search>dtc.id = 1</search>
+            <sorting>doct.id</sorting>
+        </field>
+        <field>
+            <id>indDoc.series</id>
+            <domain>string</domain>
+            <name>Серия</name>
+            <expression>idoc.series</expression>
+        </field>
+        <field>
+            <id>indDoc.number</id>
+            <domain>string</domain>
+            <name>Номер</name>
+            <expression>idoc.number</expression>
+        </field>
+        <!--!-->
+
+        <!--!-->
+        <field>
+            <id>citizenship_type.id</id>
+            <domain>integer</domain>
+            <name>Житель</name>
+            <!--<expression>ship.id</expression>-->
+            <expression>cr.citizenship_type_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>citizenship_type.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Житель</name>-->
+            <!--<expression>ship.name</expression>-->
+        <!--</field>-->
+        <!--!-->
+
+        <!--диагноз-->
+        <field>
+            <id>master_diag.id</id>
+            <domain>integer</domain>
+            <name>Диагноз основной</name>
+            <expression>masterdiag.id</expression>
+        </field>
+
+        <field>
+            <id>master_injuryReason.id</id>
+            <domain>integer</domain>
+            <expression>masterd.injury_reason_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>master_diag.code</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Диагноз основной: МКБ</name>-->
+            <!--<expression>masterdiag.code</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>master_diag.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Диагноз основной</name>-->
+            <!--<expression>masterdiag.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>mdiadisease_type.id</id>
+            <domain>integer</domain>
+            <expression>mdist.id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>mdiadisease_type.name</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>mdist.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>accomp_diag.id</id>
+            <domain>integer</domain>
+            <name>Диагноз сопутствующий</name>
+            <expression>accompdiag.id</expression>
+        </field>
+        <field>
+            <id>accomp_injuryReason.id</id>
+            <domain>integer</domain>
+            <expression>accompd.injury_reason_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>accomp_diag.code</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Диагноз сопутствующий: МКБ</name>-->
+            <!--<expression>accompdiag.code</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>accomp_diag.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Диагноз сопутствующий</name>-->
+            <!--<expression>accompdiag.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>accompdiadisease_type.id</id>
+            <domain>integer</domain>
+            <expression>accompdist.id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>accompdiadisease_type.name</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>accompdist.name</expression>-->
+        <!--</field>-->
+        <!--результат-->
+        <field>
+            <id>step_result.id</id>
+            <domain>integer</domain>
+            <name>Результат выезда</name>
+            <expression>stepres.id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>step_result.code</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Результат выезда</name>-->
+            <!--<expression>stepres.code</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>step_result.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Результат выезда</name>-->
+            <!--<expression>stepres.name</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>step_result.resname</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Результат выезда</name>-->
+            <!--<expression>stepres.code||' - '||stepres.name</expression>-->
+        <!--</field>-->
+        <!--результат оказания МП-->
+        <field>
+            <id>care_result.id</id>
+            <domain>integer</domain>
+            <name>Результат оказания МП</name>
+            <!--<expression>careres.id</expression>-->
+            <expression>step.outcome_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>care_result.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Результат оказания МП</name>-->
+            <!--<expression>careres.name</expression>-->
+        <!--</field>-->
+        <!--вызов-->
+        <field>
+            <id>caller_reason.id</id>
+            <domain>integer</domain>
+            <expression>crea.id</expression>
+            <!--<expression>cal.caller_reason_id</expression>-->
+        </field>
+        <!--<field>-->
+            <!--<id>caller_reason.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Повод</name>-->
+            <!--<expression>crea.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>reason_note</id>
+            <domain>string</domain>
+            <name>Дополнительный повод</name>
+            <expression>cal.reason_note</expression>
+        </field>
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>dia.id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>diagnosis.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Диагноз</name>-->
+            <!--<expression>dia.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>reas_diag</id>
+            <domain>string</domain>
+            <name>Повод/Диагноз</name>
+            <expression>concat(crea.name,dia.name)</expression>
+        </field>
+        <field>
+            <id>call_reason.id</id>
+            <domain>integer</domain>
+            <!--<expression>macr.id</expression>-->
+            <expression>cr.call_reason_id</expression>
+        </field>
+
+        <field>
+            <id>is_psycho</id>
+            <domain>boolean</domain>
+            <expression>
+                case when (select count(*) from amb.md_ambulance_call_note where call_id =cal.id and note_type = true and note_active = true and note_id in (15)) > 0
+                then true else false end
+            </expression>
+        </field>
+        <field>
+            <id>is_alco</id>
+            <domain>boolean</domain>
+            <expression>
+                case when (select count(*) from amb.md_ambulance_call_note where call_id = cal.id and note_type = true and note_active = true and note_id = 22) > 0
+                then true else false end
+            </expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>call_reason.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Причина вызова</name>-->
+            <!--<expression>macr.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>reason_accident.id</id>
+            <domain>integer</domain>
+            <!--<expression>mara.id</expression>-->
+            <expression>cr.reason_accident_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>reason_accident.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Причина НС</name>-->
+            <!--<expression>mara.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>condition_ns</id>
+            <domain>string</domain>
+            <name>Обстоятельства НС</name>
+            <expression>cr.condition_ns</expression>
+        </field>
+        <field>
+            <id>time_gone.id</id>
+            <domain>integer</domain>
+            <name>Прошло времени с начала заболевания</name>
+            <!--<expression>tgone.id</expression>-->
+            <expression>cas.time_gone_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>time_gone.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Прошло времени с начала заболевания</name>-->
+            <!--<expression>tgone.name</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>nsdatatime</id>-->
+            <!--<domain>time</domain>-->
+            <!--<name>Прошло времени с начала заболевания</name>-->
+            <!--<expression>cr.nsdatatime</expression>-->
+        <!--</field>-->
+        <field>
+            <id>nsdata</id>
+            <domain>date</domain>
+            <name>Прошло времени с начала заболевания: дата</name>
+            <expression>cast(cr.nsdatatime as date)</expression>
+        </field>
+        <field>
+            <id>nstime</id>
+            <domain>string</domain>
+            <name>Прошло времени с начала заболевания: время</name>
+            <expression>to_char(cr.nsdatatime, 'HH24:mi')</expression>
+        </field>
+        <!--данные по бригаде-->
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <!--<expression>po.id</expression>-->
+            <expression>cal.station_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>station.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Станция</name>-->
+            <!--<expression>po.full_name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>route.id</id>
+            <domain>integer</domain>
+            <!--<expression>rou.id</expression>-->
+            <expression>cal.route_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>route.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Направление</name>-->
+            <!--<expression>rou.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <!--<expression>pd.id</expression>-->
+            <expression>cal.substation_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>substation.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<display>pd.name</display>-->
+            <!--<name>Подстанция</name>-->
+        <!--</field>-->
+
+        <field>
+            <id>route_reg.id</id>
+            <domain>integer</domain>
+            <name>Передал</name>
+            <!--<expression>case when macs.e_code = '4' then routepep.id end</expression>-->
+            <!--<expression>routepep.id</expression>-->
+            <expression>mash.registrator_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>route_reg.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Передал</name>-->
+            <!--<expression>routepi.surname||' '||left(initcap(routepi.name),1)||'. '||left(initcap(routepi.patr_name),1)||'.'</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>route_reg.namePos</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Передал</name>-->
+            <!--<expression>routepi.surname||' '||left(initcap(routepi.name),1)||'. '||left(initcap(routepi.patr_name),1)||'.'||'('||routepep.code||')'</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+        <field>
+            <id>out_delay_reason.id</id>
+            <domain>integer</domain>
+            <name>Причина выезда с опозданием</name>
+            <!--<expression>delres.id</expression>-->
+            <expression>cr.out_delay_reason_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>out_delay_reason.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Причина выезда с опозданием</name>-->
+            <!--<expression>delres.name</expression>-->
+        <!--</field>-->
+
+        <!--вкладка "Результат"-->
+
+        <!--рекомендации-->
+        <field>
+            <id>recommendation.id</id>
+            <domain>integer</domain>
+            <display>
+                case when cr.need_exit_through is not null then 1 else case when cr.activ_visit_clinic_id is not null then 2 else 3 end end
+            </display>
+        </field>
+        <!--<field>-->
+            <!--<id>recommendation.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>рекомендация</name>-->
+            <!--<display>-->
+                <!--case when cr.need_exit_through is not null-->
+                    <!--then 'Больной нуждается в активном выезде через'-->
+                    <!--else case when cr.activ_visit_clinic_id is not null-->
+                                <!--then 'Больной подлежит активному посещению врачом поликлиники'-->
+                                <!--else 'Другое'-->
+                         <!--end-->
+                <!--end-->
+            <!--</display>-->
+        <!--</field>-->
+
+        <field>
+            <id>need_exit_through</id>
+            <domain>integer</domain>
+            <name>Больной нуждается в активном выезде через .. часов</name>
+            <expression>cr.need_exit_through</expression>
+        </field>
+        <field>
+            <id>activ_visit_clinic.id</id>
+            <domain>integer</domain>
+            <name>Подлежит активному посещению врачом поликлиники</name>
+            <expression>poliorg.id</expression>
+        </field>
+        <field>
+            <id>activ_visit_clinic.name</id>
+            <domain>string</domain>
+            <name>Подлежит активному посещению врачом поликлиники</name>
+            <expression>coalesce(poliorg.full_name,poliorg.short_name)</expression>
+        </field>
+        <field>
+            <id>other_recommendations</id>
+            <domain>string</domain>
+            <name>Другие рекомендации</name>
+            <expression>cr.other_recommendations</expression>
+        </field>
+
+        <!--результат: Доставлен в больницу-->
+        <!--госпитализация-->
+        <field>
+            <id>to_org.id</id>
+            <domain>integer</domain>
+            <!--<expression>tplorg.id</expression>-->
+            <expression>cal.to_org_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>to_org.full_name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Организация адреса доставки</name>-->
+            <!--<expression>tplorg.full_name</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+        <!--<id>to_org.PRId</id>-->
+        <!--<domain>integer</domain>-->
+        <!--<expression>tplppr.id</expression>-->
+        <!--</field>-->
+        <field>
+            <id>to_department.id</id>
+            <domain>integer</domain>
+            <!--<expression>tpldep.id</expression>-->
+            <expression>cal.to_department_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>to_department.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Подразделение адреса доставки</name>-->
+            <!--<expression>tpldep.name</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+        <!--<id>tomyAddress.id</id>-->
+        <!--<domain>integer</domain>-->
+        <!--<expression>toael.id</expression>-->
+        <!--</field>-->
+        <field>
+            <id>toaddr_data.id</id>
+            <domain>integer</domain>
+            <!--<expression>aed.id</expression>-->
+            <expression>cal.to_address_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>toaddr_data.search_name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Улица</name>-->
+            <!--<expression>aed.search_name</expression>-->
+            <!--&lt;!&ndash;<search>upper(:expression) like upper('%'||:addr_data.search_name||'%')</search>&ndash;&gt;-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>to_address</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Адрес доставки</name>-->
+            <!--<expression>adr__get_element_as_text(cal.to_address_id,'(1,s,0)(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)')</expression>-->
+        <!--</field>-->
+        <field>
+            <id>to_house</id>
+            <domain>string</domain>
+            <name>Дом</name>
+        </field>
+        <field>
+            <id>to_housing</id>
+            <domain>string</domain>
+            <name>Корпус</name>
+        </field>
+        <field>
+            <id>to_apartment</id>
+            <domain>string</domain>
+            <name>Квартира</name>
+        </field>
+        <field>
+            <id>to_porch</id>
+            <domain>string\</domain>
+            <name>Подъезд</name>
+        </field>
+        <field>
+            <id>to_addr_descr</id>
+            <domain>string</domain>
+            <name>Адрес коментарии</name>
+            <expression>cal.to_description</expression>
+        </field>
+        <!--Время приёма больного в МО-->
+        <field>
+            <id>outcome_date</id>
+            <domain>date</domain>
+            <name>Дата приёма больного в МО</name>
+            <expression>step.outcome_date</expression>
+        </field>
+        <field>
+            <id>outcome_time</id>
+            <domain>string</domain>
+            <name>Время приёма больного в МО</name>
+            <expression>to_char(step.outcome_time,'HH24:MI')</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>time_toclinic</id>-->
+            <!--<domain>date</domain>-->
+            <!--<name>Дата/время приёма больного в МО</name>-->
+            <!--<expression>cast(step.outcome_date + step.outcome_time as TIMESTAMP WITHOUT TIME ZONE)</expression>-->
+        <!--</field>-->
+        <field>
+            <id>time_toclinic</id>
+            <domain>string</domain>
+            <name>Дата/время приёма больного в МО</name>
+            <expression>to_char(step.outcome_time,'HH24:mi')</expression>
+        </field>
+        <field>
+            <id>clinddiag.id</id>
+            <domain>integer</domain>
+            <name>Диагноз приёмного отделения</name>
+            <expression>clinddiag.id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>clinddiag.code</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Диагноз приёмного отделения: МКБ</name>-->
+            <!--<expression>clinddiag.code</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>clinddiag.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Диагноз приёмного отделения</name>-->
+            <!--<expression>clinddiag.name</expression>-->
+        <!--</field>-->
+        <!--способ транспортировки-->
+        <field>
+            <id>transp_type.id</id>
+            <domain>integer</domain>
+            <name>Способ транспортировки</name>
+            <!--<expression>tt.id</expression>-->
+            <expression>cas.transporting_type_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>transp_type.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Способ транспортировки</name>-->
+            <!--<expression>tt.name</expression>-->
+        <!--</field>-->
+        <!--Дежурный врач-->
+        <field>
+            <id>toclemployee.id</id>
+            <domain>string</domain>
+            <name>Дежурный врач</name>
+            <!--<expression>toclpep.id</expression>-->
+            <expression>cr.receive_emp_id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>toclemployee.full_name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Дежурный врач</name>-->
+            <!--<expression>toclpi.surname||' '||toclpi.name||' '||toclpi.patr_name</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>toclemployee.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Дежурный врач</name>-->
+            <!--<expression>toclpi.surname||' '||left(initcap(toclpi.name),1)||'. '||left(initcap(toclpi.patr_name),1)||'.'</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>toclemployee.namePos</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Дежурный врач</name>-->
+            <!--<expression>toclpi.surname||' '||left(initcap(toclpi.name),1)||'. '||left(initcap(toclpi.patr_name),1)||'.'||'('||toclppos.name||')'</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>toclposition.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>toclppos.id</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>toclposition.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Дежурный врач: должность</name>-->
+            <!--<expression>toclppos.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>receive_emp</id>
+            <domain>string</domain>
+            <name>Дежурный врач: текст</name>
+            <expression>cr.receive_emp</expression>
+        </field>
+        <field>
+            <id>list_note</id>
+            <domain>string</domain>
+            <name>Примечание к сопроводительному листу</name>
+            <expression>cr.list_note</expression>
+        </field>
+        <!--специализированная бригада-->
+        <field>
+            <id>receive_brg</id>
+            <domain>string</domain>
+            <name>№ специализированной бригады</name>
+            <expression>cr.receive_brg</expression>
+        </field>
+        <!--Дата/Время выбытия  -  в зависимости от исхода это либо время приёма в МО, либо время передачи СПЦ-->
+        <!--время передачи СПЦ-->
+        <field>
+            <id>stoutcome_date</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>step.outcome_date</expression>
+        </field>
+        <field>
+            <id>stoutcome_time</id>
+            <domain>string</domain>
+            <name>Время</name>
+            <expression>to_char(step.outcome_time, 'HH24:mi')</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>tospc_time</id>-->
+            <!--<domain>date</domain>-->
+            <!--<name>Время передачи спец. бригаде</name>-->
+            <!--<expression>cast(step.outcome_date + step.outcome_time as TIMESTAMP WITHOUT TIME ZONE)</expression>-->
+        <!--</field>-->
+
+
+
+        <!--не понятно пока, что с этими полями:-->
+        <!--md_ambulance_call-->
+        <field>
+            <id>is_group</id>
+            <domain>boolean</domain>
+            <name>К группе пострадавших</name>
+            <expression>cal.is_group_sufferer</expression>
+        </field>
+        <field>
+            <id>sum_sufferer</id>
+            <domain>integer</domain>
+            <name>Количество пострадавших</name>
+            <expression>cal.sum_sufferer</expression>
+        </field>
+        <field>
+            <id>phone</id>
+            <domain>string</domain>
+            <name>Телефон</name>
+            <expression>cal.phone_caller</expression>
+        </field>
+        <!--<field>-->
+        <!--<id>is_opened</id>-->
+        <!--<domain>boolean</domain>-->
+        <!--<expression>case when (cal.to_time is null) and (brg.id is null) and (cal.emp_id is null) then true else false end</expression>-->
+        <!--</field>-->
+        <!--поля для расшифровки инфы по вызову-->
+        <field>
+            <id>descr</id>
+            <domain>string</domain>
+            <name>Доп.</name>
+            <expression>cal.description||','||cal.note</expression>
+        </field>
+
+        <!--информация по вызову - расширение-->
+        <field>
+            <id>state_history.id</id>
+            <domain>integer</domain>
+            <name>Крайнее состояние</name>
+            <!--<expression>search_call_state_hist(cal.id)</expression>-->
+            <expression>mash.id</expression>
+        </field>
+        <field>
+            <id>state_history.datetime</id>
+            <domain>string</domain>
+            <name>Время назначения состояния</name>
+            <expression>to_char(mash.date_time,'dd.mm.yyyy hh24:mi:ss')</expression>
+        </field>
+        <field>
+            <id>call_state.id</id>
+            <domain>integer</domain>
+            <expression>(select id from amb.md_ambulance_call_state where code = '4')</expression>
+            <!--<expression>macs.id</expression>-->
+        </field>
+        <!--<field>-->
+            <!--<id>call_state.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Состояние</name>-->
+            <!--<expression>(select name from amb.md_ambulance_call_state where code = '4')</expression>-->
+            <!--&lt;!&ndash;<expression>macs.name</expression>&ndash;&gt;-->
+        <!--</field>-->
+        <field>
+            <id>notes</id>
+            <domain>string</domain>
+            <name>Отметки</name>
+            <expression>amb.search_call_note(cal.id)||' Заполнил карту вызова: '|| kvpi.surname||' '||left(initcap(kvpi.name),1)||'. '||left(initcap(kvpi.patr_name),1)||'.'||'('||kvppos.name||')'</expression>
+        </field>
+
+        <!--!-->
+        <!--<field>-->
+            <!--<id>note.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<name>Отметка</name>-->
+            <!--<expression>macn.id</expression>-->
+            <!--&lt;!&ndash;<search>macn.id = :note.id</search>&ndash;&gt;-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>parent_call.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<name>Исходный вызов</name>-->
+            <!--<expression>parcal.id</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>parent_call.number</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<name>Исходный вызов</name>-->
+            <!--<expression>parcal.call_number</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>date</id>-->
+            <!--<domain>date</domain>-->
+            <!--<name>Смена исходного вызова</name>-->
+            <!--<expression>parmac.from_data</expression>-->
+        <!--</field>-->
+        <!--!-->
+
+        <!--md_ambulance_call_result-->
+        <field>
+            <id>milage</id>
+            <domain>string</domain>
+            <!--<domain>integer</domain>-->
+            <name>Километраж</name>
+            <expression>cast(cr.milage as varchar(5))</expression>
+        </field>
+
+
+        <!--вообще поля из ниоткуда-->
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+        </field>
+
+        <field>
+            <id>casenote</id>
+            <domain>string</domain>
+            <expression>
+                cas.note
+            </expression>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>deathres</id>
+            <domain>string</domain>
+            <expression>
+                cas.death_reason
+            </expression>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <!--регистратор КВ-->
+        <field>
+            <id>registrator.id</id>
+            <domain>integer</domain>
+            <expression>
+                cr.registrator_id
+            </expression>
+            <display value="#{emplPos.id?}" unavailable="true"/>
+        </field>
+        <!--<field>-->
+            <!--<id>registrator.namePos</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Принял</name>-->
+            <!--<expression>kvpi.surname||' '||left(initcap(kvpi.name),1)||'. '||left(initcap(kvpi.patr_name),1)||'.'||'('||kvppos.name||')'</expression>-->
+        <!--</field>-->
+
+        <!--условия видимости различных полей-->
+        <!--<field>-->
+            <!--<id>in_cli</id>-->
+            <!--<domain>boolean</domain>-->
+            <!---->
+            <!--<expression></expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>rendered.id</id>
+            <domain>integer</domain>
+            <expression>ssr.id</expression>
+        </field>
+
+        <!--состав бригады-->
+        <field>
+            <id>resDoc.id</id>
+            <domain>integer</domain>
+            <expression>srdoc.id</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>resDoc.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Ресурс</name>-->
+            <!--<expression>pepdoc.id||': '||pidoc.surname||' '||left(initcap(pidoc.name),1)||'. '||left(initcap(pidoc.patr_name),1)||'.'||'('||pposdoc.name||')'</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>resDoc_name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Ресурс</name>-->
+            <!--<expression>pepdoc.id||': '||pidoc.surname||' '||left(initcap(pidoc.name),1)||'. '||left(initcap(pidoc.patr_name),1)||'.'||'('||pposdoc.name||')'</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+
+        <field>
+            <id>res1.id</id>
+            <domain>integer</domain>
+            <!--<expression>srpar1.id</expression>-->
+            <expression>
+                (select resource_id
+                from sr_res_group_relationship
+                where id = (select srgrP1.id
+                from sr_res_group_relationship srgrP1
+                where srgrP1.group_id = srg.id and (srgrP1.role_id = (select id from sr_res_role where upper(code) = upper('PARAMEDIC')) or srgrP1.role_id = (select id from sr_res_role where upper(code) = upper('PARAMEDIC_ASST')))
+                order by id limit 1) )
+            </expression>
+        </field>
+        <!--<field>-->
+            <!--<id>res1.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Ресурс</name>-->
+            <!--<expression>peppar1.id||': '||pipar1.surname||' '||left(initcap(pipar1.name),1)||'. '||left(initcap(pipar1.patr_name),1)||'.'||'('||ppospar1.name||')'</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>res1_name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Ресурс</name>-->
+            <!--<expression>peppar1.id||': '||pipar1.surname||' '||left(initcap(pipar1.name),1)||'. '||left(initcap(pipar1.patr_name),1)||'.'||'('||ppospar1.name||')'</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+        <field>
+            <id>res2.id</id>
+            <domain>integer</domain>
+            <!--<expression>srpar2.id</expression>-->
+            <expression>
+                (select resource_id
+                from sr_res_group_relationship
+                where id = (select srgrP1.id
+                from sr_res_group_relationship srgrP1
+                where srgrP1.group_id = srg.id and (srgrP1.role_id = (select id from sr_res_role where upper(code) = upper('PARAMEDIC')) or srgrP1.role_id = (select id from sr_res_role where upper(code) = upper('PARAMEDIC_ASST')))
+                order by id desc limit 1))
+            </expression>
+        </field>
+        <!--<field>-->
+            <!--<id>res2.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Ресурс</name>-->
+            <!--<expression>peppar2.id||': '||pipar2.surname||' '||left(initcap(pipar2.name),1)||'. '||left(initcap(pipar2.patr_name),1)||'.'||'('||ppospar2.name||')'</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>res2_name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Ресурс</name>-->
+            <!--<expression>peppar2.id||': '||pipar2.surname||' '||left(initcap(pipar2.name),1)||'. '||left(initcap(pipar2.patr_name),1)||'.'||'('||ppospar2.name||')'</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+
+        <field>
+            <id>take_birth.id</id>
+            <domain>integer</domain>
+            <expression>cr.take_birth_id</expression>
+        </field>
+
+    </fields>
+</query>

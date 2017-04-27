@@ -1,0 +1,297 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>operationFlowMedicines</object-id>
+    <name>operationFlowInfusion</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from hospital.prescription p
+                join hospital.basic_data_anesthetic_map m on p.case_id = m.uid_id
+                join hospital.patient_before_procedure procedure on procedure.id = m.id
+                left join public.md_administration_route r on r.id = p.administration_route_id
+                left join hospital.md_srv_rendered_oper sro on sro.id = m.md_srv_rendered_oper_id
+                left join md_srv_rendered sr on sr.id = sro.service_id
+                join sr_srv_rendered ssr on ssr.id = sr.id
+                where p.is_operation and p.used_type_id in (2, 3) and :where
+                order by  p.period_begin_dt ASC
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from hospital.prescription p
+                join hospital.basic_data_anesthetic_map m on p.case_id = m.uid_id
+                where p.is_operation and p.used_type_id in (2, 3) and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>isWriteOff</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>
+                (case when exists(
+                select ps.id from hospital.prescription_schedule ps
+                where ps.prescription_id = p.id and
+                 ps.store_opr_id is not null)
+                then true else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>financialTypeId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>ssr.funding_id</expression>
+        </field>
+
+        <field>
+            <id>isExecutionOnce</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>
+                p.is_execution_once
+            </expression>
+        </field>
+
+        <field>
+            <id>isInfusion</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>
+                p.is_infusion
+            </expression>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters auto-generate="true"/>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>anestheticMapId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>m.id</expression>
+            <filters>
+                <filter type="eq" filter-field="anestheticMapId"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>usedType.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>p.used_type_id</expression>
+        </field>
+
+        <field>
+            <id>baseInfo.patientId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>m.patient_id</expression>
+        </field>
+
+        <field>
+            <id>baseInfo.caseId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>m.uid_id</expression>
+        </field>
+
+        <field>
+            <id>baseInfo.stepId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>sr.step_id</expression>
+        </field>
+
+        <field>
+            <id>serviceId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>sr.id</expression>
+        </field>
+
+        <field>
+            <id>baseInfo.anesthesiologId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>procedure.anesthesiolog_id</expression>
+        </field>
+
+        <field>
+            <id>srvRenderedId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>m.md_srv_rendered_oper_id</expression>
+        </field>
+
+        <field>
+            <id>periodBeginDt</id>
+            <domain>date</domain>
+            <name>Начало</name>
+            <display/>
+            <expression>p.period_begin_dt</expression>
+        </field>
+
+        <field>
+            <id>periodEndDt</id>
+            <domain>date</domain>
+            <name>Конец</name>
+            <display/>
+            <expression>p.period_end_dt</expression>
+        </field>
+
+        <field>
+            <id>nameHolding</id>
+            <domain>string</domain>
+            <name>Препарат</name>
+            <display/>
+            <expression>(case when p.used_type_id=3 then p.name_holding else
+                (select string_agg( t.name
+                , ' ')
+                as nameH
+                from (select h.name as name from hospital.prescription_holding phold
+                join inventory.holding h on h.id = phold.holding_id
+                where phold.prescription_id = p.id order by phold.id) as t)
+                ||(' в дозировке ')||
+                (select string_agg( coalesce(CASE WHEN t.hold_con_value~'^[0-9]*\.?[0-9]*$' THEN
+                trim(to_char(t.hold_con_value::numeric, 'FM9999990.999'), '.') ELSE t.hold_con_value END ||
+                coalesce(' ' || t.cmName,''), '')
+                || coalesce(trim(to_char(t.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' '
+                || t.dmName,''), ''), ' + ')
+                as doseH
+                from ( select phold.hold_con_value as hold_con_value, phold.hold_dose_value as hold_dose_value, cm.name as cmName, dm.name as dmName from hospital.prescription_holding phold
+                join inventory.holding h on h.id = phold.holding_id
+                left join inventory.form_type ft on ft.id = phold.hold_form_type_id
+                left join cmn_measure dm on dm.id = phold.hold_dose_measure_id
+                left join cmn_measure cm on cm.id = phold.hold_con_measure_id
+                where phold.prescription_id = p.id order by phold.id) as t)
+                ||(' количество ')||
+                (select string_agg(coalesce(trim(to_char((t.count)::numeric, 'FM9999990.999'), '.')
+                || coalesce(' ' || t.name,''), ''), ' + ')
+                as countH
+                from ( select phold.count as count, mnei.name as name from hospital.prescription_holding phold
+                join inventory.holding h on h.id = phold.holding_id
+                left join inventory.form_type ft on ft.id = phold.hold_form_type_id
+                left join cmn_measure mnei on mnei.id = phold.hold_mnei_id
+                where phold.prescription_id = p.id order by phold.id) as t) end)
+            </expression>
+        </field>
+
+        <field>
+            <id>transfusionName</id>
+            <domain>string</domain>
+            <name>Название трансфузионной среды</name>
+            <display/>
+            <expression>(case when p.used_type_id = 3 then p.name_holding else '' end)</expression>
+        </field>
+
+        <field>
+            <id>holdDoseValue</id>
+            <domain>numeric</domain>
+            <name>Объём/Доза</name>
+            <display/>
+            <expression>(case when p.used_type_id = 3 then p.infusion_hold_dose_value else
+                (case when ( select count(t) from (select ph.hold_dose_value*ph.count from hospital.prescription_holding ph
+                where ph.prescription_id=p.id)as t)=1 then
+                ( select (ph.hold_dose_value*ph.count) from hospital.prescription_holding ph
+                where ph.prescription_id=p.id)else (null) end) end)</expression>
+        </field>
+
+
+        <field>
+            <id>infusionIntroductionSpeed</id>
+            <domain>numeric</domain>
+            <name>Скорость</name>
+            <display/>
+            <expression>p.infusion_introduction_speed</expression>
+        </field>
+
+        <field>
+            <id>infusionHoldDoseValue</id>
+            <domain>numeric</domain>
+            <name>Объем</name>
+            <display/>
+            <expression>p.infusion_hold_dose_value</expression>
+        </field>
+
+        <field>
+            <id>administrationRouteFullName</id>
+            <domain>string</domain>
+            <name>Способ</name>
+            <display/>
+            <expression>r.full_name</expression>
+        </field>
+
+        <field>
+            <id>administrationRoute.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>p.administration_route_id</expression>
+        </field>
+
+        <field>
+            <id>createdDt</id>
+            <domain>date</domain>
+            <display/>
+            <expression>ssr.planned_date</expression>
+        </field>
+
+        <field>
+            <id>holdings</id>
+            <domain>object[]</domain>
+            <display/>
+            <expression>(select array_to_json(array_agg(t)) from (
+                select
+                ph.id
+                , holding
+                , ph.count * ph.hold_dose_value as dose
+                , ph.count
+                , ph.is_patient_medicament
+
+                from hospital.prescription_holding ph
+                join ( select id, row_to_json(holding) as holding from ( select
+                phold.id
+                , phold.holding_id as holding_id
+                , h.name || coalesce(', ' || ft.short_name, '') || coalesce(', ' || CASE WHEN
+                phold.hold_con_value~'^[0-9]*\.?[0-9]*$' THEN trim(to_char(phold.hold_con_value::numeric,
+                'FM9999990.999'), '.') ELSE phold.hold_con_value END || coalesce(' ' || cm.name,''), '')
+                as holding_full_name
+                , phold.hold_form_type_id as form_type_id
+                , trim(to_char(phold.hold_dose_value, 'FM9999990.999'), '.') || ' ' || dm.name
+                as dose_with_measure
+                , cast((phold.hold_dose_value) AS NUMERIC(40,6))::text as dose
+                , phold.hold_dose_measure_id as dose_measure_id
+                , dm.name as dose_measure_name
+                , phold.hold_con_value as concentration
+                , phold.hold_con_measure_id as concentration_measure_id
+                , phold.hold_mnei_id as mnei_id
+                , (select name from cmn_measure where id = phold.hold_mnei_id)
+                as mnei_name
+                , h.name || coalesce(', ' || ft.short_name, '')
+                || coalesce(', ' || CASE WHEN phold.hold_con_value~'^[0-9]*\.?[0-9]*$' THEN
+                trim(to_char(phold.hold_con_value::numeric, 'FM9999990.999'), '.') ELSE phold.hold_con_value END ||
+                coalesce(' ' || cm.name,''), '')
+                || coalesce(', ' || trim(to_char(phold.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' '
+                || dm.name,''), '')
+                || coalesce(', ' || mnei.name, '') as name_holding
+                from hospital.prescription_holding phold
+                join inventory.holding h on h.id = phold.holding_id
+                left join inventory.form_type ft on ft.id = phold.hold_form_type_id
+                left join cmn_measure dm on dm.id = phold.hold_dose_measure_id
+                left join cmn_measure cm on cm.id = phold.hold_con_measure_id
+                left join cmn_measure mnei on mnei.id = phold.hold_mnei_id
+                order by phold.id ) holding ) h on h.id = ph.id
+
+                where ph.prescription_id = p.id
+                order by ph.id) as t)
+            </expression>
+        </field>
+
+    </fields>
+</query>

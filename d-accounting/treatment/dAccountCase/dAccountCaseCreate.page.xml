@@ -1,0 +1,196 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <object-id>dAccountCase</object-id>
+    <modal-width>900px</modal-width>
+    <name>Создание случая</name>
+    <layout>n2o/layout/single</layout>
+
+    <containers>
+        <container id="c1" place="single">
+            <wgt:form>
+                <wgt:query-id>dAccountCase</wgt:query-id>
+                <wgt:object-id>dAccountCase</wgt:object-id>
+                <wgt:default-values-query-id>dAccountCaseDefault</wgt:default-values-query-id>
+                <fs:field-set header="line" label="Случай">
+                    <fs:row>
+                        <ctrl:input-text id="account.fio" label="Пациент" required="true" readonly="true"/>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:checkbox id="generateNumber" label="Сгенерировать номер случая"
+                                       default-value="false"/>
+                        <ctrl:input-text id="number" label="Номер случая">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>typeof generateNumber == 'undefined' || generateNumber == null
+                                    || generateNumber == false
+                                </ctrl:enabling-condition>
+                                <ctrl:required-condition>typeof generateNumber == 'undefined' || generateNumber == null
+                                    || generateNumber == false
+                                </ctrl:required-condition>
+                            </ctrl:dependencies>
+                            <ctrl:set-value-expression on="generateNumber">
+                                <![CDATA[
+                                if(typeof generateNumber == 'undefined' || generateNumber == null || generateNumber == false)
+                                    number;
+                                else
+                                    null;
+                            ]]>
+                            </ctrl:set-value-expression>
+                        </ctrl:input-text>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="repeat_count" label="Обращение в текущем году" required="true">
+                            <ctrl:query query-id="phthisiatryRepeatCount" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="case_type" label="Вид случая" required="true">
+                            <ctrl:query query-id="phthisiatryCaseType" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="care_regimen" label="Условия оказания" required="true">
+                            <ctrl:query query-id="phthisiatryCareRegimen" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="care_level" label="Тип помощи" required="true">
+                            <ctrl:query query-id="phthisiatryCareLevel" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="funding" label="Вид финансирования" search-are-you-type="true"
+                                         required="true">
+                            <ctrl:query query-id="phthisiatryFinType" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="init_goal" label="Цель первичного обращения" search-are-you-type="true"
+                                         required="true">
+                            <ctrl:query query-id="phthisiatryCaseInitGoal" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="stage" label="Этап установления диагноза" required="true">
+                            <ctrl:query query-id="dAccountMcStageWithoutFinal" value-field-id="id"
+                                        label-field-id="name"/>
+                        </ctrl:classifier>
+                    </fs:row>
+                </fs:field-set>
+                <fs:field-set header="line" label="Диагноз">
+                    <ctrl:input-text id="isCvkk" label="" control-style="display: none;"
+                                     dependency-condition="account.patient.id != null">
+                        <ctrl:actions>
+                            <ctrl:link label="Диагноз решения ЦВКК">
+                                <ctrl:on-click src="d-account/n2o/custom/diagnosisFromIssue.js"
+                                               function-name="getDiagnosisFromIssueForAccount"/>
+                            </ctrl:link>
+                        </ctrl:actions>
+                    </ctrl:input-text>
+                    <rc:diagnosis label="Диагноз" id="main_diagnos" required="true" control-style="width:600px;"/>
+                    <ctrl:classifier id="clinicalForm" label="Клиническая форма" search-are-you-type="true"
+                                     required="true" control-style="width:600px;">
+                        <ctrl:query query-id="diagnosisClinicalForm" label-field-id="name" value-field-id="id"/>
+                        <ctrl:show-modal page-id="diagnosisClinicalFormTree" result-container-id="clinicalForm"
+                                         value-field-id="id"/>
+                    </ctrl:classifier>
+                    <ctrl:classifier id="localization" label="Вторая локализация" search-are-you-type="true"
+                                     control-style="width:600px;">
+                        <ctrl:query query-id="diagnosisLocalization" label-field-id="name" value-field-id="id"/>
+                    </ctrl:classifier>
+                    <ctrl:classifier id="complication" label="Осложнения" search-are-you-type="true"
+                                     control-style="width:600px;">
+                        <ctrl:query query-id="diagnosisComplication" label-field-id="name" value-field-id="id"/>
+                    </ctrl:classifier>
+                </fs:field-set>
+
+                <fs:field-set header="line" label="Направление">
+                    <ctrl:checkbox id="isCreateReferral" label="Создать направление"/>
+                    <ctrl:checkbox id="autoReferral" label="Автоподбор" default-value="false"
+                                   dependency-condition="isCreateReferral">
+                        <ctrl:dependencies>
+                            <ctrl:enabling-condition>account.patient.id</ctrl:enabling-condition>
+                        </ctrl:dependencies>
+                    </ctrl:checkbox>
+
+                    <ctrl:classifier id="referral" label="Направление"
+                                     dependency-condition="isCreateReferral &amp;&amp; autoReferral">
+                        <ctrl:set-value-expression>
+                            <![CDATA[
+                                if(typeof autoReferral == 'undefined' || autoReferral == null || autoReferral == false)
+                                    null;
+                                else
+                                    referral;
+                            ]]>
+                        </ctrl:set-value-expression>
+                        <ctrl:dependencies>
+                            <ctrl:enabling-condition>account.patient.id &amp;&amp; autoReferral
+                            </ctrl:enabling-condition>
+                        </ctrl:dependencies>
+                        <ctrl:query query-id="phthisiatryReferral" label-field-id="order_number" value-field-id="id">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="patient.id" ref="account.patient.id"/>
+                                <ctrl:pre-filter field-id="recv_organization.id" value="#{org.id?}"/>
+                            </ctrl:pre-filters>
+                        </ctrl:query>
+                    </ctrl:classifier>
+                    <ctrl:output-text id="referral.order_number" label="Номер направления"
+                                      dependency-condition="isCreateReferral &amp;&amp; autoReferral"/>
+                    <ctrl:output-text id="referral.referral_type.name" label="Тип направления"
+                                      dependency-condition="isCreateReferral &amp;&amp; autoReferral"/>
+                    <ctrl:output-text id="referral.diagnosis.name" label="Диагноз направления"
+                                      dependency-condition="isCreateReferral &amp;&amp; autoReferral"/>
+                    <ctrl:output-text id="referral.recv_organization.name" label="МО"
+                                      dependency-condition="isCreateReferral &amp;&amp; autoReferral"/>
+                    <ctrl:output-text id="referral.referral_date" label="Дата направления"
+                                      dependency-condition="isCreateReferral &amp;&amp; autoReferral"/>
+                    <ctrl:output-text id="referral.comment" label="Дополнение"
+                                      dependency-condition="isCreateReferral &amp;&amp; autoReferral"/>
+
+                    <fs:row>
+                        <ctrl:checkbox id="generateOrderNumber" label="Сгенерировать номер направления"
+                                       default-value="false"
+                                       dependency-condition="isCreateReferral &amp;&amp; !autoReferral"/>
+
+                        <ctrl:input-text id="nreferral.order_number" label="Номер направления"
+                                         dependency-condition="isCreateReferral &amp;&amp; !autoReferral">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>!generateOrderNumber</ctrl:enabling-condition>
+                                <ctrl:required-condition>!generateOrderNumber</ctrl:required-condition>
+                            </ctrl:dependencies>
+                            <ctrl:set-value-expression on="generateOrderNumber">
+                                <![CDATA[
+                                if(generateOrderNumber == null || autoReferral.checked == false)
+                                    nreferral.order_number;
+                                else
+                                    null;
+                            ]]>
+                            </ctrl:set-value-expression>
+                        </ctrl:input-text>
+                    </fs:row>
+                    <ctrl:classifier id="nreferral.referral_type" label="Тип направления" control-style="width:624px;"
+                                     dependency-condition="isCreateReferral &amp;&amp; !autoReferral"
+                                     search-are-you-type="true" required="true">
+                        <ctrl:query query-id="phthisiatryReferralType" label-field-id="name" value-field-id="id"/>
+                    </ctrl:classifier>
+                    <ctrl:classifier id="nreferral.diagnosis" label="Диагноз направления" search-are-you-type="true"
+                                     control-style="width:624px;"
+                                     dependency-condition="isCreateReferral &amp;&amp; !autoReferral">
+                        <ctrl:query query-id="phthisiatryDiagnosis" label-field-id="name" value-field-id="id"/>
+                        <ctrl:show-modal page-id="phthisiatryDiagnosisTree" result-container-id="diagnosis"
+                                         value-field-id="id"/>
+                    </ctrl:classifier>
+                    <ctrl:classifier id="nreferral.recv_organization" label="МО" search-are-you-type="true"
+                                     dependency-condition="isCreateReferral &amp;&amp; !autoReferral" required="true">
+                        <ctrl:show-modal page-id="phthisiatryMO" result-container-id="mo"
+                                         label-field-id="name"
+                                         value-field-id="id"/>
+                    </ctrl:classifier>
+                    <ctrl:date-time id="nreferral.referral_date" label="Дата направления"
+                                    dependency-condition="isCreateReferral &amp;&amp; !autoReferral" required="true">
+                    </ctrl:date-time>
+                    <ctrl:text-area id="nreferral.comment" label="Дополнение"
+                                    dependency-condition="isCreateReferral &amp;&amp; !autoReferral"/>
+                    <ctrl:output-text id="mo.id" visible="false" default-value="#{org.id?}"/>
+                </fs:field-set>
+            </wgt:form>
+        </container>
+    </containers>
+</page>

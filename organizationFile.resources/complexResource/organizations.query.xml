@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>dummy</object-id>
+    <name>organizations</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from (
+                    select t1.id, t1.full_name, count(t1) as count
+                    from (
+                        with recursive t as (
+                            select o.* from pim_organization o where o.id = :org_id
+                            union all
+                            select o.* from pim_organization o join t on o.parent_id = t.id
+                        )
+                        select * from t
+                    ) t1
+                    inner join sr_res_group rg on rg.org_id=t1.id
+                    group by t1.id, t1.full_name
+                ) o
+                where :where
+                order by o.full_name
+            </n2o:items-query>
+            <n2o:count-query>select count(o)
+                from (
+                    select t1.id, t1.full_name, count(t1) as count
+                    from (
+                        with recursive t as (
+                            select o.* from pim_organization o where o.id = :org_id
+                            union all
+                            select o.* from pim_organization o join t on o.parent_id = t.id
+                        )
+                        select * from t
+                    ) t1
+                    inner join sr_res_group rg on rg.org_id=t1.id
+                    group by t1.id, t1.full_name
+                ) o
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>oid</id>
+            <domain>integer</domain>
+            <expression>o.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>o.full_name || ' (' || o.count || ')'</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    upper(:expression) like '%'||upper(:name)||'%'
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>:org_id</expression>
+            <filters>
+                <filter type="eq" filter-field="org_id" default-value="#{stocks.orgId}"/>
+            </filters>
+        </field>
+    </fields>
+</query>

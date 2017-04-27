@@ -1,0 +1,126 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Производитель</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into inventory.common_holding_producer(id, common_hold_modif_id,org_id,ean13,reg_cert_number,reg_cert_start_dt, reg_cert_end_dt,
+                    limit_price,limit_price_dt,decision_number,cert_num, code_rls,ross_zdr_code, is_active)
+                    values(nextval('inventory.common_holding_producer_seq'),:modifId,:orgId,cast(:ean as text),:regCertNumber,:regCertDtStart,:regCertDtEnd,
+                    cast(:limPrice as numeric(13,5)),:limPriceDt,:decNum,:certNum, :codeRls, :zdravCode, :isActive)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id"/>
+                <param name="modifId" mapping="['modifId']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="ean" mapping="['ean']" domain="string"/>
+                <param name="regCertNumber"  mapping="['regCertNumber']" domain="string"/>
+                <param name="regCertDateStart"  mapping="['regCertDtStart']"/>
+                <param name="regCertDateEnd"  mapping="['regCertDtEnd']"/>
+                <param name="limitPrice"  mapping="['limPrice']"/>
+                <param name="priceDate"  mapping="['limPriceDt']"/>
+                <param name="decisionNum"  mapping="['decNum']"/>
+                <param name="certNum"  mapping="['certNum']"/>
+                <param name="codeRls"  mapping="['codeRls']"/>
+                <param name="zdravCode" mapping="['zdravCode']"/>
+                <param name="isActive" mapping="['isActive']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="holdProdCheckUnique"/>
+            </validations>
+        </action>
+
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update inventory.common_holding_producer set
+                    org_id= :orgId,
+                    ean13= cast(:ean as text),
+                    reg_cert_number= :regCertNumber,
+                    reg_cert_start_dt= :regCertDtStart,
+                    reg_cert_end_dt= :regCertDtEnd,
+                    limit_price= cast(:limPrice as numeric(13,5)),
+                    limit_price_dt=:limPriceDt,
+                    decision_number= :decNum,
+                    cert_num= :certNum,
+                    code_rls= :codeRls,
+                    ross_zdr_code = :zdravCode,
+                    is_active = :isActive
+                    where id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="modifId" mapping="['modifId']"/>
+                <param name="ean" mapping="['ean']" domain="string"/>
+                <param name="regCertNumber"  mapping="['regCertNumber']" domain="string"/>
+                <param name="regCertDateStart"  mapping="['regCertDtStart']"/>
+                <param name="regCertDateEnd"  mapping="['regCertDtEnd']"/>
+                <param name="limitPrice"  mapping="['limPrice']"/>
+                <param name="priceDate"  mapping="['limPriceDt']"/>
+                <param name="decisionNum"  mapping="['decNum']"/>
+                <param name="certNum"  mapping="['certNum']"/>
+                <param name="codeRls"  mapping="['codeRls']"/>
+                <param name="zdravCode" mapping="['zdravCode']"/>
+                <param name="isActive" mapping="['isActive']"/>
+            </in-parameters>
+            <validations activate="blackList">
+                <validation ref-id="checkEanContainsOnlyDigits"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from inventory.common_holding_producer where id= :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы действительно хотите удалить Производителя?</confirmation-text>
+            <success-text>Производитель удален</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkEanContainsOnlyDigits" level="error">
+            <message>Штрих-код должен состоять только из цифр.</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]+\$');
+                regex.test(ean);
+                ]]>
+            </expression>
+        </condition>
+        <constraint id="holdProdCheckUnique" level="error">
+            <message>Производитель с данными параметрами зарегистрирован</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.common_holding_producer
+                    where org_id = :orgId
+                    and common_hold_modif_id = :modifId
+                    and org_id = :orgId
+                    and (reg_cert_number =:regCertNumber or (reg_cert_number is null and :regCertNumber is null))
+                    and (limit_price= cast(:limPrice as numeric(13,5)) or (limit_price is null and :limPrice is null))
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="org.id" mapping="['orgId']" domain="integer"/>
+                <param name="modifId" mapping="['modifId']" domain="integer"/>
+                <param name="regCertNumber" mapping="['regCertNumber']" domain="string"/>
+                <param name="limitPrice" mapping="['limPrice']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+</object>

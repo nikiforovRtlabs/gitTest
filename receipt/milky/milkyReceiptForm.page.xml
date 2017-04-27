@@ -1,0 +1,291 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <!--<id>receipt_form</id>-->
+    <name>Рецепт на молочную кухню</name>
+    <object-id>receipt</object-id>
+    <layout>n2o/layout/single</layout>
+    <modal-width>700px</modal-width>
+    <containers>
+        <container id="single" place="single">
+            <wgt:form>
+                <wgt:name>Рецепт на молочную кухню</wgt:name>
+                <wgt:query-id>milkyReceiptJournal</wgt:query-id>
+                <wgt:default-values-query-id>milkyReceiptJournalDefault</wgt:default-values-query-id>
+
+                <fs:field-set header="none" field-label-location="left" label="">
+                    <ctrl:output-text id="errorMessage" label-style="color:red;width:100%;"
+                                      dependency-condition="typeof id == 'undefined' &amp;&amp; !employee.canCreateBenefitReceipt"
+                                      label="У выбранного врача нет права на выписку льготного рецепта"/>
+                    <fs:row>
+                        <ctrl:output-text id="canCreateBenefitReceipt" visible="false"/>
+                        <ctrl:output-text id="employeeId" visible="false"/>
+                        <ctrl:output-text id="lab" label="РЕЦЕПТ"
+                                          control-style="display:none;" label-style="width:53px;font-weight:bolder;"/>
+                        <ctrl:input-text id="series" label="Серия" length="6"
+                                         control-style="width:60px;" label-style="width:50px;">
+                            <ctrl:properties>
+                                <ctrl:property key="floppy" value="true"/>
+                            </ctrl:properties>
+                        </ctrl:input-text>
+                        <ctrl:input-text id="num" label="№" length="8"
+                                         control-style="width:71px;" label-style="width:14px;margin-left:30px;">
+                            <ctrl:actions>
+                                <ctrl:button icon="icon-plus" type="icon" label="Заполнить">
+                                    <ctrl:on-click src="receipt/n2o/babyFoodReceiptUid.js" function-name="getUidForBabyFoodReceipt"/>
+                                    <ctrl:dependencies>
+                                        <ctrl:enabling-condition>
+                                            enableUidLink == 'enable'
+                                        </ctrl:enabling-condition>
+                                    </ctrl:dependencies>
+                                </ctrl:button>
+                            </ctrl:actions>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:input-text>
+                        <ctrl:hidden id="enableUidLink" default-value="enable"/>
+
+                        <ctrl:date-time id="issue_dt" label="Дата выписки" required="true"
+                                        default-value="today()" format="DD.MM.YYYY"
+                                        control-style="width:120px;" label-style="width:115px;"/>
+                        <!--readonly="true"-->
+                    </fs:row>
+                    <fs:row>
+                        <!--<ctrl:input-text id="bdt1">
+                            <ctrl:set-value-expression on-load="true" on="issue_dt">'01.01.2016 00:00'</ctrl:set-value-expression>
+                        </ctrl:input-text>-->
+                        <ctrl:date-time id ="begin_dt" label="Действует с" required="true"
+                                        control-style="width:120px;" label-style="width:74px;margin-left:219px;">
+                            <!--<ctrl:set-value-expression on="issue_dt">'01.01.2016 00:00'</ctrl:set-value-expression>-->
+                            <!--<ctrl:set-value-expression on="issue_dt" on-load="true">-->
+                            <!--if ((typeof id == 'undefined')||(id == null))-->
+                            <!--if (moment().format('DD') > '20')-->
+                            <!--(moment().add(1,'months').startOf('month').format('DD.MM.YYYY HH:mm')); -->
+                            <!--else throw '!'-->
+                            <!--</ctrl:set-value-expression>-->
+                            <!--<ctrl:properties>-->
+                            <!--<ctrl:property key="floppy" value="true"/>-->
+                            <!--</ctrl:properties>-->
+                            <!--<ctrl:dependencies>-->
+                            <!--<ctrl:enabling-condition>-->
+                            <!--'20' >= moment().format('DD')    -->
+                            <!--</ctrl:enabling-condition>-->
+                            <!--</ctrl:dependencies>-->
+                        </ctrl:date-time>
+                        <!--todo либо до конца месяца, либо до окончания действия льготы-->
+                        <ctrl:date-time id="end_dt" label="по" required="true"
+                                        control-style="width:120px;" label-style="width:14px;"/>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="patient" label="Ф.И.О. пациента" autoselect-alone="true" search-as-you-type="true" required="true"
+                                         control-style="width:433px;" label-style="width:100px;">
+                            <ctrl:query query-id="patientsSearch" value-field-id="id" label-field-id="displayName"/>
+                            <ctrl:show-modal page-id="patientsList" result-container-id="pats" width="42%"/>
+                            <ctrl:actions>
+                                <ctrl:button icon="icon-plus" type="icon" label="Создать">
+                                    <ctrl:a href="/pats/patients/new?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html" target="newWindow"/>
+                                </ctrl:button>
+                                <ctrl:button icon="icon-pencil" type="icon" label="Редактировать">
+                                    <ctrl:a href="/pats/patients/:indiv.id:/edit?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html" target="newWindow"/>
+                                    <ctrl:dependencies>
+                                        <ctrl:enabling-condition>patient.id != null</ctrl:enabling-condition>
+                                    </ctrl:dependencies>
+                                </ctrl:button>
+                            </ctrl:actions>
+                            <ctrl:update-model query-id="milkyChildInfoUpdModel" master-field-id="patient.id" detail-field-id="ind.id" target="form">
+                                <!--<ctrl:pre-filters>-->
+                                <!--<ctrl:pre-filter field-id="orgId" ref="clinic.id"/>-->
+                                <!--<ctrl:pre-filter field-id="fromDt" ref="begin_dt"/>-->
+                                <!--</ctrl:pre-filters>-->
+                            </ctrl:update-model>
+                        </ctrl:classifier>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:date-time id="birth_dt" label="Дата рождения" format="DD.MM.YYYY" required="true"
+                                        control-style="width:120px;" label-style="width:92px;">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>
+                                    (typeof patient == 'undefined')||(patient == null)||(patient.id == null)
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:date-time>
+
+                        <ctrl:input-text id="age" label="Возраст"
+                                         control-style="width:330px" label-style="width:46px;">
+                            <ctrl:set-value-expression on="patient.id,birth_dt,issue_dt" on-load="false" on-non-empty="true" on-invisible="true" on-readonly="true">
+                                <![CDATA[
+                                var yearsStr;
+                                var monthDiff;
+                                var monthISdiff;
+                                var daysDiff;
+                                var daysISdiff;
+                                switch (true){
+                                    case parseInt(moment(issue_dt,'DD.MM.YYYY').format('DD')) - parseInt(moment(birth_dt,'DD.MM.YYYY').format('DD')) < 0:
+                                        daysDiff = moment(issue_dt,'DD.MM.YYYY').diff(moment(issue_dt,'DD.MM.YYYY').subtract('months',1),'days')-parseInt(moment(birth_dt,'DD.MM.YYYY').format('DD')) + parseInt(moment(issue_dt,'DD.MM.YYYY').format('DD'));
+                                        daysISdiff = 1;
+                                        break;
+                                    case moment(issue_dt,'DD.MM.YYYY').format('DD') - moment(birth_dt,'DD.MM.YYYY').format('DD') >= 0:
+                                        daysDiff = parseInt(moment(issue_dt,'DD.MM.YYYY').format('DD')) - parseInt(moment(birth_dt,'DD.MM.YYYY').format('DD'));
+                                        daysISdiff = 0;
+                                        break;
+                                };
+                                 switch (true){
+                                    case parseInt(moment(issue_dt,'DD.MM.YYYY').format('MM')) - parseInt(moment(birth_dt,'DD.MM.YYYY').format('MM')) < 0:
+                                        monthDiff = moment(issue_dt,'DD.MM.YYYY').diff(moment(issue_dt,'DD.MM.YYYY').subtract('years',1),'months')-parseInt(moment(birth_dt,'DD.MM.YYYY').format('MM')) + parseInt(moment(issue_dt,'DD.MM.YYYY').format('MM')) - daysISdiff;
+                                        monthISdiff = 1;
+                                        break;
+                                    case parseInt(moment(issue_dt,'DD.MM.YYYY').format('MM')) - parseInt(moment(birth_dt,'DD.MM.YYYY').format('MM')) >= 0:
+                                        monthDiff = moment(issue_dt,'DD.MM.YYYY').format('MM') - moment(birth_dt,'DD.MM.YYYY').format('MM') - daysISdiff;
+                                        monthISdiff = 0;
+                                        break;
+                                };
+                                if ((typeof birth_dt != undefined)&&(birth_dt != null)&&(typeof issue_dt != undefined)&&(issue_dt != null))
+                                    if (moment(issue_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'years') > 0)
+                                        (moment(issue_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'years')+ "л "
+                                            + monthDiff +'м '
+                                            + daysDiff + 'д'
+                                        );
+                                        else if (moment(issue_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'months')- daysISdiff > 0)
+                                                ((moment(issue_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'months')- daysISdiff)+'м '+
+                                                    (daysDiff + 'д'));
+                                                else moment(issue_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'days')+'д'
+                                ]]>
+                            </ctrl:set-value-expression>
+                            <!--<ctrl:dependencies>-->
+                            <!--<ctrl:enabling-condition>-->
+                            <!--(typeof patient == 'undefined')||(patient == null)||(patient.id == null)-->
+                            <!--</ctrl:enabling-condition>-->
+                            <!--</ctrl:dependencies>-->
+                        </ctrl:input-text>
+                        <ctrl:input-text id="month_age" visible="false">
+                            <ctrl:set-value-expression on="birth_dt,issue_dt" on-load="true" on-non-empty="true" on-readonly="true" on-invisible="true">
+                                if ((typeof birth_dt != undefined)&amp;&amp;(birth_dt != null)&amp;&amp;(typeof issue_dt != undefined)&amp;&amp;(issue_dt != null))
+                                moment(issue_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'months');else null;
+                            </ctrl:set-value-expression>
+                        </ctrl:input-text>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="ageCategory" label="Возрастная категория" search-as-you-type="true"
+                                         autoselect-alone="true" required="true" readonly="true"
+                                         control-style="width:224px;margin-left:10px;" label-style="width:70px;">
+                            <ctrl:query query-id="ageCategory" value-field-id="id" label-field-id="full_name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="month" ref="month_age"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="benefit_definition" label="Код категории граждан" search-as-you-type="true" required="true"
+                                         control-style="width:235px;margin-left:10px;" label-style="width:86px;margin-left:-7px;">
+                            <ctrl:query query-id="milkyBenefitDefinition" value-field-id="id" label-field-id="codename"/>
+                        </ctrl:classifier>
+                    </fs:row>
+                    <fs:row>
+                        <!--<ctrl:hidden id="addr.id" default-value="#{addr_parent}"/>-->
+                        <rc:address id="address" label="Адрес" required="true"
+                                    control-style="width:585px;" label-style="width:38px;">
+                            <rc:dependencies>
+                                <rc:enabling-condition>
+                                    (typeof patient == 'undefined')||(patient == null)||(patient.id == null)
+                                </rc:enabling-condition>
+                            </rc:dependencies>
+                        </rc:address>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:input-text id="OMS" label="Полис ОМС"
+                                         control-style="width:551px;" label-style="width:72px;">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>
+                                    (typeof patient == 'undefined')||(patient == null)||(patient.id == null)
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:input-text>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:input-text id="snils" label="СНИЛС" length="14"
+                                         control-style="width:105px;" label-style="width:45px;">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>
+                                    (typeof patient == 'undefined')||(patient == null)||(patient.id == null)
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:input-text>
+                        <ctrl:input-text id="birth_doc" label="Свидетельство о рождении" length="13"
+                                         control-style="width:110px;" label-style="width:170px;">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>
+                                    (typeof patient == 'undefined')||(patient == null)||(patient.id == null)
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:input-text>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:classifier id="kitchen" label="Пункт ДМК" search-as-you-type="true" autoselect-alone="true"
+                                         control-style="width:556px;" label-style="width:67px;">
+                            <ctrl:query query-id="milkyKitchen" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="clinic" label="МО" search-as-you-type="true"
+                                         control-style="width:200px;" label-style="width:21px;" readonly="true">
+                            <ctrl:query query-id="milkyClinic" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="date" ref="issue_dt" reset-mode="off"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+                                <ctrl:value field-id="name">#{org.name?}</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="employee" label="ФИО врача" search-as-you-type="true"
+                                         control-style="width:307px;" label-style="width:70px;" required="true">
+                            <ctrl:query query-id="milkyEmployee" value-field-id="id" label-field-id="namePos">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="depId" value="#{dep.id?}"/>
+                                    <ctrl:pre-filter field-id="receiptDate" ref="issue_dt" reset-mode="off"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{emplPos.id?}</ctrl:value>
+                                <ctrl:value field-id="namePos">#{emplPos.name?}</ctrl:value>
+                            </ctrl:default-model>
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="canCreateBenefitReceipt"/>
+                                <ctrl:validation ref-id="canCreateBenefitReceiptToDate"/>
+                            </ctrl:validations>
+                        </ctrl:classifier>
+                    </fs:row>
+                </fs:field-set>
+                <fs:field-set header="line" label="Rp"
+                              dependency-condition="(typeof patient != 'undefined')&amp;&amp;(patient.id != null)&amp;&amp;(typeof benefit_definition != 'undefined')&amp;&amp;(benefit_definition.id != null)">
+                    <ctrl:checkbox-grid id="Rp" readonly="true"
+                                        control-style="width:500px" label-style="display:none">
+                        <ctrl:query query-id="babyFoodNorm" value-field-id="id" label-field-id="product.name">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="benefit_definition.id" ref="benefit_definition.id"/>
+                                <ctrl:pre-filter field-id="ageCategory.id" ref="ageCategory.id"/>
+                            </ctrl:pre-filters>
+                        </ctrl:query>
+                        <ctrl:columns>
+                            <ctrl:column column-field-id="product.name" name="Продукт"/>
+                            <ctrl:column column-field-id="norm" name="Норма"/>
+                        </ctrl:columns>
+                    </ctrl:checkbox-grid>
+                </fs:field-set>
+            </wgt:form>
+        </container>
+    </containers>
+</page>

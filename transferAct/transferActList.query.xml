@@ -1,0 +1,270 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>transferAct</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.exp_invoice ei
+                inner join inventory.document doc on doc.id = ei.id
+                left outer join inventory.request_doc req on req.id = ei.request_doc_id
+                left join inventory.store rec on rec.id = ei.rec_store_id
+                left join inventory.store send on send.id = ei.send_store_id
+                left outer join inventory.store_opr arr_opr on arr_opr.id = ei.store_opr_arr_id
+                left outer join inventory.store_opr exp_opr on exp_opr.id = ei.store_opr_exp_id
+                left outer join inventory.funding_source fs on fs.id=ei.fund_source_id
+                left outer join inventory.funding_source nfs on nfs.id=ei.new_fund_source_id
+                left outer join inventory.commodity_group cg on cg.id=ei.com_group_id
+                left outer join inventory.trust_doc td on td.id=ei.trust_doc_id
+                where (exp_opr.code = '12' or exp_opr.code = '13') and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ei)
+                from inventory.exp_invoice ei
+                inner join inventory.document doc on doc.id = ei.id
+                left outer join inventory.request_doc req on req.id = ei.request_doc_id
+                left join inventory.store rec on rec.id = ei.rec_store_id
+                left join inventory.store send on send.id = ei.send_store_id
+                left outer join inventory.store_opr arr_opr on arr_opr.id = ei.store_opr_arr_id
+                left outer join inventory.store_opr exp_opr on exp_opr.id = ei.store_opr_exp_id
+                left outer join inventory.funding_source fs on fs.id=ei.fund_source_id
+                left outer join inventory.funding_source nfs on nfs.id=ei.new_fund_source_id
+                left outer join inventory.commodity_group cg on cg.id=ei.com_group_id
+                left outer join inventory.trust_doc td on td.id=ei.trust_doc_id
+                where (exp_opr.code = '12' or exp_opr.code = '13') and :where
+            </n2o:count-query>
+            <n2o:alias>ei</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>docNumberLabel</id>
+            <domain>string</domain>
+            <name>№ накладной</name>
+            <expression>doc.int_doc_number</expression>
+            <search>(:expression like '%'||'-'||:docNumber or :expression=:docNumber)</search>
+        </field>
+        <field>
+            <id>docNumber</id>
+            <domain>string</domain>
+            <expression>doc.int_doc_number</expression>
+            <search>upper(:expression) like '%'||upper(:docNumber)||'%'</search>
+        </field>
+        <field>
+            <id>docDate</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>doc.int_doc_dt</expression>
+            <search type="between">
+                <![CDATA[(:docDate.begin::date is null or doc.int_doc_dt >= :docDate.begin) and
+                        (:docDate.end::date is null or doc.int_doc_dt <= :docDate.end) ]]></search>
+        </field>
+        <field>
+            <id>docDateString</id>
+            <domain>string</domain>
+            <expression>to_char(doc.int_doc_dt, 'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>docDate.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>docDate.begin</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>isExecuted</id>
+            <domain>string</domain>
+            <expression>(case when doc.doc_status_id=1 then 'false' else 'true' end)</expression>
+        </field>
+        <field>
+            <id>isExecutedSimbol</id>
+            <domain>string</domain>
+            <name></name>
+            <expression>(case when doc.doc_status_id=1 then '&#10008;' else '&#10004;' end)</expression>
+        </field>
+        <field>
+            <id>isExecutedColor</id>
+            <domain>string</domain>
+            <expression>
+                (case when (doc.doc_status_id=2 and ei.doc_status_arr_id=4)
+                then 'success'
+                else
+                case when (doc.doc_status_id=2 and ei.doc_status_arr_id=3)
+                then 'warning' end
+                end)
+            </expression>
+        </field>
+        <field>
+            <id>executedSpecExists</id>
+            <domain>boolean</domain>
+            <expression>(select exists(select 1 from inventory.exp_spec where doc_id=ei.id and status_exp_id=2))
+            </expression>
+        </field>
+        <field>
+            <id>countOfSpec</id>
+            <domain>integer</domain>
+            <expression>
+                (select count(*) from inventory.exp_spec s where s.doc_id=doc.id)
+            </expression>
+        </field>
+        <field>
+            <id>executedStatus.id</id>
+            <domain>integer</domain>
+            <expression>doc.doc_status_id</expression>
+            <search>:expression = :executedStatus.id</search>
+        </field>
+
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(doc.doc_status_id = :status.id or ei.doc_status_arr_id = :status.id)</search>
+        </field>
+        <field>
+            <id>statusTooltip</id>
+            <domain>string</domain>
+            <display>
+                case when doc.doc_status_id=1 then 'не проведен' else 'проведен' end
+            </display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>arrivalStatusTooltip</id>
+            <domain>string</domain>
+            <display>
+                case when ei.doc_status_arr_id=4 then 'принят' else 'не принят' end
+            </display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>executedArrOprDate</id>
+            <domain>date</domain>
+            <name>Проведён</name>
+            <expression>doc.execute_dt</expression>
+        </field>
+
+        <field>
+            <id>isAccepted</id>
+            <domain>string</domain>
+            <expression>(case when ei.doc_status_arr_id=4 then 'true' else 'false' end)</expression>
+        </field>
+        <field>
+            <id>isAcceptedSimbol</id>
+            <domain>string</domain>
+            <name></name>
+            <expression>(case when ei.doc_status_arr_id=4 then '&#10004;' end)</expression>
+        </field>
+
+        <field>
+            <id>acceptedSpecExists</id>
+            <domain>boolean</domain>
+            <expression>(select exists(select 1 from inventory.exp_spec where doc_id=ei.id and status_arr_id=4))
+            </expression>
+        </field>
+        <field>
+            <id>acceptedArrOprDate</id>
+            <domain>date</domain>
+            <name>Принят</name>
+            <expression>ei.exec_arr_dt</expression>
+        </field>
+        <field>
+            <id>sendStore.id</id>
+            <domain>integer</domain>
+            <expression>send.id</expression>
+            <search type="in" filter-field="sendStores*.id">ei.send_store_id in (:sendStores*.id)</search>
+        </field>
+        <field>
+            <id>sendStore.name</id>
+            <domain>string</domain>
+            <name>Отправитель</name>
+            <expression>send.name</expression>
+        </field>
+        <field>
+            <id>arrOpr.name</id>
+            <domain>string</domain>
+            <name>Операция прихода</name>
+            <expression>arr_opr.name</expression>
+        </field>
+        <field>
+            <id>recStore.id</id>
+            <domain>integer</domain>
+            <expression>rec.id</expression>
+            <search type="in" filter-field="recStores*.id">ei.rec_store_id in (:recStores*.id)</search>
+        </field>
+        <field>
+            <id>recStore.name</id>
+            <domain>string</domain>
+            <name>Получатель</name>
+            <expression>rec.name</expression>
+        </field>
+        <field>
+            <id>expOpr.name</id>
+            <domain>string</domain>
+            <name>Операция расхода</name>
+            <expression>exp_opr.name</expression>
+        </field>
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>cg.id</expression>
+            <search>:expression = :comGroup.id</search>
+        </field>
+        <field>
+            <id>comGroup.name</id>
+            <domain>string</domain>
+            <expression>cg.name</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>rec.org_id</expression>
+            <search value="#{org.id?}">(:expression = :org.id or :org.id is null)</search>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <name>Финансирование</name>
+            <expression>fs.name</expression>
+        </field>
+        <field>
+            <id>newFundSource.name</id>
+            <domain>string</domain>
+            <name>Новый ИФ</name>
+            <expression>nfs.name</expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>string</domain>
+            <expression>fs.id</expression>
+        </field>
+        <field>
+            <id>canBeRemoved</id>
+            <domain>boolean</domain>
+            <expression>case when doc.doc_status_id=2 or
+                exists(select 1 from inventory.exp_spec spec where spec.doc_id = ei.id and spec.status_exp_id=2)
+                then false else true end
+            </expression>
+        </field>
+        <field>
+            <id>docType.name</id>
+            <domain>string</domain>
+            <expression>'EXP_INVOICE'</expression>
+        </field>
+        <field>
+            <id>amountFact</id>
+            <domain>string</domain>
+            <name>Фактическая</name>
+            <expression>ei.amount_fact</expression>
+        </field>
+    </fields>
+</query>

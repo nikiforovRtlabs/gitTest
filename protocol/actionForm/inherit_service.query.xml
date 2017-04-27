@@ -1,0 +1,98 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>inherit_service</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>SELECT :select
+                FROM sr_srv_rendered ssr
+                    JOIN sr_service ss ON ssr.service_id = ss.id
+                    JOIN md_srv_protocol msp ON msp.srv_rendered_id=ssr.id
+                    JOIN md_ehr_protocol mep ON mep.id=msp.protocol_id
+                WHERE (ssr.is_rendered is TRUE OR ssr.bdate is not null) AND :where
+                order by ssr.bdate DESC
+            </n2o:items-query>
+            <n2o:count-query>
+                SELECT count(ssr)
+                FROM sr_srv_rendered ssr
+                    JOIN sr_service ss ON ssr.service_id = ss.id
+                    JOIN md_srv_protocol msp ON msp.srv_rendered_id=ssr.id
+                    JOIN md_ehr_protocol mep ON mep.id=msp.protocol_id
+                WHERE ssr.is_rendered AND :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ssr.id</expression>
+        </field>
+
+        <field>
+            <id>protocol_date</id>
+            <domain>date</domain>
+            <name>Дата протокола</name>
+            <expression>ssr.bdate</expression>
+        </field>
+
+        <field>
+            <id>service_name</id>
+            <domain>string</domain>
+            <name>Название услуги</name>
+            <expression>ss.name</expression>
+        </field>
+
+        <field>
+            <id>period.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search>(ssr.bdate &gt;= :period.begin)</search>
+        </field>
+
+        <field>
+            <id>period.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search>(ssr.bdate &lt;= :period.end)</search>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>ssr.org_id = :orgId</search>
+        </field>
+
+        <field>
+            <id>renderedId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                ssr.customer_id = (select customer_id from sr_srv_rendered where id = :renderedId)
+            </search>
+        </field>
+
+        <field>
+            <id>templatePath</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search>
+                mep.template_path = :templatePath
+            </search>
+        </field>
+
+        <field>
+            <id>serviceId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                (ss.code = (select code from sr_service where id = :serviceId) or
+                 ss.prototype_id = (select prototype_id from sr_service where id = :serviceId))
+            </search>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,413 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <!--<id>patReg</id>-->
+    <name>Прикрепление пациента</name>
+    <object-id>patReg</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from pci_patient_reg ppr
+                <!--join pim_organization po on po.id = ppr.clinic_id-->
+                join md_clinic mc on mc.id = ppr.clinic_id
+                left join pim_department pd on pd.id = ppr.department_id
+                join md_reg_type mrt on mrt.id = ppr.type_id
+                join md_reg_state mrs on mrs.id = ppr.state_id
+                left join md_unreg_cause muc on muc.id = ppr.unreg_cause_id
+
+                left join pim_party_address ppa on ppa.id = ppr.address_id
+
+                left join md_clinic_district mcd on mcd.id = ppr.district_id
+
+                left join md_clinic_district bymcd on bymcd.id = ppr.district_by_addr_id
+
+                left join sec_forbidden_org sfo on sfo.id = mc.id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from pci_patient_reg ppr
+                <!--join pim_organization po on po.id = ppr.clinic_id-->
+                join md_clinic mc on mc.id = ppr.clinic_id
+                join pim_department pd on pd.id = ppr.department_id
+                join md_reg_type mrt on mrt.id = ppr.type_id
+                join md_reg_state mrs on mrs.id = ppr.state_id
+                left join md_unreg_cause muc on muc.id = ppr.unreg_cause_id
+
+                left join pim_party_address ppa on ppa.id = ppr.address_id
+
+                left join md_clinic_district mcd on mcd.id = ppr.district_id
+
+                left join md_clinic_district bymcd on bymcd.id = ppr.district_by_addr_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ppr</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>ppr.id</expression>
+            <filters>
+                <filter type="eq" filter-field="id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>full_name</id>
+            <domain>string</domain>
+            <name>Прикрепление</name>
+            <display/>
+            <expression>
+                concat(
+                mc.short_name || ', '
+                ,lower(mrt.name) || ', '
+                ,coalesce(mcd.name,bymcd.name) || ', '
+                ,'c ' || to_char(ppr.reg_dt,'dd.mm.yyyy')
+                ,' по ' || to_char(ppr.unreg_dt,'dd.mm.yyyy')
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>ppr.patient_id</expression>
+            <filters>
+                <filter type="eq" filter-field="patient.id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>number_attach</id>
+            <domain>string</domain>
+            <name>Номер карты</name>
+            <display/>
+            <expression>ppr.number_attach</expression>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <name>МО прикрепления</name>
+            <display/>
+            <expression>mc.id</expression>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>org.name</id>
+            <domain>string</domain>
+            <name>МО прикрепления</name>
+            <display/>
+            <expression>coalesce(mc.short_name,mc.full_name)</expression>
+        </field>
+
+        <field>
+            <id>dep.id</id>
+            <domain>integer</domain>
+            <name>Подразделение МО</name>
+            <display/>
+            <expression>pd.id</expression>
+        </field>
+        <field>
+            <id>dep.name</id>
+            <domain>string</domain>
+            <name>Подразделение МО</name>
+            <display/>
+            <expression>pd.name</expression>
+        </field>
+
+        <field>
+            <id>reg_type.id</id>
+            <domain>integer</domain>
+            <name>Вид прикрепления</name>
+            <display/>
+            <expression>mrt.id</expression>
+        </field>
+        <field>
+            <id>reg_type.name</id>
+            <domain>string</domain>
+            <name>Вид прикрепления</name>
+            <display/>
+            <expression>mrt.name</expression>
+        </field>
+
+        <field>
+            <id>reg_state.id</id>
+            <domain>integer</domain>
+            <name>Состояние регистрации</name>
+            <display/>
+            <expression>mrs.id</expression>
+        </field>
+        <field>
+            <id>reg_state.name</id>
+            <domain>string</domain>
+            <name>Состояние регистрации</name>
+            <display/>
+            <expression>mrs.name</expression>
+        </field>
+        <field>
+            <id>reg_state.e_code</id>
+            <domain>string</domain>
+            <name>Состояние регистрации</name>
+            <display/>
+            <expression>mrs.e_code</expression>
+        </field>
+        
+        <field>
+            <id>request_uid</id>
+            <domain>string</domain>
+            <name>Номер заявления о прикреплении</name>
+            <display/>
+            <expression>ppr.request_uid</expression>
+        </field>
+        <field>
+            <id>request_dt</id>
+            <domain>date</domain>
+            <name>Заявление о прикреплении: дата</name>
+            <display/>
+            <expression>ppr.request_dt</expression>
+        </field>
+
+        <field>
+            <id>reg_dt</id>
+            <domain>date</domain>
+            <name>Дата прикрепления</name>
+            <display/>
+            <expression>ppr.reg_dt</expression>
+        </field>
+        <field>
+            <id>unreg_dt</id>
+            <domain>date</domain>
+            <name>Дата открепления</name>
+            <display/>
+            <expression>ppr.unreg_dt</expression>
+        </field>
+
+        <field>
+            <id>unreg_cause.id</id>
+            <domain>integer</domain>
+            <name>Причина открепления</name>
+            <display/>
+            <expression>muc.id</expression>
+        </field>
+        <field>
+            <id>unreg_cause.name</id>
+            <domain>string</domain>
+            <name>Причина открепления</name>
+            <display/>
+            <expression>muc.name</expression>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <name>Примечание</name>
+            <display/>
+            <expression>ppr.note</expression>
+        </field>
+
+        <field>
+            <id>address.id</id>
+            <domain>integer</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>
+                ppa.addr_id
+            </expression>
+        </field>
+        <field>
+            <id>address.realId</id>
+            <domain>integer</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>
+                ppa.id
+            </expression>
+        </field>
+        <field>
+            <id>address.addressId</id>
+            <domain>integer</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>
+                ppa.addr_id
+            </expression>
+        </field>
+        <field>
+            <id>address.name</id>
+            <domain>string</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>
+                case when ppa.addr_id is not null
+                    then
+                        adr__get_element_as_text(ppa.addr_id, '(4,s,0)(6,s,1)(7,s,1)(8,s,1)')
+                    else
+                        ppa.text_addr
+                end
+            </expression>
+        </field>
+        <field>
+            <id>address.building</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                <![CDATA[
+                    (select ae.name
+                     from address_element ae
+                     join address_element_data aed on aed.id = ae.id
+                     join address_element_level ael on ael.id = ae.level_id
+                     where (aed.path <@ (select path from address_element_data aed2 where aed2.id = ppa.addr_id)
+                        or aed.path @> (select path from address_element_data aed2 where aed2.id = ppa.addr_id)
+                           )
+                        and ael.id = (select level_id from address_element_type_to_level
+                                        where type_id = (select id from address_element_type
+                                                            where upper(trim(name)) = upper(trim('дом'))
+                                                         )
+                                     ) limit 1
+                    )
+                ]]>
+            </expression>
+        </field>
+        
+        <field>
+            <id>district.id</id>
+            <domain>integer</domain>
+            <name>Участок</name>
+            <display/>
+            <expression>coalesce(mcd.id, bymcd.id)</expression>
+        </field>
+        <field>
+            <id>district.name</id>
+            <domain>string</domain>
+            <name>Участок</name>
+            <display/>
+            <expression>coalesce(mcd.name, bymcd.name)</expression>
+        </field>
+
+        <field>
+            <id>is_assertion</id>
+            <domain>boolean</domain>
+            <name>Признак прикрепления по заявлению</name>
+            <display/>
+            <expression>
+                case when ppr.is_assertion is null or ppr.is_assertion = false
+                    then false
+                    else true
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>pat_selection</id>
+            <domain>boolean</domain>
+            <name>Признак выбора пациента</name>
+            <display/>
+            <expression>
+                case when ppr.pat_selection is null or ppr.pat_selection = false
+                    then false
+                    else true
+                end
+            </expression>
+        </field>
+        
+        <field>
+            <id>district_by_addr.id</id>
+            <domain>integer</domain>
+            <name>Участок</name>
+            <display/>
+            <expression>bymcd.id</expression>
+        </field>
+        
+        <field>
+            <id>is_valid</id>
+            <domain>boolean</domain>
+            <name>Действительное прикрепление</name>
+            <display/>
+            <expression>
+                 case when cast(now() as date) >= ppr.reg_dt and (ppr.unreg_dt >= cast(now() as date) or ppr.unreg_dt is null)
+                    then true
+                    else false
+                 end
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="is_valid"/>
+            </filters>
+        </field>
+        
+        <field>
+            <id>upd</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>to_forbidden_org</id>
+            <domain>boolean</domain>
+            <name>Относятся к запретной МО</name>
+            <expression>
+                case when exists (select * from public.sec_forbidden_org where id = mc.id)
+                    then true
+                    else false
+                end
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="to_forbidden_org"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>kan_modif</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>
+                case when ((:orgs is not null) and (mc.id in (:orgs)))
+                    then true
+                    else false
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>orgs</id>
+            <domain>integer[]</domain>
+            <filters>
+                <filter type="in" filter-field="orgs" default-value="#{org.ids?}">
+                    true
+                </filter>
+            </filters>
+        </field>
+        
+        <field>
+            <id>is_attachments</id>
+            <name>Вложения</name>
+            <domain>boolean</domain>
+            <display/>
+            <expression>
+                <![CDATA[
+                    case when exists (select * from public.pci_patient_reg_graphics where reg_id = ppr.id)
+                        then true
+                        else false
+                    end
+                ]]>
+            </expression>
+        </field>
+        
+        <field>
+            <id>forbidden_org</id>
+            <domain>integer</domain>
+            <expression>sfo.id</expression>
+            <filters>
+                <filter type="inOrIsNull" filter-field="forbidden_org" default-value="#{org.ids?}"/>
+            </filters>
+        </field>
+    </fields>
+</query>

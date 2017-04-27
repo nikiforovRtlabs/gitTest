@@ -1,0 +1,138 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<table xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0">
+    <query-id>roomInfo</query-id>
+    <size>20</size>
+    <name>Помещения</name>
+    <columns>
+        <column column-field-id="room_type.name" name="Вид" width="85px"/>
+        <column column-field-id="code" name="Идентификатор" width="100px"/>
+        <column column-field-id="name" name="Наименование" width="95px"/>
+        <column column-field-id="building.name" name="Здание" width="95px"/>
+        <column column-field-id="post.name" name="Пост" width="60px"/>
+        <column column-field-id="danger_category.name" name="Категория" width="60px"/>
+        <column column-field-id="stock_unit_state.name" name="Статус" width="60px"/>
+        <column column-field-id="from_dt" name="Дата начала" width="80px"/>
+        <column column-field-id="to_dt" name="Дата окончания" width="80px"/>
+        <column column-field-id="is_resource" name="Является ресурсом" width="80px">
+            <checkbox/>
+        </column>
+    </columns>
+    <filters>
+        <ctrl:classifier id="room_type" label="Вид помещения">
+            <ctrl:query query-id="stocks_room_type" value-field-id="id" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:classifier id="building" label="Здание">
+            <ctrl:query query-id="stocks_building" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="org_id" value="#{stocks.orgId}"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+        <ctrl:classifier id="floor" label="Этаж" depends-on="building">
+            <ctrl:query query-id="stocks_building_floor" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="building_id" ref="building.id"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+        <ctrl:input-text id="name" label="Наименование"/>
+        <ctrl:classifier id="department" label="Подразделение">
+            <ctrl:query query-id="stocks_department_unit" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="org_id" value="#{stocks.orgId}"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+        <ctrl:classifier id="post" label="Пост" depends-on="department">
+            <ctrl:query query-id="stocks_post" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="department_id" ref="department.id"></ctrl:pre-filter>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+        <ctrl:classifier id="profile" label="Профиль">
+            <ctrl:query query-id="stocks_profile" value-field-id="id" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:input-text id="code" label="Идентификатор"/>
+        <ctrl:classifier id="danger_category" label="Категория">
+            <ctrl:query query-id="stocks_room_danger_category" value-field-id="id" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:classifier id="stock_unit_state" label="Статус">
+            <ctrl:query query-id="stocks_unit_state" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="codeType">
+                        <ctrl:value>room</ctrl:value>
+                    </ctrl:pre-filter>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+        <ctrl:classifier id="regimen" label="Режим лечения">
+            <ctrl:query query-id="stocks_care_regimen" value-field-id="id" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:select id="activity" label="Действует">
+            <ctrl:options>
+                <ctrl:option>{"id":1, "name":"Действующие"}</ctrl:option>
+                <ctrl:option>{"id":2, "name":"Не действующие"}</ctrl:option>
+                <ctrl:option>{"id":3, "name":"Все"}</ctrl:option>
+            </ctrl:options>
+            <ctrl:default-model>
+                <ctrl:value field-id="id">3</ctrl:value>
+                <ctrl:value field-id="name">Все</ctrl:value>
+            </ctrl:default-model>
+        </ctrl:select>
+    </filters>
+
+    <action-menu>
+        <menu-item label="Создать" context="false" id="create">
+            <show-modal page-id="roomInfo" width="1000px" container-id="main" action-id="create"
+                            refresh-on-close="true" focus-after-submit="true"/>
+        </menu-item>
+        <menu-item label="Удалить" id="delete">
+            <invoke-action action-id="delete" confirmation="true"/>
+            <conditions>
+                <enabling-condition>
+                    <expression>!is_resource</expression>
+                    <tooltip>Нельзя удалить помещение, которое является ресурсом. Удалить помещение можно после удаления ресурса.</tooltip>
+                </enabling-condition>
+            </conditions>
+        </menu-item>
+
+        <menu-item label="Добавить ресурс" context="true" id="createRoomResource">
+            <show-modal page-id="roomResourceStocks" width="860px" container-id="main" action-id="createRoomResource" page-name="Ресурс"
+                        refresh-on-close="false" model="default" detail-field-id="room_id" master-field-id="id" focus-after-submit="true">
+            </show-modal>
+            <conditions>
+                <visibility-condition>
+                    <expression>!is_resource</expression>
+                </visibility-condition>
+            </conditions>
+        </menu-item>
+
+        <menu-item label="Изменить ресурс" context="true" id="updateRoomResource">
+            <show-modal page-id="roomResourceStocks" width="860px" container-id="main" action-id="updateRoomResource" page-name="Ресурс"
+                        refresh-on-close="false" detail-field-id="id" after-submit="closeModal" refresh-after-submit="false" master-field-id="resource_id" focus-after-submit="false">
+            </show-modal>
+            <conditions>
+                <visibility-condition>
+                    <expression>is_resource</expression>
+                </visibility-condition>
+            </conditions>
+        </menu-item>
+
+        <menu-item label="Удалить ресурс" context="true" id="deleteRoomResource">
+            <invoke-action action-id="deleteRoomResource" confirmation="true"/>
+            <conditions>
+                <visibility-condition>
+                    <expression>is_resource</expression>
+                </visibility-condition>
+                <enabling-condition>
+                    <expression>!has_group_resource</expression>
+                    <tooltip>Нельзя удалить ресурс, который входит в составной</tooltip>
+                </enabling-condition>
+            </conditions>
+        </menu-item>
+
+    </action-menu>
+
+</table>

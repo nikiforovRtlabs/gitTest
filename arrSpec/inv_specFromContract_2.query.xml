@@ -1,0 +1,167 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>modifFromContractSpec</name>
+    <object-id>inventory_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select from (select s.id id, s.series series,s.expire_dt expireDate,
+                fs.name fundSourceName, s.funding_source_id fundSourceId,
+                s.prod_country_id countryId,c.name countryName,s.producer_id producerId,
+                coalesce(org.short_name, org.full_name) producerName,s.prod_date prodDate,s.hold_modif_id modifId, m.name modifName,
+                s.quantity quantity, coalesce(m.mnei_count_in_sec_pk,1) countInSecPack,
+                s.certificate certificate, s.price price,
+                (select mnemocode from cmn_measure where id= m.mnei_id) mneiUnit,
+                (case when m.price_unit_flag=2
+                      then (select c.name from cmn_measure c where c.id=m.sec_pack_unit_id)
+                      else
+                          case when m.price_unit_flag=1
+                          then (select c.name from cmn_measure c where c.id=m.extra_pack_unit_id)
+                          else (select c.name from cmn_measure c where c.id=m.mnei_id)
+                          end
+                      end) unitName,
+                (select coalesce(sum(arr.quantity),0) from inventory.arrival_spec arr
+                where arr.status_id=2 and arr.contract_spec_id = s.id)  deliveredQuantity
+                from inventory.fin_contract_spec s
+                left outer join inventory.hold_modif m on m.id=s.hold_modif_id
+                left outer join inventory.funding_source fs on fs.id=s.funding_source_id
+                left outer join ns_country c on c.id=s.prod_country_id
+                left outer join inventory.holding_producer prod on prod.id=s.producer_id
+                left outer join pim_organization org on org.id= prod.org_id
+                where :where) as contrSpec
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select 1</n2o:count-query>
+            <n2o:alias>s</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <expression>series</expression>
+        </field>
+        <field>
+            <id>expireDate</id>
+            <domain>date</domain>
+            <expression>expireDate</expression>
+        </field>
+        <field>
+            <id>fundingSource.id</id>
+            <domain>integer</domain>
+            <expression>fundSourceId</expression>
+        </field>
+        <field>
+            <id>fundingSource.name</id>
+            <domain>string</domain>
+            <expression>fundSourceName</expression>
+        </field>
+        <field>
+            <id>country.id</id>
+            <domain>integer</domain>
+            <expression>countryId</expression>
+        </field>
+        <field>
+            <id>country.name</id>
+            <domain>string</domain>
+            <expression>countryName</expression>
+        </field>
+        <field>
+            <id>producer.id</id>
+            <domain>integer</domain>
+            <expression>producerId</expression>
+        </field>
+        <field>
+            <id>producer.name</id>
+            <domain>string</domain>
+            <expression>producerName</expression>
+        </field>
+        <field>
+            <id>prodDate</id>
+            <domain>date</domain>
+            <expression>prodDate</expression>
+        </field>
+        <field>
+            <id>modif.id</id>
+            <domain>integer</domain>
+            <expression>modifId</expression>
+        </field>
+        <field>
+            <id>modif.name</id>
+            <domain>integer</domain>
+            <expression>modifName</expression>
+        </field>
+        <field>
+            <id>certificate</id>
+            <domain>string</domain>
+            <expression>certificate</expression>
+        </field>
+        <field>
+            <id>priceFromContract</id>
+            <domain>string</domain>
+            <expression>price</expression>
+        </field>
+        <field>
+            <id>modif.countInMNEI</id>
+            <domain>integer</domain>
+            <name>Кол-во в минимальной неделимой ед.изм.</name>
+            <expression>countInSecPack</expression>
+        </field>
+        <field>
+            <id>modif.MNEI</id>
+            <domain>string</domain>
+            <expression>mneiUnit</expression>
+        </field>
+        <field>
+            <id>modif.unitName</id>
+            <domain>string</domain>
+            <name>Ед.изм.</name>
+            <expression>unitName</expression>
+        </field>
+        <field>
+            <id>deliveredQuantity</id>
+            <domain>string</domain>
+            <expression>'Поставлено: '||trim(to_char(deliveredQuantity, 'FM9999990.999999'), '.')||' '||unitName
+            </expression>
+        </field>
+        <field>
+            <id>restQuantityStr</id>
+            <domain>string</domain>
+            <expression>
+                <![CDATA[
+                        case when quantity - deliveredQuantity < 0
+                        then 'Остаток: 0'||' '||unitName
+                        else
+                         'Остаток: '||trim(to_char(quantity - deliveredQuantity, 'FM9999990.999999'), '.')||' '||unitName
+                        end
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>restQuantity</id>
+            <domain>string</domain>
+            <expression>
+                <![CDATA[
+                        case when quantity - deliveredQuantity < 0
+                        then 0
+                        else
+                          quantity - deliveredQuantity
+                        end
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>deliveredMoreThenNeed</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[quantity - deliveredQuantity < 0]]>
+            </expression>
+        </field>
+    </fields>
+</query>

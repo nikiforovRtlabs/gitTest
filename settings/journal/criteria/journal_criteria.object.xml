@@ -1,0 +1,183 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Настройка критерия</name>
+
+    <actions>
+        <action id="save" name="Сохранение">
+            <invocation>
+                <n2o:rest method="POST">
+                    <n2o:query>
+                        ${n2o.backend.path}/monitoring/criteria/save
+                    </n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="type.id" mapping="['typeId']" domain="integer"/>
+                <param name="journal_id" mapping="['journalId']" domain="integer"/>
+                <param name="weight" mapping="['weight']" domain="numeric"/>
+                <param name="priority" mapping="['priority']" domain="integer"/>
+                <param name="parent_id" mapping="['parentId']" domain="integer"/>
+                <param name="is_range" mapping="['range']" domain="boolean"/>
+                <param name="number" mapping="['number']" domain="integer"/>
+                <param name="is_show_in_table" mapping="['showInTable']" domain="boolean"/>
+                <param name="is_show_in_filter" mapping="['showInFilter']" domain="boolean"/>
+                <param name="is_show_points" mapping="['showPoints']" domain="boolean"/>
+                <param name="is_active" mapping="['active']" domain="boolean"/>
+                <param name="event.id" mapping="['eventId']" domain="integer"/>
+
+                <param name="diagnosis.id" mapping="['diagnosisId']" domain="integer"/>
+                <param name="diagnosis_stage.id" mapping="['diagnosisStageId']" domain="integer"/>
+                <param name="diagnosis_type.id" mapping="['diagnosisTypeId']" domain="integer"/>
+                <param name="is_main" mapping="['main']" domain="boolean"/>
+                <param name="diagnosis_moment.id" mapping="['diagnosisMomentId']" domain="integer"/>
+                <param name="is_show_employee" mapping="['showEmployee']" domain="boolean"/>
+                <param name="is_show_employee_position" mapping="['showEmployeePosition']" domain="boolean"/>
+
+                <param name="refbookId" mapping="['refbookId']" domain="integer"/>
+                <param name="refbook.schema_name" mapping="['schemaName']" domain="string"/>
+                <param name="refbook.parent_table.id" mapping="['tableName']" domain="string"/>
+                <param name="refbook.child_column.id" mapping="['columnName']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Критерий '{name}' успешно сохранен.</success-text>
+            <fail-text>Не удалось сохранить критерий '{name}'.</fail-text>
+            <validations activate="whiteList">
+                <validation ref-id="uniqueNameTypeJournal"/>
+                <validation ref-id="checkPriorityUnique"/>
+                <validation ref-id="checkNumberUnique"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удаление">
+            <invocation>
+                <n2o:sql>
+                    delete from monitoring.mn_journal_criteria where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить критерий '{name}'?</confirmation-text>
+            <success-text>Критерий '{name}' удален.</success-text>
+        </action>
+    </actions>
+
+
+    <validations>
+        <constraint id="uniqueEvent" level="error">
+            <message>Данное событие уже добавлено в другой критерий журнала</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT count(1)
+                    FROM monitoring.mn_journal_criteria
+                    WHERE journal_id = :journalId AND (id != :id OR :id isnull)
+                    AND (:eventId isnull or event_id = :eventId);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="event.id" mapping="['eventId']" domain="integer"/>
+                <param name="journal_id" mapping="['journalId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="uniqueRefbook" level="error">
+            <message>Данный справочник уже добавлен в другой критерий журнала</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT count(1)
+                    FROM monitoring.mn_journal_criteria jc
+                    JOIN monitoring.mn_journal_criteria_refbook jcr on jcr.criteria_id = jc.id
+                    WHERE jc.journal_id = :journalId AND (jc.id != :id OR :id isnull)
+                    AND (:refbookId isnull OR jcr.schema_name||'.'||jcr.table_name||'.'||jcr.column_name = :refbookId)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="refbook.id" mapping="['refbookId']" domain="string"/>
+                <param name="journal_id" mapping="['journalId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="uniqueNameTypeJournal" level="error">
+            <message>Уже существует критерий с указанными типом и наименованием</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT count(mjc) FROM monitoring.mn_journal_criteria mjc
+                    WHERE journal_id = :journalId AND name = :name AND
+                    type_id = :typeId AND (id != :id or :id is null);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="type.id" mapping="['typeId']" domain="integer"/>
+                <param name="journal_id" mapping="['journalId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="checkPriorityFormat" level="error" moment="before-action">
+            <message>Некорректный формат числа</message>
+            <expression on="priority"><![CDATA[ (/^[0-9]*$/.test(priority)) &&  priority != 0]]></expression>
+        </condition>
+
+        <condition id="checkNumberFormat" level="error" moment="before-action">
+            <message>Некорректный формат числа</message>
+            <expression on="number"><![CDATA[ (/^[0-9]*$/.test(number)) && number != 0 ]]></expression>
+        </condition>
+
+        <condition id="checkWeightFormat" level="error" moment="before-action">
+            <message>Некорректный формат числа</message>
+            <expression on="weight">
+                <![CDATA[ (/^0+([\.]|[\,])+[0-9]+$/.test(weight) || /^[0-1]?$/.test(weight) ) ]]>
+            </expression>
+        </condition>
+
+        <constraint id="checkPriorityUnique" level="error" moment="before-action">
+            <message>Указанный приоритет задан в другом критерии</message>
+            <invocation>
+                <n2o:sql>
+                    select count(1)
+                    from monitoring.mn_journal_criteria jc
+                    where jc.journal_id = :journal_id and (:id isnull or id != :id) and (:parent_id isnull or parent_id
+                    = :parent_id) and priority = :priority and is_active;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="journal_id" mapping="['journal_id']" domain="integer"/>
+                <param name="priority" mapping="['priority']" domain="integer"/>
+                <param name="parent_id" mapping="['parent_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkNumberUnique" level="error" moment="before-action">
+            <message>Указанным номер задан в другом критерии</message>
+            <invocation>
+                <n2o:sql>
+                    select count(1)
+                    from monitoring.mn_journal_criteria jc
+                    where jc.journal_id = :journal_id and (:id isnull or id != :id) and (:parent_id isnull or parent_id
+                    = :parent_id) and number = :number;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="journal_id" mapping="['journal_id']" domain="integer"/>
+                <param name="number" mapping="['number']" domain="integer"/>
+                <param name="parent_id" mapping="['parent_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

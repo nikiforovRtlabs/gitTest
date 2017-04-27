@@ -1,0 +1,142 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0">
+    <name>bills</name>
+
+    <actions>
+        <action id="save" name="Добавить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/payment/bill/main
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="billDate" mapping="['billDate']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="finType.id" mapping="['finTypeId']"/>
+                <param name="payer.id" mapping="['payerId']"/>
+                <param name="contract.id" mapping="['contractId']"/>
+                <param name="priceList.id" mapping="['priceListId']"/>
+                <param name="discountCard.id" mapping="['discountCardId']"/>
+                <param name="amount" mapping="['amount']" domain="numeric"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Счет № {number} сохранен</success-text>
+        </action>
+
+        <action id="saveWithSpec" name="Добавить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/payment/bill/main_spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="billDate" mapping="['billDate']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="finType.id" mapping="['finTypeId']"/>
+                <param name="payer.id" mapping="['payerId']"/>
+                <param name="contract.id" mapping="['contractId']"/>
+                <param name="priceList.id" mapping="['priceListId']"/>
+                <param name="discountCard.id" mapping="['discountCardId']"/>
+                <param name="serviceIds" mapping="['serviceIds']" domain="integer[]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Счет № {number} сохранен</success-text>
+        </action>
+
+        <action id="delete" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/payment/bill/main
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что хотите удалить счет № {number}?
+            </confirmation-text>
+            <success-text>Счет удален</success-text>
+        </action>
+
+        <action id="deleteSpec" name="Удалить спецификацию" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/payment/bill/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что хотите удалить спецификацию?
+            </confirmation-text>
+            <success-text>Спецификация удалена</success-text>
+        </action>
+
+        <action id="distribute" name="Распределить">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="ACTION">
+                            <wf:note></wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET">
+                                    ${n2o.backend.path}/payment/payment/distribute
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="['result']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="payment.id" mapping="['paymentId']"/>
+                <param name="userId" value="#{user.id}" domain="integer" mapping="['userId']"/>
+            </in-parameters>
+            <!--
+            <union-by-parameter union-parameter-name="id" output-parameter-name="list"/>
+            -->
+            <success-text>Платеж распределен</success-text>
+        </action>
+
+        <action id="distribCancel" name="Отменить распределение платежа">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="ACTION">
+                            <wf:note></wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET">
+                                    ${n2o.backend.path}/payment/payment/distrib_cancel
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="['result']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="payment.id" mapping="['paymentId']"/>
+            </in-parameters>
+            <!--<union-by-parameter union-parameter-name="id" output-parameter-name="list"/>-->
+            <success-text>Распределение платежа отменено</success-text>
+        </action>
+    </actions>
+</object>

@@ -1,0 +1,242 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>analysis</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_referral ref
+                join public.md_srv_rendered msr on ref.id=msr.referral_id
+                join public.sr_srv_rendered ssr on ssr.id = msr.id
+                join public.sr_service s on s.id = ssr.service_id
+                join public.sr_srv_type st on st.id = s.type_id
+                join pim_individual i on i.id=ssr.customer_id
+                left join public.md_clinic_laboratory_research labr on labr.service_id=s.id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual ind on ind.id = e.individual_id
+                left join mc_case mc on mc.id=msr.case_id
+                left join public.sr_srv_result res on res.service_id= ssr.id
+                where st.code in ('LABORATORY','PROBES','DIAGNOSTICS') and  :where
+                order by ssr.planned_date, :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from md_referral ref
+                join public.md_srv_rendered msr on msr.referral_id = ref.id
+                join public.sr_srv_rendered ssr on ssr.id = msr.id
+                join public.sr_service s on s.id = ssr.service_id
+                join public.sr_srv_type st on st.id = s.type_id
+                join pim_individual i on i.id=ssr.customer_id
+                left join public.md_clinic_laboratory_research labr on labr.service_id=s.id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual ind on ind.id = e.individual_id
+                left join mc_case mc on mc.id=msr.case_id
+                where st.code in ('LABORATORY','PROBES','DIAGNOSTICS') and  :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>protocolId</id>
+            <domain>integer</domain>
+            <expression>(select id from md_srv_protocol where srv_rendered_id = ssr.id limit 1)</expression>
+        </field>
+        <field>
+            <id>printForm</id>
+            <domain>string</domain>
+            <expression>
+                (select coalesce((select case when report_path = '' then null else report_path end from sr_srv_ehr_opt where service_id = s.id limit 1),
+                (select case when value = '' then null else value end  from cmn_setting_value where setting_id = 'cz.atria.ehr.client.EhrProtocolUISettings.defaultReportPath' limit 1),
+                (select case when default_value = '' then null else default_value end from cmn_setting where id = 'cz.atria.ehr.client.EhrProtocolUISettings.defaultReportPath' limit 1),
+                'by_default_A5.rptdesign'
+                ))
+            </expression>
+        </field>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>msr.id</expression>
+        </field>
+
+        <field>
+            <id>srvResult.id</id>
+            <domain>integer</domain>
+            <expression>res.id</expression>
+        </field>
+
+        <field>
+            <id>srvResult.value</id>
+            <domain>string</domain>
+            <name>№</name>
+            <expression>res.value</expression>
+            <search>trim(upper(res.value)) like trim(upper('%'||:srvResult.value||'%'))</search>
+        </field>
+
+        <field>
+            <id>bdate</id>
+            <domain>date</domain>
+            <name>Дата забора материала</name>
+            <expression>ssr.bdate</expression>
+        </field>
+
+        <field>
+            <id>serviceName</id>
+            <domain>string</domain>
+            <name>Услуга</name>
+            <expression>concat(s.code, ' ', s.name)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>i.id</expression>
+        </field>
+
+        <field>
+            <id>patient.fio</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>initcap(concat_ws(' ', i.surname, i.name, i.patr_name))</expression>
+        </field>
+
+        <field>
+            <id>doctor</id>
+            <domain>string</domain>
+            <name>Лаборант</name>
+            <expression>initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name))</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>(case when ssr.is_rendered then 2 else 1 end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>statusName</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>(case when ssr.is_rendered then 'Оказана' else 'Назначена' end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>mo.id</id>
+            <domain>integer</domain>
+            <expression>ssr.org_id</expression>
+        </field>
+
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>isUrgent</id>
+            <domain>boolean</domain>
+            <expression>msr.is_urgent</expression>
+        </field>
+
+        <field>
+            <id>urgent</id>
+            <expression>(case when msr.is_urgent and not ssr.is_rendered then 'text-error'  else '' end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>ssr.funding_id</expression>
+        </field>
+        <field>
+            <id>plannedDate</id>
+            <domain>date</domain>
+            <name>Дата назначения услуги</name>
+            <expression>ssr.planned_date</expression>
+        </field>
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>mc.id</expression>
+        </field>
+        <field>
+            <id>caseUID</id>
+            <domain>string</domain>
+            <name>Номер истории болезни</name>
+            <expression>mc.uid</expression>
+            <search>trim(upper(mc.uid)) like trim(upper('%'||:caseUID||'%'))</search>
+        </field>
+        <field>
+            <id>referralId</id>
+            <domain>integer</domain>
+            <expression>ref.id</expression>
+        </field>
+        <field>
+            <id>order_number</id>
+            <domain>string</domain>
+            <expression>ref.order_number</expression>
+        </field>
+        <field>
+            <id>referral_type.id</id>
+            <domain>integer</domain>
+            <expression>ref.referral_type_id</expression>
+        </field>
+        <field>
+            <id>researchGroup.id</id>
+            <domain>integer</domain>
+            <expression>labr.clinic_group_id</expression>
+            <search type="eq" unavailable="true"/>
+            <search type="in" filter-field="researchGroups*.id">
+                labr.clinic_group_id in (:researchGroups*.id)
+            </search>
+        </field>
+        <field>
+            <id>sendOrg.id</id>
+            <domain>integer</domain>
+            <expression>COALESCE(mc.clinic_id, ref.ref_organization_id)</expression>
+        </field>
+        <field>
+            <id>sendDepartment.id</id>
+            <domain>integer</domain>
+            <expression>ref.ref_department_id</expression>
+        </field>
+
+        <field>
+            <id>referralDate</id>
+            <domain>date</domain>
+            <name>Дата направления</name>
+            <expression>ref.referral_date</expression>
+            <search>
+                <![CDATA[
+                (:referralDate.begin::date is null and :referralDate.end::date is null or
+                ((:referralDate.begin::date is null or :expression::date >= :referralDate.begin) and
+                 (:referralDate.end::date is null or :expression::date <= :referralDate.end)
+                ))
+                ]]>
+            </search>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>referralDate.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>referralDate.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+    </fields>
+</query>

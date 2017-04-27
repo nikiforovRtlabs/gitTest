@@ -1,0 +1,138 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>dAccountDgroup</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from d_accounting.pat_d_group g
+                where :where
+                order by g.from_dt, :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1) from d_accounting.pat_d_group g
+                where :where
+            </n2o:count-query>
+            <n2o:alias>g</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>account_id</id>
+            <domain>integer</domain>
+            <expression>g.account_id</expression>
+        </field>
+
+        <field>
+            <id>group.id</id>
+            <domain>integer</domain>
+            <expression>g.d_group_id</expression>
+        </field>
+
+        <field>
+            <id>amb.id</id>
+            <domain>integer</domain>
+            <expression>g.amb_kind_id</expression>
+        </field>
+
+        <field>
+            <id>reason.id</id>
+            <domain>integer</domain>
+            <expression>g.stop_reas_id</expression>
+        </field>
+
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <name>Дата начала лечения</name>
+            <expression>g.from_dt</expression>
+        </field>
+
+        <field>
+            <id>to_dt</id>
+            <name>Дата закрытия лечения</name>
+            <domain>date</domain>
+            <expression>g.to_dt</expression>
+        </field>
+
+        <field>
+            <id>d_group_name</id>
+            <name>Группа</name>
+            <domain>string</domain>
+            <expression>(SELECT dg.name FROM d_accounting.d_group dg WHERE dg.id = g.d_group_id)</expression>
+        </field>
+
+        <field>
+            <id>amb_kind_name</id>
+            <name>Вид амбулаторной помощи</name>
+            <domain>string</domain>
+            <expression>(SELECT amb.name FROM d_accounting.amb_care_kind amb WHERE amb.id = g.amb_kind_id)</expression>
+        </field>
+
+        <field>
+            <id>stop_reas_name</id>
+            <name>Причина прекращения наблюдения</name>
+            <domain>string</domain>
+            <expression>(SELECT dg.name FROM d_accounting.unreg_reason dg WHERE dg.id = g.stop_reas_id)</expression>
+        </field>
+
+        <!--todo вернуть maxDGroup  и удалить maxDateDGroupId и maxDate когда будет сделана NNO-838 вероятно в версии н2о 3.3
+        <field>
+            <id>maxDGroup</id>
+            <domain>object</domain>
+            <expression>(select row_to_json(gg) from (select g1.id as id, g1.from_dt as from_dt from d_accounting.pat_d_group g1
+                where g1.from_dt=(select max(gr.from_dt) from d_accounting.pat_d_group gr
+                where gr.account_id = g.account_id and g.from_dt > gr.from_dt)
+                and g1.account_id = g.account_id
+                limit 1
+                ) as gg)</expression>
+        </field>
+-->
+
+        <field>
+            <id>maxDateDGroupId</id>
+            <domain>object</domain>
+            <expression>
+                (select g1.id as id from d_accounting.pat_d_group g1
+                where g1.from_dt=(select max(gr.from_dt) from d_accounting.pat_d_group gr
+                where gr.account_id = g.account_id and  g.from_dt > gr.from_dt )
+                and g1.account_id = g.account_id
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>maxDate</id>
+            <domain>object</domain>
+            <expression>
+                (select g1.from_dt as from_dt from d_accounting.pat_d_group g1
+                where g1.from_dt=(select max(gr.from_dt) from d_accounting.pat_d_group gr
+                where gr.account_id = g.account_id and  g.from_dt > gr.from_dt )
+                and g1.account_id = g.account_id
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>minDate</id>
+            <domain>object</domain>
+            <expression>
+                (select g1.from_dt as from_dt from d_accounting.pat_d_group g1
+                where g1.from_dt=(select min(gr.from_dt) from d_accounting.pat_d_group gr
+                where gr.account_id = g.account_id and  gr.from_dt > g.from_dt)
+                and g1.account_id = g.account_id
+                limit 1)
+            </expression>
+        </field>
+    </fields>
+</query>

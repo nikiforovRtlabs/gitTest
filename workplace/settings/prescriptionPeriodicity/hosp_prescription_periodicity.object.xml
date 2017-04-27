@@ -1,0 +1,144 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-2.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Периодичность назначения</name>
+
+    <actions>
+        <action id="savePeriodicity" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    <rest:query>
+                        ${n2o.backend.path}/hospital/prescription-periodicity
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="count" mapping="['count']"/>
+                <param name="interval" mapping="['interval']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="deletePeriodicity" form-submit-label="Удалить" name="Удаление периодичности назначения">
+            <invocation>
+                <rest:rest method="DELETE">
+                    <rest:query>
+                        ${n2o.backend.path}/hospital/prescription-periodicity?id={id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="deletePrescriptionValidate"/>
+            </validations>
+            <confirmation-text>Вы уверены, что хотите удалить периодичность назначения ?</confirmation-text>
+        </action>
+
+        <action id="savePeriodicityTime" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    <rest:query>
+                        ${n2o.backend.path}/hospital/prescription-periodicity/time
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="periodicityId" mapping="['periodicityId']"/>
+                <param name="receiptTime" mapping="['receiptTime']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="receiptTimeCount"/>
+            </validations>
+        </action>
+
+        <action id="deletePeriodicityTime" form-submit-label="Удалить" name="Удаление времени приема">
+            <invocation>
+                <rest:rest method="DELETE">
+                    <rest:query>
+                        ${n2o.backend.path}/hospital/prescription-periodicity/time?id={id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены, что хотите удалить время приема ?</confirmation-text>
+        </action>
+
+
+    </actions>
+
+    <validations>
+        <condition id="validateReceiptTime" level="error">
+            <message>Неверный формат!</message>
+            <expression><![CDATA[
+                var regex = new RegExp('([0-1][0-9]|2[0-3]):([0-5][0-9])');
+                regex.test(receiptTime);
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="countNumberFormat" level="error">
+            <message>Введенное значение должно быть натуральным числом!</message>
+            <expression><![CDATA[
+                var regex = new RegExp('^[0-9]*[1-9][0-9]*$');
+                regex.test(count);
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="intervalNumberFormat" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]+\$');
+                regex.test(interval);
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="receiptTimeCount" level="error">
+            <invocation>
+                <sql:sql><![CDATA[
+                    select not (:id is null) or
+                    (select count(*) from hospital.prescription_time where periodicity_id = :periodicityId)
+                    < (select count  from hospital.prescription_periodicity where id = :periodicityId)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="periodicityId" mapping="['periodicityId']" domain="integer"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Количество записей не должно превышать значение поля 'Количество приемов'</message>
+        </constraint>
+
+        <constraint id="deletePrescriptionValidate" level="error" >
+            <invocation>
+                <sql:sql><![CDATA[
+                    select count(1) = 0 from hospital.prescription where periodicity_id = :id
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+            <message>Данная периодичность уже используется в назначении.</message>
+        </constraint>
+    </validations>
+
+</object>

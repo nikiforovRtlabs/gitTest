@@ -1,0 +1,164 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+
+    <object-id>managerReport</object-id>
+    <layout>n2o/layout/top-bottom</layout>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="generateManagerReport">
+
+                <wgt:form src="analytics/n2o/ext/widget/form/report" customize="js,css" css-class="withoutCancel">
+                    <wgt:name>Генерация сводного отчета</wgt:name>
+                    <wgt:query-id>managerReport</wgt:query-id>
+
+                    <wgt:edit after-submit="edit" model="query" form-submit-label="Сформировать">
+                        <wgt:invoke-action action-id="generate"/>
+                    </wgt:edit>
+
+                    <fs:field-set>
+                        <ctrl:select-tree id="report" label="Отчет" required="true" search="true" ajax="true">
+                            <ctrl:inheritance-nodes query-id="svodReportList" parent-field-id="parentId"
+                                                    label-field-id="name" has-children-field-id="hasChildren"
+                                                    can-resolved-field-id="canResolved" search-field-id="name"/>
+                        </ctrl:select-tree>
+
+                        <ctrl:select-tree id="part" label="Разделы" required="true" depends-on="report"
+                                          search="true" ajax="true">
+                            <ctrl:inheritance-nodes query-id="svodReportPartitions" parent-field-id="parentId"
+                                                    master-field-id="reportId" detail-field-id="reportId"
+                                                    label-field-id="name" has-children-field-id="hasChildren"
+                                                    search-field-id="name"/>
+                        </ctrl:select-tree>
+
+                        <ctrl:classifier id="year" label="Год" required="true" depends-on="report">
+                            <ctrl:query query-id="periodForAnalytic" value-field-id="id" label-field-id="name"
+                                        master-field-id="dimDateDefId" detail-field-id="dimDateDefId">
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:hidden id="clinic.id"  />
+                    </fs:field-set>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="generate" label="Сформировать" context="false">
+                            <wgt:go-edit action-id="generate" after-submit="stay"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+            </container>
+
+        </region>
+
+        <region place="bottom" type="list">
+
+            <container id="managerReports">
+
+                <pre-filters>
+                    <pre-filter field-id="clinicId" value="#{org.id?}"/>
+                </pre-filters>
+
+                <wgt:table>
+                    <wgt:name>Список сводных отчетов</wgt:name>
+                    <wgt:query-id>managerReportList</wgt:query-id>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="reportName"/>
+                        <wgt:column column-field-id="partitionName"/>
+                        <wgt:column column-field-id="dimensionDate"/>
+                        <wgt:column column-field-id="statusName"/>
+                        <wgt:column column-field-id="whenChange" format="date DD.MM.YYYY"/>
+                    </wgt:columns>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="open" label="Открыть" context="true">
+                            <wgt:a href="${n2o.backend.path}/analytics/managerReport/open?id={id}" target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>statusId == 1 || statusId == 2 || statusId == 4</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="view" label="Просмотреть" context="true">
+                            <wgt:a href=" ${n2o.backend.path}/analytics/managerReport/view?id={id}" target="newWindow"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="recalc" label="Пересчитать" context="true">
+                            <wgt:a href=" ${n2o.backend.path}/analytics/managerReport/recalc?id={id}" target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>statusId == 1 || statusId == 2 || statusId == 4</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="ready" label="Готов" context="true">
+                            <wgt:invoke-action action-id="ready"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>statusId == 1 || statusId == 2 || statusId == 4</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="return" label="Вернуть в работу" context="true">
+                            <wgt:invoke-action action-id="return"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>statusId == 3</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                </wgt:table>
+            </container>
+
+            <container id="agreementReports">
+
+                <pre-filters>
+                    <pre-filter field-id="clinicId" value="#{org.id?}"/>
+                </pre-filters>
+
+                <wgt:table>
+                    <wgt:name>Отчеты для согласования</wgt:name>
+                    <wgt:query-id>agreementReportList</wgt:query-id>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="view" label="Просмотреть" context="true">
+                            <wgt:a href="${n2o.backend.path}/analytics/userReport/view?id={id}" target="newWindow"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="return" label="Вернуть в работу" context="true">
+                            <wgt:invoke-action action-id="return"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>statusId == 3</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="reportName"/>
+                        <wgt:column column-field-id="partitionName"/>
+                        <wgt:column column-field-id="dimensionDate"/>
+                        <wgt:column column-field-id="statusName"/>
+                        <wgt:column column-field-id="whenChange" format="date DD.MM.YYYY"/>
+                        <wgt:column column-field-id="clinicName"/>
+                        <wgt:column column-field-id="userName"/>
+                        <wgt:column column-field-id="readyDate"/>
+                    </wgt:columns>
+
+                </wgt:table>
+            </container>
+        </region>
+
+    </regions>
+
+</page>

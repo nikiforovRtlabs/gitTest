@@ -1,0 +1,125 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Форма</name>
+    <actions>
+        <action id="create_group" name="Создание группы">
+            <invocation>
+                <sql:sql>
+                    insert into report.report_group (code, name)
+                    values(:code, :name);
+
+                    select currval('report.report_group_id_seq');
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+        </action>
+
+        <action id="update_group" name="Изменение группы">
+            <invocation>
+                <sql:sql>
+                    update report.report_group set code = :code, name = :name
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+        </action>
+
+        <action id="delete_group" name="Удаление группы">
+            <invocation>
+                <sql:sql>
+                    delete from report.report_group
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="add_to_group" name="Добавление в группу">
+            <invocation>
+                <sql:sql>
+                    insert into report.report_to_group (report_id, group_id, report_order)
+                    select id, :group_id, (select COALESCE(max(report_order), 0) + 1 from report.report_to_group where
+                    group_id = :group_id)
+                    from report.report where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="group.id" mapping="['group_id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="group_up" name="Переместить наверх">
+            <invocation>
+                <sql:sql>
+                    UPDATE report.report_to_group set report_order = report_order - 1
+                    WHERE report_id = :id
+                    AND group_id = :group_id
+                    AND report_order != (select min(report_order) from report.report_to_group where group_id =
+                    :group_id);
+
+                    UPDATE report.report_to_group set report_order = report_order + 1
+                    WHERE report_order = (select report_order from report.report_to_group where report_id = :id AND
+                    group_id = :group_id)
+                    AND group_id = :group_id
+                    AND report_id != :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="group.id" mapping="['group_id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="group_down" name="Переместить вниз">
+            <invocation>
+                <sql:sql>
+                    UPDATE report.report_to_group set report_order = report_order + 1
+                    WHERE report_id = :id
+                    AND group_id = :group_id
+                    AND report_order != (select max(report_order) from report.report_to_group where group_id =
+                    :group_id);
+
+                    UPDATE report.report_to_group set report_order = report_order - 1
+                    WHERE report_order = (select report_order from report.report_to_group where report_id = :id AND
+                    group_id = :group_id)
+                    AND group_id = :group_id
+                    AND report_id != :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="group.id" mapping="['group_id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="delete_from_group" name="Удаление из группы">
+            <invocation>
+                <sql:sql>
+                    SELECT report.fnc_set_report_order_group_for_delete(:id);
+
+                    delete from report.report_to_group
+                    where report_id = :id AND group_id = :group_id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="group.id" mapping="['group_id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+    </actions>
+</object>

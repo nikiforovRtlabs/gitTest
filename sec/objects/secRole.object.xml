@@ -1,0 +1,147 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+
+
+    <fields>
+        <field id="type.id" domain="integer"/>
+    </fields>
+
+
+    <actions>
+
+
+        <action id="create" name="Создание">
+            <invocation>
+                <n2o:java-method bean="roleService" name="create">
+                    <n2o:arguments>
+                        <n2o:argument
+                                class="ru.kirkazan.rmis.app.security.admin.api.model.Role"
+                                name="role"/>
+                    </n2o:arguments>
+                </n2o:java-method>
+            </invocation>
+            <in-parameters>
+                <param name="org.id" mapping="[0].org.id"/>
+                <param name="type.id" mapping="[0].type.id"/>
+                <param name="name" mapping="[0].name"/>
+                <param name="template*.id" mapping="[0].templates"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="#this"/>
+            </out-parameters>
+        </action>
+
+
+        <action id="copy" name="Копирование">
+            <invocation>
+                <n2o:java-method bean="roleService" name="copy">
+                    <n2o:arguments>
+                        <n2o:argument
+                                class="ru.kirkazan.rmis.app.security.admin.api.model.Role"
+                                name="role"/>
+                    </n2o:arguments>
+                </n2o:java-method>
+            </invocation>
+            <in-parameters>
+                <param name="copied.id" mapping="[0].id"/>
+                <param name="org.id" mapping="[0].org.id"/>
+                <param name="type.id" mapping="[0].type.id"/>
+                <param name="name" mapping="[0].name"/>
+            </in-parameters>
+        </action>
+
+        <action id="update" name="Изменение">
+            <invocation>
+                <n2o:java-method bean="roleService" name="update">
+                    <n2o:arguments>
+                        <n2o:argument
+                                class="ru.kirkazan.rmis.app.security.admin.api.model.Role"
+                                name="role"/>
+                    </n2o:arguments>
+                </n2o:java-method>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0].id"/>
+                <param name="org.id" mapping="[0].org.id"/>
+                <param name="type.id" mapping="[0].type.id"/>
+                <param name="name" mapping="[0].name"/>
+            </in-parameters>
+        </action>
+
+        <action id="batchCreate" name="Массовое создание ролей по шаблонам" form-submit-label="Создать роли">
+            <invocation>
+                <n2o:java-method bean="roleService" name="batchCreate"/>
+            </invocation>
+            <in-parameters>
+                <param name="template*.id" mapping="[0]"/>
+                <param name="template*.newName" mapping="[1]"/>
+                <param name="org.id" mapping="[2]"/>
+                <param name="type.id" mapping="[3]"/>
+            </in-parameters>
+        </action>
+
+
+        <action id="delete" name="Удаление">
+            <invocation>
+                <n2o:java-method bean="roleService" name="delete">
+                    <n2o:arguments>
+                        <n2o:argument
+                                class="ru.kirkazan.rmis.app.security.admin.api.model.Role"
+                                name="role"/>
+                    </n2o:arguments>
+                </n2o:java-method>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0].id"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkDelete"/>
+            </validations>
+            <success-text>Роль '{name}' удалена</success-text>
+            <confirmation-text>Вы уверены, что хотите удалить роль '{name}'?</confirmation-text>
+        </action>
+        <action id="createTemplate">
+            <invocation>
+                <n2o:java-method bean="roleService" name="createTemplate">
+                    <n2o:arguments>
+                        <n2o:argument
+                                class="ru.kirkazan.rmis.app.security.admin.api.model.Role"
+                                name="role"/>
+                    </n2o:arguments>
+                </n2o:java-method>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0].id"/>
+                <param name="name" mapping="[0].name"/>
+            </in-parameters>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="checkDelete" level="warning">
+            <message>Роль '{name}' используется для разграничения доступа {cnt} пользователей</message>
+            <invocation>
+                <n2o:sql>select count(*) from (
+                    select ak.user_id
+                    from sec.access_key_role uar
+                    join sec.access_key ak on ak.id = uar.user_access_id and ak.is_blocked = false
+                    where uar.role_id = :roleId
+                    group by ak.user_id) as users
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" domain="integer" mapping="['roleId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="cnt" domain="integer" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+
+</object>

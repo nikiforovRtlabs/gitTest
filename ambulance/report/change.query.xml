@@ -1,0 +1,157 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>change</id>-->
+    <name>Смена</name>
+    <object-id>change</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query> select :select
+                from amb.md_ambulance_change ch
+                join pim_organization o on ch.clinic_id = o.id
+                left join pim_department d on ch.department_id = d.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from amb.md_ambulance_change ch
+                join pim_organization o on ch.clinic_id = o.id
+                left join pim_department d on ch.department_id = d.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ch</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>ch.id</expression>
+            <!--<search>id</search>/-->
+        </field>
+        <field>
+            <id>setting</id>
+            <domain>integer</domain>
+            <expression>ch.setting_id</expression>
+        </field>
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <name>Станция</name>
+            <expression>o.id</expression>
+        </field>
+        <field>
+            <id>station.name</id>
+            <domain>string</domain>
+            <name>Станция</name>
+            <expression>coalesce(o.short_name,o.full_name)</expression>
+        </field>
+        <field>
+            <id>route</id>
+            <domain>integer</domain>
+            <name>Направление</name>
+            <expression>ch.route_id</expression>
+        </field>
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <name>Подстанция</name>
+            <expression>d.id</expression>
+        </field>
+        <field>
+            <id>substation.name</id>
+            <domain>string</domain>
+            <name>Подстанция</name>
+            <expression>d.name</expression>
+        </field>
+        <field>
+            <id>fdata</id>
+            <domain>Date</domain>
+            <name>Дата начала смены</name>
+            <expression>ch.from_data</expression>
+        </field>
+        <field>
+            <id>ftime</id>
+            <domain>time</domain>
+            <name>Время начала смены</name>
+            <expression>ch.from_time</expression>
+            <!--<search>ch.from_time = :ftime</search>-->
+        </field>
+        <field>
+            <id>from_dt</id>
+            <!--<domain>date</domain>-->
+            <domain>string</domain>
+            <!--<expression>to_char(cast(ch.from_data + ch.from_time as TIMESTAMP),'hh24:mi:ss dd.mm.yyyy')</expression>-->
+            <expression>cast(ch.from_data + ch.from_time as TIMESTAMP)</expression>
+        </field>
+        <field>
+            <id>tdata</id>
+            <domain>Date</domain>
+            <name>Дата окончания смены</name>
+            <expression>ch.to_data</expression>
+        </field>
+        <field>
+            <id>ttime</id>
+            <domain>time</domain>
+            <name>Время окончания смены</name>
+            <expression>ch.to_time</expression>
+        </field>
+        <field>
+            <id>to_dt</id>
+            <!--<domain>date</domain>-->
+            <domain>string</domain>
+            <!--<expression>to_char(cast(ch.to_data + ch.to_time as TIMESTAMP),'hh24:mi:ss dd.mm.yyyy')</expression>-->
+            <expression>cast(ch.to_data + ch.to_time as TIMESTAMP)</expression>
+        </field>
+        <field>
+            <id>data</id>
+            <domain>date</domain>
+            <name>Смена</name>
+            <!--<expression>cast(ch.from_data as date)</expression>-->
+            <expression>to_char(ch.from_data,'dd.mm.yyyy')</expression>
+            <!--<sorting>ch.from_data</sorting>-->
+            <sorting>ch.id</sorting>
+        </field>
+        <field>
+            <id>datas</id>
+            <domain>string</domain>
+            <name>Смена</name>
+            <!--<expression>cast(ch.from_data as date)</expression>-->
+            <expression>to_char(ch.from_data,'dd.mm.yyyy')</expression>
+            <search>to_char(ch.from_data,'dd.mm.yyyy') like :datas||'%'</search>
+        </field>
+        <field>
+            <id>state</id>
+            <domain>integer</domain>
+            <expression>ch.state</expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>stat.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>ch.state</expression>-->
+        <!--</field>-->
+        <field>
+            <id>stat.id</id>
+            <domain>string</domain>
+            <!--<expression>case when ch.state = 0 then "text-error" else-->
+                <!--case when ch.state = 1 then "text-success" else "muted" end-->
+                <!--end</expression>-->
+            <expression>case when ch.state = 0 then 'text-error' else
+                case when ch.state = 1 then 'text-success' else
+                case when ch.state = 2 then 'muted' end  end   end
+            </expression>
+            <search  unavailable="true"/>
+        </field>
+        <field>
+            <id>button</id>
+            <domain>boolean</domain>
+            <expression>
+                case when (select id from amb.md_ambulance_change where clinic_id = o.id and (department_id is null or department_id = d.id)
+                and from_data = cast(now() as date) and state  = 1 order by id desc limit 1) is null then true else false end
+            </expression>
+        </field>
+
+    </fields>
+</query>

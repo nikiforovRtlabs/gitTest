@@ -1,0 +1,196 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <object-id>receipt</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>Рецепт</name>
+
+    <regions>
+        <region place="single" type="none">
+            <container id="main">
+                <wgt:form master-field-id="id" detail-field-id="id">
+                    <wgt:query-id>benefitReceipt</wgt:query-id>
+                    <wgt:default-values-query-id>benefitReceiptDefault</wgt:default-values-query-id>
+                    <fs:field-set>
+                        <fs:row>
+                            <rc:patient id="patient" label="Пациент" required="true" control-style="width:300px;" dependency-condition="id == null"/>
+                            <rc:patient id="patient" label="Пациент" required="true" control-style="width:300px;" readonly="true" dependency-condition="id != null"/>
+                            <ctrl:output-text id="snmp_age" label="" label-style="width:0px;" control-style="width:80px; margin-left:0px">
+                               <ctrl:set-value-expression on="patient.birthDate,issue_dt" on-load="true">
+                                    <![CDATA[
+                                        var date1 = moment(patient.birthDate, 'DD.MM.YYYY');
+                                        var date2 = moment(issue_dt, 'DD.MM.YYYY');
+                                        if (date1 == null || date2 == null || !date1.isValid() || !date2.isValid() || date2.diff(date1, 'days') < 0){
+                                           '';
+                                        } else if (date2.diff(date1, 'months') == 0) {
+                                            date2.diff(date1,   'days') + ' дн.';
+                                        } else if (date2.diff(date1, 'years')==0) {
+                                            date2.diff(date1, 'months') + ' мес.';
+                                        } else if (date2.diff(date1, 'years') < 3) {
+                                            var years = date2.diff(date1, 'years');
+                                            var months = date2.diff(date1, 'months') - years * 12;
+                                            years + ' л. ' + (months == 0 ? '' : months + ' мес.' );
+                                        } else {
+                                            date2.diff(date1, 'years') + ' л.';
+                                        }
+                                        ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                        </fs:row>
+                        <ctrl:classifier id="sign" label="Признак рецепта" required="true">
+                            <ctrl:query query-id="receiptSign"/>
+                        </ctrl:classifier>
+                        <ctrl:input-text id="series">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>!fromButtonFlag</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:input-text>
+                        <ctrl:input-text id="fromButtonFlag" default-value="false" visible="false"/>
+                        <ctrl:input-text id="num">
+                            <ctrl:actions>
+                                <ctrl:button label="Заполнить">
+                                    <ctrl:update-model query-id="generateReceiptSeriesAndNumber" master-field-id="id"
+                                                       detail-field-id="id" target="form">
+                                        <ctrl:pre-filters>
+                                            <ctrl:pre-filter field-id="clinicId" ref="clinic.id"/>
+                                            <ctrl:pre-filter field-id="typeId" ref="type.id"/>
+                                        </ctrl:pre-filters>
+                                    </ctrl:update-model>
+                                    <ctrl:dependencies>
+                                        <ctrl:enabling-condition>!fromButtonFlag</ctrl:enabling-condition>
+                                    </ctrl:dependencies>
+                                </ctrl:button>
+                            </ctrl:actions>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>!fromButtonFlag</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:input-text>
+                        <ctrl:date-time id="issue_dt" format="DD.MM.YYYY" required="true" default-value="now()"/>
+                        <ctrl:classifier id="benefit_definition" label="Льгота" depends-on="patient">
+                            <ctrl:query query-id="receiptBenefitDefinition" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="patient.id" ref="patient.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="diagnosis" label="Заболевание">
+                            <ctrl:query query-id="clinicMdDiagnosis" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="fundingSourceType" label="Источник финансирования">
+                            <ctrl:query query-id="receiptFundingSourceType" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <fs:row>
+                            <ctrl:radio-group id="percentPayment" label="Процент оплаты" inline="true" autoselect-first="true">
+                                <ctrl:query query-id="receiptPercentPayment"/>
+                            </ctrl:radio-group>
+                        </fs:row>
+                        <ctrl:classifier id="validity" label="Действителен" required="true">
+                            <ctrl:query query-id="receiptValidity"/>
+                        </ctrl:classifier>
+                        <!--Препарат-->
+                        <ctrl:radio-group id="medicineType" label="Препарат"  required="true">
+                                          <!--control-style="display: inline;" inline="true">-->
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"ЛС по МНН"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Торговое наименование"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:set-value-expression on="benefit_definition">
+                                <![CDATA[
+                                    if (benefit_definition.benefit_type.id != null && benefit_definition.benefit_type.id == 2){
+                                        var o = new Object();
+                                        o.id = 1;
+                                        o;
+                                    } else {
+                                        medicineType;
+                                    }
+                                ]]>
+                            </ctrl:set-value-expression>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="benefit_definition">
+                                    <![CDATA[
+                                        (typeof benefit_definition == 'undefined' || benefit_definition == null || benefit_definition.id == null || benefit_definition.benefit_type.id != 2)
+                                    ]]>
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:radio-group>
+
+                        <ctrl:classifier id="benefit_inn" label="Лекарственное средство" depends-on="medicineType" dependency-condition="medicineType.id == 1" required="true">
+                            <ctrl:query query-id="receiptInventoryInn"/>
+                            <ctrl:set-value-expression on="medicineType" on-load="false">null</ctrl:set-value-expression>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="benefit_holding" label="Лекарственное средство" depends-on="medicineType" dependency-condition="medicineType.id == 2" required="true">
+                            <ctrl:query query-id="receiptInvHolding"/>
+                            <ctrl:set-value-expression on="medicineType" on-load="false">null</ctrl:set-value-expression>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="inv_holding_modif" label="Форма выпуска" depends-on="benefit_inn" dependency-condition="!!benefit_inn.id != false">
+                            <ctrl:query query-id="receiptInvHoldModif">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="holdingId" ref="benefit_inn.holdingId"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on="benefit_inn,benefit_holding" on-load="false">null</ctrl:set-value-expression>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="inv_holding_modif" label="Форма выпуска" depends-on="benefit_holding" dependency-condition="!!benefit_holding.id != false">
+                            <ctrl:query query-id="receiptInvHoldModif">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="holdingId" ref="benefit_holding.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on="benefit_inn,benefit_holding" on-load="false">null</ctrl:set-value-expression>
+                        </ctrl:classifier>
+                        <ctrl:input-text id="dosage" label="Дозировка"/>
+                        <ctrl:input-text id="quantity" label="Количество" domain="integer"/>
+                        <ctrl:input-text id="use_method" label="Способ применения"/>
+
+                        <ctrl:checkbox id="decision" label="Наличие решения ВК" domain="boolean" default-value="false"/>
+                        <ctrl:input-text id="decisionNumber" label="Номер решения ВК">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>
+                                    <![CDATA[(decision != null && decision)]]>
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                            <ctrl:set-value-expression on="decision">
+                                if(!decision) { '';} else {decisionNumber;}
+                            </ctrl:set-value-expression>
+                        </ctrl:input-text>
+                        <ctrl:date-time id="decisionDate" label="Дата решения ВК">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>
+                                    <![CDATA[(decision != null && decision)]]>
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                            <ctrl:set-value-expression on="decision">
+                                if(!decision) { '';} else {decisionDate;}
+                            </ctrl:set-value-expression>
+                        </ctrl:date-time>
+                        <ctrl:classifier id="employee" label="Врач" required="true" dependency-condition="!caseId">
+                            <ctrl:query query-id="receiptDoctor">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{emplPos.id?}</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="employee" label="Врач" required="true" readonly="true" dependency-condition="!!caseId">
+                            <ctrl:query query-id="receiptDoctor">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{emplPos.id?}</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+    </regions>
+
+</page>

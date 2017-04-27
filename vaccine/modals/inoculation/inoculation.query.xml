@@ -1,0 +1,255 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>inoculation</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from vac_inoculation i
+                left join vac_inoculation_mantu m on m.id = i.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(i)
+                from vac_inoculation i
+                left join vac_inoculation_mantu m on m.id = i.id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>i.id</expression>
+            <!--<search>:expression=:id</search>-->
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <display>i.date</display>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT
+                p.id
+                FROM pci_patient p
+                JOIN pim_indiv_code ic ON ic.indiv_id = p.id
+                JOIN pim_code_type ct ON ct.id = ic.type_id
+                WHERE ic.code = i.patient_uid AND ct.code = 'UID')
+            </expression>
+        </field>
+        <field>
+            <id>inputType.id</id>
+            <domain>integer</domain>
+            <display>i.inp_type_id</display>
+        </field>
+        <field>
+            <id>doseId</id>
+            <domain>integer</domain>
+            <display>i.dose_id</display>
+        </field>
+        <field>
+            <id>doseLabel</id>
+            <domain>string</domain>
+            <display>
+                (select concat(vd.count, ' ', vdt.label)
+                from vac_dose vd
+                join vac_dose_type vdt on vd.dose_type_id = vdt.id
+                where vd.id = i.dose_id)
+            </display>
+        </field>
+        <field>
+            <id>dose.id</id>
+            <domain>integer</domain>
+            <display>i.dose_id</display>
+        </field>
+        <field>
+            <id>dose.label</id>
+            <domain>string</domain>
+            <display>
+                (select concat(vd.count, ' ', vdt.label)
+                from vac_dose vd
+                join vac_dose_type vdt on vd.dose_type_id = vdt.id
+                where vd.id = i.dose_id)
+            </display>
+        </field>
+        <field>
+            <id>number.id</id>
+            <domain>integer</domain>
+            <display>i.number_id</display>
+        </field>
+        <field>
+            <id>emplPosRes.id</id>
+            <domain>integer</domain>
+            <display>i.empl_pos_res_id</display>
+        </field>
+        <field>
+            <id>series.id</id>
+            <domain>integer</domain>
+            <display>i.series_id</display>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <display>i.status_id</display>
+        </field>
+        <field>
+            <id>statusOldId</id>
+            <domain>integer</domain>
+            <display>i.status_id</display>
+        </field>
+        <field>
+            <id>vaccine.id</id>
+            <domain>integer</domain>
+            <display>i.vaccine_id</display>
+        </field>
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <expression>i.org_id</expression>
+        </field>
+        <field>
+            <id>statusEnable</id>
+            <domain>integer</domain>
+            <display>(case when i.status_id = 3 or i.status_id = 4 then null else i.status_id end)</display>
+        </field>
+        <field>
+            <id>statusExecutedOrPermanentDeny</id>
+            <domain>boolean</domain>
+            <display>(case when i.status_id = 3 or i.status_id = 4 then true else false end)</display>
+        </field>
+        <field>
+            <id>statusExecutedOrPermanentDenyCaption</id>
+            <domain>string</domain>
+            <display>(case when i.status_id = 3 then 'Выполнена' when i.status_id = 4 then 'Постоянный отвод' end)</display>
+        </field>
+        <field>
+            <id>hasDeny</id>
+            <domain>boolean</domain>
+            <display>(exists(select 1 from vac_inoculation_deny d where d.inoculation_id = i.id))</display>
+        </field>
+        <field>
+            <id>isMantu</id>
+            <domain>boolean</domain>
+            <expression>i.is_mantu</expression>
+        </field>
+        <field>
+            <id>probaInspectDate</id>
+            <domain>date</domain>
+            <expression>(case when m.inspect_date NOTNULL then m.inspect_date else i.date + integer '3' end)</expression>
+        </field>
+        <field>
+            <id>probaResultEmplPosRes.id</id>
+            <domain>integer</domain>
+            <expression>m.empl_pos_res_id</expression>
+        </field>
+        <field>
+            <id>probaResultClinic.id</id>
+            <domain>integer</domain>
+            <expression>m.org_id</expression>
+        </field>
+        <field>
+            <id>probaGiper</id>
+            <domain>integer</domain>
+            <expression>m.giper</expression>
+        </field>
+        <field>
+            <id>probaPapul</id>
+            <domain>integer</domain>
+            <expression>m.papul</expression>
+        </field>
+        <field>
+            <id>probaResult.id</id>
+            <domain>integer</domain>
+            <expression>m.result_id</expression>
+        </field>
+        <field>
+            <id>viewPageName</id>
+            <domain>string</domain>
+            <expression>(case when i.is_mantu is true then 'Редактирование манту' else 'Редактирование прививки' end)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>serviceId</id>
+            <domain>integer</domain>
+            <expression>i.sr_srv_id</expression>
+        </field>
+        <field>
+            <id>curOrg.id</id>
+            <domain>integer</domain>
+            <display value="#{org.id?}" unavailable="true" />
+        </field>
+        <field>
+            <id>curOrg.name</id>
+            <domain>string</domain>
+            <display value="#{org.name?}" unavailable="true" />
+        </field>
+        <field>
+            <id>curEmplPosRes.id</id>
+            <domain>integer</domain>
+            <display value="#{emplPosRes.id?}" unavailable="true" />
+        </field>
+        <field>
+            <id>curEmplPos.id</id>
+            <domain>integer</domain>
+            <display value="#{emplPos.id?}" unavailable="true"/>
+        </field>
+        <field>
+            <id>curEmplPosRes.name</id>
+            <domain>string</domain>
+            <display value="#{emplPosRes.name?}" unavailable="true"/>
+        </field>
+        <field>
+            <id>inoculationLocalResult</id>
+            <domain>string</domain>
+            <display>i.local_result</display>
+        </field>
+        <field>
+            <id>inoculationGlobalResult</id>
+            <domain>string</domain>
+            <display>i.global_result</display>
+        </field>
+        <field>
+            <id>inoculationComplicationResult</id>
+            <domain>string</domain>
+            <display>i.complication</display>
+        </field>
+        <field>
+            <id>inspectionDateTime</id>
+            <domain>string</domain>
+            <display>concat(to_char(i.inspection_date, 'DD.MM.YYYY'), ' ' || to_char(i.inspection_time, 'HH24:MI'))</display>
+        </field>
+        <field>
+            <id>temperature</id>
+            <domain>string</domain>
+            <display>case when i.temperature isnull then null else substring(i.temperature::text from 1 for 2) || '.' || substring(i.temperature::text from 3 for 1) end</display>
+        </field>
+        <field>
+            <id>inspectionNotes</id>
+            <domain>string</domain>
+            <display>i.examination</display>
+        </field>
+        <field>
+            <id>isPatientVisible</id>
+            <domain>boolean</domain>
+            <display>:isPatientVisible</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>isPatientEnabled</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>anotherMo</id>
+            <domain>boolean</domain>
+            <display>i.another_mo</display>
+        </field>
+    </fields>
+</query>

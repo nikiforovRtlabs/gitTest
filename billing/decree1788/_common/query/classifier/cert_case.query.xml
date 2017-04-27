@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>cert_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from mc_case c
+                join pci_patient p on p.id = c.patient_id
+                left join fin_funding_source_type fin on fin.id = c.funding_id
+                where fin.code = 'OMS' and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from mc_case c
+                join pci_patient p on p.id = c.patient_id
+                left join fin_funding_source_type fin on fin.id = c.funding_id
+                where fin.code = 'OMS' and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+        </field>
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <!--строка вида:
+             "Номер 5086"
+             "Номер 5086 от 06.02.2014"
+             "Номер 5086 от 06.02.2014 врач АВИЛЬЧЕНКО"
+             "Номер 5086 от 06.02.2014 врач АВИЛЬЧЕНКО М."
+             "Номер 5086 от 06.02.2014 врач АВИЛЬЧЕНКО М. А."-->
+            <display>
+                <![CDATA[
+              concat('Случай № ' || c.uid, ' от ' || to_char(c.open_date, 'dd.mm.yyyy'),
+               case when exists(
+                  select ep.employee_id
+                  from sr_res_group rg
+                    join pim_employee_position ep on ep.id = rg.responsible_id
+                  where rg.id =
+                        (select s.res_group_id
+                         from mc_step s
+                         where s.case_id = c.id
+                         order by
+                           s.admission_date desc, s.admission_time desc, s.id desc
+                         limit 1)
+               ) then
+                 (select concat(' врач ', i.surname, ' ' || left(i.name, 1) || '. ', ' ' || left(i.patr_name, 1) || '.')
+                  from sr_res_group rg
+                    join pim_employee_position ep on ep.id = rg.responsible_id
+                    join pim_employee e on e.id = ep.employee_id
+                    join pim_individual i on i.id = e.individual_id
+                  where rg.id =
+                        (select s.res_group_id
+                         from mc_step s
+                         where s.case_id = c.id
+                         order by
+                           s.admission_date desc, s.admission_time desc, s.id desc
+                         limit 1)) end)
+                ]]>
+            </display>
+            <search>upper(c.uid) like '%' || upper(:name) || '%'</search>
+            <sorting>c.uid</sorting>
+        </field>
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>c.patient_id</expression>
+        </field>
+    </fields>
+</query>

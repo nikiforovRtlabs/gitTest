@@ -1,0 +1,546 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>toothService</object-id>
+    <name>toothService</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sr_srv_rendered ssr
+                left join sr_res_group srg on srg.id = ssr.res_group_id
+                left join pim_employee_position_resource epr on epr.employee_position_id = srg.responsible_id
+                left join md_srv_tooth_surface sts on ( sts.srv_rendered_id = ssr.id )
+                left join md_tooth_surface ts on ( ts.id = sts.tooth_surface_id )
+                left join stomatology.tooth t on ( t.id = sts.tooth_id )
+                left join stomatology.tooth_number tn on tn.id = t.tooth_number_id
+                <!--left join stomatology.tooth_dental_formula tdf on ( tdf.tooth_id = t.id )-->
+
+
+                left join md_srv_rendered msr on ( msr.id = ssr.id )
+                left join mc_step ms on ( ms.id = msr.step_id )
+                left join mc_case mc on ( ms.case_id = mc.id )
+                left join plc_visit pv on ( ms.id = pv.id )
+                left join stomatology.dental_formula df on ( df.id = pv.dental_formula_id)
+
+                left join sr_service ss on ( ssr.service_id = ss.id )
+                left join sr_srv_rendered srsr on srsr.id = ssr.complex_srv_id
+                left join sr_service rss on rss.id = srsr.service_id
+                left join sr_srv_composition sc on rss.id = sc.complex_id
+
+                left join md_diagnosis md on ( msr.diagnosis_id = md.id )
+                left join fin_funding_source_type ffst on ( ssr.funding_id = ffst.id )
+                left join pim_employee_position pep on ( srg.responsible_id = pep.id )
+                left join pim_employee pe on ( pep.employee_id = pe.id )
+                left join pim_individual pi on ( pe.individual_id = pi.id )
+                left join sr_srv_result ssr1 on ( ssr.id = ssr1.service_id )
+                left join sr_srv_result_type ssrt on ( ssr1.result_type_id = ssrt.id )
+                left join sr_srv_duration_unit ssdu on ( ssr.duration_measure_unit_id = ssdu.id )
+                left join cmn_measure cm on ( ssdu.measure_id = cm.id )
+                left join mc_health_group mhg on ( msr.health_group_id = mhg.id  )
+                left join mc_anesthesia_type mat on ( msr.anesthesia_type_id = mat.id  )
+                where :where and (case when ssr.complex_srv_id is not null then sc.service_id = ss.id else true end)
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(ssr)
+                from sr_srv_rendered ssr
+                left join sr_res_group srg on srg.id = ssr.res_group_id
+                left join pim_employee_position_resource epr on epr.employee_position_id = srg.responsible_id
+                left join md_srv_tooth_surface sts on ( sts.srv_rendered_id = ssr.id )
+                left join md_tooth_surface ts on ( ts.id = sts.tooth_surface_id )
+                left join stomatology.tooth t on ( t.id = sts.tooth_id )
+                left join stomatology.tooth_number tn on tn.id = t.tooth_number_id
+
+                left join md_srv_rendered msr on ( msr.id = ssr.id )
+                left join mc_step ms on ( ms.id = msr.step_id )
+                left join mc_case mc on ( ms.case_id = mc.id )
+                left join plc_visit pv on ( ms.id = pv.id )
+                left join stomatology.dental_formula df on ( df.id = pv.dental_formula_id)
+
+                left join sr_service ss on ( ssr.service_id = ss.id )
+                left join sr_srv_rendered srsr on srsr.id = ssr.complex_srv_id
+                left join sr_service rss on rss.id = srsr.service_id
+                left join sr_srv_composition sc on rss.id = sc.complex_id
+
+                left join md_diagnosis md on ( msr.diagnosis_id = md.id )
+                left join fin_funding_source_type ffst on ( ssr.funding_id = ffst.id )
+                left join pim_employee_position pep on ( srg.responsible_id = pep.id )
+                left join pim_employee pe on ( pep.employee_id = pe.id )
+                left join pim_individual pi on ( pe.individual_id = pi.id )
+                left join sr_srv_result ssr1 on ( ssr.id = ssr1.service_id )
+                left join sr_srv_result_type ssrt on ( ssr1.result_type_id = ssrt.id )
+                left join sr_srv_duration_unit ssdu on ( ssr.duration_measure_unit_id = ssdu.id )
+                left join cmn_measure cm on ( ssdu.measure_id = cm.id )
+                left join mc_health_group mhg on ( msr.health_group_id = mhg.id  )
+                left join mc_anesthesia_type mat on ( msr.anesthesia_type_id = mat.id  )
+                where :where and (case when ssr.complex_srv_id is not null then sc.service_id = ss.id  else true end)
+            </n2o:count-query>
+            <n2o:alias>ssr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ssr.id</expression>
+        </field>
+
+        <field>
+            <id>cul</id>
+            <domain>numeric</domain>
+            <name>УЕТ</name>
+            <expression>ssr.cul</expression>
+        </field>
+
+        <field>
+            <id>visit.id</id>
+            <domain>integer</domain>
+            <expression>ms.id</expression>
+        </field>
+
+        <field>
+            <id>isCaseState</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when mc.closing_step_id is null then false
+                else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>isResult</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when (select ssr.id from sr_srv_result ssr where service_id = msr.id limit 1)is null then false
+                else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>isIndependent</id>
+            <domain>boolean</domain>
+            <expression>ss.is_independent</expression>
+        </field>
+
+        <field>
+            <id>isAppointment</id>
+            <domain>boolean</domain>
+            <expression>(case when ssr.planned_date is null
+                then false
+                else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>isNotAppointment</id>
+            <domain>boolean</domain>
+            <expression>(case when ssr.planned_date is not null
+                then null
+                else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>anesthesiaType.id</id>
+            <domain>integer</domain>
+            <expression>msr.anesthesia_type_id</expression>
+        </field>
+
+        <field>
+            <id>isAmalgamFilling</id>
+            <domain>boolean</domain>
+            <expression>ssr.is_amalgam_filling</expression>
+        </field>
+
+        <field>
+            <id>durationMeasure.id</id>
+            <domain>integer</domain>
+            <expression>ssdu.id</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>durationMeasure.name</id>
+            <domain>string</domain>
+            <expression>cm.name</expression>
+        </field>
+
+        <field>
+            <id>renderedId</id>
+            <domain>integer</domain>
+            <expression>msr.id</expression>
+            <display>:expression</display>
+            <!--<search>:expression = :rendered.id</search>-->
+        </field>
+
+        <field>
+            <id>isNotCaseService</id>
+            <domain>boolean</domain>
+            <expression>(case when sts.id is not null
+                then true
+                else null end)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>isServiceEditable</id>
+            <domain>boolean</domain>
+            <expression>(case when ssr.planned_date is not null or
+                (sc.id is not null and sc.complex_id is not null) or
+                ((select count(ssr1.id)
+                from sr_srv_rendered ssr1 where ssr1.complex_srv_id = ssr.id) > 0)
+                then null
+                else true end)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>isComplexChildServiceEditable</id>
+            <domain>boolean</domain>
+            <expression>(case when (sc.id is not null and sc.complex_id is not null and sc.is_required = true)
+                then null
+                else true end)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>isNotDelete</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when
+                ((select count(ssr2.id) from sr_srv_rendered ssr2 where ssr2.complex_srv_id = ssr.id) > 0)
+                then true else false end)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>serviceName</id>
+            <domain>string</domain>
+            <name>Наименование услуги</name>
+            <expression>
+                (case when ss.is_complex = true then '[+]' else '' end) || coalesce(ss.code, '') || ' ' || coalesce(ss.name, '')
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+                <id>isComplexServiceChild</id>
+            <domain>boolean</domain>
+            <expression>(case when ssr.complex_srv_id is not null then true else false end)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>rootService</id>
+            <domain>object</domain>
+            <expression>
+                (case when ss.is_complex = true
+                then (select row_to_json(r) from (select ss.id as id, '[+]' || coalesce(ss.code, '') || ' ' || coalesce(ss.name, '') as name) r)
+                else (case when (sc.id is null or ssr.complex_srv_id is null)
+                then (select row_to_json(r) from(select ss.id as id, coalesce(ss.code, '') || ' ' || coalesce(ss.name, '') as name) r)
+                else (select row_to_json(r) from(select rss.id as id, '[+]' || coalesce(rss.code, '') || ' ' || coalesce(rss.name, '') as name) r) end) end)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>rootService.isComplex</id>
+            <domain>object</domain>
+            <expression>(case when ss.is_complex = true
+                then true
+                else false end)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>initialRootServiceId</id>
+            <domain>integer</domain>
+            <expression>(case when ssr.complex_srv_id is not null
+                then rss.id
+                else ss.id end)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>service</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(r) from(select ss.id as id, coalesce(ss.code, '') || ' ' || coalesce(ss.name, '') as name) r)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>service.code</id>
+            <domain>string</domain>
+            <name>Код</name>
+            <expression>ss.code</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>service.isNeedAnatomicZone</id>
+            <domain>boolean</domain>
+            <expression>(case when ss.is_need_anatomic_zone is not null then ss.is_need_anatomic_zone else false end)</expression>
+        </field>
+
+        <field>
+            <id>quantity</id>
+            <domain>integer</domain>
+            <name>Количество</name>
+            <expression>ssr.quantity</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>duration</id>
+            <domain>integer</domain>
+            <expression>ssr.duration</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>md.id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.diagnosisId</id>
+            <domain>integer</domain>
+            <expression>md.id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.name</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <expression>md.code || ' ' || md.name</expression>
+        </field>
+
+        <field>
+            <id>cost</id>
+            <domain>string</domain>
+            <name>Итоговая стоимость</name>
+            <expression>ssr.cost::int</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>totalCost</id>
+            <domain>string</domain>
+            <name>Итоговая стоимость</name>
+            <expression>ssr.total_cost::int</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>funding.id</id>
+            <domain>integer</domain>
+            <expression>(case when ffst.id is null then 1 else ffst.id end)</expression>
+
+        </field>
+
+        <field>
+            <id>funding.name</id>
+            <domain>string</domain>
+            <name>Оплата</name>
+            <expression>ffst.name</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>bdate</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>ssr.bdate</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>epr.id</expression>
+        </field>
+
+        <field>
+            <id>resGroup.id</id>
+            <domain>integer</domain>
+            <expression>srg.id</expression>
+        </field>
+
+        <field>
+            <id>resGroup.name</id>
+            <domain>string</domain>
+            <name>Ответственный</name>
+            <expression>
+                (coalesce(pi.surname, '') || ' ' || coalesce(pi.name, '') || ' ' || coalesce(pi.patr_name, '')|| ' ' ||
+                coalesce(pe.note, ''))
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>isUrgent</id>
+            <domain>boolean</domain>
+            <expression>msr.is_urgent</expression>
+
+        </field>
+
+        <field>
+            <id>toothNumber</id>
+            <domain>integer</domain>
+            <expression>ssr.tooth_number</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>ssr.customer_id</expression>
+
+        </field>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>msr.case_id</expression>
+        </field>
+
+        <field>
+            <id>isRendered</id>
+            <domain>boolean</domain>
+            <expression>ssr.is_rendered</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>dentalFormulaId</id>
+            <domain>integer</domain>
+            <expression>df.id</expression>
+            <display>:expression</display>
+            <search type="eqOrIsNull" filter-field="dentalFormulaId">(:expression = :dentalFormulaId or :expression is null)</search>
+
+        </field>
+
+        <field>
+            <id>tooth.id</id>
+            <domain>integer</domain>
+            <expression>t.id</expression>
+            <display>:expression</display>
+        </field>
+
+        <!--<field>-->
+            <!--<id>service.toothDiseaseId</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>tdisease.id</expression>-->
+            <!--<display>:expression</display>-->
+        <!--</field>-->
+
+        <field>
+            <id>toothSurface.id</id>
+            <domain>integer</domain>
+            <expression>sts.tooth_surface_id</expression>
+            <display>:expression</display>
+        </field>
+
+
+        <field>
+            <id>toothService.id</id>
+            <domain>ineteger</domain>
+            <expression>sts.id</expression>
+            <display>:expression</display>
+                <search type="eq" filter-field="toothService.id">:expression = :toothService.id::int</search>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>:clinicId</expression>
+        </field>
+
+        <field>
+            <id>mcCaseId</id>
+            <domain>integer</domain>
+            <expression>mc.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>stepId</id>
+            <domain>integer</domain>
+            <expression>ms.id</expression>
+
+        </field>
+
+        <field>
+            <id>resourceGroupId</id>
+            <domain>integer</domain>
+            <expression>ssr.res_group_id</expression>
+
+        </field>
+
+        <field>
+            <id>selectServices.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select case exists(
+                select 1
+                from sr_service s
+                where
+                exists(
+                select 1 from sr_res_group_service srgp join sr_res_group srg on srgp.group_id = srg.id where s.id = srgp.srv_type_id and srg.responsible_id = :emplContext  and srg.is_system = false
+                )
+                and s.org_id = :orgId and s.is_stomat = true and ss.id = s.id
+                )
+                when true then 2
+                when false then 1
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>emplContext</id>
+            <domain>integer</domain>
+            <expression>:emplContext</expression>
+            <search value="#{emplPos.id}">:expression = :emplContext</search>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+            <search value="#{org.id?}">(:expression = :orgId or :orgId is null)</search>
+        </field>
+
+        <field>
+            <id>tooth.name</id>
+            <domain>string</domain>
+            <name>Номер зуба</name>
+            <expression>tn.name</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>tooth.toothNumberId</id>
+            <domain>integer</domain>
+            <expression>tn.id</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>toothSurface.name</id>
+            <domain>string</domain>
+            <name>Поверхность</name>
+            <expression>ts.name</expression>
+            <display>:expression</display>
+        </field>
+
+    </fields>
+</query>

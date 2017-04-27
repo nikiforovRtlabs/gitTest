@@ -1,0 +1,396 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Наименование ЛС и ИМН</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                    <rest:rest method="POST" >
+                        ${n2o.backend.path}/inventory/holding/modif
+                    </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="latinName" mapping="['latinName']" domain="string"/>
+                <param name="holding.id" mapping="['holdId']"/>
+                <param name="form.id" mapping="['formTypeId']"/>
+                <param name="org.id" mapping="['orgOwnerId']"/>
+                <param name="mnei.id" mapping="['mneiId']"/>
+                <param name="extraPackUnit.id" mapping="['extraPackUnitId']"/>
+                <param name="secPackUnit.id" mapping="['secPackUnitId']"/>
+                <param name="mneiCountInExtraPk" mapping="['mneiCountInExtraPk']"/>
+                <param name="mneiCountInSecPk" mapping="['mneiCountInSecPk']"/>
+                <param name="actVal" mapping="['actVal']"/>
+                <param name="actUnit.id" mapping="['actUnitId']"/>
+                <param name="concentrVal" mapping="['concentrVal']"/>
+                <param name="concentrUnit.id" mapping="['concentrUnitId']"/>
+                <param name="dosageVal" mapping="['dosageVal']"/>
+                <param name="dosageUnit.id" mapping="['dosageUnitId']"/>
+                <param name="volumeVal" mapping="['volumeVal']"/>
+                <param name="volumeUnit.id" mapping="['volumeUnitId']"/>
+                <param name="massVal" mapping="['massVal']"/>
+                <param name="massUnit.id" mapping="['massUnitId']"/>
+                <param name="priceUnitFlag.id" mapping="['priceUnitFlag']"/>
+                <param name="storageCond.id" mapping="['storageCondId']"/>
+                <param name="writeOffUnitFlag.id" mapping="['writeOffUnitFlag']"/>
+                <param name="isExtemporal" mapping="['isExtemporal']"/>
+                <param name="angroFlag" mapping="['angroFlag']"/>
+                <param name="medPurposeFlag" mapping="['medPurposeFlag']"/>
+                <param name="dloFlag" mapping="['dloFlag']"/>
+                <param name="codeTfoms" mapping="['codeTfoms']" domain="string"/>
+                <param name="commonPrototype.id" mapping="['commonPrototypeId']"/>
+                <param name="inn.id" mapping="['innId']"/>
+                <param name="numberOfDoses" mapping="['numberOfDoses']"/>
+            </in-parameters>
+
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="code" mapping="['displayedValue']"/>
+            </out-parameters>
+            <success-text>Модификация с кодом '{code}' сохранена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="quantityValidation"/>
+                <validation ref-id="checkUniqueKey"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from inventory.hold_modif where id= :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <confirmation-text>Вы действительно хотите удалить модификацию: {name}?</confirmation-text>
+            <success-text>Запись удалена</success-text>
+            <validations activate="blackList">
+                <validation ref-id="quantityValidation"/>
+            </validations>
+        </action>
+
+        <action id="getSubstituteListByHolding">
+            <invocation>
+                <sql:sql>
+                    select inventory.get_substitute_list_for_modif_by_holding(:id, :orgId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="holding.name" mapping="['holding.name']" domain="string"/>
+                <param name="name" mapping="['name']"/>
+                <param name="org.id" mapping="['orgId']" value="#{org.id?}"/>
+            </in-parameters>
+            <confirmation-text>Выполнить подбор замен для "{name}" в рамках номенклатуры "{holding.name}" ?</confirmation-text>
+            <success-text>Замены подобраны</success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="getSubstituteListByINN">
+            <invocation>
+                <sql:sql>
+                    select inventory.get_substitute_list_for_modif_by_inn(:id, :orgId, :innId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="inn.id" mapping="['innId']"/>
+                <param name="holding.name" mapping="['holding.name']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="org.id" mapping="['orgId']" value="#{org.id?}"/>
+            </in-parameters>
+            <confirmation-text>Выполнить подбор замен для "{name}" в рамках МНН "{inn.name}" ?</confirmation-text>
+            <success-text>Замены подобраны</success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="addMaxDoses" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/inventory/holding/modif/maxDoses
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="holdModifId" mapping="['id']"/>
+                <param name="maxDailyDoseVal" mapping="['maxDailyDoseVal']"/>
+                <param name="maxDailyDoseUnit.id" mapping="['maxDailyDoseUnitId']"/>
+                <param name="maxSingleDoseVal" mapping="['maxSingleDoseVal']"/>
+                <param name="maxSingleDoseUnit.id" mapping="['maxSingleDoseUnitId']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="maxDailyDoseValidation"/>
+                <validation ref-id="maxSingleDoseValidation"/>
+            </validations>
+            <success-text>Максимальные дозировки добавлены</success-text>
+        </action>
+    </actions>
+
+    <validations>
+
+        <condition id="dosageValValidation" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression on="dosageVal"><![CDATA[
+                var regex = new RegExp('\^[0-9.]+\$');
+                var b = true;
+                if(typeof dosageVal != 'undefined' && dosageVal != null && dosageVal != '')
+                    b = regex.test(dosageVal);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="massValValidation" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression on="massVal"><![CDATA[
+                var regex = new RegExp('\^[0-9.]+\$');
+                var b = true;
+                if(typeof massVal != 'undefined' && massVal != null && massVal != '')
+                    b = regex.test(massVal);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="volumeValValidation" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression on="volumeVal"><![CDATA[
+                var regex = new RegExp('\^[0-9.]+\$');
+                var b = true;
+                if(typeof massVal != 'undefined' && volumeVal != null && volumeVal != '')
+                    b = regex.test(volumeVal);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="numberOfDosesValidation" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression on="numberOfDoses"><![CDATA[
+                var regex = new RegExp('\^[0-9.]+\$');
+                var b = true;
+                if(typeof numberOfDoses != 'undefined' && numberOfDoses != null && numberOfDoses != '')
+                    b = regex.test(numberOfDoses);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="quantityValidation" level="error">
+            <expression>
+                <![CDATA[ typeof mneiCountInSecPk=='undefined' || typeof  mneiCountInExtraPk=='undefined'||
+                 mneiCountInSecPk == null || mneiCountInSecPk=='' || mneiCountInExtraPk==null ||
+                (mneiCountInSecPk!=null && mneiCountInExtraPk!=null && mneiCountInExtraPk <= mneiCountInSecPk)]]></expression>
+            <message>"Кол-во во втор. уп." не может быть меньше "Кол-ва в доп. ед. изм."</message>
+        </condition>
+
+        <condition id="mneiCountInSecPkValValidation" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression on="mneiCountInSecPk">
+                <![CDATA[
+                   var regex = new RegExp('\^[0-9.]+\$');
+                   var b = true;
+                   if(typeof mneiCountInSecPk != 'undefined' && mneiCountInSecPk != null && mneiCountInSecPk != '')
+                     b = regex.test(mneiCountInSecPk);
+                   b;
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="arrSpecConstraint" level="error">
+            <message>
+                Удаление невозможно. Существует спецификация Приходной накладной, которая ссылается на модификацию: {name}.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.hold_modif where
+                    exists(select 1 from inventory.arrival_spec where hold_modif_id = :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="expSpecConstraint" level="error">
+            <message>
+                Удаление невозможно. Существуут спецификация Расходной накладной, которая ссылается на
+                модификацию: {name}.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.hold_modif where
+                    exists(select 1 from inventory.exp_spec where hold_modif_id = :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="requestSpecConstraint" level="error">
+            <message>
+                Удаление невозможно. Существует спецификация Требования, которая ссылается на
+                модификацию: {name}.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.hold_modif where
+                    exists(select 1 from inventory.request_spec where modif_id = :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="writeOffSpecConstraint" level="error">
+            <message>
+                Удаление невозможно. Существует спецификация Документа списания, которая ссылается на
+                модификацию: {name}.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.hold_modif where
+                    exists(select 1 from inventory.write_off_spec where hold_modif_id = :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="finContractSpecConstraint" level="error">
+            <message>
+                Удаление невозможно. Существует спецификация Контракта, которая ссылается на
+                модификацию: {name}.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.hold_modif where
+                    exists(select 1 from inventory.fin_contract_spec where hold_modif_id = :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="batchSpecConstraint" level="error">
+            <message>
+                Удаление невозможно. Существует Партия, которая ссылается на
+                модификацию: {name}.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.hold_modif where
+                    exists(select 1 from inventory.batch where hold_modif_id = :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="formulaDocConstraint" level="error">
+            <message>
+                Удаление невозможно. Существует Пропись, которая ссылается на
+                модификацию: {name}.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.formula_doc where modif_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="formulaSpecConstraint" level="error">
+            <message>
+                Удаление невозможно. Существует спецификация прописи, которая ссылается на
+                модификацию: {name}.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.formula_doc_spec where modif_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkUniqueKey" level="error">
+            <message>Модификация с кодом '{code}' уже зарегистрирована</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from inventory.hold_modif where trim(code) = trim(:code) and (id!=:id or :id is null);
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0]==0"/>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </constraint>
+
+        <condition id="mneiCountInSecPkCheck" level="error">
+            <message>Значение поля должно быть > 0</message>
+            <expression on="mneiCountInSecPk">
+                <![CDATA[
+                 var regex_zero = new RegExp('\^[0]+\$');
+                 typeof priceUnitFlag !='undefined' && priceUnitFlag!=null && priceUnitFlag.id=='2'
+                 && typeof mneiCountInSecPk!='undefined' && mneiCountInSecPk !=null && mneiCountInSecPk !=''
+                 && !regex_zero.test(mneiCountInSecPk) || priceUnitFlag.id!='2';
+               ]]>
+            </expression>
+        </condition>
+
+        <condition id="maxDailyDoseValidation" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression on="maxDailyDoseVal"><![CDATA[
+                var regex = new RegExp('\^[0-9.]+\$');
+                var b = true;
+                if(typeof maxDailyDoseVal != 'undefined' && maxDailyDoseVal != null && maxDailyDoseVal != '')
+                    b = regex.test(maxDailyDoseVal);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="maxSingleDoseValidation" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression on="maxSingleDoseVal"><![CDATA[
+                var regex = new RegExp('\^[0-9.]+\$');
+                var b = true;
+                if(typeof maxSingleDoseVal != 'undefined' && maxSingleDoseVal != null && maxSingleDoseVal != '')
+                    b = regex.test(maxSingleDoseVal);
+                b;
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+
+</object>

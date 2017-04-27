@@ -1,0 +1,247 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <!--<id>resource</id>-->
+    <name>Ресурс</name>
+    <object-id>resource</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sr_resource sr
+                join sr_res_kind srk on sr.res_kind_id = srk.id
+
+                left join pim_employee_position_resource pepr on pepr.id = sr.id
+                left join pim_employee_position pep on pep.id = pepr.employee_position_id
+                left join pim_employee pe on pe.id = pep.employee_id
+                left join pim_individual pi on pi.id = pe.individual_id
+                left join pim_position ppos on ppos.id = pep.position_id
+                left join pim_organization emppo on emppo.id = pe.organization_id
+                left join pim_department emppd on emppd.id = ppos.department_id
+
+                left join amb.pim_transport_resource ptr on ptr.resource_id = sr.id
+                left join amb.pim_transport pt on pt.id = ptr.transport_id and (pt.to_dt > now() or pt.to_dt is null)
+                left join pim_organization trpo on trpo.id = pt.org_id
+                left join pim_department trpd on trpd.id = pt.department_id
+
+                <!--left join amb.sr_res_team_job_resourse srtjr on srtjr.resource_id = sr.id-->
+                        <!--and srtjr.change_id = (select id from amb.md_ambulance_change where state = 1-->
+                                                    <!--and clinic_id = COALESCE(emppo.id,trpo.id) and department_id = coalesce(emppd.id,trpd.id))-->
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from sr_resource sr
+                join sr_res_kind srk on sr.res_kind_id = srk.id
+
+                left join pim_employee_position_resource pepr on pepr.id = sr.id
+                left join pim_employee_position pep on pep.id = pepr.employee_position_id
+                left join pim_employee pe on pe.id = pep.employee_id
+                left join pim_individual pi on pi.id = pe.individual_id
+                left join pim_position ppos on ppos.id = pep.position_id
+                left join pim_organization emppo on emppo.id = pe.organization_id
+                left join pim_department emppd on emppd.id = ppos.department_id
+
+                left join amb.pim_transport_resource ptr on ptr.resource_id = sr.id
+                left join amb.pim_transport pt on pt.id = ptr.transport_id and (pt.to_dt > now() or pt.to_dt is null)
+                left join pim_organization trpo on trpo.id = pt.org_id
+                left join pim_department trpd on trpd.id = pt.department_id
+
+                where :where
+            </n2o:count-query>
+            <n2o:alias>sr</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>sr.id</expression>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <name>Код</name>
+            <expression>sr.code</expression>
+        </field>
+        <field>
+            <id>reskindId</id>
+            <domain>integer</domain>
+            <name>Вид ресурса</name>
+            <expression>srk.id</expression>
+        </field>
+        <field>
+            <id>res_kind.id</id>
+            <domain>integer</domain>
+            <name>Вид ресурса</name>
+            <expression>srk.id</expression>
+        </field>
+        <field>
+            <id>res_kind.name</id>
+            <domain>string</domain>
+            <name>Вид ресурса</name>
+            <expression>srk.name</expression>
+        </field>
+
+        <field>
+            <id>pim_employee_position</id>
+            <domain>integer</domain>
+            <expression>pep.id</expression>
+        </field>
+        <field>
+            <id>employee.id</id>
+            <domain>string</domain>
+            <name>Сотрудник</name>
+            <expression>pep.id</expression>
+        </field>
+        <field>
+            <id>employee.full_name</id>
+            <domain>string</domain>
+            <name>Сотрудник</name>
+            <expression>pi.surname||' '||pi.name||' '||pi.patr_name</expression>
+        </field>
+        <field>
+            <id>employee.name</id>
+            <domain>string</domain>
+            <name>Сотрудник</name>
+            <expression>pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'</expression>
+        </field>
+        <field>
+            <id>employee.namePos</id>
+            <domain>string</domain>
+            <name>Сотрудник</name>
+            <expression>pep.id||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||')'</expression>
+        </field>
+        <field>
+            <id>empnamePos</id>
+            <domain>string</domain>
+            <name>Сотрудник</name>
+            <expression>pep.id||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||')'</expression>
+        </field>
+
+        <field>
+            <id>pimtransport.id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>pt.id</expression>
+        </field>
+        <field>
+            <id>pimtransport.inventory_number</id>
+            <domain>string</domain>
+            <!--<name>Гос. рег. знак</name>-->
+            <name>Автомобиль</name>
+            <expression>pt.inventory_number</expression>
+            <!--<search>upper(trim(pt.inventory_number)) like ('%'||:inventory_number||'%')</search>-->
+        </field>
+        <field>
+            <id>inventory_number</id>
+            <domain>string</domain>
+            <!--<name>Гос. рег. знак</name>-->
+            <name>Автомобиль</name>
+            <expression>pt.inventory_number</expression>
+            <!--<search>upper(trim(pt.inventory_number)) like ('%'||:inventory_number||'%')</search>-->
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Ресурс</name>
+            <expression>coalesce(pep.id||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||')',pt.inventory_number)</expression>
+            <search>upper(trim(coalesce(pep.id||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||')',pt.inventory_number))) like upper(trim('%'||:name||'%'))</search>
+        </field>
+        <field>
+            <id>resOrg</id>
+            <domain>integer</domain>
+            <name>Станция</name>
+            <expression>coalesce(pe.organization_id,pt.org_id)</expression>
+        </field>
+        <field>
+            <id>resDep</id>
+            <domain>integer</domain>
+            <name>Подстанция</name>
+            <expression>coalesce(emppd.id,trpd.id)</expression>
+        </field>
+
+        <field>
+            <id>is_res</id>
+            <domain>boolean</domain>
+            <expression><![CDATA[
+                case when (ptr.id is not null) and ((select state_id from amb.pim_transport_state where transport_id = pt.id order by from_dt desc,id desc limit 1) <> (select id from pim_stock_unit_state where code = '53'))
+                            or (pepr.id is not null) and (pep.end_date is null or pep.end_date > cast(now() as date))
+                then true else false end
+                           ]]>
+            </expression>
+        </field>
+
+        <!--валидация физ лица на занятость (pim_individual), ресурсы (sr_service) которого не должны попасть в новый наряд-->
+        <field>
+            <id>in_team_job</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[CASE when (select count(*) from sr_service val_sr
+                    left join pim_employee_position_resource val_pepr on val_pepr.id = val_sr.id
+                    left join pim_employee_position val_pep on val_pep.id = val_pepr.employee_position_id
+                    left join pim_employee val_pe on val_pe.id = val_pep.employee_id
+                    left join pim_individual val_pi on val_pi.id = val_pe.individual_id
+                    left join amb.sr_res_team_job_resourse val_res on val_sr.id = val_res.resource_id
+                    WHERE val_pi.id = pi.id AND (val_res.edate is null) and (val_res.bdate is not null)
+                    ) > 0 then true
+                    else false
+                end]]>
+            </expression>
+        </field>
+
+        <!--переписать-->
+        <!--<field>-->
+            <!--<id>change_data</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>srtjr.change_id</expression>-->
+            <!--<search unavailable="true"/>-->
+            <!--&lt;!&ndash;<search criteria-field=""/>&ndash;&gt;-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>bdata</id>-->
+            <!--<domain>date</domain>-->
+            <!--<expression>srtjr.planned_bdate</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>edata</id>-->
+            <!--<domain>data</domain>-->
+            <!--<expression>srtjr.planned_edate</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+
+        <field>
+            <id>in_job</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[
+                case when (select count(*)
+                    from amb.sr_res_team_job_resourse
+                    where resource_id = sr.id
+                    and ((edate is null) and (bdate is not null) or  replacement_id is not null)
+                    ) > 0
+                then true
+                else false
+                end
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>bdate</id>
+            <domain>date</domain>
+            <expression>:bdate::date</expression>
+        </field>
+
+        <field>
+            <id>edate</id>
+            <domain>date</domain>
+            <expression>:edate::date</expression>
+        </field>
+    </fields>
+</query>

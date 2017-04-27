@@ -1,0 +1,151 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>stomatologyService</object-id>
+    <name>stomatologyRootService</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sr_service s
+                left join sr_srv_composition sc on s.id = sc.service_id
+                <!--left join stomatology.tooth_disease_sr_service tdss on (tdss.sr_service_id = s.id)-->
+                <!--left join stomatology.tooth_disease td on (td.id = tdss.tooth_disease_id)-->
+                where (s.is_stomat = true and :requiredFields is null or :requiredField is not null) and s.org_id = :orgId
+                and :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(s)
+                from sr_service s
+                left join sr_srv_composition sc on s.id = sc.service_id
+                where (s.is_stomat = true and :requiredFields is null or :requiredField is not null) and s.org_id = :orgId
+                and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>
+                (case when (
+                select count(s1.id)
+                from sr_service s1
+                join sr_srv_composition sc1 on s1.id = sc1.service_id
+                where s1.is_stomat = true and sc1.complex_id = s.id
+                ) > 0
+                then ('[+]' ||coalesce(s.code, '') || ' ' || coalesce(s.name, ''))
+                else (coalesce(s.code, '') || ' ' || coalesce(s.name, ''))
+                end)
+                </expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>isComplex</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when s.is_complex = true
+                then true
+                else false
+                end)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>requiredFields</id>
+            <domain>object[]</domain>
+            <expression>
+                (
+                    select array_to_json(array_agg(r)) from (
+                        select s1.id as id, (select row_to_json(r) from(select s1.id as id, s1.cul as cul)r) as culserviceid,
+                                (coalesce(s1.code, '') || ' ' || coalesce(s1.name, '')) as name, s1.is_need_anatomic_zone as isToothRequired
+                        from sr_service s1
+                        join sr_srv_composition sc1 on s1.id = sc1.service_id
+                        where s1.is_stomat = true and sc1.complex_id = s.id and (sc1.is_default = true)
+                    ) r
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>requiredFieldsIds</id>
+            <domain>integer[]</domain>
+            <expression>
+                (
+                select array_agg(s1.id) from sr_service s1
+                join sr_srv_composition sc1 on s1.id = sc1.service_id
+                where s1.is_stomat = true and sc1.complex_id = s.id and (sc1.is_required = true )
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>isToothRequired</id>
+            <domain>boolean</domain>
+            <expression>(case when s.is_need_anatomic_zone is not null then s.is_need_anatomic_zone else false end)</expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>toothDiseaseId</id>-->
+            <!--<domain>integer[]</domain>-->
+            <!--<expression>-->
+                <!--select td1.id from stomatology.tooth_disease_sr_service tdss1-->
+                <!--left join stomatology.tooth_disease td1 on (td1.id = tdss1.tooth_disease_id)-->
+                <!--where tdss1.sr_service_id = s.id-->
+            <!--</expression>-->
+            <!--<display>:expression</display>-->
+        <!--</field>-->
+
+        <field>
+            <id>emplContext</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search value="#{emplPos.id?}"/>
+            <expression>:emplContext</expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+            <search value="#{org.id?}">(:expression = :orgId or :orgId is null)</search>
+        </field>
+
+        <field>
+            <id>cul</id>
+            <domain>numeric</domain>
+            <expression>
+                (case when s.is_complex = true
+                then COALESCE(s.cul, 0) + (select SUM(s1.cul) from sr_service s1
+                left join sr_srv_composition sc1 on s1.id = sc1.service_id
+                where s1.is_stomat = true and s1.org_id = s.org_id and sc1.complex_id = s.id)
+                else s.cul end)
+            </expression>
+        </field>
+
+        <field>
+            <id>fullOrNotFull</id>
+            <domain>integer</domain>
+            <expression>:fullOrNotFull</expression>
+            <search>(case :expression
+                when 1 then (1=1)
+                when 2 then ((current_date between s.from_dt and s.to_dt or s.to_dt is null or  s.to_dt >= current_date and current_date >= s.from_dt) and
+                (exists (select 1 from sr_res_group_service srgp join sr_res_group srg on srgp.group_id = srg.id  where s.id = srgp.srv_type_id and srg.responsible_id = :emplContext  and srg.is_system = false))
+                )
+                end)
+            </search>
+        </field>
+
+    </fields>
+
+
+</query>

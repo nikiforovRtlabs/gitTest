@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <name>toothDisease</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from stomatology.tooth_disease td
+                LEFT JOIN stomatology.tooth_disease_name tdn ON td.name_id = tdn.id
+                left join stomatology.tooth_disease_md_tooth_surface tdts on tdts.tooth_disease_id = td.id
+                where :where
+                group by td.id, tdn.name
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(td)
+                from stomatology.tooth_disease td
+                where :where
+            </n2o:count-query>
+            <n2o:alias>td</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>td.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>tdn.name</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    upper(:expression) like '%'||upper(:name)||'%'
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>toothSurfaceIds</id>
+            <domain>integer[]</domain>
+            <expression>:toothSurfaceIds</expression>
+            <filters>
+                <filter type="eq" filter-field="toothSurfaceIds">
+                    (
+                        case when (select count(distinct(id)) from md_tooth_surface where id in (:toothSurfaceIds)) > 1
+                        then tdts.tooth_disease_id in
+                            (
+                                select distinct(r.tooth_disease_id) from (
+                                    select tooth_disease_id, md_tooth_surface_id, count(*) over(partition by md_tooth_surface_id) as surface_cnt,
+                                        count(*) over(partition by tooth_disease_id) as disease_cnt
+                                    from stomatology.tooth_disease_md_tooth_surface where md_tooth_surface_id  in (:toothSurfaceIds)
+                                ) r
+                                where r.disease_cnt = (select count(distinct(id)) from md_tooth_surface where id in (:toothSurfaceIds))
+                            )
+                        else tdts.tooth_disease_id in (select distinct(tooth_disease_id) from stomatology.tooth_disease_md_tooth_surface where md_tooth_surface_id  in (:toothSurfaceIds))
+                        end
+                    )
+                </filter>
+            </filters>
+            <display/>
+        </field>
+
+
+    </fields>
+</query>

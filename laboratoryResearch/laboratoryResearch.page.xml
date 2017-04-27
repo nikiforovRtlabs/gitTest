@@ -1,0 +1,303 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+    <!--<id>laboratoryResearch</id>-->
+    <name>Направление на лабораторное исследование пациента</name>
+    <!--todo 3.0.1-->
+    <!--<name>Направление на лабораторное исследование пациента {main.id}</name>-->
+    <object-id>laboratoryResearch</object-id>
+    <layout>n2o/layout/single</layout>
+    <modal-width>750px</modal-width>
+    <regions>
+        <region place="single" type="tabs">
+            <container id="main">
+                <wgt:form src="hospital/n2o/custom/laboratoryResearch.page" customize="css" css-class="research-from n2o-form">
+                    <wgt:query-id>laboratoryResearch</wgt:query-id>
+                    <wgt:name>Направление на лабораторное исследование</wgt:name>
+                    <wgt:default-values-query-id>laboratoryResearch_def</wgt:default-values-query-id>
+
+                    <wgt:edit after-submit="read" refresh-after-submit="true" model="query-or-default">
+                         <wgt:invoke-action action-id="save"/>
+                    </wgt:edit>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="update" label="Изменить"  context="true" >
+                            <wgt:edit refresh-after-submit="true">
+                                <wgt:invoke-action action-id="save"/>
+                            </wgt:edit>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                    <fs:field-set header="none" field-label-location="left" label="Общая информация о направлении">
+                        <fs:row>
+                            <ctrl:output-text id="patient.name" label="Пациент"
+                                              control-style="width:545px;" label-style="width:125px;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:date-time id="referral_date" required="true" default-value="now()" format="DD.MM.YYYY"
+                                    control-style="width:125px;" label-style="width:125px;">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:date-time>
+                            <ctrl:input-text id="order_number" label="Номер направления"
+                                    control-style="width:100px;" label-style="width:125px;">
+                                <ctrl:actions>
+                                    <ctrl:button icon="icon-plus" type="icon" label="Заполнить">
+                                        <ctrl:on-click src="hospital/n2o/custom/referralNumberUid.js" function-name="getUidForLabaratoryResearchForm"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:enabling-condition>
+                                                enableUidLink == 'enable'
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                </ctrl:actions>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+
+                            <ctrl:hidden id="enableUidLink" default-value="enable"/>
+
+                            <ctrl:checkbox id="CITO" label="CITO" default-value="false"
+                                           control-style="width:75px;" label-style="width:0px;margin-right: 20px;">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null) || (is_done == false)</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:checkbox>
+
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="diagnosis" label="Диагноз" search-are-you-type="true"
+                                    control-style="width:545px;" label-style="width:125px;">
+                                <ctrl:query query-id="hosp_diagnosisWithCodeNameSearch" value-field-id="id" label-field-id="name"/>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)||(is_done == false)</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+
+                    <fs:field-set header="line" field-label-location="left" label="Сведения о направляющей организации" css-class="research-refInfo">
+                        <ctrl:classifier id="ref_org" label="Организация" search-are-you-type="true" required="true"
+                                         label-style="width:85px;">
+                            <ctrl:query query-id="hosp_clinic" value-field-id="id" label-field-id="name"/>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+                                <ctrl:value field-id="name">#{org.name?}</ctrl:value>
+                            </ctrl:default-model>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="ref_dep" label="Отделение" search-are-you-type="true" autoselect="true"
+                                         label-style="width:85px;">
+                            <ctrl:query query-id="hosp_department" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" ref="ref_org.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{dep.id?}</ctrl:value>
+                                <ctrl:value field-id="name">#{dep.name?}</ctrl:value>
+                            </ctrl:default-model>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="ref_doc" label="Специалист" required="true" search-are-you-type="true"
+                                         label-style="width:85px;">
+                            <ctrl:query query-id="hosp_resourceEmployeePositionResourceActCurrentDt" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" ref="ref_org.id"/>
+                                    <ctrl:pre-filter field-id="depId" ref="ref_dep.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{emplPos.id?}</ctrl:value>
+                                <ctrl:value field-id="employeePositionId">#{emplPos.id?}</ctrl:value>
+                                <ctrl:value field-id="name">#{emplPos.name?}</ctrl:value>
+                            </ctrl:default-model>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)||(is_done == false)</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+                    </fs:field-set>
+
+                    <fs:field-set header="line" field-label-location="left" label="Сведения о лаборатории" css-class="research-recvInfo">
+                        <ctrl:classifier id="recv_org" label="Организация" search-are-you-type="true"
+                                         label-style="width:100px;">
+                            <ctrl:query query-id="hosp_lab_org" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="roleId" ref="orgRole"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)||(is_done == false)</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="recv_dep" label="Отделение" search-are-you-type="true" autoselect="true"
+                                         label-style="width:100px;" depends-on="recv_org">
+                            <ctrl:query query-id="hosp_lab_dep" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" ref="recv_org.id"/>
+                                    <ctrl:pre-filter field-id="type" ref="depRole"/>
+                                    <ctrl:pre-filter field-id="date" value="today()"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)||(is_done == false)</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+                    </fs:field-set>
+
+                    <fs:field-set header="line" field-label-location="left" label="Список исследований" css-class="research-DopInfo">
+                        <fs:row>
+                            <ctrl:checkbox id="isComplex"  label ="Выбрать из комплексных"  default-value="false"
+                                           control-style="width:10px;" label-style="width:95px;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="complexResearch" label="Комплексное исследование" search-are-you-type="true"
+                                             label-style="width:95px;" control-style="width:210px;" required="true"
+                                             depends-on="isComplex" dependency-condition="isComplex == true">
+                                <ctrl:query query-id="cliniclabComplexresearch" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="orgId" ref="ref_org.id"/>
+                                        <ctrl:pre-filter field-id="labId" ref="recv_org.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)||(is_done == false)</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                                <ctrl:set-value-expression on="isComplex" on-load="false">if (isComplex!=true) null; else complexResearch;</ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:multi-classifier id="researchChild" label="Исследование" search-are-you-type="true"
+                                             label-style="width:95px;" control-style="width:210px;"
+                                                   dependency-condition="isComplex != true || (complexResearch.id!=null &amp;&amp; isComplex == true)">
+                                <ctrl:query query-id="clinicChildComplexresearh" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="isComplex" ref="isComplex"/>
+                                        <ctrl:pre-filter field-id="orgId" ref="ref_org.id"/>
+                                        <ctrl:pre-filter field-id="labId" ref="recv_org.id"/>
+                                        <ctrl:pre-filter field-id="complexId" ref="complexResearch.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="areRequiredResearchSelected"/>
+                                </ctrl:validations>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)||(is_done == false)</ctrl:enabling-condition>
+                                    <ctrl:required-condition on="isComplex">isComplex != true</ctrl:required-condition>
+                                </ctrl:dependencies>
+                                <ctrl:set-value-expression on="complexResearch,isComplex" on-load="false">
+                                    <![CDATA[
+                                        if( (typeof complexResearch == 'undefined' || complexResearch == null  || complexResearch.requiredFields == 'undefined' || complexResearch.requiredFields.length == 0)  )
+                                            null
+                                        else
+                                            complexResearch.requiredFields
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:multi-classifier>
+
+                        </fs:row>
+                        <ctrl:hidden id="researchs">
+                            <ctrl:set-value-expression on="researchChild,isComplex,complexResearch" on-load="true">
+                                <![CDATA[
+                                  if (isComplex == true){
+                                    if (typeof complexResearch == 'undefined' || complexResearch == null){null;}
+                                    else{(complexResearch.id);}
+                                  }
+                                  else{
+                                    if (typeof researchChild == 'undefined' || researchChild == null){null;}
+                                    else
+                                       {researchChild.map(function(obj){return obj.id}).join(',');}
+                                       }
+                                ]]>
+                            </ctrl:set-value-expression>
+                    </ctrl:hidden>
+                        <fs:row>
+                            <ctrl:classifier id="biomaterial" label="Биоматериал" search-are-you-type="true"
+                                             label-style="width:95px;" control-style="width:210px;">
+                                <ctrl:query query-id="cliniclabBiomaterial" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="research" ref="researchs"/>
+                                        <!--<ctrl:pre-filter field-id="type" ref="depRole"/>-->
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression on="research" on-load="false" on-non-empty="true" on-invisible="false">
+                                    if ((typeof research != 'undefined') &amp;&amp; (research.id != null))
+                                    {
+                                    var o = new Object();
+                                    o.id = research.EtBiomaterial_id;
+                                    o.name = research.EtBiomaterial_name;
+                                    o;
+                                    }else {throw '!'}
+                                </ctrl:set-value-expression>
+                                <ctrl:actions>
+                                    <ctrl:button icon="icon-file" type="icon" label="Отображение результатов">
+                                        <!--<ctrl:open-page page-id="lab_research_result" master-field-id="research.service_id" detail-field-id="id"-->
+                                        <!--refresh-on-close="true"/>-->
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition>
+                                                (is_done == true)
+                                            </ctrl:visibility-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                </ctrl:actions>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)||(is_done == false)</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                    </fs:field-set>
+
+                    <fs:field-set header="line" field-label-location="left" label="Дополнительные сведения о пациенте" css-class="research-DopInfo"
+                            dependency-condition="(patient.genderId == 2)">
+                        <fs:row>
+                            <ctrl:classifier id="phase" label="Фаза цикла" search-are-you-type="true"
+                                    label-style="width:85px;" required="true">
+                                <ctrl:query query-id="menstrual_cycle_phases" value-field-id="id" label-field-id="name"/>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">1</ctrl:value>
+                                    <ctrl:value field-id="code">0</ctrl:value>
+                                    <ctrl:value field-id="name">Не указана</ctrl:value>
+                                    <ctrl:value field-id="ecode">1</ctrl:value>
+                                </ctrl:default-model>
+                                <ctrl:dependencies>
+                                    <!--<ctrl:required-condition>-->
+                                        <!--patient.genderId == 2-->
+                                    <!--</ctrl:required-condition>-->
+                                    <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)||(is_done == false)</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+
+                            <ctrl:input-text id="gestational_age" label="Срок беременности (недель)" label-style="width:120px;">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)||(is_done == false)</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                        </fs:row>
+                    </fs:field-set>
+
+                    <fs:field-set header="none" label="" field-label-location="top">
+                        <ctrl:text-area id="comment" label="Примечания" rows="3"
+                                        control-style="width:685px;" label-style="font-weight: bold;">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>(typeof id == 'undefined') || (id == null)||(is_done == false)</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:text-area>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+    </regions>
+
+</page>

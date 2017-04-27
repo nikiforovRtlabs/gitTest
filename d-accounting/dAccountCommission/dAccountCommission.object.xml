@@ -1,0 +1,97 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-2.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>dAccountCommission</name>
+
+    <actions>
+        <action id="create">
+            <invocation>
+                <rest:rest method="POST" >
+                    <rest:query>
+                        ${n2o.backend.path}/d-accounting/commissionReferral
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="order_number" mapping="['orderNumber']" domain="string"/>
+                <param name="generateOrderNumber" mapping="['generateOrderNumber']"/>
+                <param name="main_diagnos.id" mapping="['diagnosisId']"/>
+                <param name="goal.id" mapping="['goalId']"/>
+                <param name="referral_date" mapping="['referralDate']" domain="date"/>
+                <param name="organizationId" value="#{org.id}" mapping="['organizationId']"/>
+                <param name="patient.id" mapping="['patientId']"/>
+                <param name="recv_organization.id" mapping="['recvOrganizationId']"/>
+                <!-- todo need new version of n2o 3.0 <param name="diagnos.attr*.value_id" mapping="['attributeValues']" domain="integer[]"/>-->
+                <param name="main_diagnos.attr" mapping="['attributes']" domain="object[]"/>
+                <param name="clinicalForm.id" mapping="['clinicalFormId']" domain="integer"/>
+                <param name="localization.id" mapping="['localizationId']" domain="integer"/>
+                <param name="complication.id" mapping="['complicationId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="update">
+            <invocation>
+                <rest:rest method="PUT" >
+                    <rest:query>
+                        ${n2o.backend.path}/d-accounting/commissionReferral/{id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="order_number" mapping="['orderNumber']" domain="string"/>
+                <param name="generateOrderNumber" mapping="['generateOrderNumber']"/>
+                <param name="main_diagnos.id" mapping="['diagnosisId']"/>
+                <param name="goal.id" mapping="['goalId']"/>
+                <param name="referral_date" mapping="['referralDate']" domain="date"/>
+                <param name="organizationId" value="#{org.id}" mapping="['organizationId']"/>
+                <param name="patient.id" mapping="['patientId']"/>
+                <param name="recv_organization.id" mapping="['recvOrganizationId']"/>
+                <!-- todo need new version of n2o 3.0 <param name="diagnos.attr*.value_id" mapping="['attributeValues']" domain="integer[]"/>-->
+                <param name="main_diagnos.attr" mapping="['attributes']" domain="object[]"/>
+                <param name="clinicalForm.id" mapping="['clinicalFormId']" domain="integer"/>
+                <param name="localization.id" mapping="['localizationId']" domain="integer"/>
+                <param name="complication.id" mapping="['complicationId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="delete" name="Удаление направления">
+            <invocation>
+                <n2o:sql>
+                    delete from public.md_referral where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы действительно хотите удалить направление?</confirmation-text>
+            <validations activate="hasIssue"/>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="hasIssue" level="error">
+            <message>Невозможно удалить направление, по которому уже вынесено решение!</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from d_accounting.commission_issue ci
+                    where ci.referral_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

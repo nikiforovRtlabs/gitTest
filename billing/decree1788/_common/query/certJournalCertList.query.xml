@@ -1,0 +1,294 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>servicesCostCertificate</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from billing.services_cost_certificate cert
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from billing.services_cost_certificate cert
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>cert.id</expression>
+        </field>
+        <field>
+            <id>annuled</id>
+            <domain>boolean</domain>
+            <expression>cert.annuled</expression>
+            <search value="false">:expression = :annuled::bool</search>
+        </field>
+        <field>
+            <id>certAndRefusalFilter*.id</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search>
+                (1 in (:certAndRefusalFilter*.id) and not cert.refused
+                or
+                2 in (:certAndRefusalFilter*.id) and cert.refused)
+            </search>
+        </field>
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>cert.clinic_id</expression>
+            <search value="#{org.id?}">(:expression = :clinicId or :clinicId is null)</search>
+        </field>
+        <field>
+            <id>creationDate</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>cert.creation_date</expression>
+            <search>
+                <![CDATA[(:creationDate.begin::date is null or :expression >= :creationDate.begin) and
+                        (:creationDate.end::date is null or :expression <= :creationDate.end) ]]>
+            </search>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>creationDate.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>creationDate.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>employeeIssued.id</id>
+            <domain>integer</domain>
+            <expression>cert.employee_issued_id</expression>
+            <search>:expression = :employeeIssued.id</search>
+        </field>
+        <field>
+            <id>employeeIssued.name</id>
+            <domain>string</domain>
+            <name>Сотрудник</name>
+            <expression>
+                (select
+                concat(i.surname, ' ' || left(i.name, 1) || '.', ' ' || left(i.patr_name, 1) || '.', ', ' || pp.name)
+                from pim_employee_position ep
+                join pim_position pp on pp.id = ep.position_id
+                join pim_employee e on ep.employee_id = e.id
+                join pim_individual i on i.id = e.individual_id
+                where ep.id = cert.employee_issued_id)
+            </expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>mcase.id</id>
+            <domain>integer</domain>
+            <expression>cert.case_id</expression>
+        </field>
+        <field>
+            <id>mcaseIsNotNull</id>
+            <domain>boolean</domain>
+            <expression>cert.case_id</expression>
+            <search type="isNotNull"/>
+        </field>
+        <field>
+            <id>mcaseIsNull</id>
+            <domain>boolean</domain>
+            <expression>cert.case_id</expression>
+            <search type="isNull"/>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>string</domain>
+            <name>Номер</name>
+            <expression>cert.number</expression>
+            <search>:expression = :number</search>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>cert.patient_id</expression>
+            <search>:expression = :patient.id</search>
+        </field>
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>
+                (select concat(i.surname, ' ' || i.name, ' ' || i.patr_name)
+                from pci_patient p
+                join pim_individual i on p.id = i.id
+                where p.id = cert.patient_id)
+            </expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>periodBegin</id>
+            <domain>date</domain>
+            <name>Дата начала лечения</name>
+            <expression>
+                (case
+                 when cert.case_id is null
+                 then cert.period_begin
+                 else (select c.open_date from mc_case c where c.id = cert.case_id)
+                end)
+            </expression>
+            <search>
+                <![CDATA[(:periodBegin.begin::date is null or :expression >= :periodBegin.begin) and
+                        (:periodBegin.end::date is null or :expression <= :periodBegin.end) ]]>
+            </search>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>periodBegin.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>periodBegin.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>periodEnd</id>
+            <domain>date</domain>
+            <name>Дата окончания лечения</name>
+            <expression>
+                (case
+                 when cert.case_id is null
+                 then cert.period_end
+                 else (select s.outcome_date from mc_case c
+                       left join mc_step s on s.id = c.closing_step_id
+                       where c.id = cert.case_id)
+                end)
+            </expression>
+            <search>
+                <![CDATA[(:periodEnd.begin::date is null or :expression >= :periodEnd.begin) and
+                        (:periodEnd.end::date is null or :expression <= :periodEnd.end) ]]>
+            </search>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>periodEnd.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>periodEnd.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>receiver.id</id>
+            <domain>integer</domain>
+            <expression>cert.receiver_id</expression>
+            <search>:expression = :receiver.id</search>
+        </field>
+        <field>
+            <id>receiver.name</id>
+            <domain>string</domain>
+            <name>Получатель</name>
+            <expression>
+                (select
+                concat(ind.surname, ' ' || ind.name, ' ' || ind.patr_name)
+                from pim_individual ind
+                where ind.id = cert.receiver_id) ||
+                (case when cert.patient_id = cert.receiver_id then ' (пациент)' else
+                (select ' (представитель - ' || lower(coalesce(prsn.name, prts.name)) || ')'
+                from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i on prp1.party_id=i.id
+                join pim_party_relation_type_side prts on prts.id = prp1.side_id
+                left join pim_party_relation_side_name prsn on prsn.side_id = prts.id
+                where prp1.party_id = cert.receiver_id and prp2.party_id = cert.patient_id limit 1)
+                end)
+            </expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>receiverTypeFilter.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[
+                (:receiverTypeFilter.id = 1
+                or :receiverTypeFilter.id = 2 and cert.patient_id = cert.receiver_id
+                or :receiverTypeFilter.id = 3 and cert.patient_id <> cert.receiver_id)
+                ]]>
+            </search>
+        </field>
+        <field>
+            <id>refused</id>
+            <domain>boolean</domain>
+            <expression>cert.refused</expression>
+        </field>
+        <field>
+            <id>remark</id>
+            <domain>string</domain>
+            <expression>cert.remark</expression>
+        </field>
+        <field>
+            <id>totalCost</id>
+            <domain>interval{integer}</domain>
+            <name>Сумма</name>
+            <!--<expression>-->
+                <!--(case when cert.refused then '' else cast(cert.total_cost as varchar) end)-->
+            <!--</expression>-->
+            <expression>cert.total_cost</expression>
+            <search>
+                <![CDATA[(:totalCost.begin::varchar is null or :expression >= cast(:totalCost.begin as numeric)) and
+                        (:totalCost.end::varchar is null or :expression <= cast(:totalCost.end as numeric))]]>
+            </search>
+        </field>
+        <field>
+            <id>totalCost.begin</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>totalCost.end</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search>
+                (case
+                 when cert.case_id is null
+                 then exists(select 1
+                             from sr_srv_rendered ssrv
+                             join md_srv_rendered msrv on msrv.id = ssrv.id
+                             left join fin_funding_source_type fin on fin.id = ssrv.funding_id
+                             left join mc_case c on c.id = msrv.case_id
+                             where
+                             fin.code = 'OMS' and
+                             c.uid like '%' || :uid || '%' and
+                             c.clinic_id = cert.clinic_id and
+                             c.patient_id = cert.patient_id and
+                             ssrv.bdate between cert.period_begin and cert.period_end)
+                 else ((select c.uid from mc_case c where c.id = cert.case_id) like '%' || :uid || '%')
+                end)
+            </search>
+        </field>
+    </fields>
+</query>

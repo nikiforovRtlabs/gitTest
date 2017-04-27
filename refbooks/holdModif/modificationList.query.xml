@@ -1,0 +1,144 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>modification</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.hold_modif m
+                left outer join inventory.holding h on h.id=m.holding_id
+                left outer join inventory.form_type form on form.id=m.form_type_id
+                left outer join cmn_measure cm on cm.id=m.mnei_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(m)
+                from inventory.hold_modif m
+                left outer join inventory.holding h on h.id=m.holding_id
+                left outer join inventory.form_type form on form.id=m.form_type_id
+                left outer join cmn_measure cm on cm.id=m.mnei_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>m</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>m.name</expression>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <name>Код</name>
+            <search>upper(m.code) like '%'||upper(:code)||'%'</search>
+        </field>
+        <field>
+            <id>codeTfoms</id>
+            <domain>string</domain>
+            <name>Код ТФОМС</name>
+            <expression>m.code_tfoms</expression>
+        </field>
+        <field>
+            <id>inn.id</id>
+            <domain>integer</domain>
+            <expression>h.inn_id</expression>
+        </field>
+        <field>
+            <id>inn.name</id>
+            <domain>string</domain>
+            <expression>(select :inn.name)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>form.name</id>
+            <domain>string</domain>
+            <name>Форма выпуска</name>
+            <expression>form.short_name</expression>
+        </field>
+        <field>
+            <id>mnei.name</id>
+            <domain>string</domain>
+            <name>МНЕИ</name>
+            <expression>cm.name</expression>
+        </field>
+        <field>
+            <id>priceUnit.name</id>
+            <domain>string</domain>
+            <name>Ценовая ед.изм.</name>
+            <expression>
+                (case when m.price_unit_flag = 0
+                      then (select cm.name from cmn_measure cm where cm.id=m.mnei_id)
+                      else (case when m.price_unit_flag = 1
+                                 then(select cm.name from cmn_measure cm where cm.id=m.extra_pack_unit_id)
+                                 else(select cm.name from cmn_measure cm where cm.id=m.sec_pack_unit_id)
+                            end)
+                end)
+            </expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>m.org_owner_id</expression>
+            <search value="#{org.id?}">(:expression = :org.id or :expression is null)</search>
+        </field>
+        <field>
+            <id>holding.id</id>
+            <domain>integer</domain>
+            <expression>m.holding_id</expression>
+            <search>:expression = :holding.id</search>
+        </field>
+        <field>
+            <id>holding.latinName</id>
+            <domain>string</domain>
+            <expression>h.latin_name</expression>
+        </field>
+        <field>
+            <id>holdingPrototype.id</id>
+            <domain>integer</domain>
+            <expression>h.prototype_id</expression>
+        </field>
+        <field>
+            <id>holding.name</id>
+            <domain>string</domain>
+            <expression>h.name</expression>
+        </field>
+        <field>
+            <id>isCommon</id>
+            <domain>boolean</domain>
+            <name>Общий</name>
+            <expression>m.org_owner_id is null</expression>
+        </field>
+        <field>
+            <id>writeOffUnitFlag.name</id>
+            <domain>string</domain>
+            <name>Списание</name>
+            <expression>(case when m.write_off_unit_flag =0
+                 then 'Не списывать'
+                 else
+                      case when m.write_off_unit_flag =1
+                           then 'МНЭИ'
+                           else
+                                case when m.write_off_unit_flag =2
+                                then   'По дозировке' end
+                           end
+                 end)
+            </expression>
+        </field>
+        <field>
+            <id>isMedicinalPurpose</id>
+            <domain>boolean</domain>
+            <expression>coalesce(m.medicinal_purpose_flag,false)</expression>
+        </field>
+        <field>
+            <id>modifDosageUnit.id</id>
+            <domain>integer</domain>
+            <expression>(select unit_id from inventory.form_param_value where form_param_id=3 and hold_modif_id=m.id)</expression>
+        </field>
+    </fields>
+</query>

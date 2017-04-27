@@ -1,0 +1,87 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Контакты</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    insert into public.pim_indiv_contact (is_main, note, value, indiv_id, type_id)
+                    values(case when :is_main is null then false else :is_main end, :note, :value , :indiv_id, :type_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="is_main" mapping="['is_main']" domain="boolean"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="value" mapping="['value']" domain="string"/>
+                <param name="patient.id" mapping="['indiv_id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Контакт сохранен в системе.
+            </success-text>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    update public.pim_indiv_contact set type_id = :type_id, is_main = coalesce(:is_main, false), note = :note, value = :value where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="is_main" mapping="['is_main']" domain="boolean"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="value" mapping="['value']" domain="string"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+            </in-parameters>
+            <success-text>
+                Контакт сохранен в системе.
+            </success-text>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from public.pim_indiv_contact where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="value" mapping="['value']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что контакт {value} должен быть удален?
+            </confirmation-text>
+            <success-text>
+                Контакт {value} успешно удален.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkMainContact" level="error">
+            <message>Уже имеется контакт с признаком "основной" для данного вида.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*) as cnt
+                    from pim_indiv_contact ic
+                    where ic.indiv_id = :indiv_id
+                    and ic.type_id = :type_id
+                    and :is_main = true and ic.is_main = true
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['indiv_id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="is_main" mapping="['is_main']" domain="boolean"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="cnt" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

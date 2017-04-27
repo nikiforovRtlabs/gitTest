@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from sr_service s
+                  join sr_srv_type st on st.id = s.type_id
+                 where (st.is_physical is false or st.is_physical is null)
+                   and :where
+                 order by s.id
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(s) from sr_service s
+                  join sr_srv_type st on st.id = s.type_id
+                 where (st.is_physical is false or st.is_physical is null) and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>coalesce(s.code || ' ' || s.name, s.name)</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>s.org_id</expression>
+            <search>:expression = :orgId</search>
+        </field>
+        <field>
+            <id>fundTypeId</id>
+            <domain>integer</domain>
+            <expression>(case when exists(select 1 from sr_service_fin_type sr_ft where sr_ft.service_id = s.id and sr_ft.funding_id = :fundTypeId)
+                then :fundTypeId
+                else null
+                end)
+            </expression>
+            <search>:expression = :fundTypeId</search>
+        </field>
+        <field>
+            <id>isSurgery</id>
+            <domain>boolean</domain>
+            <expression>st.is_surgery</expression>
+        </field>
+        <field>
+            <id>gender</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+                (:gender != 'MALE' or st.code not in ('PHYSIOLOGICAL_BIRTH', 'CAESARIAN') or st.code is null)
+             ]]>
+            </search>
+        </field>
+        <field>
+            <id>dt</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+                ((s.from_dt is null or s.from_dt<=to_date(:dt, 'yyyy-MM-dd')) and (s.to_dt is null or s.to_dt>=to_date(:dt, 'yyyy-MM-dd')))
+             ]]>
+            </search>
+        </field>
+    </fields>
+
+</query>

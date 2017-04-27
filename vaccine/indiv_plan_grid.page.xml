@@ -1,0 +1,162 @@
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:pgw="http://n2oapp.net/framework/config/schema/plan-grid-widget-1.0"
+        >
+    <properties>
+        <property key="pageNameDisabled" value="true"/>
+    </properties>
+    <object-id>indiv_plan</object-id>
+    <name>Индивидуальное планирование</name>
+    <layout>n2o/layout/single</layout>
+
+    <regions>
+        <region place="single" type="none">
+            <container id="main">
+                <pgw:plan-widget>
+                    <pgw:query-id>indiv_plan_grid</pgw:query-id>
+                    <pgw:filters>
+                        <rc:patient id="patient" label="Пациент" control-style="min-width:220px;width:100%;max-width:450px;" css-class="vac_patient clearfix">
+                            <rc:validations>
+                                <rc:validation ref-id="has_birth_date"/>
+                                <rc:validation ref-id="has_uid"/>
+                            </rc:validations>
+                        </rc:patient>
+                        <ctrl:classifier id="calendar" control-style="width:350px;"  label="Календарь" search-as-you-type="true" css-class="inline-filter inline-filter--calendar">
+                            <ctrl:query query-id="national_calendar" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <!--<ctrl:checkbox control-style="width:100px;" id="isGroupOfRisk" label="Группа риска" css-class="inline-filter inline-filter&#45;&#45;riskgroup"/>-->
+                        <ctrl:multi-classifier id="groupOfRiskDiseases" label="Группа риска" depends-on="calendar"
+                                               css-class="inline-filter inline-filter__riskgroup">
+                            <ctrl:query query-id="diseases" value-field-id="id" label-field-id="label">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="is_multi" value="false"/>
+                                    <ctrl:pre-filter field-id="calendar_id" ref="calendar.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:multi-classifier>
+                    </pgw:filters>
+
+                    <!--<action-menu >-->
+                    <!--<menu-item id="id" label="Label" context="true" type="textAndIcon" icon="icon-edit" color="red">-->
+                        <!--<show-modal page-id="assign_all" action-id="" model="default" >-->
+                            <!---->
+                        <!--</show-modal>-->
+                        <!---->
+                    <!--<invoke-action action-id="delete" confirmation="true"/>-->
+                    <!--</menu-item>-->
+                    <!--</action-menu>-->
+
+                    <pgw:action-menu>
+                        <pgw:menu-item id="assign_all_infections" label="Назначить всё" context="false" type="textAndIcon"
+                                       icon="glyphicons glyphicons-ok-2">
+                            <pgw:show-modal page-id="assign_all" action-id="apply-calendar" model="default" >
+
+                            </pgw:show-modal>
+                            <pgw:conditions>
+                                <pgw:visibility-condition>
+                                    <pgw:expression>
+                                        patient !== null &amp;&amp; calendar !== null
+                                    </pgw:expression>
+                                </pgw:visibility-condition>
+                            </pgw:conditions>
+                        </pgw:menu-item>
+
+                        <pgw:menu-item id="rollback_assignation" label="Отменить назначения" context="false" type="textAndIcon"
+                                       icon="glyphicons glyphicons-remove-2">
+                            <pgw:show-modal page-id="rollback_assignation" action-id="rollback-assignation" model="default" >
+
+                            </pgw:show-modal>
+                            <pgw:conditions>
+                                <pgw:visibility-condition>
+                                    <pgw:expression>
+                                        patient !== null
+                                    </pgw:expression>
+                                </pgw:visibility-condition>
+                            </pgw:conditions>
+                        </pgw:menu-item>
+
+                        <!--<pgw:menu-item id="assign_against_some_infections" label="Назначить некоторые" context="false"-->
+                                       <!--type="textAndIcon" icon="glyphicons glyphicons-option-vertical">-->
+                            <!--<pgw:show-modal-form form-id="assign_against_some_infections">-->
+                                <!--<pgw:edit>-->
+                                    <!--<pgw:invoke-action action-id="assign"/>-->
+                                <!--</pgw:edit>-->
+                            <!--</pgw:show-modal-form>-->
+                            <!--<pgw:conditions>-->
+                                <!--<pgw:visibility-condition>-->
+                                    <!--<pgw:expression>-->
+                                        <!--patient !== null &amp;&amp; calendar !== null-->
+                                    <!--</pgw:expression>-->
+                                <!--</pgw:visibility-condition>-->
+                            <!--</pgw:conditions>-->
+                        <!--</pgw:menu-item>-->
+
+                        <pgw:menu-item id="add_scheme_template" label="Задать схему" context="false" type="textAndIcon" icon="glyphicons glyphicons-medicine">
+                            <pgw:show-modal-form form-id="add_scheme_template">
+                                <pgw:edit>
+                                    <pgw:invoke-action action-id="apply-schema"/>
+                                </pgw:edit>
+                            </pgw:show-modal-form>
+                            <pgw:conditions>
+                                <pgw:visibility-condition>
+                                    <pgw:expression>
+                                        patient !== null
+                                    </pgw:expression>
+                                </pgw:visibility-condition>
+                            </pgw:conditions>
+                        </pgw:menu-item>
+
+                        <pgw:menu-item id="update" label="Редактировать" context="true" type="textAndIcon" icon="icon-edit">
+                            <pgw:show-modal
+                                    page-id="inoculation"
+                                    container-id="inoculation"
+                                    refresh-on-close="true">
+                            </pgw:show-modal>
+                        </pgw:menu-item>
+
+                        <pgw:menu-item id="addInoculation" label="Прививка" type="textAndIcon" icon="icon-plus" context="false">
+                            <pgw:show-modal-form form-id="inoculation" refresh-on-close="true" page-name="Создание прививки">
+                                <pgw:edit create-more="true">
+                                    <pgw:invoke-action action-id="create"/>
+                                </pgw:edit>
+                                    <pgw:pre-filters>
+                                        <pgw:pre-filter field-id="isMantu" value="false"/>
+                                    </pgw:pre-filters>
+                            </pgw:show-modal-form>
+                            <pgw:conditions>
+                                <pgw:visibility-condition>
+                                    <pgw:expression>
+                                        patient !== null
+                                    </pgw:expression>
+                                </pgw:visibility-condition>
+                            </pgw:conditions>
+                        </pgw:menu-item>
+
+                        <pgw:menu-item id="addProba" label="Проба" type="textAndIcon" icon="icon-plus" context="false">
+                            <pgw:show-modal-form form-id="inoculation" refresh-on-close="true" page-name="Создание пробы">
+                                <pgw:edit create-more="true">
+                                    <pgw:invoke-action action-id="create"/>
+                                </pgw:edit>
+                                    <pgw:pre-filters>
+                                        <pgw:pre-filter field-id="isMantu" value="true"/>
+                                    </pgw:pre-filters>
+                            </pgw:show-modal-form>
+                            <pgw:conditions>
+                                <pgw:visibility-condition>
+                                    <pgw:expression>
+                                        patient !== null
+                                    </pgw:expression>
+                                </pgw:visibility-condition>
+                            </pgw:conditions>
+                        </pgw:menu-item>
+
+                        <pgw:menu-item id="delete" label="Удалить" context="true" type="textAndIcon" icon="glyphicons glyphicons-bin" color="btn-danger">
+                            <pgw:invoke-action action-id="delete" confirmation="true"/>
+                        </pgw:menu-item>
+                    </pgw:action-menu>
+                </pgw:plan-widget>
+            </container>
+        </region>
+    </regions>
+</page>

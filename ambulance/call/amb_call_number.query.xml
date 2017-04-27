@@ -1,0 +1,101 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>Номера</name>
+    <object-id>call_paper</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from
+                (select distinct
+                cast(bn.change_id as varchar)|| '' ||unnest(bn.numbers) as id,
+                unnest(bn.numbers) as n,
+                ac.id as ch_id,
+                ac.from_data as data,
+                ns.clinic_id as org_id,
+                num.dep_id as dep_id
+                from amb.md_ambulance_bum_numbers bn
+                join amb.md_ambulance_change ac on ac.id = bn.change_id
+                join amb.md_ambulance_numbers num on num.dep_id = ac.department_id
+                join amb.md_ambulance_numb_setting ns on ns.clinic_id = ac.clinic_id)
+                as num
+                where :where
+                order by :order
+
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from
+                (select distinct
+                cast(bn.change_id as varchar)|| '' ||unnest(bn.numbers) as id,
+                unnest(bn.numbers) as n,
+                ac.id as ch_id,
+                ac.from_data as data,
+                ns.clinic_id as org_id,
+                num.dep_id as dep_id
+                from amb.md_ambulance_bum_numbers bn
+                join amb.md_ambulance_change ac on ac.id = bn.change_id
+                join amb.md_ambulance_numbers num on num.dep_id = ac.department_id
+                join amb.md_ambulance_numb_setting ns on ns.clinic_id = ac.clinic_id)
+                as num
+                where :where
+            </n2o:count-query>
+            <n2o:alias>num</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>string</domain>
+            <name>Идентификатор</name>
+            <expression>id</expression>
+
+        </field>
+        <field>
+            <id>number</id>
+            <domain>integer</domain>
+            <name>Номер</name>
+            <expression>n</expression>
+            <!--<search>n in (:number*)</search>-->
+        </field>
+        <!--<field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression></expression>
+        </field>-->
+        <field>
+            <id>change.id</id>
+            <domain>integer</domain>
+            <expression>ch_id</expression>
+        </field>
+        <field>
+            <id>change.data</id>
+            <domain>date</domain>
+            <name>Смена</name>
+            <expression>data</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>org_id</expression>
+            <search>(:expression = :org.id)</search>
+        </field>
+        <field>
+            <id>dep.id</id>
+            <domain>integer</domain>
+            <expression>dep_id</expression>
+            <search>(:expression = :dep.id)</search>
+        </field>
+        <field>
+            <id>isUsed</id>
+            <domain>boolean</domain>
+            <expression>(case when exists(select * from amb.md_ambulance_call cal where cast(cal.from_time as date) = data and cal.call_number = n )
+                then true
+                else false end)
+            </expression>
+        </field>
+
+    </fields>
+</query>

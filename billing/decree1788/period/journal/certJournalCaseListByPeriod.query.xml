@@ -1,0 +1,152 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>certCase</object-id>
+    <name>Список случаев</name>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                <![CDATA[with certificate as (
+                select cert.clinic_id, cert.patient_id, cert.period_begin, cert.period_end
+                from billing.services_cost_certificate cert
+                where cert.id = :certId
+                )
+                select :select
+                from sr_srv_rendered ssrv
+                join md_srv_rendered msrv on msrv.id = ssrv.id
+                left join fin_funding_source_type fin on fin.id = ssrv.funding_id
+                left join mc_case c on c.id = msrv.case_id
+                join mc_case_type case_type on case_type.id = c.case_type_id
+                join mc_case_init_goal init_goal on init_goal.id = c.init_goal_id
+                left join mc_care_regimen care_reg on care_reg.id = c.care_regimen_id
+                left join mc_step closing_step on closing_step.id = c.closing_step_id
+                left join mc_step_result closing_step_result on closing_step_result.id = closing_step.result_id
+                where
+                fin.code = 'OMS' and
+                c.clinic_id = (select clinic_id from certificate) and
+                c.patient_id = (select patient_id from certificate) and
+                ssrv.bdate between (select period_begin from certificate) and (select period_end from certificate)
+                order by :order
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                <![CDATA[with certificate as (
+                select cert.clinic_id, cert.patient_id, cert.period_begin, cert.period_end
+                from billing.services_cost_certificate cert
+                where cert.id = :certId
+                )
+                select count(1)
+                from sr_srv_rendered ssrv
+                join md_srv_rendered msrv on msrv.id = ssrv.id
+                left join fin_funding_source_type fin on fin.id = ssrv.funding_id
+                left join mc_case c on c.id = msrv.case_id
+                join mc_case_type case_type on case_type.id = c.case_type_id
+                join mc_case_init_goal init_goal on init_goal.id = c.init_goal_id
+                left join mc_care_regimen care_reg on care_reg.id = c.care_regimen_id
+                left join mc_step closing_step on closing_step.id = c.closing_step_id
+                left join mc_step_result closing_step_result on closing_step_result.id = closing_step.result_id
+                where
+                fin.code = 'OMS' and
+                c.clinic_id = (select clinic_id from certificate) and
+                c.patient_id = (select patient_id from certificate) and
+                ssrv.edate between (select period_begin from certificate) and (select period_end from certificate)
+                ]]>
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>distinct c.id</expression>
+            <search>c.id = case.id</search>
+        </field>
+        <field>
+            <id>careRegimen.id</id>
+            <domain>integer</domain>
+            <expression>c.care_regimen_id</expression>
+            <search>:expression = :careRegimen.id</search>
+        </field>
+        <field>
+            <id>careRegimen.name</id>
+            <domain>string</domain>
+            <expression>care_reg.name</expression>
+            <name>Условия оказания</name>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>certId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>closedDate</id>
+            <domain>date</domain>
+            <name>Дата закрытия</name>
+            <expression>closing_step.outcome_date</expression>
+        </field>
+        <field>
+            <id>doctor</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <expression>
+                (select concat(i.surname, ' ' || left(i.name, 1) || '.', ' ' || left(i.patr_name, 1) || '.', ', ' || pp.name)
+                from sr_res_group rg
+                join pim_employee_position ep on ep.id = rg.responsible_id
+                join pim_position pp on pp.id = ep.position_id
+                join pim_employee e on e.id = ep.employee_id
+                join pim_individual i on i.id = e.individual_id
+                where rg.id =
+                     (select s.res_group_id
+                      from mc_step s
+                      where s.case_id = c.id
+                      order by s.admission_date desc, s.admission_time desc, s.id desc limit 1))
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>initGoal.id</id>
+            <domain>integer</domain>
+            <expression>c.init_goal_id</expression>
+            <search>:expression = :initGoal.id</search>
+        </field>
+        <field>
+            <id>initGoal.name</id>
+            <domain>string</domain>
+            <expression>init_goal.name</expression>
+            <name>Цель обращения</name>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>openDate</id>
+            <domain>date</domain>
+            <name>Дата открытия</name>
+            <expression>c.open_date</expression>
+        </field>
+        <field>
+            <id>resultName</id>
+            <domain>string</domain>
+            <name>Результат</name>
+            <expression>closing_step_result.name</expression>
+        </field>
+        <field>
+            <id>typeName</id>
+            <domain>string</domain>
+            <name>Вид случая</name>
+            <expression>case_type.name</expression>
+        </field>
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <name>Номер случая</name>
+            <expression>c.uid</expression>
+            <sorting>:expression</sorting>
+        </field>
+    </fields>
+</query>

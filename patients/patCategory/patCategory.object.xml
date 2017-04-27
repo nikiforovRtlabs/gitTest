@@ -1,0 +1,167 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <!-- <id>patCategory</id>-->
+    <name>Категории пациента</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                        UPDATE public.pci_patient_category
+                        SET to_dt = cast(cast(:from_dt as date) - cast('1 day' as interval) as date)
+                        WHERE id in
+                            (select ppc.id
+                            from pci_patient_category ppc
+                            WHERE ppc.patient_id = :patient_id
+                                and category_id = :category_id
+                                and :id is null
+                                and ppc.from_dt < :from_dt
+                                and ppc.to_dt is null);
+
+                        INSERT INTO public.pci_patient_category (patient_id,category_id,from_dt, to_dt, note)
+                        VALUES (:patient_id, :category_id, :from_dt, :to_dt, :note)
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="category.id" mapping="['category_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[1][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Запись о категории пациента сохранена в системе.
+            </success-text>
+        </action>
+
+        <action id="update" name="Изменить">
+            <invocation>
+                <n2o:sql>
+                    UPDATE public.pci_patient_category
+                    SET category_id = :category_id,
+                    from_dt = :from_dt,
+                    to_dt = :to_dt,
+                    note = :note
+                    WHERE id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="category.id" mapping="['category_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+            <success-text>
+                Изменение записи о категории пациента сохранено в системе.
+            </success-text>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    DELETE FROM public.pci_patient_category WHERE id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="short_name" mapping="['short_name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что категория "{short_name}" должна быть удалена?
+            </confirmation-text>
+            <success-text>
+                Категория "{short_name}" успешно удалена.
+            </success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="checkUniquePatCategory" level="error" moment="before-action">
+            <message>Даты действия пересекаются с пересекается с интервалами существующих записей.</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                    select count(*)
+                    from pci_patient_category ppc
+                    where ppc.patient_id = :patient_id
+                        and category_id = :category_id
+                        and not ( ppc.from_dt > :to_dt and cast(:to_dt as date) is not null and ppc.from_dt is not null
+                        or ppc.to_dt < :from_dt and ppc.to_dt is not null)
+                        and (:id is null or ppc.id != :id)
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="category.id" mapping="['category_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="messPatCategor" level="warning" moment="before-action">
+            <message>Действующие записи будут закрыты датой {date}.</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                    select count(*), to_char(cast(cast(:from_dt as date) - cast('1 day' as interval) as date),'dd.mm.yyyy')
+                    from pci_patient_category ppc
+                            WHERE ppc.patient_id = :patient_id
+                                and category_id = :category_id
+                                and :id is null
+                                and ppc.from_dt < :from_dt
+                                and ppc.to_dt is null;
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="category.id" mapping="['category_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="date" mapping="[0][0][1]" domain="date"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="checkDate" level="error" moment="before-action">
+            <message>Дата окончания должна быть позже даты начала.</message>
+            <expression on="to_dt"><![CDATA[
+                ((to_dt == null) ||
+                (moment(to_dt, 'DD.MM.YYYY') >= moment(from_dt, 'DD.MM.YYYY'))
+                )
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="checkFromDate" level="error" moment="before-action">
+            <message>Дата начала не может быть раньше даты рождения.</message>
+            <invocation>
+                <n2o:sql>
+                    select (:from_dt > birth_dt or birth_dt is null)
+                    from pim_individual
+                    where id = :patient_id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+    </validations>
+</object>

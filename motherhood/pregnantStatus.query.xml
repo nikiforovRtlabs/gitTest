@@ -1,0 +1,107 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>pregnant_map</object-id>
+    <name>История изменений статуса беременной</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from (
+                    select concat('Наблюдение за течением беременности c ', to_char((:reg_dt)::date, 'DD.MM.YYYY'),
+                    case when (:unregDate)::date is not null then concat(' по ', to_char((:unregDate)::date, 'DD.MM.YYYY')) end) as name, (:reg_dt)::date as from_dt
+                    union all
+                    select concat('Госпитализирована в ''', o.short_name, ''' с ', to_char(open_date, 'DD.MM.YYYY'),
+                    case when close_date is not null then concat(' по ', to_char(close_date, 'DD.MM.YYYY')) end) as name, open_date as from_dt
+                    from mc_case c
+                    join pim_organization o on o.id = c.clinic_id
+                    where c.patient_id = :patient.id and c.case_type_id = 2
+                    and c.open_date is not null and c.open_date between (:reg_dt)::date and coalesce((:unregDate)::date, date 'infinity')
+                    union all
+                    select concat('Родоразрешение ', to_char((:birth_dt)::date, 'DD.MM.YYYY')) as name, (:birth_dt)::date as from_dt
+                    where (:birth_dt)::date is not null and (select count(1) = 0 from mc_case where patient_id = :patient.id and closing_step_id is null and case_type_id = 2
+                    and open_date is not null and open_date between (:reg_dt)::date and coalesce((:unregDate)::date, date 'infinity'))
+                ) st
+                where :where
+                order by st.from_dt, st.name
+            </n2o:items-query>
+            <n2o:count-query>select count(st)
+                from (
+                    select concat('Наблюдение за течением беременности c ', to_char((:reg_dt)::date, 'DD.MM.YYYY'),
+                    case when (:unregDate)::date is not null then concat(' по ', to_char((:unregDate)::date, 'DD.MM.YYYY')) end) as name, (:reg_dt)::date as from_dt
+                    union all
+                    select concat('Госпитализирована в ''', o.short_name, ''' с ', to_char(open_date, 'DD.MM.YYYY'),
+                    case when close_date is not null then concat(' по ', to_char(close_date, 'DD.MM.YYYY')) end) as name, open_date as from_dt
+                    from mc_case c
+                    join pim_organization o on o.id = c.clinic_id
+                    where c.patient_id = :patient.id and c.case_type_id = 2
+                    and c.open_date is not null and c.open_date between (:reg_dt)::date and coalesce((:unregDate)::date, date 'infinity')
+                    union all
+                    select concat('Родоразрешение ', to_char((:birth_dt)::date, 'DD.MM.YYYY')) as name, (:birth_dt)::date as from_dt
+                    where (:birth_dt)::date is not null and (select count(1) = 0 from mc_case where patient_id = :patient.id and closing_step_id is null and case_type_id = 2
+                    and open_date is not null and open_date between (:reg_dt)::date and coalesce((:unregDate)::date, date 'infinity'))
+                ) st
+                where :where
+                where :where
+            </n2o:count-query>
+            <n2o:alias>st</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>st.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <name>Дата начала</name>
+            <expression>st.from_dt</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>reg_dt</id>
+            <domain>date</domain>
+            <expression>1</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="reg_dt">1 = 1</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>unregDate</id>
+            <domain>date</domain>
+            <expression>1</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="unregDate">1 = 1</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>birth_dt</id>
+            <domain>date</domain>
+            <expression>1</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="birth_dt">1 = 1</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>1</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="patient.id">1 = 1</filter>
+            </filters>
+        </field>
+    </fields>
+</query>

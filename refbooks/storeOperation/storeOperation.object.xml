@@ -1,0 +1,149 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Складская операция</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into inventory.store_opr(id,code,
+                    name,org_id,opr_type_id,opr_kind_id,referral,sender_type_id, rec_type_id)
+                    values( nextval('inventory.store_opr_seq'),:code,:name,:orgId,:storeOprTypeId,
+                    (case when :isExternal is true then 0 else 1 end),(case when :isDirect is true then 0 else 1 end),
+                    :sendStoreTypeId,:recStoreTypeId)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="storeOprType.id" mapping="['storeOprTypeId']"/>
+                <param name="isExternal" mapping="['isExternal']"/>
+                <param name="isDirect" mapping="['isDirect']"/>
+                <param name="sendStoreType.id" mapping="['sendStoreTypeId']"/>
+                <param name="recStoreType.id" mapping="['recStoreTypeId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+        </action>
+
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update inventory.store_opr set
+                    code = :code,
+                    name = :name,
+                    org_id = :orgId,
+                    opr_type_id = :storeOprTypeId,
+                    sender_type_id = :sendStoreTypeId,
+                    rec_type_id = :recStoreTypeId,
+                    opr_kind_id = (case when :isExternal is true then 0 else 1 end),
+                    referral = (case when :isDirect is true then 0 else 1 end)
+                    where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="storeOprType.id" mapping="['storeOprTypeId']"/>
+                <param name="isExternal" mapping="['isExternal']"/>
+                <param name="isDirect" mapping="['isDirect']"/>
+                <param name="sendStoreType.id" mapping="['sendStoreTypeId']"/>
+                <param name="recStoreType.id" mapping="['recStoreTypeId']"/>
+            </in-parameters>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    DELETE from inventory.store_opr where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="refFromArrivalInvoiceExists"/>
+                <validation ref-id="refFromExpInvoiceExists"/>
+                <validation ref-id="refFromWriteOffDocExists"/>
+                <validation ref-id="refFromReturnDocExists"/>
+            </validations>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="checkUniqueCode" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.store_opr
+                    where upper(code) = upper(:code)
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Складская операция c таким кодом уже существует</message>
+        </constraint>
+
+        <constraint id="refFromArrivalInvoiceExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Приходной накладной.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.arrival_invoice where store_opr_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+        <constraint id="refFromExpInvoiceExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Расходной накладной.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.exp_invoice where store_opr_arr_id = :id or store_opr_exp_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+        <constraint id="refFromWriteOffDocExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Документа на списание.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.write_off_document where store_opr_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+        <constraint id="refFromReturnDocExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Возвратного документа.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.return_document where store_opr_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+
+</object>

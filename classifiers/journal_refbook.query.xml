@@ -1,0 +1,156 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>journal_refbook</object-id>
+    <name>journal_refbook</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                with t as(select unnest(con1.conkey) as "parent", unnest(con1.confkey) as "child", con1.confrelid, con1.conrelid, ns.nspname as "schema_name"
+                from pg_class cl
+                join pg_namespace ns on cl.relnamespace = ns.oid
+                join pg_constraint con1 on con1.conrelid = cl.oid
+                where cl.relname = 'mc_case' and ns.nspname = 'public' and con1.contype = 'f')
+
+                select :select
+                from t
+                join pg_attribute att on att.attrelid = t.confrelid and att.attnum = t.child
+                join pg_class cl on cl.oid = t.confrelid
+                join pg_attribute att2 on att2.attrelid = t.conrelid and att2.attnum = t.parent
+                where cl.relname != 'md_diagnosis' and (select count(1) = 3 from pg_attribute att3 where att3.attrelid = att.attrelid and att3.attname in ('e_code', 'name', 'code'))
+                and coalesce(upper(col_description(att2.attrelid, att2.attnum)), '') != upper('deprecated')
+                and :where
+            </n2o:items-query>
+            <n2o:count-query>
+                with t as(select unnest(con1.conkey) as "parent", unnest(con1.confkey) as "child", con1.confrelid, con1.conrelid, ns.nspname as "schema_name"
+                from pg_class cl
+                join pg_namespace ns on cl.relnamespace = ns.oid
+                join pg_constraint con1 on con1.conrelid = cl.oid
+                where cl.relname = 'mc_case' and ns.nspname = 'public' and con1.contype = 'f')
+
+                select count(1)
+                from t
+                join pg_attribute att on att.attrelid = t.confrelid and att.attnum = t.child
+                join pg_class cl on cl.oid = t.confrelid
+                join pg_attribute att2 on att2.attrelid = t.conrelid and att2.attnum = t.parent
+                where cl.relname != 'md_diagnosis' and (select count(1) = 3 from pg_attribute att3 where att3.attrelid = att.attrelid and att3.attname in ('e_code', 'name', 'code'))
+                and coalesce(upper(col_description(att2.attrelid, att2.attnum)), '') != upper('deprecated')
+                and :where
+            </n2o:count-query>
+            <n2o:alias>t</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>string</domain>
+            <expression>t.schema_name||'.'||cl.relname||'.'||att2.attname</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Наименование справочника</name>
+            <expression>
+                concat(
+                coalesce((select obj_description(cl.relname::regclass, 'pg_class')), cl.relname),
+                '  (',
+                coalesce(case when upper(col_description(att2.attrelid, att2.attnum)) = upper('deprecated')
+                then 'Поле '||att2.attname||' не используется'
+                else col_description(att2.attrelid, att2.attnum) end, att2.attname),
+                ')')
+            </expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="name">(select upper(trim(:expression)) like '%' || upper(trim(:name)) || '%')</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>parent_table.id</id>
+            <domain>string</domain>
+            <expression>cl.relname</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>parent_table.name</id>
+            <domain>string</domain>
+            <name>Наименование справочника</name>
+            <expression>
+               obj_description(cl.relname::regclass, 'pg_class')
+            </expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="parent_table.name">(upper(trim(:expression)) like '%' || upper(trim(:parent_table.name)) || '%')</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>parent_table.table_name</id>
+            <domain>string</domain>
+            <name>Таблица справочника</name>
+            <expression>
+                t.schema_name||'.'||cl.relname
+            </expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="parent_table.table_name">(upper(trim(:expression)) like '%' || upper(trim(:parent_table.table_name)) || '%')</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>child_column.id</id>
+            <domain>string</domain>
+            <expression>att2.attname</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>child_column.name</id>
+            <domain>string</domain>
+            <name>Наименование колонки в таблице mc_case</name>
+            <expression>
+                col_description(att2.attrelid, att2.attnum)
+            </expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="child_column.name">(upper(trim(:expression)) like '%' || upper(trim(:child_column.name)) || '%')</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>child_column.column_name</id>
+            <domain>string</domain>
+            <name>Колонка в таблице mc_case</name>
+            <expression>
+                att2.attname
+            </expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="child_column.column_name">(upper(trim(:expression)) like '%' || upper(trim(:child_column.column_name)) || '%')</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>parent_column.id</id>
+            <domain>string</domain>
+            <name>Колонка в справочнике</name>
+            <expression>att.attname</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>schema_name</id>
+            <domain>string</domain>
+            <name>Схема</name>
+            <expression>t.schema_name</expression>
+            <display/>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,105 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Настройка журналов мониторинга</name>
+
+    <actions>
+        <action id="create" name="Сохранение">
+            <invocation>
+                <n2o:sql>
+                    select monitoring.save_journal(
+                    null,
+                    trim(:name)::text,
+                    :type_id,
+                    :kind_id,
+                    :is_active::boolean,
+                    :org_id::integer,
+                    :clinic_id);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="kind.id" mapping="['kind_id']" domain="integer"/>
+                <param name="is_active" mapping="['is_active']" domain="boolean"/>
+                <param name="orgId" mapping="['org_id']" domain="integer"/>
+                <param name="clinic.id" mapping="['clinic_id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+            <success-text>Создан новый журнал '{name}'.</success-text>
+            <fail-text>Не удалось создать новый журнал.</fail-text>
+        </action>
+
+        <action id="update" name="Редактирование">
+            <invocation>
+                <n2o:sql>
+                    select monitoring.save_journal(
+                    :id,
+                    trim(:name)::text,
+                    :type_id,
+                    :kind_id,
+                    :is_active::boolean,
+                    :org_id::integer,
+                    :clinic_id);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="kind.id" mapping="['kind_id']" domain="integer"/>
+                <param name="is_active" mapping="['is_active']" domain="boolean"/>
+                <param name="orgId" mapping="['org_id']" domain="integer"/>
+                <param name="clinic.id" mapping="['clinic_id']" domain="integer"/>
+            </in-parameters>
+            <success-text>Журнал '{name}' обновлен.</success-text>
+            <fail-text>Не удалось обновить журнал '{name}'.</fail-text>
+        </action>
+
+        <action id="delete" name="delete">
+            <invocation>
+                <n2o:sql>
+                    delete from monitoring.mn_journal where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить журнал '{name}'?</confirmation-text>
+            <success-text>Журнал '{name}' удален.</success-text>
+            <fail-text>Не удалось удалить журнал '{name}'.</fail-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="unique_name" level="error">
+            <message>Наименование журнала мониторинга должно быть уникальным.</message>
+            <invocation>
+                <n2o:sql>
+                    select count(1) from monitoring.mn_journal j
+                    JOIN monitoring.mn_journal_access mja ON j.id = mja.journal_id
+                    where Upper(trim(j.name)) = Upper(trim(:name)) and (:id is null or j.id != :id)
+                    and mja.clinic_id = coalesce(:clinic_id::integer,:org_id)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="clinic.id" mapping="['clinic_id']" domain="integer"/>
+                <param name="orgId" mapping="['org_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <condition id="ageOverZero" level="error">
+            <message>Число быть больше нуля</message>
+            <expression on="age">
+            <![CDATA[
+                age == '' || age > 0
+            ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

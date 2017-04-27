@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>История болезни</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/hospital/medical-history
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['stepId']"/>
+                <param name="case.id" mapping="['caseId']"/>
+                <param name="issuePlannedDate" mapping="['issuePlannedDate']"/>
+                <param name="provisionCondition.id" mapping="['provisionConditionId']"/>
+                <param name="diet_f.id" mapping="['dietId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="reopen" name="Переоткрыть">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/hospital/reopen?caseId={caseId}&amp;userId={userId}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="caseId" mapping="['caseId']"/>
+                <param name="userId" mapping="['userId']" value="#{user.id}"/>
+            </in-parameters>
+            <success-text>Случай переоткрыт.</success-text>
+            <confirmation-text>Вы уверены, что хотите переоткрыть случай ?</confirmation-text>
+            <validations activate="whiteList">
+                <validation ref-id="clearDeathData"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="clearDeathData" level="warning">
+            <invocation>
+                <sql:sql>
+                    select
+                        i.death_dt is null
+                        and p.death_src_inf_id is null
+                        and p.empl_state_death_id is null
+                    from pim_individual i
+                    join pci_patient p on p.id = i.id
+                    where i.id = (select patient_id from mc_case where id = :caseId)
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0] == true"/>
+            <in-parameters>
+                <param name="caseId" mapping="['caseId']"/>
+            </in-parameters>
+            <message>В случае отмены выписки, данные о смерти будут удалены.</message>
+        </constraint>
+    </validations>
+
+</object>

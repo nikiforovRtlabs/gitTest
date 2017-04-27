@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>deliveryPlanResult</name>
+    <object-id>finContract</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+             from(
+                  select sum(i.amount_fact) commonSum,
+                        (case when d.doc_status_id=2 then sum(i.amount_fact) end) executedSum,
+                         i.base_doc_id contractId
+                  from inventory.arrival_invoice i
+                       inner join inventory.document d on d.id=i.id
+                  where i.base_doc_id= :contract.id
+                  group by i.base_doc_id,d.doc_status_id
+                ) sumList
+            </n2o:items-query>
+            <n2o:count-query>select 1</n2o:count-query>
+            <n2o:alias>sumList</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>contract.id</id>
+            <domain>integer</domain>
+            <expression>contractId</expression>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>amountSum</id>
+            <domain>string</domain>
+            <name>Сумма по документам</name>
+            <expression>coalesce(sum(commonSum),0)||' руб.' </expression>
+        </field>
+        <field>
+            <id>executedAmountSum</id>
+            <domain>string</domain>
+            <name>, в том числе по проведенным</name>
+            <expression>coalesce(sum(executedSum),0)||' руб.'</expression>
+        </field>
+    </fields>
+</query>

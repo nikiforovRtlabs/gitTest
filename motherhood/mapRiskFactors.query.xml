@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>riskFactors</object-id>
+    <name>Группы риска</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from motherhood.risk_factory_group a,
+                motherhood.mh_pregnant_map m
+                where begin_dt &lt;= current_date and (end_dt is null or end_dt >= current_date)
+                and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(a)
+                from motherhood.risk_factory_group a
+                where begin_dt &lt;= current_date and (end_dt is null or end_dt >= current_date)
+                and :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display>a.id</display>
+            <sorting/>
+        </field>
+        <field>
+            <id>name</id>
+            <name>Наименование</name>
+            <domain>string</domain>
+            <display/>
+        </field>
+        <field>
+            <id>mapId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>m.id</expression>
+            <filters>
+                <filter type="eq" filter-field="mapId">
+                    :expression = :mapId
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>riskLevel</id>
+            <domain>string</domain>
+            <name>Группа риска</name>
+            <display/>
+            <expression>
+                (select case when (a.from_low_risk is null or a.from_low_risk &lt;= sum(points)) and a.to_low_risk >= sum(points) then 'Низкий'  else
+                case when a.from_medium_risk &lt;= sum(points) and a.to_medium_risk >= sum(points) then 'Средний' else
+                case when a.from_high_risk &lt;= sum(points) and (a.to_high_risk is null or a.to_high_risk >= sum(points)) then 'Высокий' end end end
+                from
+                motherhood.risk_factory_value rfv,
+                motherhood.risk_factory_options rfo,
+                motherhood.mh_pregnant_map_risk_option ro
+                where rfv.group_id = a.id and rfo.value_id = rfv.id
+                and ro.risk_option_id = rfo.id
+                and ro.pregnant_map_id = m.id
+                group by a.from_low_risk, a.to_low_risk, a.from_medium_risk, a.to_medium_risk, a.from_high_risk, a.to_high_risk)
+            </expression>
+        </field>
+    </fields>
+</query>

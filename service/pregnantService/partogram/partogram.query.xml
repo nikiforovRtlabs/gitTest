@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>partogram</object-id>
+    <name>partogram</name>
+    <execution>
+       <n2o:sql>
+           <n2o:items-query>
+               select :select
+
+               from motherhood.mh_pregnant_outcome mpo
+               left join public.sr_srv_rendered ssr on mpo.service_id = ssr.id
+
+               left join (select mpoh.pregnant_outcome_id, json_agg(json_build_object('date', mpoh.date, 'time', mpoh.time, 'heartbeat', heartbeat) order by mpoh.date + mpoh.time) as heartbeats
+               from motherhood.mh_pregnant_outcome_heartbeat mpoh group by mpoh.pregnant_outcome_id) as mpoh on mpo.id = mpoh.pregnant_outcome_id
+
+               left join (select poc.pregnant_outcome_id, json_agg(json_build_object('date', poc.date, 'time', poc.time, 'amniotic_fluid_status', afs.code, 'head_configuration', hc.code) order by poc.date + poc.time) as configs
+               from motherhood.mh_pregnant_outcome_configuration poc
+               left join motherhood.mh_amniotic_fluid_status afs on afs.id = poc.amniotic_fluid_status_id
+               left join motherhood.mh_head_configuration hc on hc.id = poc.head_configuration_id group by poc.pregnant_outcome_id) as poc on mpo.id = poc.pregnant_outcome_id
+
+               left join (select mdc.pregnant_outcome_id, json_agg(json_build_object('date', mdc.date, 'time', mdc.time, 'disclosure', mdc.disclosure, 'passage_head', mdc.passage_head, 'end_latent_phase', mdc.end_latent_phase) order by mdc.date + mdc.time) as disclosure_cervix
+               from motherhood.mh_pregnant_outcome_disclosure_cervix mdc group by mdc.pregnant_outcome_id) as mdc on mdc.pregnant_outcome_id = mpo.id
+
+               left join (select usc.pregnant_outcome_id, json_agg(json_build_object('date', usc.date, 'time', usc.time, 'uterine_contractions', uc.code, 'wring_count', usc.wring_count) order by usc.date + usc.time) as uterine_contractions from motherhood.mh_pregnant_outcome_uterine_contractions usc
+               left join motherhood.mh_uterine_contractions uc on uc.id = usc.uterine_contractions_id group by usc.pregnant_outcome_id) as usc on usc.pregnant_outcome_id = mpo.id
+
+               left join (select ox.pregnant_outcome_id, json_agg(json_build_object('date', ox.date, 'time', ox.time, 'dose', ox.dose, 'speed', ox.speed) order by ox.date + ox.time) as oxytocin
+               from motherhood.mh_pregnant_outcome_oxytocin ox group by ox.pregnant_outcome_id) as ox on ox.pregnant_outcome_id = mpo.id
+
+               left join (select pop.pregnant_outcome_id, json_agg(json_build_object('date', p.period_begin_dt::date, 'time', p.period_begin_dt::time, 'drug', p.name_holding) order by p.period_begin_dt) as drugs
+               from motherhood.mh_pregnant_outcome_prescription pop
+               inner join hospital.prescription p on pop.prescription_id = p.id group by pop.pregnant_outcome_id) as pop on mpo.id = pop.pregnant_outcome_id
+
+               left join (select ppp.pregnant_outcome_id, json_agg(json_build_object('date', ppp.date, 'time', ppp.time, 'pulse', ppp.pulse, 'systolic_pressure', ppp.systolic_pressure, 'diastolic_pressure', ppp.diastolic_pressure) order by ppp.date + ppp.time) as pressure
+               from motherhood.mh_pregnant_outcome_pressure ppp group by ppp.pregnant_outcome_id) as ppp on mpo.id = ppp.pregnant_outcome_id
+
+               left join (select ttt.pregnant_outcome_id, json_agg(json_build_object('date', ttt.date, 'time', ttt.time, 'temperature', ttt.temperature) order by ttt.date + ttt.time) as temperature
+               from motherhood.mh_pregnant_outcome_temperature ttt group by ttt.pregnant_outcome_id) as ttt  on mpo.id = ttt.pregnant_outcome_id
+
+               left join (select uuu.pregnant_outcome_id, json_agg(json_build_object('date', uuu.date, 'time', uuu.time, 'protein', uuu.protein, 'acetone', uuu.acetone, 'volume', uuu.volume) order by uuu.date + uuu.time) as urine
+               from motherhood.mh_pregnant_outcome_urine uuu group by uuu.pregnant_outcome_id) as uuu on mpo.id = uuu.pregnant_outcome_id
+               where :where
+           </n2o:items-query>
+           <n2o:count-query>
+               select 1
+           </n2o:count-query>
+           <n2o:alias>a</n2o:alias>
+       </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>mpo.id</expression>
+            <search type="eq" unavailable="false"/>
+        </field>
+
+        <field>
+            <id>partogram</id>
+            <domain>json</domain>
+            <expression>
+                json_build_object('heartbeats', mpoh.heartbeats,
+                'configs', poc.configs,
+                'disclosureCervices', mdc.disclosure_cervix,
+                'oxytocins', ox.oxytocin,
+                'drugs', pop.drugs,
+                'pressure', ppp.pressure,
+                'uterineContractions', usc.uterine_contractions,
+                'temperature', ttt.temperature,
+                'urine', uuu.urine)
+            </expression>
+        </field>
+    </fields>
+</query>

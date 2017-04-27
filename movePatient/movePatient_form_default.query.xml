@@ -1,0 +1,225 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>movePatient</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_case c on c.id = s.case_id
+                left outer join mc_diagnosis on mc_diagnosis.id = s.main_diagnosis_id
+                left outer join md_diagnosis on md_diagnosis.id = mc_diagnosis.diagnos_id
+                left outer join sr_res_group on sr_res_group.id = s.res_group_id
+                left outer join pim_employee_position_resource epr on epr.employee_position_id = sr_res_group.responsible_id
+                left outer join md_clinical_statistical_group csg on csg.id = s.csg_id
+                where not exists(select 1 from hsp_record r2
+                inner join mc_step s2 on r2.id=s2.id
+                where s2.case_id = s.case_id and r2.previous_id = r.id) and :where
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(r)
+                from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_case c on c.id = s.case_id
+                left outer join mc_diagnosis on mc_diagnosis.id = s.main_diagnosis_id
+                left outer join md_diagnosis on md_diagnosis.id = mc_diagnosis.diagnos_id
+                left outer join sr_res_group on sr_res_group.id = s.res_group_id
+                left outer join pim_employee_position_resource epr on epr.employee_position_id = sr_res_group.responsible_id
+                left outer join md_clinical_statistical_group csg on csg.id = s.csg_id
+                where not exists(select 1 from hsp_record r2
+                inner join mc_step s2 on r2.id=s2.id
+                where s2.case_id = s.case_id and r2.previous_id = r.id) and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>r.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>s.case_id</expression>
+            <search>:expression = :caseId</search>
+        </field>
+
+        <field>
+            <id>admissionDate</id>
+            <domain>date</domain>
+            <expression>s.admission_date + coalesce(s.admission_time, '00:00')</expression>
+        </field>
+
+        <field>
+            <id>admissionDepartment.id</id>
+            <domain>integer</domain>
+            <expression>r.department_id</expression>
+        </field>
+
+        <field>
+            <id>careRegimen.id</id>
+            <domain>integer</domain>
+            <expression>s.regimen_id</expression>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>s.profile_id</expression>
+        </field>
+
+        <field>
+            <id>bedProfile.id</id>
+            <domain>integer</domain>
+            <expression>r.bed_profile_id</expression>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>c.funding_id</expression>
+        </field>
+
+        <field>
+            <id>nextFinancialType.id</id>
+            <domain>integer</domain>
+            <expression>c.funding_id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>md_diagnosis.id</expression>
+        </field>
+
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>epr.id</expression>
+        </field>
+
+        <field>
+            <id>resGroupId</id>
+            <domain>integer</domain>
+            <expression>s.res_group_id</expression>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>c.patient_id</expression>
+        </field>
+
+        <field>
+            <id>outcomeDate</id>
+            <domain>date</domain>
+            <expression>
+                (case when s.outcome_time is null then s.outcome_date else
+                s.outcome_date + s.outcome_time end)
+            </expression>
+        </field>
+
+        <field>
+            <id>stepResult.id</id>
+            <domain>integer</domain>
+            <expression>s.result_id</expression>
+        </field>
+
+        <field>
+            <id>outcome.id</id>
+            <domain>integer</domain>
+            <expression>s.outcome_id</expression>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis</id>
+            <domain>object</domain>
+            <expression>(select get_diagnosis_init(md_diagnosis.id, (select array_agg(attr_value_id) from mc_diag_attr where diagnosis_id = mc_diagnosis.id)))</expression>
+        </field>
+
+        <field>
+            <id>setMesByDiagnosis</id>
+            <domain>boolean</domain>
+            <expression>(select coalesce((select sv.value::boolean from cmn_setting s
+                join cmn_setting_value sv on sv.setting_id = s.id
+                join cmn_scope sc on sc.id = sv.scope_id
+                join cmn_scope_type st on st.id = sc.type_id
+                where st.code = 'Global' and s.code='cz.atria.medcase.ui.MedicalCaseUISettings.setMesByDiagnosis' limit 1), s.default_value::boolean) from cmn_setting s
+                where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.setMesByDiagnosis' limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>csg.id</id>
+            <domain>integer</domain>
+            <expression>s.csg_id</expression>
+        </field>
+
+        <field>
+            <id>csg.name</id>
+            <domain>string</domain>
+            <expression>csg.name</expression>
+        </field>
+
+        <field>
+            <id>mes.id</id>
+            <domain>integer</domain>
+            <expression>s.mes_id</expression>
+        </field>
+
+        <field>
+            <id>mesQualityCriterion.id</id>
+            <domain>integer</domain>
+            <expression>s.mes_quality_criterion_id</expression>
+        </field>
+
+        <field>
+            <id>vmp.id</id>
+            <domain>integer</domain>
+            <expression>s.vmp_type_id</expression>
+        </field>
+
+        <field>
+            <id>vmpMethod.id</id>
+            <domain>integer</domain>
+            <expression>s.vmp_method_id</expression>
+        </field>
+
+        <field>
+            <id>standard.id</id>
+            <domain>integer</domain>
+            <expression>s.standard_id</expression>
+        </field>
+
+        <field>
+            <id>deviationReason.id</id>
+            <domain>integer</domain>
+            <expression>s.deviation_reason_id</expression>
+        </field>
+
+        <field>
+            <id>isFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>coalesce(c.is_finance_type_control, false)</expression>
+        </field>
+
+    </fields>
+
+
+</query>

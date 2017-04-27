@@ -1,0 +1,262 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hospReferral</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_referral r
+
+                inner join pci_patient pat on pat.id = r.patient_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+
+                left join md_referral_type ref_type on r.referral_type_id = ref_type.id
+                left join fin_funding_source_type fund on fund.id = r.funding_id
+
+                left join pim_organization ref_org on ref_org.id = r.ref_organization_id
+                left join pim_department ref_dep on ref_dep.id = r.ref_department_id
+
+                left join md_diagnosis ref_diag on ref_diag.id = r.diagnosis_id
+
+                left join pim_organization recv_org on recv_org.id = r.recv_organization_id
+
+                left join md_ref_document_status st on st.id = r.status_id
+                left join md_referral_cancel_reason creason on creason.id = r.cancel_reason_id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(r)
+                from md_referral r
+
+                inner join pci_patient pat on pat.id = r.patient_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+
+                where :where
+            </n2o:count-query>
+
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>r.id</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>pat_ind.id</expression>
+        </field>
+
+        <field>
+            <id>patientName</id>
+            <domain>string</domain>
+            <expression>coalesce(pat_ind.surname, '') || ' ' || coalesce(pat_ind.name, '') || ' ' || coalesce(pat_ind.patr_name, '')</expression>
+        </field>
+
+        <field>
+            <id>contextClinicId</id>
+            <domain>integer</domain>
+            <display value="#{org.id?}" unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <!--<field>-->
+            <!--<id>uidForTitle</id>-->
+            <!--<domain>string</domain>-->
+            <!--<expression>coalesce('№' || c.uid || ',', '')</expression>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>caseId</id>-->
+            <!--<domain>string</domain>-->
+            <!--<expression>c.id</expression>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>caseUid</id>-->
+            <!--<domain>string</domain>-->
+            <!--<expression>c.uid</expression>-->
+        <!--</field>-->
+
+        <!--Направлен из-->
+
+        <field>
+            <id>referralOrganizationRole.id</id>
+            <domain>integer</domain>
+            <expression>
+                (case when r.ref_organization_role_id is not null then r.ref_organization_role_id else
+                case when (select count(rtp) from pim_party_role_to_party rtp where party_id = r.ref_organization_id) = 1 then (select role_id from pim_party_role_to_party where party_id = r.ref_organization_id) else null
+                end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>referralOrganization.id</id>
+            <domain>integer</domain>
+            <expression>r.ref_organization_id</expression>
+        </field>
+
+        <field>
+            <id>referralOrganization.name</id>
+            <domain>string</domain>
+            <expression>coalesce(ref_org.short_name, ref_org.full_name)</expression>
+        </field>
+
+        <field>
+            <id>referralDepartment.id</id>
+            <domain>integer</domain>
+            <expression>r.ref_department_id</expression>
+        </field>
+
+        <field>
+            <id>referralDepartment.name</id>
+            <domain>string</domain>
+            <expression>ref_dep.name</expression>
+        </field>
+
+        <field>
+            <id>referralEmployee.id</id>
+            <domain>integer</domain>
+            <expression>r.ref_doctor_id</expression>
+        </field>
+
+        <!--Направлен в-->
+
+        <field>
+            <id>recvOrganization.id</id>
+            <domain>integer</domain>
+            <expression>r.recv_organization_id</expression>
+        </field>
+
+        <field>
+            <id>recvOrganization.name</id>
+            <domain>string</domain>
+            <expression>coalesce(recv_org.short_name, recv_org.full_name)</expression>
+        </field>
+
+        <field>
+            <id>recvDepartment.id</id>
+            <domain>integer</domain>
+            <expression>r.department_id</expression>
+        </field>
+
+        <field>
+            <id>recvEmployee.id</id>
+            <domain>integer</domain>
+            <expression>r.recv_doctor_id</expression>
+        </field>
+
+        <!--Основные данные-->
+
+        <field>
+            <id>referralDate</id>
+            <domain>date</domain>
+            <expression>r.referral_date</expression>
+        </field>
+
+        <field>
+            <id>orderNumber</id>
+            <domain>string</domain>
+            <expression>r.order_number</expression>
+        </field>
+
+        <field>
+            <id>cito</id>
+            <domain>boolean</domain>
+            <expression>r.is_urgent</expression>
+        </field>
+
+        <field>
+            <id>referralType.id</id>
+            <domain>integer</domain>
+            <expression>r.referral_type_id</expression>
+        </field>
+
+        <field>
+            <id>referralType.name</id>
+            <domain>string</domain>
+            <expression>ref_type.name</expression>
+        </field>
+
+        <field>
+            <id>recvRegimen.id</id>
+            <domain>integer</domain>
+            <expression>r.recv_regimen_id</expression>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>r.funding_id</expression>
+        </field>
+
+        <field>
+            <id>financialType.name</id>
+            <domain>string</domain>
+            <expression>fund.name</expression>
+        </field>
+
+        <field>
+            <id>referralComment</id>
+            <domain>string</domain>
+            <expression>r.referral_comment</expression>
+        </field>
+
+        <!--Диагноз-->
+
+        <field>
+            <id>referralDiagnosis.id</id>
+            <domain>integer</domain>
+            <expression>r.diagnosis_id</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosis.name</id>
+            <domain>string</domain>
+            <expression>ref_diag.code || ' ' || ref_diag.name</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosisComment</id>
+            <domain>string</domain>
+            <expression>r.diagnosis_comment</expression>
+        </field>
+
+        <!--Статус-->
+
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>(case when r.status_id is null then 1 else r.status_id end)</expression>
+        </field>
+
+        <field>
+            <id>status.name</id>
+            <domain>string</domain>
+            <expression>
+            (
+                initcap(lower(st.name))
+                || ' ' ||
+                case when r.status_id = 3
+                    then coalesce(': ' || 'Дата отмены: ' || r.date_cancel , '') || coalesce(', ' || 'Причина отмены: ' || creason.name , '')
+                    else case when r.status_id = 4
+                        then coalesce(': ' || 'Госпитализация запланирована ' || (select planned_date_from from hsp_reservation where referral_id = r.id limit 1) , '')
+                        || coalesce(', ' || 'Госпитализирован ' || (select admission_date from mc_step where case_id = r.id and id = (select id from hsp_record where previous_id =
+                        (select id from hsp_record where previous_id is null and id in (select id from mc_step where case_id = (select id from mc_case where referral_id = r.id limit 1) )))) , '')
+                        else ''
+                    end
+                end
+            )
+            </expression>
+        </field>
+
+    </fields>
+</query>

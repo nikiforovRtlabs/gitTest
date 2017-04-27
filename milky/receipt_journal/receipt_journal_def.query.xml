@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>receipt_journal_def</id>-->
+    <name>Рецепт на молочную кухню</name>
+    <object-id>receipt_journal</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.md_clinic mc
+                where :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select 1
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                mc.code
+                <!--(select code from public.md_clinic where id = :clinic.id)-->
+            </expression>
+        </field>
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                (select id from public.md_receipt_type where upper(trim(code)) = 'BABYFOOD')
+            </expression>
+        </field>
+
+        <field>
+            <id>sign.id</id>
+            <domain>integer</domain>
+            <name>Признак рецепта</name>
+            <display/>
+            <expression>
+                (select id from public.md_receipt_sign where upper(trim(code)) = 'CHILD')
+            </expression>
+        </field>
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <expression>:clinic.id</expression>
+            <filters>
+                <filter type="eq" filter-field="clinic.id">
+                    mc.id = :clinic.id
+                </filter>
+            </filters>
+        </field>
+
+        <!--todo: Значения из настроек-->
+        <field>
+            <id>caseNumeratorByClinic</id>
+            <domain>boolean</domain>
+            <expression>
+                (select case when sv.value is not null and sv.value != '' then sv.value else s.default_value end from cmn_setting s
+                left join cmn_setting_value sv on sv.setting_id = s.id
+                left join cmn_scope sc on sc.id = sv.scope_id
+                left join cmn_scope_type st on st.id = sc.type_id and st.code = 'Global'
+                where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.caseNumeratorByClinic' limit 1)
+            </expression>
+        </field>
+    </fields>
+</query>

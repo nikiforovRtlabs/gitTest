@@ -1,0 +1,193 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>amb_storeBalance</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from inventory.store_supply ss
+                join inventory.batch b on b.id = ss.batch_id
+                join inventory.store s on s.id = ss.store_id
+                join
+                    (select hm.id as modifId, hm.name as modifName
+                    from inventory.hold_modif hm
+                    join hospital.prescription_holding ph on ph.id = (select prescription_holding_id from hospital.prescription_schedule where id = :prescription.schedule.id)
+                        and hm.holding_id = ph.holding_id and hm.form_type_id = ph.hold_form_type_id and hm.mnei_id = ph.hold_mnei_id
+                    join inventory.form_param_value fpv on fpv.hold_modif_id = hm.id and ph.hold_dose_value = fpv.value::numeric and ph.hold_dose_measure_id = fpv.unit_id and fpv.form_param_id = 3
+                    left join inventory.form_param_value fpv2 on fpv2.hold_modif_id = hm.id and fpv2.form_param_id = 2
+                    where ((ph.hold_con_value is null and fpv2.value is null) or (ph.hold_con_value = fpv2.value and ph.hold_con_measure_id = fpv2.unit_id))
+                        and hm.write_off_unit_flag in (1,2)
+                    union
+                    select substitute.id as modifId, substitute.name as modifName
+                    from inventory.modif_substitute ms
+                    join inventory.hold_modif hm on hm.id = ms.modif_id
+                    join inventory.hold_modif substitute on substitute.id = ms.substitute_id
+                    join hospital.prescription_holding ph on ph.id = (select prescription_holding_id from hospital.prescription_schedule where id = :prescription.schedule.id)
+                        and hm.holding_id = ph.holding_id and hm.form_type_id = ph.hold_form_type_id and hm.mnei_id = ph.hold_mnei_id
+                    join inventory.form_param_value fpv on fpv.hold_modif_id = hm.id and ph.hold_dose_value = fpv.value::numeric and ph.hold_dose_measure_id = fpv.unit_id and fpv.form_param_id = 3
+                    left join inventory.form_param_value fpv2 on fpv2.hold_modif_id = hm.id and fpv2.form_param_id = 2
+                    where ((ph.hold_con_value is null and fpv2.value is null) or (ph.hold_con_value = fpv2.value and ph.hold_con_measure_id = fpv2.unit_id))
+                        and substitute.write_off_unit_flag in (1,2)
+                    group by modifId, modifName
+                   ) as mod on mod.modifId = b.hold_modif_id
+                join inventory.funding_source fs on fs.id = ss.funding_source_id
+                join inventory.funding_source_payment_type fspm on fspm.funding_source_id = ss.funding_source_id
+                left join  inventory.store_type stype on s.store_type_id = stype.id
+                where ss.act_balance_mnei != 0 and fspm.payment_type_id = (select funding_id from mc_case where id = (select case_id from hospital.prescription where id = (select prescription_id from hospital.prescription_schedule where id = :prescription.schedule.id)))
+                and :where
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from inventory.store_supply ss
+                join inventory.batch b on b.id = ss.batch_id
+                join inventory.store s on s.id = ss.store_id
+                join
+                    (select hm.id as modifId, hm.name as modifName
+                    from inventory.hold_modif hm
+                    join hospital.prescription_holding ph on ph.id = (select prescription_holding_id from hospital.prescription_schedule where id = :prescription.schedule.id)
+                        and hm.holding_id = ph.holding_id and hm.form_type_id = ph.hold_form_type_id and hm.mnei_id = ph.hold_mnei_id
+                    join inventory.form_param_value fpv on fpv.hold_modif_id = hm.id and ph.hold_dose_value = fpv.value::numeric and ph.hold_dose_measure_id = fpv.unit_id and fpv.form_param_id = 3
+                    left join inventory.form_param_value fpv2 on fpv2.hold_modif_id = hm.id and fpv2.form_param_id = 2
+                    where ((ph.hold_con_value is null and fpv2.value is null) or (ph.hold_con_value = fpv2.value and ph.hold_con_measure_id = fpv2.unit_id))
+                        and hm.write_off_unit_flag in (1,2)
+                    union
+                    select substitute.id as modifId, substitute.name as modifName
+                    from inventory.modif_substitute ms
+                    join inventory.hold_modif hm on hm.id = ms.modif_id
+                    join inventory.hold_modif substitute on substitute.id = ms.substitute_id
+                    join hospital.prescription_holding ph on ph.id = (select prescription_holding_id from hospital.prescription_schedule where id = :prescription.schedule.id)
+                        and hm.holding_id = ph.holding_id and hm.form_type_id = ph.hold_form_type_id and hm.mnei_id = ph.hold_mnei_id
+                    join inventory.form_param_value fpv on fpv.hold_modif_id = hm.id and ph.hold_dose_value = fpv.value::numeric and ph.hold_dose_measure_id = fpv.unit_id and fpv.form_param_id = 3
+                    left join inventory.form_param_value fpv2 on fpv2.hold_modif_id = hm.id and fpv2.form_param_id = 2
+                    where ((ph.hold_con_value is null and fpv2.value is null) or (ph.hold_con_value = fpv2.value and ph.hold_con_measure_id = fpv2.unit_id))
+                        and substitute.write_off_unit_flag in (1,2)
+                    group by modifId, modifName
+                    ) as mod on mod.modifId = b.hold_modif_id
+                join inventory.funding_source fs on fs.id = ss.funding_source_id
+                join inventory.funding_source_payment_type fspm on fspm.funding_source_id = ss.funding_source_id
+                where ss.act_balance_mnei != 0 and fspm.payment_type_id = (select funding_id from mc_case where id = (select case_id from hospital.prescription where id = (select prescription_id from hospital.prescription_schedule where id = :prescription.schedule.id)))
+                and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>departmentId</id>
+            <domain>integer</domain>
+            <expression>s.department_id</expression>
+            <search>s.department_id = :departmentId</search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>executionDt</id>
+            <domain>date</domain>
+            <expression>(select execution_dt from hospital.prescription_schedule where id = :prescription.schedule.id)</expression>
+        </field>
+
+        <field>
+            <id>prescription.schedule.id</id>
+            <domain>integer</domain>
+            <expression>:prescription.schedule.id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>storeSupplyId</id>
+            <domain>integer</domain>
+            <expression>ss.id</expression>
+        </field>
+
+        <field>
+            <id>holdModifId</id>
+            <domain>integer</domain>
+            <display>modifId</display>
+        </field>
+
+        <field>
+            <id>mneiQuantity</id>
+            <domain>integer</domain>
+            <expression>(select count from hospital.prescription_holding where id =
+                (select prescription_holding_id from hospital.prescription_schedule where id = :prescription.schedule.id))
+            </expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>(select mc_case.clinic_id from mc_case where id = (select case_id from hospital.prescription where id =
+                (select prescription_id from hospital.prescription_schedule where id = :prescription.schedule.id)))
+            </expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>(select case_id from hospital.prescription where id =
+                (select prescription_id from hospital.prescription_schedule where id = :prescription.schedule.id))
+            </expression>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>(select patient_id from hospital.prescription where id =
+                (select prescription_id from hospital.prescription_schedule where id = :prescription.schedule.id))
+            </expression>
+        </field>
+
+        <field>
+            <id>store.name</id>
+            <domain>string</domain>
+            <name>Склад</name>
+            <expression>s.name</expression>
+        </field>
+
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>storeTypeCode</id>
+            <domain>string</domain>
+            <expression>stype.code</expression>
+        </field>
+
+        <field>
+            <id>modif</id>
+            <domain>string</domain>
+            <name>Модификация</name>
+            <display>modifName</display>
+        </field>
+
+        <field>
+            <id>fundingSource</id>
+            <domain>string</domain>
+            <name>Источник финансирования</name>
+            <expression>fs.name</expression>
+        </field>
+
+        <field>
+            <id>expireDt</id>
+            <domain>date</domain>
+            <name>Срок годности</name>
+            <expression>b.expire_dt</expression>
+        </field>
+
+        <field>
+            <id>residue</id>
+            <domain>integer</domain>
+            <name>Количество</name>
+            <expression>ss.act_balance_mnei</expression>
+        </field>
+
+    </fields>
+
+</query>

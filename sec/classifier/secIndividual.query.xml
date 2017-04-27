@@ -1,0 +1,120 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <name>Люди</name>
+    <object-id>secIndividual</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from "public".pim_individual i
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(i)
+                from "public".pim_individual i
+                where :where
+            </n2o:count-query>
+            <n2o:alias>i</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>i.id</display>
+            <search>i.id = :id</search>
+        </field>
+        <field>
+            <id>findnames</id>
+            <domain>String[]</domain>
+            <expression>array[
+                lower(concat(left(i.surname, 1))),
+                lower(concat(left(i.surname, 1), left(i.name, 1))),
+                lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1))),
+                lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), ' ', to_char(i.birth_dt, 'yy'))),
+                lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), to_char(i.birth_dt, 'dd.mm.yyyy'))),
+                lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), ' ', to_char(i.birth_dt, 'ddmmyy'))),
+                lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), to_char(i.birth_dt, 'ddmmyyyy'))),
+                lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), to_char(i.birth_dt, 'yyyymmdd'))),
+                lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), to_char(i.birth_dt, 'yyyy.mm.dd'))),
+                to_char(i.birth_dt, 'dd.mm.yyyy'), to_char(i.birth_dt, 'ddmmyyyy'), to_char(i.birth_dt, 'yyyymmdd'), to_char(i.birth_dt, 'yyyy.mm.dd')
+                ]</expression>
+        </field>
+        <field>
+            <id>fullname</id>
+            <domain>String</domain>
+            <expression>coalesce(i.surname,'')||' '||coalesce(i.name,'')||' '||coalesce(i.patr_name,'') || ', ' || coalesce(to_char(i.birth_dt, 'dd.mm.yyyy'), '')</expression>
+            <!--Быстрый поиск-->
+            <search>lower(coalesce(i.surname,'')||' '||coalesce(i.name,'')||' '||coalesce(i.patr_name,'')) like lower(:fullname)||'%'</search>
+            <!--Медленный поиск-->
+            <!--<search> array[-->
+                <!--lower(concat(left(i.surname, 1))),-->
+                <!--lower(concat(left(i.surname, 1), left(i.name, 1))),-->
+                <!--lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1))),-->
+                <!--lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), ' ', to_char(i.birth_dt, 'yy'))),-->
+                <!--lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), to_char(i.birth_dt, 'dd.mm.yyyy'))),-->
+                <!--lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), ' ', to_char(i.birth_dt, 'ddmmyy'))),-->
+                <!--lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), to_char(i.birth_dt, 'ddmmyyyy'))),-->
+                <!--lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), to_char(i.birth_dt, 'yyyymmdd'))),-->
+                <!--lower(concat(left(i.surname, 1), left(i.name, 1), left(i.patr_name, 1), to_char(i.birth_dt, 'yyyy.mm.dd'))),-->
+                <!--to_char(i.birth_dt, 'dd.mm.yyyy'), to_char(i.birth_dt, 'ddmmyyyy'), to_char(i.birth_dt, 'yyyymmdd'), to_char(i.birth_dt, 'yyyy.mm.dd')-->
+                <!--] @> array[lower(:fullname)]-->
+                <!--or concat(i.surname,' ', i.name, ' ', i.patr_name) ilike :fullname||'%'-->
+            <!--</search>-->
+            <name>ФИО</name>
+        </field>
+        <field>
+            <id>usersExists</id>
+            <domain>boolean</domain>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+            <expression>exists (select id from public.sec_user_party where party_id = i.id)</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <name>Имя</name>
+            <domain>String</domain>
+            <expression>name</expression>
+            <search>upper(i.name) like upper(:name || '%')</search>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>surname</id>
+            <name>Фамилия</name>
+            <domain>String</domain>
+            <expression>surname</expression>
+            <search>upper(i.surname) like upper(:surname || '%')</search>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>patrName</id>
+            <name>Отчество</name>
+            <domain>String</domain>
+            <expression>patr_name</expression>
+            <search>upper(i.patr_name) like upper(:patrName || '%')</search>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>birthDate</id>
+            <name>Дата Рождения</name>
+            <domain>date</domain>
+            <expression>i.birth_dt</expression>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>docNum</id>
+            <name>Номер документа</name>
+            <domain>String</domain>
+            <search>exists (select * from pim_individual_doc id where id.indiv_id = i.id and id.number = :docNum)
+            </search>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+    </fields>
+</query>

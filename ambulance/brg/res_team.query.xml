@@ -1,0 +1,300 @@
+﻿<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>Бригады</name>
+    <object-id>res_team</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.sr_res_team srt
+                join sr_res_group srg on srg.id = srt.resource_id
+                left join sr_res_group_profile srgprof on srgprof.res_group_id = srg.id
+                left join md_profile resmp on resmp.id = srgprof.profile_id
+                join pim_organization po on po.id = srg.org_id
+                join pim_department pd on pd.id = srg.department_id
+                left join amb.sr_res_team_template srtt on srtt.id = srt.team_template_id
+                join amb.md_ambulance_team_kind tk on tk.id = srt.team_kind_id
+                join amb.md_ambulance_job_kind jk on jk.id = srt.job_kind_id
+                left join amb.md_ambulance_team_type tety on tety.id = srt.team_type_id
+                left join amb.sr_res_team_template_profile ttp on ttp.team_template_id = srtt.id
+                left join md_profile mp on mp.id = ttp.profile_id
+                left join public.md_resgroup_amb_profile rap on rap.id = srt.resource_id
+                left join public.md_ambulance_profile ap on ap.id = rap.profile_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from amb.sr_res_team srt
+                join sr_res_group srg on srg.id = srt.resource_id
+                left join sr_res_group_profile srgprof on srgprof.res_group_id = srg.id
+                left join md_profile resmp on resmp.id = srgprof.profile_id
+                join pim_organization po on po.id = srg.org_id
+                join pim_department pd on pd.id = srg.department_id
+                left join amb.sr_res_team_template srtt on srtt.id = srt.team_template_id
+                join amb.md_ambulance_team_kind tk on tk.id = srt.team_kind_id
+                join amb.md_ambulance_job_kind jk on jk.id = srt.job_kind_id
+                left join amb.md_ambulance_team_type tety on tety.id = srt.team_type_id
+                left join amb.sr_res_team_template_profile ttp on ttp.team_template_id = srtt.id
+                left join md_profile mp on mp.id = ttp.profile_id
+                left join public.md_resgroup_amb_profile rap on rap.id = srt.resource_id
+                left join public.md_ambulance_profile ap on ap.id = rap.profile_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>srt</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>srt.id</expression>
+        </field>
+        <field>
+            <id>res_group.id</id>
+            <domain>integer</domain>
+            <expression>srg.id</expression>
+        </field>
+        <field>
+            <id>res_group.name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>srg.name</expression>
+        </field>
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+            <search value="#{org.id?}"/>
+        </field>
+        <field>
+            <id>station.name</id>
+            <domain>string</domain>
+            <name>Станция</name>
+            <expression>coalesce(po.short_name,po.full_name)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <expression>pd.id</expression>
+        </field>
+        <field>
+            <id>substation.name</id>
+            <domain>string</domain>
+            <name>Подстанция</name>
+            <expression>pd.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>change</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(ig) from (
+                    select
+                    macs.id as id,
+                    to_char(macs.change_begin,'HH24:mi') as changeSet_begin,
+                    to_char(macs.change_period,'hh24') as changeSet_inter,
+                    to_char(macs.change_begin,'HH24:mi') as btime,
+                    to_char(macs.change_begin+macs.change_period,'HH24:mi') as etime
+                    from amb.md_ambulance_change_setting macs
+                    where macs.clinic_id = po.id and (macs.department_id is null or macs.department_id = pd.id)
+                    order by macs.department_id
+                    limit 1)
+                as ig)
+            </expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Бригада</name>
+            <expression>srg.name</expression>
+            <search>trim(upper(srg.name)) like trim(upper('%'||:name||'%'))</search>
+        </field>
+        <field>
+            <id>temsetId</id>
+            <domain>integer</domain>
+            <expression>srtt.id</expression>
+        </field>
+        <field>
+            <id>team_template_setting.id</id>
+            <domain>integer</domain>
+            <expression>srtt.id</expression>
+        </field>
+        <field>
+            <id>team_template_setting.code</id>
+            <domain>string</domain>
+            <name>Шаблон</name>
+            <expression>srtt.code</expression>
+        </field>
+        <field>
+            <id>team_template_setting.name</id>
+            <domain>string</domain>
+            <name>Шаблон</name>
+            <expression>srtt.name</expression>
+        </field>
+        <field>
+            <id>team_template_setting.codename</id>
+            <domain>string</domain>
+            <name>Шаблон</name>
+            <expression>srtt.code || ' '|| srtt.name</expression>
+        </field>
+        <field>
+            <id>team_template_setting.tkId</id>
+            <domain>integer</domain>
+            <expression>srtt.team_kind_id</expression>
+        </field>
+        <field>
+            <id>team_kind.name</id>
+            <domain>string</domain>
+            <name>Вид бригады</name>
+            <expression>tk.name</expression>
+        </field>
+        <field>
+            <id>team_kind.code</id>
+            <domain>string</domain>
+            <expression>tk.code</expression>
+        </field>
+        <field>
+            <id>team_kind.id</id>
+            <domain>integer</domain>
+            <expression>tk.id</expression>
+        </field>
+        <field>
+            <id>job_kind.name</id>
+            <domain>string</domain>
+            <name>Вид наряда</name>
+            <expression>jk.name</expression>
+        </field>
+        <field>
+            <id>job_kind.id</id>
+            <domain>integer</domain>
+            <expression>jk.id</expression>
+        </field>
+        <field>
+            <id>jkId</id>
+            <domain>integer</domain>
+            <expression>jk.id</expression>
+        </field>
+        <field>
+            <id>team_type.name</id>
+            <domain>string</domain>
+            <name>Тип бригады</name>
+            <expression>tety.name</expression>
+        </field>
+        <field>
+            <id>team_type.id</id>
+            <domain>integer</domain>
+            <expression>tety.id</expression>
+        </field>
+        <field>
+            <id>radio_code</id>
+            <domain>string</domain>
+            <name>Код рации</name>
+            <expression>srt.radio_code</expression>
+            <search>upper(trim(srt.radio_code)) like upper(trim(:radio_code))||'%'</search>
+        </field>
+        <field>
+            <id>bdate</id>
+            <domain>date</domain>
+            <name>Дата начала действия</name>
+            <expression>srg.bdate</expression>
+        </field>
+        <field>
+            <id>edate</id>
+            <domain>date</domain>
+            <name>Дата окончания действия</name>
+            <expression>srg.edate</expression>
+        </field>
+
+        <field>
+            <id>template_profile.id</id>
+            <domain>integer</domain>
+            <expression>mp.id</expression>
+        </field>
+        <field>
+            <id>template_profile.name</id>
+            <domain>string</domain>
+            <name>Мед. профиль(по шаблону)</name>
+            <expression>mp.name</expression>
+        </field>
+
+        <field>
+            <id>md_profile.id</id>
+            <domain>integer</domain>
+            <expression>resmp.id</expression>
+        </field>
+        <field>
+            <id>md_profile.name</id>
+            <domain>string</domain>
+            <name>Мед. профиль</name>
+            <expression>resmp.name</expression>
+        </field>
+        <field>
+            <id>amb_profile.id</id>
+            <domain>integer</domain>
+            <expression>ap.id</expression>
+        </field>
+        <field>
+            <id>amb_profile.name</id>
+            <domain>string</domain>
+            <name>Профиль бригады</name>
+            <expression>ap.name</expression>
+        </field>
+
+        <field>
+            <id>teamJob</id>
+            <domain>integer</domain>
+            <expression>(SELECT case when count(srtj) = 0 then null else 1 end from amb.sr_res_team_job srtj where srtj.team_id = srt.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>is_edate</id>
+            <domain>date</domain>
+            <name>Дата окончания действия</name>
+            <expression>srg.edate</expression>
+            <search>(srg.edate > :is_edate or srg.edate is null)</search>
+        </field>
+
+        <field>
+            <id>color</id>
+            <domain>string</domain>
+            <expression>
+                case when ((srg.edate is not null) and (now() > srg.edate))
+                    then 'muted'
+                    else 'text'
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>isDeleted</id>
+            <domain>boolean</domain>
+            <expression>
+                case when ((srg.edate is not null) and (now() > srg.edate)) then true else false end
+            </expression>
+            <search value="false">((:isDeleted::boolean = true) OR ((srg.edate is null) OR (srg.edate > now())))</search>
+        </field>
+
+        <field>
+            <id>brg.btime</id>
+            <domain>string</domain>
+            <name>Начало работы бригады</name>
+            <expression>
+                to_char(srt.btime,'HH24:mi')
+            </expression>
+        </field>
+        <field>
+            <id>brg.etime</id>
+            <domain>string</domain>
+            <name>Окончание работы бригады</name>
+            <expression>
+                to_char(srt.etime,'HH24:mi')
+            </expression>
+        </field>
+
+    </fields>
+</query>

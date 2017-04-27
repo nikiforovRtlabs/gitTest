@@ -1,0 +1,142 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <name>Направления</name>
+    <object-id>dispReferralForm</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from disp.md_event_patient mep
+                join disp.md_event me on mep.event_id = me.id
+                inner join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+                left join (select ssr2.id, ssr2.service_id, amsr2.case_id, ssr2.res_group_id, amsr2.diagnosis_id from MD_SRV_RENDERED amsr2
+                left join SR_SRV_RENDERED ssr2 on ssr2.id = amsr2.id
+                ) as msr on msr.case_id = mep.case_id and msr.service_id = mes.service_id
+
+                left join sr_service ss on ss.id = msr.service_id
+                left join SR_RES_GROUP srg on srg.id = msr.res_group_id
+                left join md_diagnosis d on msr.diagnosis_id = d.id
+                left join pim_organization o on o.id = srg.org_id
+                left join pim_department dep on dep.id = srg.department_id
+                left join pim_employee_position ep on ep.id = srg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual i on i.id = e.individual_id
+                left join pim_position p on p.id = ep.position_id
+                where :where and mnds.code in ('Д1.18', 'ОН1.1', 'ДС1.1')
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from disp.md_event_patient mep
+                join disp.md_event me on mep.event_id = me.id
+                inner join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+                left join (select ssr2.id, ssr2.service_id, amsr2.case_id, ssr2.res_group_id, amsr2.diagnosis_id from MD_SRV_RENDERED amsr2
+                left join SR_SRV_RENDERED ssr2 on ssr2.id = amsr2.id
+                ) as msr on msr.case_id = mep.case_id and msr.service_id = mes.service_id
+
+                left join sr_service ss on ss.id = msr.service_id
+                left join SR_RES_GROUP srg on srg.id = msr.res_group_id
+                left join md_diagnosis d on msr.diagnosis_id = d.id
+                left join pim_organization o on o.id = srg.org_id
+                left join pim_department dep on dep.id = srg.department_id
+                left join pim_employee_position ep on ep.id = srg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual i on i.id = e.individual_id
+                left join pim_position p on p.id = ep.position_id
+                where :where and mnds.code in ('Д1.18', 'ОН1.1', 'ДС1.1')
+            </n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>referralType.id</id>
+            <domain>integer</domain>
+            <expression>
+                <![CDATA[
+                    (select id from md_referral_type r where r.code = :referralType.code)
+                ]]>
+            </expression>
+            <display/>
+        </field>
+        <field>
+            <id>referralType.code</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>sr_srv_rendered.id</id>
+            <domain>integer</domain>
+            <expression>
+                <![CDATA[
+                    (case when :sr_srv_rendered.id is not null then :sr_srv_rendered.id else msr.id end)
+                ]]>
+            </expression>
+            <display/>
+        </field>
+        <field>
+            <id>case_id</id>
+            <domain>integer</domain>
+            <expression>:case_id</expression>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>msr.diagnosis_id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>diagnosis.name</id>
+            <domain>string</domain>
+            <expression>d.code || ' ' || d.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>referralOrganization.id</id>
+            <domain>integer</domain>
+            <expression>o.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>referralOrganization.short_name</id>
+            <domain>string</domain>
+            <expression>o.short_name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>referralDepartment.id</id>
+            <domain>integer</domain>
+            <expression>dep.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>referralDepartment.name</id>
+            <domain>string</domain>
+            <expression>dep.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>referralEmployee.id</id>
+            <domain>integer</domain>
+            <expression>ep.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>referralEmployee.name</id>
+            <domain>string</domain>
+            <expression>concat_ws(', ', concat_ws(' ', i.surname, i.name, i.patr_name), p.name, d.name)</expression>
+            <display/>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+
+    <actions>
+
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO d_accounting.pat_d_group (id, account_id, d_group_id, from_dt,  amb_kind_id, stop_reas_id)
+                    VALUES ((SELECT nextval('d_accounting.pat_d_group_id_seq')), :account_id, :d_group_id, :from_dt, :amb_kind_id, :stop_reas_id);
+
+                    UPDATE d_accounting.pat_d_group SET to_dt = :from_dt
+                    WHERE id = :maxDateDGroupId;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="account_id" mapping="['account_id']" domain="integer"/>
+                <param name="group.id" mapping="['d_group_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="amb.id" mapping="['amb_kind_id']" domain="integer"/>
+                <param name="reason.id" mapping="['stop_reas_id']" domain="integer"/>
+                <param name="maxDateDGroupId" mapping="['maxDateDGroupId']" domain="date"/>
+            </in-parameters>
+        </action>
+
+        <action id="update">
+            <invocation>
+                <n2o:sql>
+                    UPDATE d_accounting.pat_d_group SET
+                    d_group_id = :d_group_id,
+                    from_dt = :from_dt,
+                    amb_kind_id = :amb_kind_id,
+                    stop_reas_id = :stop_reas_id
+                    WHERE id = :id;
+                    UPDATE d_accounting.pat_d_group SET to_dt = :from_dt
+                    WHERE id = :maxDateDGroupId;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="group.id" mapping="['d_group_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="amb.id" mapping="['amb_kind_id']" domain="integer"/>
+                <param name="reason.id" mapping="['stop_reas_id']" domain="integer"/>
+                <param name="maxDateDGroupId" mapping="['maxDateDGroupId']" domain="date"/>
+            </in-parameters>
+        </action>
+
+    </actions>
+
+    <validations>
+        <condition id="maxDate" level="error" >
+            <message>Введеная дата перекрывает период действия предыдущей записи</message>
+            <!--todo поправить maxDate на maxDGroup.from_dt когда будет сделана NNO-838 вероятно в версии н2о 3.3 -->
+            <expression><![CDATA[
+                if(maxDate == null) {
+                    true;
+                } else {
+                    (moment(maxDate, 'DD.MM.YYYY').valueOf()<(moment(from_dt, 'DD.MM.YYYY')).valueOf());
+                }]]>
+            </expression>
+        </condition>
+        <condition id="minDate" level="error" >
+            <message>Введеная дата перекрывает период действия следующей записи</message>
+            <expression><![CDATA[
+                if(minDate == null) {
+                    true;
+                } else{
+                    (moment(from_dt, 'DD.MM.YYYY').valueOf()<(moment(minDate, 'DD.MM.YYYY')).valueOf());
+                }]]>
+            </expression>
+        </condition>
+        <condition id="curDate" level="error" >
+            <message>Вы не можете указать дату больше текущей!</message>
+            <!--todo поправить maxDate на maxDGroup.from_dt когда будет сделана NNO-838 вероятно в версии н2о 3.3 -->
+            <expression><![CDATA[
+                    (moment(now(), 'DD.MM.YYYY').valueOf()>=(moment(from_dt, 'DD.MM.YYYY')).valueOf());
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+
+</object>

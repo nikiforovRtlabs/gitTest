@@ -1,0 +1,147 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>productionDocList</name>
+    <object-id>productionDoc</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.production_doc pd
+                inner join inventory.document d on pd.id=d.id
+                inner join inventory.hold_modif hm on hm.id=pd.modif_id
+                inner join inventory.store s on s.id=pd.send_store_id
+                left outer join inventory.funding_source fs on fs.id=pd.fund_source_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(pd)
+                from inventory.production_doc pd
+                inner join inventory.document d on pd.id=d.id
+                inner join inventory.hold_modif hm on hm.id=pd.modif_id
+                inner join inventory.store s on s.id=pd.send_store_id
+                left outer join inventory.funding_source fs on fs.id=pd.fund_source_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pd</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>docNumber</id>
+            <domain>string</domain>
+            <name>№</name>
+            <expression>d.int_doc_number</expression>
+            <search>(:expression like '%'||'-'||:docNumber or :expression=:docNumber)</search>
+        </field>
+        <field>
+            <id>docDate</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>d.int_doc_dt</expression>
+            <search type="between">
+                <![CDATA[(:docDate.begin::date is null or d.int_doc_dt >= :docDate.begin) and
+                        (:docDate.end::date is null or d.int_doc_dt <= :docDate.end) ]]></search>
+        </field>
+
+        <field>
+            <id>docDate.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>docDate.begin</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>d.doc_status_id</expression>
+            <search> :expression = :status.id</search>
+        </field>
+        <field>
+            <id>statusTooltip</id>
+            <domain>string</domain>
+            <display>
+                case when d.doc_status_id=1 then 'не проведен' else 'проведен' end
+            </display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>isExecutedSimbol</id>
+            <domain>boolean</domain>
+            <name> </name>
+            <expression>(case when d.doc_status_id=1 then '&#10008;' else '&#10004;' end)</expression>
+        </field>
+        <field>
+            <id>statusDate</id>
+            <domain>date</domain>
+            <name>Проводка</name>
+            <expression>d.execute_dt</expression>
+        </field>
+        <field>
+            <id>modif.name</id>
+            <domain>string</domain>
+            <name>Наименование ЛС и ИМН</name>
+            <expression>hm.name</expression>
+        </field>
+        <field>
+            <id>sendStore.name</id>
+            <domain>string</domain>
+            <name>Склад</name>
+            <expression>s.name</expression>
+        </field>
+        <field>
+            <id>sendStore.id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fs.id</expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <name>Финансирование</name>
+            <expression>fs.name</expression>
+        </field>
+        <field>
+            <id>amount</id>
+            <name>Сумма</name>
+            <domain>string</domain>
+            <expression>pd.amount</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>d.org_id</expression>
+            <search value="#{org.id?}" type="eq"/>
+        </field>
+        <field>
+            <id>docDateString</id>
+            <domain>string</domain>
+            <expression>to_char(d.int_doc_dt, 'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>docType.name</id>
+            <domain>string</domain>
+            <expression>'PRODUCTION_DOC'</expression>
+        </field>
+        <field>
+            <id>specExists</id>
+            <domain>boolean</domain>
+            <expression>
+                exists (select 1 from inventory.production_doc_spec s where s.prod_doc_id=pd.id)
+            </expression>
+        </field>
+    </fields>
+</query>

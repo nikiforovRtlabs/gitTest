@@ -1,0 +1,846 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>patient</name>
+    <actions>
+        <action id="createUndefined" name="Подтвердить">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="TASK">
+                            <wf:note>Проверяем по входным данным наличие дубликата</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/duplicate/undefined/check-exist
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="surname" mapping="['surname']"/>
+                                <param name="patronymic" mapping="['patrName']"/>
+                                <param name="name" mapping="['name']"/>
+                                <param name="birthDate" mapping="['birthDate']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="['result']"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="2"/>
+                                <wf:result value="true" next-task-id="3"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:service-task id="2" next-task-id="9"
+                                         in-parameters-context-type="ACTION"
+                                         out-parameters-context-type="TASK">
+                            <wf:note>Создание неидентифицированного пациента</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="POST">
+                                    ${n2o.backend.path}/patients/undefined
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="id" mapping="['id']" domain="integer"/>
+                                <param name="wf_data" mapping="['id']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="3"
+                                      template="patients/n2o/workflow/patient/duplicate/duplicate.exist.notify.html">
+                            <wf:title>Предупреждение</wf:title>
+                            <wf:description>Найдены двойники. Перейти в режим объединения?</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Сохранить" next-task-id="2"/>
+                                <wf:choice title="Объединить" next-task-id="4"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="4" next-task-id="5" in-parameters-context-type="TASK">
+                            <wf:note>Получаем список дубликатов</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/duplicate/undefined/list
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="surname" mapping="['surname']"/>
+                                <param name="patronymic" mapping="['patrName']"/>
+                                <param name="name" mapping="['name']"/>
+                                <param name="birthDate" mapping="['birthDate']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="['data']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="5" template="patients/n2o/workflow/patient/duplicate/duplicate.list.html"
+                                      use-wf-context="true">
+                            <wf:title>Выбор дубликата</wf:title>
+                            <wf:description>Выберите дубликат для объединения</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Выбрать" next-task-id="6"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="6" next-task-id="7" in-parameters-context-type="JOIN">
+                            <wf:note>Получаем форму для объединения пациентов</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/duplicate/undefined/merge-form/{wf_duplicate_patient_id}
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="wf_duplicate_patient_id" mapping="['wf_duplicate_patient_id']"/>
+                                <param name="gender.name" mapping="['genderName']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="['data']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="7"
+                                      template="patients/n2o/workflow/patient/duplicate/duplicate.merge.undefined.html"
+                                      use-wf-context="true">
+                            <wf:title>Объединения дубликатов</wf:title>
+                            <wf:description>Выберите значения для объединения</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Объединить" next-task-id="8"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="8" in-parameters-context-type="TASK" out-parameters-context-type="ACTION">
+                            <wf:note>Объединение нового пациента с дублем</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="PUT">
+                                    ${n2o.backend.path}/patients/duplicate/undefined/merge
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="wf_duplicateId" mapping="['duplicateId']"/>
+                                <param name="wf_surname" mapping="['selectedSurname']"/>
+                                <param name="wf_name" mapping="['selectedName']"/>
+                                <param name="wf_patronymic" mapping="['selectedPatronymic']"/>
+                                <param name="wf_birthDate" mapping="['selectedBirthDate']"/>
+                                <param name="wf_genderId" mapping="['selectedGenderId']"/>
+                            </wf:in-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="9" template="patients/n2o/workflow/patient/open.edit.form.query.html"
+                                      use-wf-context="true">
+                            <wf:title>Уведомление о сохранении пациента</wf:title>
+                            <wf:description>
+                                Пациент сохранен. Хотите перейти на расширенную форму карты пациента?
+                            </wf:description>
+                            <wf:choices>
+                                <wf:choice title="Закрыть" next-task-id="10"/>
+                                <wf:choice title="Перейти" next-task-id="11"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="10">
+                            <wf:note>Закрытие формы создание пациента</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET">
+                                    ${n2o.backend.path}/patients/get-list-form-url
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="url" mapping="['url']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="url" mapping="['data']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:service-task id="11">
+                            <wf:note>Перход на форму редактирования пациента</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/get-edit-form-url
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="id" mapping="['id']"/>
+                                <param name="url" mapping="['url']"/>
+                                <param name="surname" mapping="['surname']"/>
+                                <param name="patronymic" mapping="['patrName']"/>
+                                <param name="name" mapping="['name']"/>
+                                <param name="birthDate" mapping="['birthDate']"/>
+                                <param name="gender.id" mapping="['genderId']"/>
+                                <param name="gender.name" mapping="['genderName']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="url" mapping="['data']" domain="string"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="surname" mapping="['surname']"/>
+                <param name="patronymic" mapping="['patrName']"/>
+                <param name="name" mapping="['name']"/>
+                <param name="birthDate" mapping="['birthDate']"/>
+                <param name="gender.id" mapping="['genderId']"/>
+                <param name="ageYear" mapping="['ageYear']"/>
+                <param name="ageMonth" mapping="['ageMonth']"/>
+                <param name="ageDay" mapping="['ageDay']"/>
+                <param name="note" mapping="['note']"/>
+                <param name="lastFluorographyDate" mapping="['lastFluorographyDate']"/>
+            </in-parameters>
+        </action>
+
+        <action id="create" name="Подтвердить">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="TASK">
+                            <wf:note>Проверяем по входным данным наличие дубликата</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/duplicate/new/check-exist
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="surname" mapping="['surname']"/>
+                                <param name="name" mapping="['name']"/>
+                                <param name="patronymic" mapping="['patrName']"/>
+                                <param name="birthDate" mapping="['birthDate']"/>
+                                <param name="insuranceNumber" mapping="['insuranceNumber']"/>
+                                <param name="policyType.id" mapping="['policyTypeId']"/>
+                                <param name="policyType.code" mapping="['policyTypeCode']"/>
+                                <param name="policyCode" mapping="['policyCode']"/>
+                                <param name="policySeries.value" mapping="['policySeries']"/>
+                                <param name="policyNumber.value" mapping="['policyNumber']"/>
+                                <param name="documentType.id" mapping="['documentTypeId']"/>
+                                <param name="documentType.code" mapping="['documentTypeCode']"/>
+                                <param name="documentSeries.value" mapping="['documentSeries']"/>
+                                <param name="documentNumber.value" mapping="['documentNumber']"/>
+                                <param name="actualAddress.id" mapping="['actualAddressId']"/>
+                                <param name="sameActualAddress" mapping="['sameActualAddress']"/>
+                                <param name="registrationAddress.id" mapping="['registrationAddressId']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="['result']"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="2"/>
+                                <wf:result value="true" next-task-id="3"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:service-task id="2" next-task-id="9"
+                                         in-parameters-context-type="ACTION"
+                                         out-parameters-context-type="TASK">
+                            <wf:note>Создание пациента</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="POST">
+                                    ${n2o.backend.path}/patients
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="id" mapping="['id']" domain="integer"/>
+                                <param name="wf_data" mapping="['id']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="3"
+                                      template="patients/n2o/workflow/patient/duplicate/duplicate.exist.notify.html">
+                            <wf:title>Предупреждение</wf:title>
+                            <wf:description>Найдены двойники. Перейти в режим объединения?</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Сохранить" next-task-id="2"/>
+                                <wf:choice title="Объединить" next-task-id="4"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="4" next-task-id="5" in-parameters-context-type="TASK">
+                            <wf:note>Получаем список дубликатов</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/duplicate/new/list
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="surname" mapping="['surname']"/>
+                                <param name="name" mapping="['name']"/>
+                                <param name="patronymic" mapping="['patrName']"/>
+                                <param name="birthDate" mapping="['birthDate']"/>
+                                <param name="insuranceNumber" mapping="['insuranceNumber']"/>
+                                <param name="policyType.id" mapping="['policyTypeId']"/>
+                                <param name="policyType.code" mapping="['policyTypeCode']"/>
+                                <param name="policyCode" mapping="['policyCode']"/>
+                                <param name="policySeries.value" mapping="['policySeries']"/>
+                                <param name="policyNumber.value" mapping="['policyNumber']"/>
+                                <param name="documentType.id" mapping="['documentTypeId']"/>
+                                <param name="documentType.code" mapping="['documentTypeCode']"/>
+                                <param name="documentSeries.value" mapping="['documentSeries']"/>
+                                <param name="documentNumber.value" mapping="['documentNumber']"/>
+                                <param name="actualAddress.id" mapping="['actualAddressId']"/>
+                                <param name="sameActualAddress" mapping="['sameActualAddress']"/>
+                                <param name="registrationAddress.id" mapping="['registrationAddressId']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="['data']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="5" template="patients/n2o/workflow/patient/duplicate/duplicate.list.html"
+                                      use-wf-context="true">
+                            <wf:title>Выбор дубликата</wf:title>
+                            <wf:description>Выберите дубликат для объединения</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Выбрать" next-task-id="6"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="6" next-task-id="7" in-parameters-context-type="JOIN">
+                            <wf:note>Получаем форму для объединения пациентов</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/duplicate/new/merge-form/{wf_duplicate_patient_id}
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="wf_duplicate_patient_id" mapping="['wf_duplicate_patient_id']"/>
+                                <param name="gender.name" mapping="['genderName']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="['data']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="7" template="patients/n2o/workflow/patient/duplicate/duplicate.merge.new.html"
+                                      use-wf-context="true">
+                            <wf:title>Объединения дубликатов</wf:title>
+                            <wf:description>Выберите значения для объединения</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Объединить" next-task-id="8"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="8" in-parameters-context-type="JOIN" out-parameters-context-type="ACTION">
+                            <wf:note>Объединение нового пациента с дублем</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="PUT">
+                                    ${n2o.backend.path}/patients/duplicate/new/merge
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="wf_duplicateId" mapping="['duplicateId']"/>
+                                <param name="wf_surname" mapping="['selectedSurname']"/>
+                                <param name="wf_name" mapping="['selectedName']"/>
+                                <param name="wf_patronymic" mapping="['selectedPatronymic']"/>
+                                <param name="wf_birthDate" mapping="['selectedBirthDate']"/>
+                                <param name="wf_genderId" mapping="['selectedGenderId']"/>
+                                <param name="wf_docPerson" mapping="['selectedDocPerson']"/>
+                                <param name="wf_docMhi" mapping="['selectedDocMhi']"/>
+                                <param name="wf_docSnils" mapping="['selectedDocSnils']"/>
+                                <param name="wf_registerAddress" mapping="['selectedRegisterAddress']"/>
+                                <param name="wf_actualAddress" mapping="['selectedActualAddress']"/>
+                            </wf:in-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="9" template="patients/n2o/workflow/patient/open.edit.form.query.html"
+                                      use-wf-context="true">
+                            <wf:title>Уведомление о сохранении пациента</wf:title>
+                            <wf:description>
+                                Пациент сохранен. Хотите перейти на расширенную форму карты пациента?
+                            </wf:description>
+                            <wf:choices>
+                                <wf:choice title="Закрыть" next-task-id="10"/>
+                                <wf:choice title="Перейти" next-task-id="11"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="10">
+                            <wf:note>Закрытие формы создание пациента</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET">
+                                    ${n2o.backend.path}/patients/get-list-form-url
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="url" mapping="['url']" domain="string"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="url" mapping="['data']" domain="string"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:service-task id="11">
+                            <wf:note>Переход на форму редактирования пациента</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/get-edit-form-url
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="id" mapping="['id']"/>
+                                <param name="url" mapping="['url']"/>
+                                <param name="surname" mapping="['surname']"/>
+                                <param name="patronymic" mapping="['patrName']"/>
+                                <param name="name" mapping="['name']"/>
+                                <param name="birthDate" mapping="['birthDate']"/>
+                                <param name="gender.id" mapping="['genderId']"/>
+                                <param name="gender.name" mapping="['genderName']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="url" mapping="['data']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="surname" mapping="['surname']"/>
+                <param name="patronymic" mapping="['patrName']"/>
+                <param name="name" mapping="['name']"/>
+                <param name="birthDate" mapping="['birthDate']" domain="date"/>
+                <param name="gender.id" mapping="['genderId']"/>
+                <param name="insuranceNumber" mapping="['insuranceNumber']" domain="string"/>
+                <param name="actualAddress.id" mapping="['actualAddressId']"/>
+                <param name="actualAddress.level.id" mapping="['actualAddressLevelId']"/>
+                <param name="actualAddressDate" mapping="['actualAddressDate']"/>
+                <param name="sameActualAddress" mapping="['sameActualAddress']"/>
+                <param name="registrationAddress.id" mapping="['registrationAddressId']"/>
+                <param name="registrationAddress.level.id" mapping="['registrationAddressLevelId']"/>
+                <param name="registrationAddressDate" mapping="['registrationAddressDate']"/>
+                <param name="documentType.id" mapping="['documentTypeId']"/>
+                <param name="documentType.code" mapping="['documentTypeCode']"/>
+                <param name="documentSeries.value" mapping="['documentSeries']" domain="string"/>
+                <param name="documentNumber.value" mapping="['documentNumber']" domain="string"/>
+                <param name="documentIssueDate" mapping="['documentIssueDate']"/>
+                <param name="policyType.id" mapping="['policyTypeId']"/>
+                <param name="policyType.code" mapping="['policyTypeCode']"/>
+                <param name="policyCode" mapping="['policyCode']" domain="string"/>
+                <param name="policySeries.value" mapping="['policySeries']" domain="string"/>
+                <param name="policyNumber.value" mapping="['policyNumber']" domain="string"/>
+                <param name="policyIssuer.id" mapping="['policyIssuerId']"/>
+                <param name="policyIssueDate" mapping="['policyIssueDate']"/>
+                <param name="lastFluorographyDate" mapping="['lastFluorographyDate']"/>
+            </in-parameters>
+        </action>
+
+        <action id="update" name="Подтвердить">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="TASK">
+                            <wf:note>Проверяем по входным данным наличие дубликата</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/duplicate/updated/check-exist
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="id" mapping="['id']"/>
+                                <param name="surname" mapping="['surname']"/>
+                                <param name="name" mapping="['name']"/>
+                                <param name="patronymic" mapping="['patrName']"/>
+                                <param name="birthDate" mapping="['birthDate']"/>
+                                <param name="insuranceNumber" mapping="['insuranceNumber']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="['result']"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="false" next-task-id="2"/>
+                                <wf:result value="true" next-task-id="3"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:service-task id="2"
+                                         in-parameters-context-type="ACTION"
+                                         out-parameters-context-type="ACTION">
+                            <wf:note>Создание пациента</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="PUT">
+                                    ${n2o.backend.path}/patients/{id}
+                                </rest:rest>
+                            </wf:invocation>
+                        </wf:service-task>
+
+                        <wf:user-task id="3"
+                                      template="patients/n2o/workflow/patient/duplicate/duplicate.exist.notify.html">
+                            <wf:title>Предупреждение</wf:title>
+                            <wf:description>Найдены двойники. Перейти в режим объединения?</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Сохранить" next-task-id="2"/>
+                                <wf:choice title="Объединить" next-task-id="4"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="4" next-task-id="5" in-parameters-context-type="TASK">
+                            <wf:note>Получаем список дубликатов</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/duplicate/updated/list
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="id" mapping="['id']"/>
+                                <param name="surname" mapping="['surname']"/>
+                                <param name="name" mapping="['name']"/>
+                                <param name="patronymic" mapping="['patrName']"/>
+                                <param name="birthDate" mapping="['birthDate']"/>
+                                <param name="insuranceNumber" mapping="['insuranceNumber']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="['data']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="5" template="patients/n2o/workflow/patient/duplicate/duplicate.list.html"
+                                      use-wf-context="true">
+                            <wf:title>Выбор дубликата</wf:title>
+                            <wf:description>Выберите дубликат для объединения</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Выбрать" next-task-id="6"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="6" next-task-id="7" in-parameters-context-type="JOIN">
+                            <wf:note>Получаем форму для объединения пациентов</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/duplicate/updated/merge-form/{id}/{wf_duplicate_patient_id}
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="wf_duplicate_patient_id" mapping="['wf_duplicate_patient_id']"/>
+                                <param name="gender.name" mapping="['genderName']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="['data']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="7"
+                                      template="patients/n2o/workflow/patient/duplicate/duplicate.merge.updated.html"
+                                      use-wf-context="true">
+                            <wf:title>Объединения дубликатов</wf:title>
+                            <wf:description>Выберите значения для объединения</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Объединить" next-task-id="8"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="8" in-parameters-context-type="TASK" out-parameters-context-type="ACTION">
+                            <wf:note>Объединение нового пациента с дублем</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="PUT">
+                                    ${n2o.backend.path}/patients/duplicate/updated/merge
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="wf_updatedId" mapping="['updatedId']"/>
+                                <param name="wf_duplicateId" mapping="['duplicateId']"/>
+                                <param name="wf_surname" mapping="['selectedSurname']"/>
+                                <param name="wf_name" mapping="['selectedName']"/>
+                                <param name="wf_patronymic" mapping="['selectedPatronymic']"/>
+                                <param name="wf_birthDate" mapping="['selectedBirthDate']"/>
+                                <param name="wf_genderId" mapping="['selectedGenderId']"/>
+                                <param name="wf_docPerson" mapping="['selectedDocPerson']"/>
+                                <param name="wf_docMhi" mapping="['selectedDocMhi']"/>
+                                <param name="wf_docSnils" mapping="['selectedDocSnils']"/>
+                                <param name="wf_docInn" mapping="['selectedDocInn']"/>
+                                <param name="wf_registerAddress" mapping="['selectedRegisterAddress']"/>
+                                <param name="wf_actualAddress" mapping="['selectedActualAddress']"/>
+                                <param name="wf_birthAddress" mapping="['selectedBirthAddress']"/>
+                            </wf:in-parameters>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="surname" mapping="['surname']"/>
+                <param name="patronymic" mapping="['patrName']"/>
+                <param name="name" mapping="['name']"/>
+                <param name="birthDate" mapping="['birthDate']"/>
+                <param name="death_dt" mapping="['deathDate']"/>
+                <param name="gender.id" mapping="['genderId']"/>
+                <param name="insuranceNumber" mapping="['insuranceNumber']" domain="string"/>
+                <param name="vip" mapping="['vip']"/>
+                <param name="note" mapping="['note']"/>
+                <param name="birthPlace" mapping="['birthPlace']" domain="string"/>
+                <param name="citizenship.id" mapping="['citizenship']" domain="integer"/>
+                <param name="nationality.id" mapping="['nationality']" domain="integer"/>
+                <param name="educationType.id" mapping="['educationType']" domain="integer"/>
+                <param name="bloodGroup.id" mapping="['bloodGroup']" domain="integer"/>
+                <param name="birthWeight" mapping="['birthWeight']" domain="integer"/>
+                <param name="newbornNumber" mapping="['newbornNumber']" domain="integer"/>
+                <param name="ageYear" mapping="['ageYear']"/>
+                <param name="ageMonth" mapping="['ageMonth']"/>
+                <param name="ageDay" mapping="['ageDay']"/>
+                <param name="lastFluorographyDate" mapping="['lastFluorographyDate']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="displayName" mapping="['displayName']"/>
+            </out-parameters>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkSnilsSum" level="error" moment="before-action">
+            <message>Некорректный СНИЛС. Контрольная сумма не совпадает</message>
+            <expression on="insuranceNumber">
+                <![CDATA[
+                var result = true;
+                var digits = new Array(0);
+                if(insuranceNumber != null){
+                    var numLength = insuranceNumber.length;
+
+                    for (var i = 0; i < numLength; i++)
+                    {
+                        var c = insuranceNumber.charAt(i);
+                        var d = parseInt(c);
+
+                        if (!isNaN(d))
+                        {
+                            digits.length = digits.length + 1;
+                            digits[digits.length - 1] = d;
+                        }
+                        else if (c != ' ' && c != '-')
+                            result = false;
+                    }
+                    if (digits == undefined)
+                        result = false;
+
+                    if (digits.length != 11)
+                        result = false;
+
+                    var controlNumber = digits[9] * 10 + digits[10];
+                    var sum = 0;
+                    for (var i = 0; i < digits.length - 2; i++)
+                    {
+                        sum += (digits.length - i - 2) * digits[i];
+                    }
+                    sum = ((sum) % 101) % 100;
+                    result = (sum == controlNumber);
+                }
+                result;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkSnilsNumbers" level="error" moment="before-action">
+            <message>Некорректный СНИЛС.В номере не может быть три одинаковых цифры подряд</message>
+            <expression on="insuranceNumber">
+                <![CDATA[
+                    var digits = new Array(0);
+                    var result = true;
+                    if(insuranceNumber != null){
+                        var numLength = insuranceNumber.length;
+
+                        for (var i = 0; i < numLength; i++)
+                        {
+                            var c = insuranceNumber.charAt(i);
+                            var d = parseInt(c);
+
+                            if (!isNaN(d))
+                            {
+                                digits.length = digits.length + 1;
+                                digits[digits.length - 1] = d;
+                            }
+                            else if (c != ' ' && c != '-')
+                                result = false;
+                        }
+
+                        for(var i=0; i < digits.length-4; i++){
+                            if((digits[i] == digits[i+1])&& (digits[i+1] == digits[i+2]))
+                                result = false;
+                        }
+                    }
+                    result;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkEnpSum" level="error" moment="before-action">
+            <message>Некорректный ЕНП. Контрольная сумма не совпадает.</message>
+            <expression on="policyCode">
+                <![CDATA[
+                var result = true;
+                var digits = new Array(0);
+
+                if(policyCode != null){
+                    var numLength = policyCode.length;
+                    for (var i = 0; i < numLength; i++){
+                        var c = policyCode.charAt(i);
+                        var d = parseInt(c);
+
+                        if (!isNaN(d)){
+                            digits.length = digits.length + 1;
+                            digits[digits.length - 1] = d;
+                        }
+                        else if (c != ' ' && c != '-')
+                            result = false;
+                    }
+                    if (digits == undefined)
+                        result = false;
+
+                    if (digits.length != 16)
+                        result = false;
+
+                    var sum = 0;
+                    var digitsSlice = digits.slice(0, 15);
+                    for (var i = digitsSlice.length; i > 0; i--){
+                        var m = i % 2 + 1;
+                        var s = (digitsSlice[i - 1]) * m;
+                        if (s >= 10)
+                            s = s - 10 + 1;
+                        sum = sum + s;
+                    }
+
+                    var controlNumber = digits[15];
+                    result = ((10 - sum % 10) == controlNumber || sum % 10 == controlNumber);
+                }
+                result;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="surnameValidation" level="error">
+            <message>Допустимые символы: А-Я, ' ', -, ё, Ё</message>
+            <expression on="surname"><![CDATA[
+                    var regex = new RegExp('^[а-яА-ЯёЁ*\\s-]*$');
+                    var b = true;
+                    if(typeof surname != 'undefined' && surname != null && surname != '')
+                        b = regex.test(surname);
+                    b;
+                    ]]>
+            </expression>
+        </condition>
+
+        <condition id="nameValidation" level="error">
+            <message>Допустимые символы: А-Я, ' ', -, ё, Ё</message>
+            <expression on="name"><![CDATA[
+                    var regex = new RegExp('^[а-яА-ЯёЁ*\\s-]*$');
+                    var b = true;
+                    if(typeof name != 'undefined' && name != null && name != '')
+                        b = regex.test(name);
+                    b;
+                    ]]>
+            </expression>
+        </condition>
+
+        <condition id="patronymicValidation" level="error">
+            <message>Допустимые символы: А-Я, ' ', -, ., ё, Ё</message>
+            <expression on="patronymic"><![CDATA[
+                    var regex = new RegExp('^[а-яА-ЯёЁ*.\\s-]*$');
+                    var b = true;
+                    if(typeof patronymic != 'undefined' && patronymic != null && patronymic != '')
+                        b = regex.test(patronymic);
+                    b;
+                    ]]>
+            </expression>
+        </condition>
+
+        <condition id="birthDateValidation" level="error">
+            <expression on="birthDate">
+                <![CDATA[
+                    if(birthDate != null){
+                        console.log(moment(birthDate, 'DD.MM.YYYY').valueOf());
+                        moment(birthDate, 'DD.MM.YYYY').valueOf() <= moment().valueOf()}
+                    else true;
+                ]]>
+            </expression>
+            <message>Дата больше текущей</message>
+        </condition>
+
+        <constraint id="checkUniquePolicyOMS" level="warning" moment="before-action">
+            <message>Уже существует полис ОМС с пересечением периодов действия</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*)
+                    from pim_individual_doc doc
+                    inner join pim_doc_type dt on dt.id = doc.type_id and dt.code in ('MHI_OLDER', 'MHI_TEMP', 'MHI_UNIFORM')
+                    inner join pim_doc_type_category dtc on dtc.category_id = 2 and dtc.type_id = dt.id
+                    where doc.indiv_id = :patient_id
+                    and
+                    (((doc.issue_dt is null or doc.issue_dt <= :issueDate) and (doc.expire_dt is null or doc.expire_dt >= :issueDate))
+                          or
+                     (doc.issue_dt is not null and doc.issue_dt >= :issueDate and doc.issue_dt <= coalesce(:expireDate, doc.issue_dt))
+                    )
+                    and (:id is null or doc.id != :id)
+                ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient_id" mapping="['patient_id']" domain="integer"/>
+                <param name="issueDate" mapping="['issueDate']" domain="date"/>
+                <param name="expireDate" mapping="['expireDate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkUniqueDocSeriesAndNumber" level="error">
+            <message>Уже существует документ с такими номером и серией.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*)
+                    from pim_individual_doc doc
+                    where  (:id IS NULL OR doc.indiv_id != :id) and doc.type_id = :typeId
+                           and upper(COALESCE(regexp_replace(doc.series, '-|\s|\/|\\', '', 'g'), '') || regexp_replace(doc.number, '-|\s|\/|\\', '', 'g'))
+                               = upper(COALESCE(regexp_replace(:series, '-|\s|\/|\\', '', 'g'), '') || regexp_replace(:number, '-|\s|\/|\\', '', 'g'))
+                           and (doc.expire_dt is NULL or (doc.expire_dt IS NOT NULL and doc.expire_dt >= current_date))
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="documentType.id" mapping="['typeId']" domain="integer"/>
+                <param name="documentSeries.value" mapping="['series']" domain="string"/>
+                <param name="documentNumber.value" mapping="['number']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkUniquePolicyOMSnumber" level="error">
+            <message>Уже существует полис ОМС c такими данными</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*)
+                    from pim_individual_doc doc
+                    inner join pim_doc_type dt on dt.id = doc.type_id and dt.code in ('MHI_OLDER', 'MHI_TEMP', 'MHI_UNIFORM')
+                    inner join pim_doc_type_category dtc on dtc.category_id = 2 and dtc.type_id = dt.id
+                    left join pim_indiv_code pic on (doc.code_id = pic.id)
+                    where (:id IS NULL OR doc.indiv_id != :id) and doc.type_id = :typeId
+                           and (upper(COALESCE(regexp_replace(doc.series, '-|\s|\/|\\', '', 'g'), '') || regexp_replace(doc.number, '-|\s|\/|\\', '', 'g'))
+                               = upper(COALESCE(regexp_replace(:series, '-|\s|\/|\\', '', 'g'), '') || regexp_replace(:number, '-|\s|\/|\\', '', 'g'))
+                               or (:code is not null and pic.code = :code))
+                           and (doc.expire_dt is NULL or (doc.expire_dt IS NOT NULL and doc.expire_dt >= current_date))
+                ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="policyType.id" mapping="['typeId']" domain="integer"/>
+                <param name="policySeries.value" mapping="['series']" domain="string"/>
+                <param name="policyNumber.value" mapping="['number']" domain="string"/>
+                <param name="policyCode" mapping="['code']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <condition id="assertAgeMonth" level="error">
+            <message>Некорректный формат месяца.</message>
+            <expression on="ageMonth">
+                <![CDATA[
+                    var regex = new RegExp('^([1-9]|1[0-2])$');
+                    var b = true;
+                    if(typeof ageMonth != 'undefined' && ageMonth != null && ageMonth != '')
+                    b = regex.test(ageMonth);
+                    b;
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

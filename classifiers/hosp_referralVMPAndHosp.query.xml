@@ -1,0 +1,176 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_referral r
+                left join md_referral_type t on r.referral_type_id = t.id
+                left join pim_organization ref_org on r.ref_organization_id = ref_org.id
+                left join pim_organization recv_org on recv_org.id = r.recv_organization_id
+                left outer join pim_department ref_dep on ref_dep.id = r.ref_department_id
+                left join md_diagnosis d on d.id = r.diagnosis_id
+                left join pim_party_role pr on pr.id = r.ref_organization_role_id
+                where t.hsp_rsv_mark and :where
+                order by r.id
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(r)
+                from md_referral r
+                left join md_referral_type t on r.referral_type_id = t.id
+                left join pim_organization ref_org on r.ref_organization_id = ref_org.id
+                left join pim_organization recv_org on recv_org.id = r.recv_organization_id
+                left outer join pim_department ref_dep on ref_dep.id = r.ref_department_id
+                left join md_diagnosis d on d.id = r.diagnosis_id
+                left join pim_party_role pr on pr.id = r.ref_organization_role_id
+                where t.hsp_rsv_mark and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>r.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>
+                coalesce(nullif(coalesce(t.name,'')||' ', '
+                '),'')||coalesce(nullif('№'||coalesce(r.order_number,'')||' ','№ '),'')
+                ||'от '||to_char(r.referral_date, 'DD.MM.YYYY')||' '||coalesce(ref_org.short_name,'')
+            </expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <expression>r.patient_id</expression>
+            <domain>integer</domain>
+            <search>:expression=:patientId</search>
+        </field>
+
+        <field>
+            <id>organizationId</id>
+            <domain>integer</domain>
+            <expression>recv_org.id</expression>
+            <search>:expression=:organizationId</search>
+        </field>
+
+        <field>
+            <id>referralOrganizationRole.id</id>
+            <domain>integer</domain>
+            <expression>(case when r.ref_organization_role_id is not null then r.ref_organization_role_id else
+                case when (select count(rtp) from pim_party_role_to_party rtp where party_id = r.ref_organization_id) = 1 then (select role_id from pim_party_role_to_party where party_id = r.ref_organization_id) else null
+                end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>referralOrganizationRole.name</id>
+            <domain>string</domain>
+            <expression>(case when r.ref_organization_role_id is not null then pr.name else
+                case when (select count(rtp) from pim_party_role_to_party rtp where party_id = r.ref_organization_id) = 1 then (select name from pim_party_role where id = (select role_id from pim_party_role_to_party where party_id = r.ref_organization_id)) else null
+                end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>referralOrganization.id</id>
+            <expression>ref_org.id</expression>
+        </field>
+
+        <field>
+            <id>referralOrganization.name</id>
+            <expression>coalesce(ref_org.short_name, ref_org.full_name)</expression>
+        </field>
+
+        <field>
+            <id>referralDepartment.id</id>
+            <expression>ref_dep.id</expression>
+        </field>
+
+        <field>
+            <id>referralDepartment.name</id>
+            <expression>ref_dep.name</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosis.id</id>
+            <expression>d.id</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosis.name</id>
+            <expression>d.code || ' ' || d.name</expression>
+        </field>
+
+        <field>
+            <id>referralNumber</id>
+            <expression>r.order_number</expression>
+        </field>
+
+        <field>
+            <id>referralDate</id>
+            <expression>r.referral_date</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosisComment</id>
+            <expression>r.diagnosis_comment</expression>
+        </field>
+
+        <field>
+            <id>comment</id>
+            <domain>string</domain>
+            <expression>r.comment</expression>
+        </field>
+
+        <field>
+            <id>recvDepartment.id</id>
+            <domain>integer</domain>
+            <expression>r.department_id</expression>
+        </field>
+
+        <field>
+            <id>recvDepartment.name</id>
+            <domain>string</domain>
+            <expression>(select name from pim_department where id = r.department_id)</expression>
+        </field>
+
+        <field>
+            <id>recvRegimen.id</id>
+            <domain>integer</domain>
+            <expression>r.recv_regimen_id</expression>
+        </field>
+
+        <field>
+            <id>recvRegimen.name</id>
+            <domain>string</domain>
+            <expression>(select name from mc_care_regimen where id = r.recv_regimen_id)</expression>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>r.funding_id</expression>
+        </field>
+
+        <field>
+            <id>financialType.name</id>
+            <domain>string</domain>
+            <expression>(select name from fin_funding_source_type where id = r.funding_id)</expression>
+        </field>
+
+    </fields>
+
+</query>

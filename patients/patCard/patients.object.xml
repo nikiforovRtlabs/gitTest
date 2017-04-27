@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Поиск пациента</name>
+    <actions>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" next-task-id="2" in-parameters-context-type="TASK">
+                            <wf:note>Получаем форму подтверждения удаления</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET" date-format="dd.MM.yyyy">
+                                    ${n2o.backend.path}/patients/{id}/get-ref-info
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="id" mapping="['id']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="['data']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="2" template="patients/n2o/workflow/patient/patient.references.info.html"
+                                      use-wf-context="true">
+                            <wf:title>Форма подтверждения удаления</wf:title>
+                            <wf:description>Для пациента заведены записи, количество: </wf:description>
+                            <wf:choices>
+                                <wf:choice title="Удалить" next-task-id="3"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="3" in-parameters-context-type="TASK">
+                            <wf:note>Удаление пациента</wf:note>
+                            <wf:invocation>
+                                <rest:rest method="DELETE">
+                                    ${n2o.backend.path}/patients/{id}
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="id" mapping="['id']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="response" mapping="['response']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+</object>

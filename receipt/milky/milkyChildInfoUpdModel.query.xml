@@ -1,0 +1,275 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>childInfo_updModel</id>-->
+    <name>Получение данных пациента</name>
+    <object-id>receipt</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.pim_individual pi
+                <!--left join public.pim_party_address ppa on ppa.party_id = pi.id-->
+                <!--and (ppa.to_date is null or ppa.to_date > now())-->
+                <!--left join public.address_element ae on ae.id = ppa.addr_id-->
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from public.pim_individual pi
+                <!--left join public.pim_party_address ppa on ppa.party_id = pi.id-->
+                <!--and (ppa.to_date is null or ppa.to_date > now())-->
+                <!--left join public.address_element ae on ae.id = ppa.addr_id-->
+
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pi</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>ind.id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <display/>
+            <expression>pi.id</expression>
+            <filters>
+                <filter type="eq" filter-field="ind.id">
+                    :expression = :ind.id
+                </filter>
+            </filters>
+        </field>
+
+        <!--<field>-->
+        <!--<id>fio</id>-->
+        <!--<domain>string</domain>-->
+        <!--<display/>-->
+        <!--<expression>pi.surname||' '||pi.name||' '||pi.patr_name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>birth_dt</id>
+            <domain>date</domain>
+            <display/>
+            <expression>pi.birth_dt</expression>
+        </field>
+        <!--<field>-->
+        <!--<id>age</id>-->
+        <!--<domain>intger</domain>-->
+        <!--<display/>-->
+        <!--<expression>-->
+        <!--</expression>-->
+        <!--</field>-->
+        <!--todo уточнить адрес-->
+        <field>
+            <id>address.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                <!--case when ae.id is not null then ae.id end-->
+                (select id
+                from
+                (select ae.id as id, case when ppatat.address_type_id in (select id from public.pim_address_type where  upper(trim(code))in ('ACTUAL')) then 1 else 2 end as prior
+                from public.pim_party_address ppa
+                join public.pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                join public.address_element ae on ae.id = ppa.addr_id
+                where ppa.party_id = pi.id and (ppa.to_date is null or ppa.to_date > now()) and ppa.is_valid is true
+                and ppatat.address_type_id in (select id from public.pim_address_type where  upper(trim(code))in ('ACTUAL','REGISTER'))
+
+                union
+
+                select ppa.addr_id as id, 3 as prior
+                from pci_patient_reg ppr
+                left join pim_party_address ppa on ppa.id = ppr.address_id
+                where ppr.patient_id = pi.id
+                and ppr.clinic_id = :orgId
+                and ppr.state_id = 1
+                and  :fromDt >= ppr.reg_dt
+                ) as addr
+
+                order by prior asc
+                limit 1
+                )
+            </expression>
+        </field>
+        <field>
+            <id>address.displayName</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select name
+                from
+                (select ae.id as id,ae.search_name as name, case when ppatat.address_type_id in (select id from public.pim_address_type where  upper(trim(code))in ('ACTUAL')) then 1 else 2 end as prior
+                from public.pim_party_address ppa
+                join public.pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                join public.address_element_data ae on ae.id = ppa.addr_id
+                where ppa.party_id = pi.id and (ppa.to_date is null or ppa.to_date > now()) and ppa.is_valid is true
+                and ppatat.address_type_id in (select id from public.pim_address_type where  upper(trim(code))in ('ACTUAL','REGISTER'))
+
+                union
+
+                select ppa.addr_id as id,ae.search_name as name, 3 as prior
+                from pci_patient_reg ppr
+                left join pim_party_address ppa on ppa.id = ppr.address_id
+                join public.address_element_data ae on ae.id = ppa.addr_id
+                where ppr.patient_id = pi.id
+                and ppr.clinic_id = :orgId
+                and ppr.state_id = 1
+                and  :fromDt >= ppr.reg_dt
+                ) as addr
+
+                order by prior asc
+                limit 1
+                )
+            </expression>
+        </field>
+
+        <!--СНИЛС-->
+        <field>
+            <id>snils</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select code
+                from public.pim_indiv_code
+                where indiv_id = pi.id
+                and type_id = (select id from public.pim_code_type where upper(trim(code)) = 'SNILS')
+                )
+            </expression>
+        </field>
+        <!--Полис ОМС-->
+        <field>
+            <id>OMS</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select case when doc.series is not null
+                then doc.series||' '
+                else ''
+                end ||doc.number
+                ||case when doc.issuer_id is not null
+                then ' ("'||coalesce(po.short_name,full_name)||'")'
+                else ''
+                end
+                from public.pim_individual_doc doc
+                left join public.pim_organization po on po.id = doc.issuer_id
+                join public.pim_doc_type dt on dt.id = doc.type_id
+                where doc.indiv_id = pi.id
+                and doc.type_id in (select id from public.pim_doc_type
+                where is_contract_permitted is true
+                and (now() >= from_dt or from_dt is null)
+                and (to_dt > now() or to_dt is null)
+                order by priority
+                )
+                order by dt.priority
+                limit 1
+                )
+            </expression>
+        </field>
+        <!--Свидетельство о Рождении-->
+        <field>
+            <id>birth_doc</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select case when series is not null
+                then series||' '
+                else ''
+                end ||number
+                from public.pim_individual_doc
+                where indiv_id = pi.id
+                and type_id = (select id from public.pim_doc_type
+                where upper(trim(code)) in ('BIRTH','BIRTHZAGRAN')
+                and (now() >= from_dt or from_dt is null)
+                and (to_dt > now() or to_dt is null)
+                order by id
+                limit 1
+                )
+                )
+            </expression>
+        </field>
+        <!--Номер амбулаторной карты-->
+        <field>
+            <id>number_attach</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select number_attach
+                from public.pci_patient_reg
+                where patient_id = pi.id
+                and state_id = 1
+                and (now() >= reg_dt or reg_dt is null)
+                and (unreg_dt > now() or unreg_dt is null)
+                order by reg_dt desc
+                limit 1
+                )
+            </expression>
+        </field>
+
+        <!--<field>-->
+        <!--<id>ageCategory.id</id>-->
+        <!--<domain>integer</domain>-->
+        <!--<display/>-->
+        <!--<expression>-->
+        <!--(select id from public.md_baby_food_age_category-->
+        <!--where :month >= cat.begin_age-->
+        <!--and cat.end_age >= :month)-->
+        <!--</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+        <!--<id>ageCategory.id</id>-->
+        <!--<domain>full_name</domain>-->
+        <!--<display/>-->
+        <!--<expression>-->
+
+        <!--</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>benefit_definition.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display/>-->
+            <!--<expression>-->
+                <!--(select b.benefit_def_id-->
+                <!--from public.pci_benefit b-->
+                <!--where b.patient_id = pi.id-->
+                <!--and b.benefit_type_id = (select id from public.pci_benefit_type-->
+                <!--where upper(trim(code)) = 'RLDP'-->
+                <!--)-->
+                <!--limit 1-->
+                <!--)-->
+            <!--</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>benefit_definition.codename</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display/>-->
+            <!--<expression>-->
+                <!--(select bd.code||' '||bd.name-->
+                <!--from public.pci_benefit b-->
+                <!--join public.pci_benefit_definition bd on bd.id = b.benefit_def_id-->
+                <!--where b.patient_id = pi.id-->
+                <!--and b.benefit_type_id = (select id from public.pci_benefit_type-->
+                <!--where upper(trim(code)) = 'RLDP'-->
+                <!--)-->
+                <!--limit 1-->
+                <!--)-->
+            <!--</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>:orgId</expression>
+        </field>
+
+        <field>
+            <id>fromDt</id>
+            <domain>date</domain>
+            <display/>
+            <expression>:fromDt</expression>
+        </field>
+
+    </fields>
+</query>

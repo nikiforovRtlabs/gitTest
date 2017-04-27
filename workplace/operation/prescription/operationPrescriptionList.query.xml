@@ -1,0 +1,123 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_prescription</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hospital.prescription p
+                join pim_employee_position_resource epr on epr.id = p.doctor_id
+                join pim_employee_position ep on ep.id = epr.employee_position_id
+                join pim_employee e on e.id = ep.employee_id
+                join pim_individual i on i.id = e.individual_id
+
+                join hospital.prescription_schedule ps on ps.prescription_id = p.id
+                join pim_employee_position_resource eepr on eepr.id = ps.executor_employee_id
+                join pim_employee_position eep on eep.id = eepr.employee_position_id
+                join pim_employee ee on ee.id = eep.employee_id
+                join pim_individual ei on ei.id = ee.individual_id
+
+                left join inventory.store_opr_jur soj on soj.id = ps.store_opr_id
+                left join inventory.store store on store.id = soj.store_send_id
+
+                where :where
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(p)
+                from hospital.prescription p
+                join pim_employee_position_resource epr on epr.id = p.doctor_id
+                join pim_employee_position ep on ep.id = epr.employee_position_id
+                join pim_employee e on e.id = ep.employee_id
+                join pim_individual i on i.id = e.individual_id
+
+                join hospital.prescription_schedule ps on ps.prescription_id = p.id
+                join pim_employee_position_resource eepr on eepr.id = ps.executor_employee_id
+                join pim_employee_position eep on eep.id = eepr.employee_position_id
+                join pim_employee ee on ee.id = eep.employee_id
+                join pim_individual ei on ei.id = ee.individual_id
+
+                left join inventory.store_opr_jur soj on soj.id = ps.store_opr_id
+                left join inventory.store store on store.id = soj.store_send_id
+
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>mdSrvRendered.id</id>
+            <domain>integer</domain>
+            <expression>p.service_id</expression>
+            <search>:expression = :mdSrvRendered.id</search>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Препарат</name>
+            <expression>p.name_holding</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>dose</id>
+            <name>Доза</name>
+            <domain>string</domain>
+            <expression>
+                (
+                select array_to_string(array_agg(dose), ' + ')
+                from
+                (
+                select trim(to_char(sum(hold_dose_value * count), 'FM9999990.999'), '.') || ' ' || (select name from cmn_measure where id = hold_dose_measure_id) as dose
+                from hospital.prescription_holding
+                where prescription_id = p.id
+                group by hold_dose_measure_id, id
+                order by id
+                ) doses
+                )
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>doctor</id>
+            <domain>string</domain>
+            <name>Назначил</name>
+            <expression>coalesce(i.surname, '') || ' '
+                || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end
+                || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for 1) || '.' end
+            </expression>
+        </field>
+
+        <field>
+            <id>executorDoctor</id>
+            <domain>string</domain>
+            <name>Выполнил</name>
+            <expression>coalesce(ei.surname, '') || ' '
+                || case coalesce(substring(ei.name for 1), '') when '' then '' else substring(ei.name for 1) || '.' end
+                || ' ' || case coalesce(substring(ei.patr_name for 1), '') when '' then '' else substring(ei.patr_name for 1) || '.' end
+            </expression>
+        </field>
+
+        <field>
+            <id>store</id>
+            <domain>string</domain>
+            <name>Склад</name>
+            <expression>store.name</expression>
+        </field>
+
+    </fields>
+
+</query>

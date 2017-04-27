@@ -1,0 +1,363 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>medicalHistory</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from hsp_record hr
+                inner join mc_step s on s.id = hr.id
+                inner join mc_case c on c.id = s.case_id
+                inner join pci_patient p on p.id = s._patient_id
+                inner join pim_individual pi on pi.id = p.id
+                inner join pim_department dp on dp.id = hr.department_id
+
+                left join fin_funding_source_type fst on fst.id = hr.funding_id
+                left join mc_diagnosis mcdiag on mcdiag.id = s.main_diagnosis_id
+                left join md_diagnosis dg on dg.id = mcdiag.diagnos_id
+
+                left join sr_res_group rg on rg.id = s.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual ei on ei.id = e.individual_id
+
+                where dp.type_id != 4 and
+                not exists(select 1 from hsp_record h2 inner join mc_step s2 on s2.id = h2.id where s2.case_id = c.id and h2.previous_id = hr.id)
+                and :where
+                order by :order, hr.id desc
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(hr) from hsp_record hr
+                inner join mc_step s on s.id = hr.id
+                inner join mc_case c on c.id = s.case_id
+                inner join pci_patient p on p.id = s._patient_id
+                inner join pim_individual pi on pi.id = p.id
+                inner join pim_department dp on dp.id = hr.department_id
+
+                left join fin_funding_source_type fst on fst.id = hr.funding_id
+                left join mc_diagnosis mcdiag on mcdiag.id = s.main_diagnosis_id
+                left join md_diagnosis dg on dg.id = mcdiag.diagnos_id
+
+                left join sr_res_group rg on rg.id = s.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual ei on ei.id = e.individual_id
+
+                where dp.type_id != 4 and
+                not exists(select 1 from hsp_record h2 inner join mc_step s2 on s2.id = h2.id where s2.case_id = c.id and h2.previous_id = hr.id)
+                and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>s._clinic_id</expression>
+            <search>:expression = :clinicId</search>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>id</name>
+            <expression>hr.id</expression>
+        </field>
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <name>Номер ИБ</name>
+            <expression>c.uid</expression>
+            <search>:expression like '%' || :uid || '%'</search>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>roomNumber</id>
+            <domain>string</domain>
+            <name>Палата/койка</name>
+            <expression>
+                (select pim_room.name || ', койка № ' || md_bed.number from sr_res_group_relationship
+                inner join md_bed_resource on md_bed_resource.id = sr_res_group_relationship.resource_id
+                inner join md_bed on md_bed.id = md_bed_resource.bed_id
+                inner join pim_room on pim_room.id = md_bed.room_id
+                where sr_res_group_relationship.group_id = s.res_group_id and (is_disabled is false or is_disabled is null) limit 1)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+            <search>:expression = :patient.id</search>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>coalesce(pi.surname, '') || coalesce(' ' || pi.name, '') || coalesce(' ' || pi.patr_name, '')</expression>
+            <sorting>
+                get_individual_surname_index(_patient_id), get_individual_name_index(_patient_id), get_individual_patr_name_index(_patient_id)
+            </sorting>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>uidForTitle</id>
+            <domain>string</domain>
+            <expression>coalesce('№' || c.uid || ',', '')</expression>
+        </field>
+
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <name>Возраст</name>
+            <expression>extract(year from AGE(NOW(), pi.birth_dt))</expression>
+        </field>
+
+        <field>
+            <id>doctor.name</id>
+            <domain>string</domain>
+            <name>Лечащий врач</name>
+            <expression> coalesce(ei.surname, '') ||
+                coalesce(' ' || substring(ei.name for 1) || '.', '') ||
+                coalesce(' ' || substring(ei.patr_name for 1) || '.', '')</expression>
+            <sorting>ei.surname</sorting>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                :doctor.id in (select epr.id from sr_res_group rg
+                join pim_employee_position_resource epr on epr.employee_position_id = rg.responsible_id
+                where rg.id = s.res_group_id)
+            </search>
+        </field>
+
+        <field>
+            <id>regimen.id</id>
+            <domain>integer</domain>
+            <expression>s.regimen_id</expression>
+        </field>
+
+        <field>
+            <id>department.name</id>
+            <domain>string</domain>
+            <name>Отделение</name>
+            <expression>dp.name</expression>
+            <sorting>:expression</sorting>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>dp.id</expression>
+            <search filter-field="departments*.id" type="in">
+                (case when 5 not in (select type_id from pim_department where id in (:departments*.id)) and dp.type_id = 5
+                then (select department_id from hsp_record hr2 where hr2.id = hr.previous_id )
+                else dp.id end) in (:departments*.id)</search>
+            <!--<display unavailable="true"/>-->
+        </field>
+
+        <field>
+            <id>admissionDate.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>admissionDate.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>admissionDate</id>
+            <name>Дата поступления</name>
+            <expression>
+                s.admission_date + coalesce(s.admission_time, '00:00')
+            </expression>
+            <search><![CDATA[
+                (
+                :admissionDate.begin::date is null and :admissionDate.end::date is null or
+                (:admissionDate.begin::date is null or s.admission_date >= :admissionDate.begin) and
+                (:admissionDate.end::date is null or s.admission_date <= :admissionDate.end)
+                )
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>admissionDateSort</id>
+            <expression>s.admission_date</expression>
+            <sorting>s.admission_date</sorting>
+        </field>
+
+        <field>
+            <id>admissionTimeSort</id>
+            <expression>s.admission_time</expression>
+            <sorting>s.admission_time</sorting>
+        </field>
+
+        <field>
+            <id>reanimationDate</id>
+            <name>Дата перевода в реанимацию</name>
+            <expression>(case when dp.type_id = 5 then s.admission_date + coalesce(s.admission_time, '00:00')  else null end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>reanimation</id>
+            <name>Дата перевода в реанимацию</name>
+            <expression>(case when dp.type_id = 5 then 'text-error'  else '' end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>bedDaysAmount</id>
+            <domain>integer</domain>
+            <name>Койко-дней</name>
+            <expression>(select get_bed_day_amount_n2o(c.id))</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>funding</id>
+            <domain>string</domain>
+            <name>Вид оплаты</name>
+            <expression>fst.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>fst.id</expression>
+            <search>:expression = :financialType.id</search>
+        </field>
+
+        <field>
+            <id>diagnosis</id>
+            <domain>string</domain>
+            <name>Диагноз поступления</name>
+            <expression>dg.code || ' ' || dg.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>issuePlannedDate</id>
+            <name>Дата выписки по плану</name>
+            <expression>hr.issue_planned_date</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>outcomeDate</id>
+            <name>Дата выписки</name>
+            <expression>s.outcome_date</expression>
+            <sorting>:expression</sorting>
+            <search><![CDATA[
+                (case when :showClosedCases::boolean is true then
+                        ((:outcomeDate.begin::date is null and :outcomeDate.end::date is null or
+                        (:outcomeDate.begin::date is null or s.outcome_date >= :outcomeDate.begin) and
+                        (:outcomeDate.end::date is null or s.outcome_date <= :outcomeDate.end)) or s.outcome_date is null or c.closing_step_id is null)
+                      else true end)
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>outcomeDate.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>outcomeDate.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>openCases</id>
+            <domain>boolean</domain>
+            <expression><![CDATA[
+            (c.closing_step_id is null or (c.closing_step_id is not null and s.outcome_date > cast(CURRENT_DATE AS date)))
+            ]]></expression>
+            <search value="true">(:expression = :openCases::boolean or :showClosedCases::boolean is true)</search>
+        </field>
+
+        <field>
+            <id>showClosedCases</id>
+            <domain>boolean</domain>
+            <search value="false" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>isClosed</id>
+            <domain>boolean</domain>
+            <expression>c.closing_step_id is not null</expression>
+        </field>
+
+        <field>
+            <id>departmentTypeId</id>
+            <domain>integer</domain>
+            <expression>dp.type_id</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+        </field>
+
+        <field>
+            <id>case.step.id</id>
+            <domain>integer</domain>
+            <expression>hr.id</expression>
+        </field>
+
+        <field>
+            <id>case.step.department.id</id>
+            <domain>integer</domain>
+            <expression>hr.department_id</expression>
+        </field>
+
+        <field>
+            <id>case.organization.id</id>
+            <domain>integer</domain>
+            <expression>s._clinic_id</expression>
+        </field>
+
+        <field>
+            <id>case.patient.id</id>
+            <domain>integer</domain>
+            <expression>c.patient_id</expression>
+        </field>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+        </field>
+
+    </fields>
+
+
+</query>

@@ -1,0 +1,161 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Документ на списание</name>
+
+    <actions>
+        <action id="save" name="Сохранить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/write-off-doc
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['docNumber']" domain="string"/>
+                <param name="docType.id" mapping="['docTypeId']"/>
+                <param name="docDate" mapping="['docDate']"/>
+                <param name="sendStore.id" mapping="['sendStoreId']"/>
+                <param name="storeOpr.id" mapping="['storeOprId']"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+                <param name="reason.id" mapping="['reasonId']"/>
+                <param name="comGroup.id" mapping="['comGroupId']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="note" mapping="['note']"/>
+                <param name="emplPos.id" mapping="['emplPosId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['displayedValue']"/>
+            </out-parameters>
+            <success-text>Документ на списание № {docNumber} сохранён</success-text>
+        </action>
+
+        <action id="copy" name="Копировать" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/inventory/write-off-doc/copy
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['docNumber']" domain="string"/>
+                <param name="docType.id" mapping="['docTypeId']"/>
+                <param name="docDate" mapping="['docDate']"/>
+                <param name="sendStore.id" mapping="['sendStoreId']"/>
+                <param name="storeOpr.id" mapping="['storeOprId']"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+                <param name="reason.id" mapping="['reasonId']"/>
+                <param name="comGroup.id" mapping="['comGroupId']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="note" mapping="['note']"/>
+                <param name="copiedDoc.id" mapping="['copiedDocId']"/>
+                <param name="emplPos.id" mapping="['emplPosId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['displayedValue']"/>
+            </out-parameters>
+            <success-text>Копирование завершено. Документ на списание № {docNumber} сохранён</success-text>
+        </action>
+
+        <action id="execute" form-submit-label="Провести" name="Провести">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/inventory/execute
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="executeDate.id" mapping="['executeDate']" domain="string"/>
+                <param name="docType.name" mapping="['docType']"/>
+                <param name="empPos.id" mapping="['empPosId']"/>
+                <param name="sendStore.id" mapping="['storeId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Документ проведён</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="emplPosIsEmpty"/>
+            </validations>
+        </action>
+
+        <action id="cancel" form-submit-label="Отменить" name="Отменить">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/inventory/execute/cancel
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docType.name" mapping="['docType']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <confirmation-text>Вы действительно хотите отменить проводку документа?</confirmation-text>
+            <success-text>Проводка документа отменена</success-text>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from inventory.document i where i.id= :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>При удалении Акта списания будут удалены все его спецификации.
+                Вы уверены, что хотите удалить Акт списания?</confirmation-text>
+            <validations activate="nothing"/>
+            <success-text>Документ и спецификации удалены</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="writeOffDocCheckUnique" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.document
+                    where int_doc_number = :docNumber
+                    and int_doc_type_id = :docTypeId
+                    and org_id = :orgId
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['docNumber']" domain="string"/>
+                <param name="docType.id" mapping="['docTypeId']"/>
+                <param name="org.id" mapping="['orgId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Акт списания с таким номером уже существует.</message>
+        </constraint>
+
+        <condition id="emplPosIsEmpty" level="error">
+            <message>Операция не может быть завершена. Не указана должность в контексте пользователя</message>
+            <expression>typeof empPos!='undefined' &amp;&amp; empPos!=null &amp;&amp; empPos.id!=null</expression>
+        </condition>
+
+        <constraint id="fundingSourceUpdateAvailable" level="error">
+            <message>Источник финансирования не может быть изменен. Существуют спецификации</message>
+            <invocation>
+                <sql:sql>
+                    select (:fundSourceId is null)
+                    or not exists (select 1 from inventory.write_off_spec s where s.doc_id = :id)
+                    or coalesce((select fund_source_id from inventory.write_off_document where id = :id) = :fundSourceId, false)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+
+    </validations>
+
+</object>

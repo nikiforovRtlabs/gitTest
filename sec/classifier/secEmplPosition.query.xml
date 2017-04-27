@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from "public".pim_employee e
+                join "public".pim_employee_position ep on ep.employee_id = e.id
+                join "public".pim_position p on p.id = ep.position_id
+                join "public".sec_user_party up on up.party_id = e.individual_id
+                join public.pim_department pd on pd.id = p.department_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(e)
+                from "public".pim_employee e
+                join "public".pim_employee_position ep on ep.employee_id = e.id
+                join "public".pim_position p on p.id = ep.position_id
+                join "public".sec_user_party up on up.party_id = e.individual_id
+                join public.pim_department pd on pd.id = p.department_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>e</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <expression>ep.id</expression>
+        </field>
+        <field>
+            <id>fullName</id>
+            <domain>String</domain>
+            <display>
+                p.name ||
+                CASE WHEN ep.start_date is null THEN ''
+                ELSE ' c ' || ep.start_date::text
+                END ||
+                CASE WHEN ep.end_date is null THEN ''
+                ELSE ' по ' || ep.end_date::text
+                END
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>String</domain>
+            <display>p.name||'('||pd.name||')'</display>
+            <search>lower(p.name||'('||pd.name||')') like '%'||lower(:name)||'%'</search>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>userId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>up.id = :userId</search>
+        </field>
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <search>p.organization_id = :orgId</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>isActual</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>
+                (p.end_date is null or p.end_date >= current_date)
+            </search>
+        </field>
+        <field>
+            <id>notEndDate</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[
+                    (ep.end_date is null or ep.end_date >= current_date)
+                ]]>
+            </search>
+        </field>
+    </fields>
+</query>

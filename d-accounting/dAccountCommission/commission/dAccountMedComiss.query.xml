@@ -1,0 +1,169 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>dAccountMedComiss</object-id>
+    <name>Состав врачебной комиссии</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from d_accounting.commission m
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from d_accounting.commission m
+                where :where
+            </n2o:count-query>
+            <n2o:alias>m</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>res_group_id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>mo.id</id>
+            <domain>integer</domain>
+            <expression>m.org_id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <name>Наименование</name>
+            <domain>string</domain>
+            <expression>m.name</expression>
+            <search>lower(m.name) like '%'||lower(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>create_dt</id>
+            <name>Дата создания</name>
+            <domain>date</domain>
+            <expression>m.create_dt</expression>
+        </field>
+
+        <field>
+            <id>chairman.id</id>
+            <name>Председатель</name>
+            <domain>integer</domain>
+            <expression>
+                (select srel.resource_id
+                from public.sr_res_group sg
+                join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'CHAIRMAN'
+                where sg.id = m.res_group_id
+                LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>chairman.name</id>
+            <name>Председатель</name>
+            <domain>string</domain>
+            <expression>
+                (select initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name))
+                from public.sr_res_group sg
+                join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'CHAIRMAN'
+                join public.pim_employee_position_resource emps on emps.id = srel.resource_id
+                join public.pim_employee_position epos on epos.id = emps.employee_position_id
+                join public.pim_employee emp on emp.id = epos.employee_id
+                join public.pim_individual ind on ind.id = emp.individual_id
+                where sg.id = m.res_group_id
+                LIMIT 1)
+            </expression>
+            <search>lower(:expression) like '%'||lower(:chairman.name)||'%'</search>
+        </field>
+
+        <field>
+            <id>secretary.id</id>
+            <name>Секретарь</name>
+            <domain>integer</domain>
+            <expression>
+                (select srel.resource_id
+                from public.sr_res_group sg
+                join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'SECRETARY'
+                where sg.id = m.res_group_id
+                LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>secretary.name</id>
+            <name>Секретарь</name>
+            <domain>string</domain>
+            <expression>
+                (select initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name))
+                from public.sr_res_group sg
+                join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'SECRETARY'
+                join public.pim_employee_position_resource emps on emps.id = srel.resource_id
+                join public.pim_employee_position epos on epos.id = emps.employee_position_id
+                join public.pim_employee emp on emp.id = epos.employee_id
+                join public.pim_individual ind on ind.id = emp.individual_id
+                where sg.id = m.res_group_id
+                LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <name>Департамент</name>
+            <domain>integer</domain>
+            <expression>m.department_id</expression>
+        </field>
+
+        <field>
+            <id>department.name</id>
+            <name>Департамент</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT dep.name FROM pim_organization o
+                JOIN pim_department dep ON dep.org_id = o.id AND dep.id = m.department_id
+                LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>org.name</id>
+            <name>Организация</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT coalesce(o.short_name, o.full_name) FROM pim_organization o
+                where o.id = m.org_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>vrach_sostav</id>
+            <name>Врачебный состав</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT string_agg(initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name)), ', ')
+                from public.sr_res_group sg
+                join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                join public.sr_res_role rol on rol.id = srel.role_id
+                join public.pim_employee_position_resource pres on pres.id = srel.resource_id
+                join public.pim_employee_position epos on epos.id = pres.employee_position_id
+                join public.pim_employee emp on emp.id = epos.employee_id
+                join public.pim_individual ind on ind.id = emp.individual_id
+                where sg.id = m.res_group_id and rol.code = 'COMMISSIONER')
+            </expression>
+            <search>lower(:expression) like '%'||lower(:vrach_sostav)||'%'</search>
+        </field>
+
+    </fields>
+</query>

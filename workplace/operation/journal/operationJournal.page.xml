@@ -1,0 +1,397 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0"
+      xmlns="http://n2oapp.net/framework/config/schema/page-1.0">
+
+    <object-id>operation</object-id>
+    <name>Журнал операций</name>
+    <layout>n2o/layout/top-bottom(left-right)</layout>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="operationJournal">
+                <wgt:table>
+                    <wgt:name>Журнал операций</wgt:name>
+                    <wgt:query-id>operationJournal</wgt:query-id>
+                    <wgt:size>15</wgt:size>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="status" width="3%" tooltip-field-id="statusIconTooltip">
+                            <wgt:icon>
+                                <wgt:switch>
+                                    <wgt:case value="1">icomoon-hour-glass</wgt:case>
+                                    <wgt:case value="2">icomoon-clock</wgt:case>
+                                    <wgt:case value="3">icomoon-checkmark</wgt:case>
+                                    <wgt:case value="4">icomoon-cross</wgt:case>
+                                </wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+                        <wgt:column column-field-id="operationRoomName" width="10%"/>
+                        <wgt:column column-field-id="queue" width="5%"/>
+                        <wgt:column column-field-id="uid" width="7%"/>
+                        <wgt:column column-field-id="patientName" width="15%"/>
+                        <wgt:column column-field-id="age" width="5%"/>
+                        <wgt:column column-field-id="serviceName" width="20%"/>
+                        <wgt:column column-field-id="surgeonName"/>
+                        <wgt:column column-field-id="financialTypeName"/>
+
+
+                    </wgt:columns>
+
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="operationRoomName" direction="ASC"/>
+                        <wgt:sorting sorting-field-id="patientName" direction="ASC"/>
+                    </wgt:sortings>
+
+
+                    <wgt:action-menu>
+
+                        <wgt:menu-item label="Выполнить" id="render" context="true" color="btn-success"
+                                       icon="icomoon-checkmark">
+                            <wgt:invoke-action action-id="render" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status == 1 || status == 2</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Отменить выполнение" id="cancelRender" context="true"
+                                       icon="icomoon-undo2">
+                            <wgt:invoke-action action-id="cancelRender" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status == 3</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="createRenderOperation" context="true" label="Внести протокол"
+                                       icon="icomoon-file-text">
+                            <wgt:open-page page-id="renderedOperation" model="default" refresh-after-submit="true"
+                                           action-id="renderOperation"
+                                           master-field-id="msrId" detail-field-id="id" refresh-on-close="true"
+                                           after-submit="edit">
+                            </wgt:open-page>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>protocolId == null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="createAnestheticMap" context="true" label="Создать наркозную карту"
+                                       icon="icomoon-file-text">
+                            <wgt:open-page page-id="anestheticMap" model="default"
+                                           refresh-after-submit="true"
+                                           action-id="saveBasicDateAnestheticMap"
+                                           master-field-id="id" detail-field-id="operationJournalId"
+                                           refresh-on-close="true"
+                                           after-submit="edit">
+                            </wgt:open-page>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>uidBool == false &amp;&amp; anestheticMap == false &amp;&amp;
+                                        (status == 1 || status == 2)
+                                        &amp;&amp; (msCaseClosingStepId == null || typeof msCaseClosingStepId ==
+                                        'undefined')
+                                    </wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="updateAnestheticMap" context="true" label="Наркозная карта"
+                                       icon="icomoon-file-text">
+                            <wgt:open-page page-id="anestheticMap" model="query"
+                                           refresh-after-submit="true"
+                                           action-id="saveBasicDateAnestheticMap"
+                                           master-field-id="id" detail-field-id="operationJournalId"
+                                           after-submit="edit"
+                                           refresh-on-close="true">
+                            </wgt:open-page>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>anestheticMap == true &amp;&amp; (status == 1 || status == 2)
+                                        &amp;&amp; (msCaseClosingStepId == null || typeof msCaseClosingStepId ==
+                                        'undefined')
+                                    </wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                            <wgt:properties>
+                                <wgt:property key="security-replace" value="read"/>
+                            </wgt:properties>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="read" label="Наркозная карта" visible="false"
+                                       icon="icomoon-file-text">
+                            <wgt:open-page page-id="anestheticMapRead" model="query"
+                                           refresh-after-submit="true"
+                                           master-field-id="id" detail-field-id="operationJournalId"
+                                           after-submit="edit">
+                            </wgt:open-page>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>anestheticMap == true &amp;&amp; (status == 1 || status == 2)
+                                        &amp;&amp; (msCaseClosingStepId == null || typeof msCaseClosingStepId ==
+                                        'undefined')
+                                    </wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="duringOperation" context="true" label="Течение операции"
+                                       icon="icomoon-file-text">
+                            <wgt:open-page page-id="duringOperation" model="query"
+                                           refresh-after-submit="true"
+                                           master-field-id="id" detail-field-id="operationJournalId"
+                                           after-submit="edit"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>anestheticMap == true &amp;&amp; monitoringPos==true
+                                        &amp;&amp; (operationFlow==true || operationFlowPrescription==true ||
+                                        opertationFlowConclusion==true)
+                                        &amp;&amp; (status == 1 || status == 2)
+                                    </wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="editRenderedOperation" context="true" label="Изменить протокол">
+                            <wgt:open-page page-id="renderedOperation" model="query"
+                                           action-id="renderOperation"
+                                           master-field-id="msrId" detail-field-id="id"
+                                           refresh-on-close="true"
+                                           after-submit="edit">
+                            </wgt:open-page>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>protocolId != null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="moreSub" label="Еще">
+                            <wgt:sub-menu>
+                                <wgt:menu-item id="createPlannedOperation" context="false" label="Добавить операцию"
+                                               icon="icomoon-plus">
+                                    <wgt:show-modal-form form-id="operationPlanningForm"
+                                                         width="width:90%;min-width:350px;max-width:700px;"
+                                                         refresh-on-close="true">
+
+                                        <wgt:edit model="default" focus-after-submit="true">
+                                            <wgt:invoke-action action-id="savePlannedOrWaitConfirmationOperation"/>
+                                        </wgt:edit>
+                                    </wgt:show-modal-form>
+                                </wgt:menu-item>
+
+                                <wgt:menu-item id="updatePlannedOperation" context="true" label="Изменить"
+                                               icon="icomoon-pencil">
+                                    <wgt:show-modal-form form-id="operationPlanningForm"
+                                                         width="width:90%;min-width:350px;max-width:700px;"
+                                                         refresh-on-close="true"
+                                                         master-field-id="id" detail-field-id="id">
+                                        <wgt:edit model="query" focus-after-submit="true">
+                                            <wgt:invoke-action action-id="savePlannedOrWaitConfirmationOperation"/>
+                                        </wgt:edit>
+                                    </wgt:show-modal-form>
+                                    <wgt:conditions>
+                                        <wgt:visibility-condition>
+                                            <wgt:expression>status == 1 || status == 2</wgt:expression>
+                                        </wgt:visibility-condition>
+                                    </wgt:conditions>
+                                </wgt:menu-item>
+
+                                <wgt:menu-item label="Удалить" id="delete" context="true" icon="icomoon-bin">
+                                    <wgt:invoke-action action-id="delete" confirmation="true"/>
+                                    <wgt:conditions>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>anestheticMap == false</wgt:expression>
+                                            <wgt:tooltip>Нельзя удалять, есть связанные записи в Наркозной карте!
+                                            </wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                        <wgt:visibility-condition>
+                                            <wgt:expression>status == 1 || status == 2</wgt:expression>
+                                        </wgt:visibility-condition>
+                                    </wgt:conditions>
+                                </wgt:menu-item>
+
+                                <wgt:menu-item id="deleteAnestheticMap" context="true" label="Удалить наркозную карту"
+                                               icon="icomoon-bin">
+                                    <wgt:invoke-action action-id="deleteAnestheticMap" confirmation="true"/>
+                                    <wgt:conditions>
+                                        <wgt:visibility-condition>
+                                            <wgt:expression>anestheticMap == true &amp;&amp; (status == 1 || status ==
+                                                2)
+                                                &amp;&amp; (msCaseClosingStepId == null || typeof msCaseClosingStepId ==
+                                                'undefined')
+                                                <!--&amp;&amp; controlSavingDone != true-->
+                                            </wgt:expression>
+                                        </wgt:visibility-condition>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>anesthetic == false &amp;&amp; premedication == false &amp;&amp;
+                                                prescription == false
+                                            </wgt:expression>
+                                            <wgt:tooltip>Есть списания медикаментов или расходных материалов по данной наркозной карте и течению операции. Удаление невозможно.Необходимо отменить списания.
+                                            </wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                    </wgt:conditions>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="deleteDuringOperation" context="true"
+                                               label="Удалить течение операции"
+                                               icon="icomoon-bin">
+                                    <wgt:invoke-action action-id="deleteDuringOperation" confirmation="true"/>
+                                    <wgt:conditions>
+                                        <wgt:visibility-condition>
+                                            <wgt:expression>anestheticMap == true
+                                                &amp;&amp; (operationFlow==true || operationFlowPrescription==true ||
+                                                opertationFlowConclusion==true)
+                                                &amp;&amp; (status == 1 || status == 2)
+                                                &amp;&amp; (msCaseClosingStepId == null || typeof msCaseClosingStepId ==
+                                                'undefined')
+                                                <!--&amp;&amp; controlSavingDone != true-->
+                                            </wgt:expression>
+                                        </wgt:visibility-condition>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>prescription == false
+                                            </wgt:expression>
+                                            <wgt:tooltip>Есть списания медикаментов или расходных материалов по данному течению операции. Удаление невозможно. Необходимо отменить списания
+                                            </wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                    </wgt:conditions>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+
+                    <wgt:filters position="top" opened="true">
+
+                        <ctrl:date-interval id="plannedDate" format="DD.MM.YYYY" popup-placement="down,right"
+                                            label="Период">
+                            <ctrl:default-model begin="today()" end="today()"/>
+                        </ctrl:date-interval>
+
+                        <ctrl:classifier id="operationRoom" label="Операционная">
+                            <ctrl:query query-id="hosp_operationRoom" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="financialType" label="Вид оплаты" search-are-you-type="true">
+                            <ctrl:query query-id="hosp_financialTypeByOrg" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <rc:patient id="patient" label="Пациент" isFilter="true" control-style="width:350px;"/>
+
+                        <ctrl:classifier id="department" label="Отделение">
+                            <ctrl:query query-id="hosp_clinicalOrResuscitDepartmentByOrg" value-field-id="id"
+                                        label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:checkbox id="showPlannedAndRendered" label="Показать только утвержденные"/>
+
+                    </wgt:filters>
+
+                </wgt:table>
+
+            </container>
+        </region>
+
+        <region place="left">
+            <container id="surgicalTeam" depends-on="operationJournal"
+                       dependency-condition="operationJournal.status == 3">
+                <wgt:table master-field-id="mdSrvRendered.id" detail-field-id="mdSrvRendered.id">
+                    <wgt:query-id>surgicalTeamList</wgt:query-id>
+                    <wgt:name>Операционная бригада</wgt:name>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="role"/>
+                        <wgt:column column-field-id="position"/>
+                        <wgt:column column-field-id="employee"/>
+                    </wgt:columns>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" context="false" label="Добавить">
+                            <wgt:show-modal-form form-id="surgicalTeam"
+                                                 refresh-on-close="true"
+                                                 width="600px"
+                                                 master-field-id="mdSrvRendered.id" detail-field-id="mdSrvRendered.id">
+                                <wgt:edit model="default" focus-after-submit="true" create-more="true"
+                                          refresh-after-submit="true">
+                                    <wgt:invoke-action action-id="saveSurgicalTeam"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="update" context="true" label="Изменить">
+                            <wgt:show-modal-form form-id="surgicalTeam"
+                                                 refresh-on-close="true"
+                                                 width="600px"
+                                                 master-field-id="id" detail-field-id="id">
+                                <wgt:edit model="query" focus-after-submit="true">
+                                    <wgt:invoke-action action-id="saveSurgicalTeam"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true" icon="icomoon-bin">
+                            <wgt:invoke-action action-id="deleteEmployeeFromTeam" confirmation="true"/>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+
+        <region place="right">
+            <container id="prescriptionList" depends-on="operationJournal"
+                       dependency-condition="operationJournal.status == 3">
+                <wgt:table master-field-id="mdSrvRendered.id" detail-field-id="mdSrvRendered.id">
+                    <wgt:query-id>operationPrescriptionList</wgt:query-id>
+                    <wgt:name>Расходные материалы</wgt:name>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="name"/>
+                        <wgt:column column-field-id="dose"/>
+                        <wgt:column column-field-id="doctor"/>
+                        <wgt:column column-field-id="executorDoctor"/>
+                        <wgt:column column-field-id="store"/>
+
+                    </wgt:columns>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Добавить" context="false" id="create">
+                            <wgt:show-modal-form
+                                    form-id="operationPrescriptionForm"
+                                    refresh-on-close="true"
+                                    width="700px"
+                                    master-field-id="mdSrvRendered.id" detail-field-id="mdSrvRendered.id">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="financialType.id" ref="financialType.id"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal-form>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" context="true" id="delete">
+                            <wgt:invoke-action action-id="removeWithCancelExecute" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="financialType.id" ref="financialType.id"/>
+                </pre-filters>
+            </container>
+        </region>
+
+    </regions>
+
+</page>

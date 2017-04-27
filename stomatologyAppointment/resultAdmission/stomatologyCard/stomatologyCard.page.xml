@@ -1,0 +1,146 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:info="http://n2oapp.net/framework/config/schema/info-panel-widget-1.0">
+    <object-id>stomatologyCard</object-id>
+    <layout>stomatology/n2o/layout/stomatologyCard</layout>
+    <name>Стоматологическая карта</name>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="personalDataOfThePatient" refresh-dependent-container="true">
+                <info:form master-field-id="srvRenderedId" detail-field-id="id" css-class="infoPanel">
+                    <info:query-id>stomatologyPersonalDataOfThePatient</info:query-id>
+                    <info:edit/>
+                    <info:info-panel id="patient" show-personal-data="false" show-medical-data="false" readonly="true">
+                    </info:info-panel>
+                </info:form>
+            </container>
+        </region>
+        <region place="center" type="none">
+            <container id="main" depends-on="personalDataOfThePatient" refresh-dependent-container="true">
+                <wgt:edit-form master-field-id="patient.id" detail-field-id="patientId">
+                    <wgt:query-id>stomatologyCard</wgt:query-id>
+                    <wgt:model>query</wgt:model>
+                    <fs:field-set>
+                        <ctrl:date-time id="visitDateTime" label="Дата:" default-value="today()" format="DD.MM.YYYY HH:mm" required="true">
+                        </ctrl:date-time>
+                    </fs:field-set>
+                </wgt:edit-form>
+                <pre-filters>
+                    <!--<pre-filter field-id="patientId" ref="patient.id"/>-->
+                </pre-filters>
+            </container>
+
+            <container id="dentalFormula" depends-on="main">
+                <wgt:form master-field-id="patientId" detail-field-id="patientId">
+                    <wgt:query-id>stomatologyCardDentalFormula</wgt:query-id>
+                    <wgt:name>Стоматологическая формула</wgt:name>
+                    <fs:field-set>
+                        <ctrl:custom label="Зубная формула" id="toothList" src="stomatology/n2o/custom/tooths/tooths"/>
+                        <ctrl:output-text id="notFound" label="До указанной даты не было записей" readonly="true" dependency-condition="toothList == null"/>
+                        <fs:row>
+
+                            <ctrl:classifier id="occlusion" label="Прикус" search-as-you-type="true">
+                                <ctrl:query query-id="occlusion" label-field-id="name" value-field-id="id"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                </wgt:form>
+                <pre-filters>
+                    <pre-filter field-id="caseCreateDate" ref="visitDateTime"/>
+                </pre-filters>
+            </container>
+        </region>
+
+        <region place="bottom-right-tab-cases" type="none">
+            <container id="cases" depends-on="personalDataOfThePatient">
+                <wgt:table detail-field-id="patientId" master-field-id="patientId">
+                    <wgt:name>Случаи обращения</wgt:name>
+                    <wgt:query-id>patientOpenedStomatologyCase</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="caseIsClosedState"/>
+                        <wgt:column column-field-id="uid" width="10%"/>
+                        <wgt:column column-field-id="caseDate" width="10%"/>
+                        <wgt:column column-field-id="openDoctor.name" width="30%"/>
+                        <wgt:column column-field-id="openDoctorSpeciality.name"/>
+                        <wgt:column column-field-id="mainDiagnosisName" width="30%"/>
+                    </wgt:columns>
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="openDate" direction="DESC"/>
+                    </wgt:sortings>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="bottom-right-tab-visits-left" type="none" width="30%">
+            <container id="visits-table" depends-on="personalDataOfThePatient" refresh-dependent-container="true">
+                <wgt:table detail-field-id="patientId" master-field-id="patientId">
+                    <wgt:name>Посещения</wgt:name>
+                    <wgt:query-id>stomatologyVisits</wgt:query-id>
+                    <wgt:action-menu/>
+                    <wgt:columns>
+                        <wgt:column column-field-id="visitDateTime" format="date 'DD.MM.YYYY HH:mm'"/>
+                        <wgt:column column-field-id="service.name"/>
+                        <wgt:column column-field-id="openDoctor.name"/>
+                    </wgt:columns>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="bottom-right-tab-visits-right"  type="tabs" width="70%">
+            <container id="diagnosis" depends-on="visits-table">
+                <wgt:table master-field-id="visitId" detail-field-id="visit.id" css-class="tap">
+                    <wgt:name>Диагноз</wgt:name>
+                    <wgt:query-id>stomatologyDiagnosis</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="tooth.name"/>
+                        <wgt:column column-field-id="toothSurface.name"/>
+                        <wgt:column column-field-id="diagnosisTypeName"/>
+                        <wgt:column column-field-id="diagnosis.name"/>
+                        <wgt:column column-field-id="stg.name"/>
+                        <wgt:column column-field-id="diagnosisServices"/>
+                    </wgt:columns>
+                    <pre-filters>
+                        <pre-filter field-id="dentalFormulaId" ref="dentalFormulaId"/>
+                    </pre-filters>
+                </wgt:table>
+            </container>
+
+            <container id="service" depends-on="visits-table">
+                <wgt:table master-field-id="visitId" detail-field-id="visit.id" css-class="tap">
+                    <wgt:name>Услуги</wgt:name>
+                    <wgt:query-id>toothService</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="serviceName" width="20%"/>
+                        <wgt:column column-field-id="tooth.name" width="8%"  />
+                        <wgt:column column-field-id="toothSurface.name" width="15%"/>
+                        <wgt:column column-field-id="quantity" width="8%"/>
+                        <wgt:column column-field-id="totalCost" width="15%"/>
+                        <wgt:column column-field-id="funding.name" width="10%"/>
+                        <wgt:column column-field-id="bdate" width="14%"/>
+                        <wgt:column column-field-id="resGroup.name" width="20%"/>
+                    </wgt:columns>
+                    <pre-filters>
+                        <pre-filter field-id="dentalFormulaId" ref="dentalFormulaId"/>
+                    </pre-filters>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="bottom-right-tab-visits-right-protocol" width="70%">
+            <container id="protocol" depends-on="visits-table">
+                <wgt:custom src="ehr/widget/protocol" master-field-id="renderedId" detail-field-id="id">
+                    <wgt:query-id>sr_srv_rendered_protocol</wgt:query-id>
+                    <wgt:name>Протокол</wgt:name>
+                    <wgt:properties>
+                        <wgt:property key="object-type" value="service"/>
+                        <!--указать id кнопок, которые д.б. задизейблены-->
+                        <wgt:property key="disable-actions-always" value="saveProtocol,saveAsTemplate,chooseByTemplate,sign"/>
+                    </wgt:properties>
+                </wgt:custom>
+            </container>
+        </region>
+
+    </regions>
+
+</page>

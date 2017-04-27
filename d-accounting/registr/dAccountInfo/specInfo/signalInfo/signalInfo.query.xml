@@ -1,0 +1,80 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>signalInfo</object-id>
+    <name>signalInfo</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from d_accounting.signal_info si
+                join d_accounting.signal_info_reason r on r.id=si.reason_id
+                join d_accounting.account ac on ac.id= si.account_id
+                left join public.md_employee_position pos on pos.id=si.reg_doctor_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(si)
+                from d_accounting.signal_info si
+                join d_accounting.signal_info_reason r on r.id=si.reason_id
+                join d_accounting.account ac on ac.id= si.account_id
+                left join public.md_employee_position pos on pos.id=si.reg_doctor_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>si</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>reason.id</id>
+            <domain>integer</domain>
+            <expression>si.reason_id</expression>
+        </field>
+
+        <field>
+            <id>reason.name</id>
+            <domain>string</domain>
+            <name>Причина включения в черный список</name>
+            <expression>r.name</expression>
+        </field>
+
+        <field>
+            <id>account.id</id>
+            <domain>integer</domain>
+            <expression>si.account_id</expression>
+        </field>
+
+        <field>
+            <id>info</id>
+            <domain>string</domain>
+            <name>Комментарий</name>
+            <expression>si.info</expression>
+        </field>
+
+        <field>
+            <id>create_dt</id>
+            <domain>date</domain>
+            <name>Дата включения</name>
+            <expression>si.create_dt</expression>
+        </field>
+
+        <field>
+            <id>reg_doctorName</id>
+            <name>Пользователь(который внес инфу)</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT concat_ws(' ', indiv.surname, indiv.name, indiv.patr_name) FROM public.pim_individual indiv
+                JOIN public.pim_employee emp ON emp.individual_id = indiv.id
+                JOIN public.pim_employee_position emp_pos ON emp_pos.employee_id = emp.id
+                JOIN public.md_employee_position md_emp_pos ON md_emp_pos.id = emp_pos.id
+                WHERE md_emp_pos.id = si.reg_doctor_id LIMIT 1)
+            </expression>
+        </field>
+
+    </fields>
+</query>

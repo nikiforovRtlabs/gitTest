@@ -1,0 +1,214 @@
+<form xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rmis="http://atria.cz/app/config/schema/rmis-control-1.0" customize="css" src="inventory/custom/control-style">
+    <query-id>arrSpecification</query-id>
+    <default-values-query-id>arrSpecificationDefValues</default-values-query-id>
+
+    <edit model="query-or-default" condition="isExecuted == false" after-submit="closeModal">
+        <invoke-action action-id="save"/>
+    </edit>
+
+    <fs:field-set field-label-location="top">
+        <fs:row>
+            <ctrl:masked-input id="vat" label="НДС" domain="integer" mask="99" control-style="width: 30px;" default-value="0" label-style="width: 160px;" />
+            <ctrl:masked-input id="margin" label="Торг. нац" domain="integer" mask="99" control-style="width: 30px;" default-value="0" label-style="width: 160px;"/>
+        </fs:row>
+        <fs:row>
+            <ctrl:classifier id="contractSpec" label="Спецификация контракта" required="true" search-as-you-type="true"
+                             css-class="n2o-label-12 n2o-control-12" label-style="width: 660px" copied="false"
+                             dependency-condition="isSingleDrugSupplyContract==false &amp;&amp; typeof contract.id!='undefined' &amp;&amp; contract.id!=null &amp;&amp;(typeof id=='undefined' || id==null)">
+                <ctrl:query query-id="inv_modifFromContractSpec" value-field-id="id"
+                            label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="contract.id" ref="contract.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:update-model query-id="inv_specFromContract_1"
+                                   master-field-id="contractSpec.id" detail-field-id="id"
+                                   target-field-id=""/>
+                <ctrl:actions>
+                    <ctrl:link label="&amp;#x2713">
+                        <ctrl:update-model query-id="inv_specFromContract_2"
+                                           master-field-id="contractSpec.id" detail-field-id="id"
+                                           target-field-id=""/>
+                        <ctrl:dependencies>
+                            <ctrl:enabling-condition>
+                                typeof contractSpec!='undefined' &amp;&amp; contractSpec!=null &amp;&amp; contractSpec.id!=null
+                            </ctrl:enabling-condition>
+                        </ctrl:dependencies>
+                    </ctrl:link>
+                </ctrl:actions>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="contractSpec" label="Спецификация контракта" required="true" search-as-you-type="true"  css-class="n2o-label-12 n2o-control-12" label-style="width: 660px" readonly="true"  copied="false"
+                             dependency-condition="isSingleDrugSupplyContract==false &amp;&amp; typeof contract.id!='undefined' &amp;&amp; contract.id!=null &amp;&amp; typeof id!='undefined' &amp;&amp; id!=null">
+                <ctrl:query query-id="inv_modifFromContractSpec" value-field-id="id" label-field-id="name"/>
+            </ctrl:classifier>
+
+            <ctrl:output-text id="deliveredQuantity" label="&#144;" label-style="width: 0px" copied="false"
+                              control-style="font-weight: bold"
+                              css-class="n2o-label-1 n2o-control-5"/>
+
+            <ctrl:output-text id="restQuantityStr" label="&#144;" label-style="width: 40px" copied="false"
+                              css-class="n2o-label-1 n2o-control-5" control-style="font-weight: bold"
+                              dependency-condition="typeof deliveredMoreThenNeed!=undefined &amp;&amp; deliveredMoreThenNeed==false"/>
+
+            <ctrl:output-text id="restQuantityStr" label="&#144;" label-style="width: 40px" copied="false"
+                              css-class="n2o-label-1 n2o-control-5" control-style="color: #ad2209; font-weight: bold"
+                              dependency-condition="typeof deliveredMoreThenNeed!=undefined &amp;&amp; deliveredMoreThenNeed==true"/>
+
+        </fs:row>
+        <fs:row>
+            <ctrl:classifier id="modif" label="Наименование ЛС и ИМН" search-as-you-type="true" required="true"
+                             css-class="n2o-label-12 n2o-control-12" label-style="width: 660px"
+                             copied="false"
+                             dependency-condition="typeof id == 'undefined' || id==null || typeof contract=='undefined' || contract==null || typeof contract.id=='undefined' || contract.id==null">
+                <ctrl:query query-id="inv_holdModifWithParamsForOrg" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+
+            <ctrl:output-text id="modif.name" label="Наименование ЛС и ИМН" readonly="true" copied="false" css-class="n2o-label-12 n2o-control-12" label-style="width: 660px"
+                              dependency-condition="typeof id != 'undefined' &amp;&amp; id!=null &amp;&amp; typeof contract!='undefined' &amp;&amp; contract!=null &amp;&amp; typeof contract.id!='undefined' &amp;&amp; contract.id!=null">
+            </ctrl:output-text>
+
+            <ctrl:classifier id="producer" label="Производитель" search-as-you-type="true" autoselect="true" depends-on="modif" copied="false"
+                    css-class="n2o-label-4 n2o-control-8">
+                <ctrl:query query-id="inv_holdingProducer" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="modifId" ref="modif.id"/>
+                        <ctrl:pre-filter field-id="regDate" ref="doc.date"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:actions>
+                    <ctrl:button icon="icon-plus" type="icon" label="AddHoldProducer">
+                        <ctrl:show-modal page-id="holdProducerForm" width="600px"
+                                         detail-field-id="modifId"
+                                         master-field-id="modif.id"
+                                         action-id="create"
+                                         result-container-id="main"
+                                         model="default"/>
+                        <ctrl:dependencies>
+                            <ctrl:enabling-condition on="modif">typeof modif.id!='undefined' &amp;&amp; modif.id!=null
+                            </ctrl:enabling-condition>
+                        </ctrl:dependencies>
+                    </ctrl:button>
+                </ctrl:actions>
+            </ctrl:classifier>
+        </fs:row>
+    </fs:field-set>
+    <fs:field-set field-label-location="top">
+        <fs:row>
+            <ctrl:input-text label="Серия партии" id="series" copied="false" css-class="n2o-label-5 n2o-control-4" label-style="width: 155px"/>
+
+            <ctrl:date-time id="expireDate" label="Срок годности" format="DD.MM.YYYY" copied="false" label-style="width: 155px" css-class="n2o-label-5 n2o-control-4"/>
+
+            <ctrl:input-text label="Сертификат" id="certificate" copied="false" css-class="n2o-label-5 n2o-control-4"  label-style="width: 155px"/>
+
+            <ctrl:date-time id="prodDate" label="Дата производства" format="DD.MM.YYYY" copied="false" css-class="n2o-label-6 n2o-control-4" label-style="width: 165px"/>
+
+            <ctrl:classifier id="country" label="Страна" search-as-you-type="true" copied="false" css-class="n2o-label-4 n2o-control-8">
+                <ctrl:query query-id="inv_country" value-field-id="id" label-field-id="name" />
+            </ctrl:classifier>
+        </fs:row>
+    </fs:field-set>
+    <fs:field-set field-label-location="top">
+        <fs:row>
+            <ctrl:input-text id="quantity" label="Кол-во" depends-on="modif" css-class="n2o-label-5 n2o-control-4"
+                             domain="integer" required="true" copied="false">
+                <ctrl:validations>
+                    <ctrl:validation ref-id="compareQuantities"/>
+                </ctrl:validations>
+            </ctrl:input-text>
+
+            <ctrl:output-text id="modif.unitName" label="&#144;" css-class="n2o-label-5 n2o-control-4" label-style="width: 150px" depends-on="modif" readonly="true" copied="false"/>
+
+            <ctrl:input-text id="amountWithVat" label="Сумма с НДС, руб." required="true" label-style="width: 155px"
+                             copied="false" css-class="n2o-label-5 n2o-control-4">
+                <ctrl:set-value-expression on="amountWithVat" silent-mode="true">
+                    amountWithVat = amountWithVat.replace(/[^\d\.{1}]/g, '');
+                    amountWithVat = amountWithVat.replace(/[\.\%]/g, function(match, offset, all) {
+                            return match === '.' ? (all.indexOf('.') === offset ? '.' : '') : '';
+                        });
+                    if (!isNaN(amountWithVat) &amp;&amp; amountWithVat != '' &amp;&amp; amountWithVat.indexOf('.') != -1 &amp;&amp; (amountWithVat.length - amountWithVat.indexOf('.')) > 3)
+                        parseFloat(amountWithVat).toFixed(2);
+                    else
+                        amountWithVat;
+                </ctrl:set-value-expression>
+            </ctrl:input-text>
+
+            <ctrl:input-text id="amount" label="Сумма без НДС, руб." readonly="true" copied="false" css-class="n2o-label-6 n2o-control-4" label-style="width: 165px">
+                <ctrl:set-value-expression>
+                    if(typeof amountWithVat!='undefined' &amp;&amp; amountWithVat!=null)
+                    { amount=amountWithVat/(1+vat*0.01);
+                      amount.toFixed(2);
+                    }
+                    else 0;
+                </ctrl:set-value-expression>
+            </ctrl:input-text>
+
+            <ctrl:input-text id="amountWithMargin" label="Сумма с наценкой, руб." readonly="true" css-class="n2o-label-5 n2o-control-4">
+                <ctrl:set-value-expression>
+                    if(typeof amount!='undefined' &amp;&amp; amount!=null)
+                    { amountWithMargin=amount*(1+margin*0.01);
+                      amountWithMargin.toFixed(2);
+                    }
+                    else 0;
+                </ctrl:set-value-expression>
+            </ctrl:input-text>
+        </fs:row>
+    </fs:field-set>
+
+    <fs:field-set field-label-location="top">
+        <fs:row>
+            <ctrl:input-text id="mneiQuantity" label="Кол-во в МНЕИ:"  css-class="n2o-label-5 n2o-control-4"  readonly="true">
+                <ctrl:set-value-expression on-load="false">if(typeof quantity!='undefined' &amp;&amp; quantity!=null) quantity*modif.countInMNEI; else 0;</ctrl:set-value-expression>
+            </ctrl:input-text>
+
+            <ctrl:output-text id="modif.MNEI" label="&#144;" css-class="n2o-label-5 n2o-control-4" label-style="width: 150px" depends-on="quantity" readonly="true" copied="false"/>
+            <ctrl:input-text id="priceWithVat" label="Цена с НДС, руб." required="true" copied="false" readonly="true" label-style="width: 155px" css-class="n2o-label-5 n2o-control-4"
+                             dependency-condition="typeof id == 'undefined' || id==null || typeof contract.id=='undefined' || contract.id==null">
+                <ctrl:set-value-expression on-load="false">
+                    if(typeof amountWithVat!='undefined' &amp;&amp; amountWithVat!=null &amp;&amp; typeof quantity!='undefined' &amp;&amp; quantity!=null) amountWithVat/quantity;
+                    else 0;
+                    priceWithVat.toFixed(5);
+                </ctrl:set-value-expression>
+                <ctrl:validations>
+                    <ctrl:validation ref-id="comparePrices"/>
+                </ctrl:validations>
+            </ctrl:input-text>
+
+            <ctrl:input-text id="priceWithVat" label="Цена с НДС, руб." required="true" copied="false" readonly="true" label-style="width: 155px" css-class="n2o-label-5 n2o-control-4"
+                             dependency-condition="typeof id != 'undefined' &amp;&amp; id!=null &amp;&amp; typeof contract.id!='undefined' &amp;&amp; contract.id!=null">
+                <ctrl:set-value-expression on-load="false">
+                      priceWithVat=amountWithVat/quantity; priceWithVat.toFixed(5);
+                </ctrl:set-value-expression>
+                <ctrl:validations>
+                    <ctrl:validation ref-id="comparePrices"/>
+                </ctrl:validations>
+            </ctrl:input-text>
+
+            <ctrl:input-text id="price" label="Цена без НДС, руб." readonly="true" copied="false" css-class="n2o-label-6 n2o-control-4" label-style="width: 165px">
+                <ctrl:set-value-expression on-load="false">
+                    price= amount/quantity; price.toFixed(5);
+                </ctrl:set-value-expression>
+            </ctrl:input-text>
+
+            <ctrl:input-text id="priceWithMargin" label="Цена с наценкой, руб." readonly="true" css-class="n2o-label-5 n2o-control-4" label-style="width: 150px">
+                <ctrl:set-value-expression on-load="false">
+                    priceWithMargin=amountWithMargin/quantity; priceWithMargin.toFixed(5);
+                </ctrl:set-value-expression>
+            </ctrl:input-text>
+
+            <ctrl:input-text id="priceFromContract" label="Цена из контракта" readonly="true" copied="false" css-class="n2o-label-5 n2o-control-4"
+                             dependency-condition="isSingleDrugSupplyContract==false &amp;&amp; typeof contract.id!='undefined' &amp;&amp; contract.id!=null">
+                <ctrl:validations>
+                    <ctrl:validation ref-id="comparePrices"/>
+                </ctrl:validations>
+            </ctrl:input-text>
+        </fs:row>
+    </fs:field-set>
+</form>

@@ -1,0 +1,307 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicAppointment</object-id>
+    <name>clinicAppointment</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from mc_case mc
+                join public.mc_case_type ct on ct.id=mc.case_type_id
+                left join mc_diagnosis md on ( mc.main_diagnos_id = md.id  )
+                left join md_diagnosis md1 on ( md.diagnos_id = md1.id  )
+                left join mc_step ms on ms.case_id = mc.id
+                left join plc_visit pv on ms.id = pv.id
+                left join md_srv_rendered msr on msr.step_id = ms.id
+                left join sr_srv_rendered ssr on ssr.id = msr.id
+                left join md_appointment ma on ssr.id = ma.srv_rendered_id
+                left join sr_service ssrss on ssr.service_id = ssrss.id
+                left join sr_res_group msrg on ma.executor_id = msrg.id
+                left join sr_res_group_profile srgp on msrg.id = srgp.res_group_id
+                where ct.case_mode_id = 1 and
+                /* https://jira.is-mis.ru/browse/RMISDEV-2183 */
+                /*
+                exists(select st.id from mc_step st where st.case_id = mc.id and st.profile_id in
+                ( select distinct prof.profile_id from public.sr_res_group_profile prof
+                join public.sr_res_group_relationship rel on rel.group_id=prof.res_group_id
+                join public.pim_employee_position_resource pepr on pepr.id=rel.resource_id
+                where pepr.employee_position_id=:emplPos.id)) and
+                */
+                :where
+                order by mc.open_date DESC
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(mc) from mc_case mc
+                join public.mc_case_type ct on ct.id=mc.case_type_id
+                where ct.case_mode_id = 1 and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>mc.id</expression>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>mc.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <expression>mc.uid</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>
+                '№' ||coalesce(mc.uid, '') || '  Открыт:' || coalesce(to_char(mc.open_date, 'dd.mm.yyyy'), '')|| ' ' ||
+               coalesce(md1.code, '') || ' ' || coalesce(md1.name, '')
+            </expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>caseClosing</id>
+            <domain>integer</domain>
+            <expression>mc.closing_step_id</expression>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>mc.patient_id</expression>
+        </field>
+
+        <field>
+            <id>caseOpenDate</id>
+            <name>Дата</name>
+            <domain>date</domain>
+            <expression>mc.open_date</expression>
+        </field>
+
+        <field>
+            <id>caseType</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(t) from (
+                select
+                mct.id as id,
+                mct.name as name
+                from mc_case_type mct
+                where mc.case_type_id = mct.id) as t)
+            </expression>
+        </field>
+
+        <field>
+            <id>careLevel</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(l) from (
+                select
+                mcl.id as id,
+                mcl.name as name
+                from mc_care_level mcl
+                where mc.care_level_id = mcl.id) as l)
+            </expression>
+        </field>
+
+        <field>
+            <id>fundingSourceType</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(st) from (
+                select
+                ffst.id as id,
+                ffst.name as name
+                from fin_funding_source_type ffst
+                where mc.funding_id = ffst.id) as st)
+            </expression>
+        </field>
+
+        <field>
+            <id>careRegimen</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(r) from (
+                select
+                mcr.id as id,
+                mcr.name as name
+                from mc_care_regimen mcr
+                where mc.care_regimen_id = mcr.id) as r)
+            </expression>
+        </field>
+
+        <field>
+            <id>careProvidingForm</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(pf) from (
+                select
+                mcpf.id as id,
+                mcpf.name as name
+                from md_care_providing_form mcpf
+                where mc.care_providing_form_id = mcpf.id) as pf)
+            </expression>
+        </field>
+
+        <field>
+            <id>caseInitGoal</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(ig) from (
+                select
+                mcig.id as id,
+                mcig.name as name
+                from mc_case_init_goal mcig
+                where mc.init_goal_id = mcig.id) as ig)
+            </expression>
+        </field>
+
+        <field>
+            <id>careProvisionCondition</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(pc) from (
+                select
+                mcpc.id as id,
+                mcpc.name as name
+                from md_care_provision_condition mcpc
+                where mc.provision_condition_id = mcpc.id) as pc)
+            </expression>
+        </field>
+
+        <field>
+            <id>openMoreInfo</id>
+            <domain>boolean</domain>
+            <expression>false</expression>
+        </field>
+
+        <field>
+            <id>newCase</id>
+            <domain>boolean</domain>
+            <expression>false</expression>
+        </field>
+
+        <field>
+            <id>firstVisitDate</id>
+            <domain>date</domain>
+            <expression>
+                (select ms.admission_date
+                from mc_step ms
+                where ms.case_id = mc.id and ms.admission_date + ms.admission_time = (select min(ms1.admission_date + ms1.admission_time) from mc_step ms1 where
+                ms1.case_id = mc.id limit 1) limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>lastStepId</id>
+            <domain>integer</domain>
+            <expression>
+                (select max(mstep.id) from mc_step mstep
+                where mstep.case_id = mc.id and (mstep.admission_date + mstep.admission_time) =
+                (select max(s1.admission_date + s1.admission_time) from mc_step s1
+                where s1.case_id = mc.id))
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>emplPos.id</id>
+            <domain>integer</domain>
+            <search value="#{emplPos.id?}"/>
+            <expression>:emplPos.id</expression>
+        </field>
+
+        <field>
+            <id>visitPlace.id</id>
+            <domain>integer</domain>
+            <expression>
+                case when ms.id is null then (select id from  plc_visit_place where code = '1' limit 1)
+                else pv.place_id
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>
+                case when ms.id is null then
+                (case when ma.id is null then
+                (case when (select count(*) from sr_res_group srg where srg.responsible_id = :employeePosId and srg.is_system = false) > 1 then null
+                else (case when (select count(srgp) from sr_res_group_profile srgp where srgp.res_group_id =
+                (select srg.id from sr_res_group srg where srg.responsible_id = :employeePosId and srg.is_system = false)) > 1 then null
+                else
+                (select srgp.profile_id from sr_res_group_profile srgp where srgp.res_group_id =
+                (select srg.id from sr_res_group srg where srg.responsible_id = :employeePosId and srg.is_system = false)) end)
+                end)
+                else
+                (case when srgp.profile_id is null
+                then null else srgp.profile_id end)end)
+                else ms.profile_id
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>profile.name</id>
+            <domain>string</domain>
+            <expression>
+                case when ms.id is null then
+                (case when ma.id is null then
+                (case when (select count(*) from sr_res_group srg where srg.responsible_id = :employeePosId and srg.is_system = false) > 1 then null
+                else (case when (select count(srgp) from sr_res_group_profile srgp where srgp.res_group_id =
+                (select srg.id from sr_res_group srg where srg.responsible_id = :employeePosId and srg.is_system = false)) > 1 then null
+                else
+                (select mp1.name from md_profile mp1 where mp1.id = (select srgp.profile_id from sr_res_group_profile srgp where srgp.res_group_id =
+                (select srg.id from sr_res_group srg where srg.responsible_id = :employeePosId and srg.is_system = false))) end)
+                end)
+                else
+                (case when srgp.profile_id is null
+                then null else (select mp1.name from md_profile mp1 where mp1.id = srgp.profile_id) end)end)
+                else (select mp1.name from md_profile mp1 where mp1.id = ms.profile_id)
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>service</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(r) from(select ssrss.id as id, ssrss.name as name) as r)
+            </expression>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>md1.id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.name</id>
+            <domain>string</domain>
+            <expression>md1.code || ' ' || md1.name</expression>
+        </field>
+
+        <field>
+            <id>diseaseType.id</id>
+            <domain>integer</domain>
+            <expression>md.disease_type_id</expression>
+        </field>
+
+        <field>
+            <id>isNewCheck</id>
+            <domain>boolean</domain>
+            <expression>:isNewCheck</expression>
+        </field>
+
+    </fields>
+</query>

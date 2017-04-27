@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>migrantList</name>
+
+    <actions>
+        <action id="removePatient" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from migr.md_migr_service where event_patient_id = :id;
+                    delete from migr.md_migr_card where id = :id;
+
+                    delete from disp.md_event_service_patient_agreement where service_id in (select id from disp.md_event_service_patient where event_patient_id = :id);
+                    --delete from disp.md_event_service_patient_status where service_id in (select id from disp.md_event_service_patient where event_patient_id = :id);
+                    delete from disp.md_event_service_patient where event_patient_id = :id;
+                    delete from disp.md_event_agreement where event_patient_id = :id;
+                    delete from disp.md_event_patient where id = :id;
+                    -- delete case
+                    delete from mc_case where id = (select mep.case_id from disp.md_event_patient mep
+                    where mep.id = :id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="org.id" mapping="['orgId']"/>
+            </in-parameters>
+            <validations activate="nothing" />
+            <success-text>Данные удалены</success-text>
+        </action>
+        <action id="openCard">
+            <invocation>
+                <sql:sql>
+                    select migr.md_migr_card_open_function(:xcardid);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['xcardid']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Карточка будет доступна для редактирования.</confirmation-text>
+        </action>
+    </actions>
+</object>

@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+
+    <name>resultHealthGroupForm</name>
+    <actions>
+        <action id="create" name="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into disp.md_result_health_group (id, result_id, health_group_id, event_type_id, is_2_stage, begin_date, end_date, stage)
+                        values (nextval('disp.md_result_health_group_id_seq'), :result_id, :health_group_id, :event_type_id, :is_2_stage, to_date(:begin_date, 'dd.mm.yyyy'), to_date(:end_date, 'dd.mm.yyyy'), :stage);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="result.id" mapping="['result_id']"/>
+                <param name="health_group.id" mapping="['health_group_id']"/>
+                <param name="event_type.id" mapping="['event_type_id']"/>
+                <param name="is_2_stage" mapping="['is_2_stage']"/>
+                <param name="begin_date" mapping="['begin_date']" domain="string"/>
+                <param name="end_date" mapping="['end_date']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+                <param name="stage.id" mapping="['stage']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id"  mapping="[0][0]"/>
+            </out-parameters>
+        </action>
+
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    update disp.md_result_health_group set result_id = :result_id, health_group_id = :health_group_id,
+                        event_type_id = :event_type_id, is_2_stage = :is_2_stage, begin_date = to_date(:begin_date, 'dd.mm.yyyy'), end_date = to_date(:end_date, 'dd.mm.yyyy'), stage = :stage where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="result.id" mapping="['result_id']"/>
+                <param name="health_group.id" mapping="['health_group_id']"/>
+                <param name="event_type.id" mapping="['event_type_id']"/>
+                <param name="is_2_stage" mapping="['is_2_stage']"/>
+                <param name="begin_date" mapping="['begin_date']" domain="string"/>
+                <param name="end_date" mapping="['end_date']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+                <param name="stage.id" mapping="['stage']"/>
+            </in-parameters>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from disp.md_result_health_group where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkDateIntervals" level="error">
+            <message>На одну дату не может быть несколько записей, у которых полностью совпадают все параметры</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select exists(select 1 from disp.md_result_health_group
+                            where ((begin_date is null and end_date is null) or (to_date(:begin_date, 'dd.mm.yyyy') is null and to_date(:end_date, 'dd.mm.yyyy') is null)
+                            or (begin_date is null and to_date(:begin_date, 'dd.mm.yyyy') is null) or (end_date is null and to_date(:end_date, 'dd.mm.yyyy') is null)
+                            or ((begin_date is null or to_date(:end_date, 'dd.mm.yyyy') is null or begin_date <= to_date(:end_date, 'dd.mm.yyyy'))
+                            and (end_date is null or to_date(:begin_date, 'dd.mm.yyyy') is null or end_date >= to_date(:begin_date, 'dd.mm.yyyy'))))
+                            and event_type_id = :event_type_id
+                            and health_group_id = :health_group_id
+                            and coalesce(is_2_stage, false) = coalesce(:is_2_stage, false)
+                            and stage = :stage
+                            and (:id is null or id <> :id))
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="health_group.id" mapping="['health_group_id']" domain="integer"/>
+                <param name="event_type.id" mapping="['event_type_id']" domain="integer"/>
+                <param name="is_2_stage" mapping="['is_2_stage']"/>
+                <param name="begin_date" mapping="['begin_date']" domain="string"/>
+                <param name="end_date" mapping="['end_date']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+                <param name="stage.id" mapping="['stage']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == false"/>
+        </constraint>
+    </validations>
+</object>

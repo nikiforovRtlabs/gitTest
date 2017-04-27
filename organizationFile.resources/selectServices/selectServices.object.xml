@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>selectServices</name>
+    <actions>
+        <action id="add_services">
+            <invocation>
+                <n2o:sql>
+                    insert into sr_resource_service (id, resource_id, service_id)
+                    select nextval('sr_resource_service_seq'), :resource_id, i.id
+                    from (select unnest(array(select value::int from json_array_elements_text(cast(:selected as json)))) as id ) i
+                    left join sr_resource_service rs on rs.service_id=i.id and rs.resource_id=resource_id
+                    where rs.id is null
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="resource_id" mapping="[resource_id]" domain="integer" />
+                <param name="selected" mapping="[selected]" domain="string" />
+            </in-parameters>
+        </action>
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from sr_resource_service where id = :oid;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="oid" mapping="['oid']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы действительно хотите удалить услугу ресурса?
+            </confirmation-text>
+            <success-text>
+                Услуга успешно удалена.
+            </success-text>
+        </action>
+        <action id="copy_services">
+            <invocation>
+                <n2o:sql>
+                    select copy_employee_position_resources(:source_resource_id, dst.resource_id)
+                    from (select unnest(array(select value::int from json_array_elements_text(cast(:selected as json)))) as resource_id ) dst;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="selected" mapping="[selected]" domain="string" />
+                <param name="employee_resource.oid" mapping="[source_resource_id]" domain="integer" />
+            </in-parameters>
+        </action>
+    </actions>
+</object>

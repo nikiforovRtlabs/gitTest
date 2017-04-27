@@ -1,0 +1,115 @@
+<form xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+    <query-id>secAccessKey</query-id>
+    <name>Карточка ключа доступа</name>
+    <fs:field-set css-class="n2o-label-4 n2o-control-9">
+
+        <!--Тип-->
+        <ctrl:radio-group id="type" label="Тип" dependency-condition="user.typeId == 1">
+            <ctrl:dependencies>
+                <ctrl:enabling-condition on="id">typeof id == 'undefined' || id == null</ctrl:enabling-condition>
+            </ctrl:dependencies>
+            <ctrl:default-model>
+                <ctrl:value field-id="id">1</ctrl:value>
+                <ctrl:value field-id="name">Доступ согласно должности</ctrl:value>
+            </ctrl:default-model>
+            <ctrl:options>
+                <ctrl:option>{"id":1, "name" : "Доступ согласно должности в МО"}</ctrl:option>
+                <ctrl:option>{"id":2, "name" : "Отдельный доступ в МО"}</ctrl:option>
+                <ctrl:option>{"id":3, "name" : "Доступ вне МО"}</ctrl:option>
+            </ctrl:options>
+        </ctrl:radio-group>
+
+
+        <!--Выбор организации-->
+        <ctrl:classifier id="org" label="МО" css-class="n2o-control-9" dependency-condition="type.id != 3"
+                         required="true"><!-- МО обязателен, т.к. без МО сейчас доступный контекст падает-->
+            <ctrl:dependencies>
+                <ctrl:enabling-condition on="id">typeof id == 'undefined' || id == null</ctrl:enabling-condition>
+            </ctrl:dependencies>
+            <ctrl:query query-id="contextOrganization" label-field-id="name" value-field-id="id">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="userId" ref="user.id" type="eq"/>
+                    <!-- фильтруем организации по сотруднику, если "роль согласно должности"-->
+                    <ctrl:pre-filter field-id="keyTypeId" ref="type.id"/>
+                    <!-- добавляем фильтр "роль согласно должности", чтобы подобрать только организации, где пользователь сотрудник -->
+                </ctrl:pre-filters>
+            </ctrl:query>
+            <ctrl:default-model>
+                <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+            </ctrl:default-model>
+        </ctrl:classifier>
+
+
+        <!--Выбор должности-->
+        <ctrl:classifier id="pos" label="Должность" dependency-condition="type.id == 1 &amp;&amp; user.typeId == 1"
+                         depends-on="org" required="true" css-class="n2o-control-9" autoselect="true">
+            <ctrl:query query-id="secEmplPosition" label-field-id="name" value-field-id="id">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="userId" ref="user.id"/>
+                    <ctrl:pre-filter field-id="orgId" ref="org.id"/>
+                    <ctrl:pre-filter field-id="isActual" value="true"/>
+                    <ctrl:pre-filter field-id="notEndDate" value="true"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+            <ctrl:set-value-expression on="type.id">if (type.id != 1) null; else throw '!'</ctrl:set-value-expression>
+            <ctrl:validations>
+                <ctrl:validation ref-id="checkPosUnique"/>
+            </ctrl:validations>
+        </ctrl:classifier>
+    </fs:field-set>
+
+    <fs:field-set header="line" css-class="n2o-label-4 n2o-control-9">
+
+        <!--Роли-->
+        <ctrl:multi-classifier id="roles" label="Роли" required="true">
+            <ctrl:query query-id="secRole" value-field-id="id" label-field-id="fullName">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="org.id" ref="org.id"/>
+                    <ctrl:pre-filter field-id="key.type.id" ref="type.id"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:multi-classifier>
+
+        <!--Группы-->
+        <ctrl:multi-classifier id="groups" label="Группы" required="false" depends-on="org" dependency-condition="type.id != 3">
+            <ctrl:query query-id="secGroup" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="org.id" ref="org.id"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:multi-classifier>
+
+    </fs:field-set>
+
+    <fs:field-set header="line" css-class="n2o-label-4">
+        <!--Наименование-->
+        <ctrl:input-text id="name" required="true">
+            <ctrl:actions>
+                <ctrl:link label="Скопировать из штатного расписания">
+                    <ctrl:dependencies>
+                        <ctrl:visibility-condition on="type.id">type.id == 1</ctrl:visibility-condition>
+                        <ctrl:enabling-condition on="pos.id">pos.id != null</ctrl:enabling-condition>
+                    </ctrl:dependencies>
+                    <ctrl:set-value-expression>
+                        pos.name
+                    </ctrl:set-value-expression>
+                </ctrl:link>
+                <ctrl:link label="Скопировать из роли">
+                    <ctrl:dependencies>
+                        <ctrl:visibility-condition on="type.id">type.id != 1</ctrl:visibility-condition>
+                        <ctrl:enabling-condition on="roles">roles[0] != null</ctrl:enabling-condition>
+                    </ctrl:dependencies>
+                    <ctrl:set-value-expression>roles[0].name</ctrl:set-value-expression>
+                </ctrl:link>
+            </ctrl:actions>
+            <ctrl:set-value-expression on="pos.id" on-load="false">if (type.id == 1) pos.name; else throw '!'
+            </ctrl:set-value-expression>
+            <ctrl:set-value-expression on="roles" on-load="false">if (type.id != 1) roles[0].name; else throw '!'
+            </ctrl:set-value-expression>
+        </ctrl:input-text>
+    </fs:field-set>
+
+
+</form>

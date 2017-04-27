@@ -1,0 +1,223 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+
+    <object-id>hospReferral</object-id>
+    <name>Журнал направлений</name>
+    <layout>hospital/n2o/layout/hospitalReferrals</layout>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="hospReferrals">
+                <wgt:table>
+                    <wgt:name>Журнал направлений</wgt:name>
+                    <wgt:query-id>hospReferralList</wgt:query-id>
+                    <wgt:size>15</wgt:size>
+
+                    <wgt:action-menu>
+                        <wgt:group>
+                            <wgt:menu-item label="Создать" context="false" id="create">
+                                <wgt:open-page page-id="hospReferral" container-id="main" refresh-on-close="true"/>
+                            </wgt:menu-item>
+
+                            <wgt:menu-item label="Изменить" context="true" id="update" default="true">
+                                <wgt:open-page page-id="hospReferral" container-id="main" master-field-id="id"
+                                               detail-field-id="id" refresh-on-close="true"
+                                               page-name="Направление - {hospReferrals.patient.name}"/>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>status.id == 0 || status.id == 1 || status.id == 2</wgt:expression>
+                                    </wgt:enabling-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                            <wgt:menu-item label="Открыть" context="true" id="view" icon="icon-eye-open" type="textAndIcon" readonly="true">
+                                <wgt:show-modal page-id="hospReferralReadOnly" container-id="main" master-field-id="id"
+                                               detail-field-id="id" focus-after-submit="true"
+                                               page-name="Направление - {hospReferrals.patient.name}">
+                                        </wgt:show-modal>
+                            </wgt:menu-item>
+                            <wgt:menu-item label="Удалить" id="delete" context="true">
+                                <wgt:invoke-action action-id="delete" confirmation="true"/>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>status.id == 0 || status.id == 1 || status.id == 2</wgt:expression>
+                                    </wgt:enabling-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+
+                            <wgt:menu-item id="medHistoryPage" label="История болезни" context="true">
+                                <wgt:open-page  page-id="medicalHistoryForm"
+                                                 master-field-id="caseId" detail-field-id="caseId"
+                                                 container-id="medicalHistoryContainerForm"/>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>!!caseId == true</wgt:expression>
+                                    </wgt:enabling-condition>
+                                    <wgt:visibility-condition>
+                                        <wgt:expression><![CDATA[!openCasePage && isExecuted]]></wgt:expression>
+                                    </wgt:visibility-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+
+                            <wgt:menu-item label="История болезни " context="true" id="medHospitalCase" default="true">
+                                <wgt:open-page page-id="hospitalCaseForEdit" container-id="main" master-field-id="caseId"
+                                               detail-field-id="id"
+                                               page-name="Случай госпитализации - {hospReferrals.uidForTitle} {hospReferrals.patient.name}"/>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>!!caseId == true</wgt:expression>
+                                    </wgt:enabling-condition>
+                                    <wgt:visibility-condition>
+                                        <wgt:expression><![CDATA[openCasePage && isExecuted]]></wgt:expression>
+                                    </wgt:visibility-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+
+                        </wgt:group>
+
+                        <wgt:group>
+                            <wgt:menu-item label="Запланировать" context="true" id="plan" icon="icomoon-table">
+                                <wgt:open-page page-id="reservationForm" container-id="main" refresh-on-close="true" master-field-id="patient.id" detail-field-id="patient.id" action-id="save" model="default">
+                                    <wgt:pre-filters>
+                                        <wgt:pre-filter field-id="rreferral.id" ref="id"/>
+                                        <wgt:pre-filter field-id="department.id" ref="department.id"/>
+                                        <wgt:pre-filter field-id="regimen.id" value="2"/><!--стационар круглосуточный-->
+                                        <wgt:pre-filter field-id="financialType.id" ref="financialType.id"/>
+                                    </wgt:pre-filters>
+                                </wgt:open-page>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>
+                                            recvClinic.id == orgId
+                                        </wgt:expression>
+                                        <wgt:tooltip>Организация, куда направили пациента, не совпадает с рганизацией из контекста</wgt:tooltip>
+                                    </wgt:enabling-condition>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>!!hospToolbarEnabled == true</wgt:expression>
+                                    </wgt:enabling-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                            <wgt:menu-item label="Госпитализировать" id="hospitalize" context="true" >
+                                <wgt:open-page page-id="hospitalCase" container-id="main" refresh-on-close="true" master-field-id="patient.id" detail-field-id="patient.id" model="default" action-id="save" >
+                                    <wgt:pre-filters>
+                                        <wgt:pre-filter field-id="initGoal.id" value="1"/>
+                                        <wgt:pre-filter field-id="careProvidingForm.id" ref="defValueСareProviding"/>
+                                        <wgt:pre-filter field-id="financialType.id" ref="financialType.id"/>
+                                        <wgt:pre-filter field-id="rreferral.id" ref="id"/>
+                                        <wgt:pre-filter field-id="clinicId" value="#{org.id?}"/>
+                                    </wgt:pre-filters>
+                                </wgt:open-page>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>
+                                            recvClinic.id == orgId
+                                        </wgt:expression>
+                                        <wgt:tooltip>Организация, куда направили пациента, не совпадает с рганизацией из контекста</wgt:tooltip>
+                                    </wgt:enabling-condition>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>!!hospToolbarEnabled == true</wgt:expression>
+                                    </wgt:enabling-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                            <wgt:menu-item id="cancel" label="Отменить" context="true">
+                                <wgt:show-modal page-id="cancelReferral"
+                                                width="width:50%;min-width:350px;max-width:600px;"
+                                                container-id="cancelReferralForm" action-id="save" refresh-on-close="true"
+                                                master-field-id="id" detail-field-id="id">
+                                </wgt:show-modal>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>!!hospToolbarEnabled == true</wgt:expression>
+                                    </wgt:enabling-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                        </wgt:group>
+
+                    </wgt:action-menu>
+
+
+                    <wgt:columns>
+
+                        <wgt:column column-field-id="patient.name" width="20%">
+                            <wgt:color color-field-id="rowTextColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="number" width="10%">
+                            <wgt:color color-field-id="rowTextColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="referralDate" format="date DD.MM.YYYY" width="10%">
+                            <wgt:color color-field-id="rowTextColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="referralType.name">
+                            <wgt:color color-field-id="rowTextColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="diagnosis.name" width="20%">
+                            <wgt:color color-field-id="rowTextColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="isCito"  width="5%">
+                            <wgt:checkbox/>
+                            <wgt:color color-field-id="rowTextColor"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="refClinic.name">
+                            <wgt:color color-field-id="rowTextColor"/>
+                        </wgt:column>
+                    </wgt:columns>
+
+                    <wgt:rows>
+                        <wgt:color color-field-id="rowColor"/>
+                    </wgt:rows>
+
+                    <wgt:filters position="top" opened="false">
+
+                        <ctrl:date-interval id="referralDate" label="Дата выдачи направления" popup-placement="down,right">
+                            <ctrl:default-model begin="beginWeek()" end="endWeek()"/>
+                        </ctrl:date-interval>
+
+                        <ctrl:date-interval id="plannedDate" label="Дата планируемой госпитализации" popup-placement="down,right"/>
+
+                        <ctrl:input-text id="number" label="Номер направления"/>
+
+                        <ctrl:classifier id="referralType" label="Вид направления" search-are-you-type="true" autoselect="true">
+                            <ctrl:query query-id="hosp_referral_hsp_rsv_mark" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <rc:patient id="patient" label="Пациент" isFilter="true" control-style="width:340px;"/>
+
+                        <ctrl:classifier id="diagnosis" label="Диагноз" search-are-you-type="true" control-style="width:340px;">
+                            <ctrl:query query-id="hosp_diagnosisWithCodeNameSearch" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="referralOrganization" label="Направляющая организация"
+                                         search-are-you-type="true">
+                            <ctrl:query query-id="hosp_clinic_role" master-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="status" label="Статус">
+                            <ctrl:query query-id="hosp_referral_status" value-field-id="id" label-field-id="name"/>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">2</ctrl:value>
+                                <ctrl:value field-id="name">активное</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+
+                        <ctrl:checkbox id="isCito" label="Cito"/>
+
+                    </wgt:filters>
+
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="referralDate" direction="ASC" />
+                    </wgt:sortings>
+                </wgt:table>
+            </container>
+        </region>
+
+    </regions>
+
+</page>

@@ -1,0 +1,76 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>inventory_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from (
+                WITH RECURSIVE recursetree(id, parent_id, name) AS (
+                SELECT
+                id,
+                parent_id,
+                name
+                FROM inventory.pharm_group
+                UNION
+                SELECT p_g.id, p_g.parent_id, p_g.name
+                FROM inventory.pharm_group p_g
+                JOIN recursetree rt ON rt.parent_id = p_g.id
+                )
+                SELECT id, name, parent_id FROM recursetree
+                ORDER BY id) as cgx
+
+            </n2o:items-query>
+            <n2o:count-query>
+                select count (cgx.*) from (select :select from (
+                WITH RECURSIVE recursetree(id, parent_id, name) AS (
+                SELECT
+                id,
+                parent_id,
+                name
+                FROM inventory.pharm_group
+                UNION
+                SELECT p_g.id, p_g.parent_id, p_g.name
+                FROM inventory.pharm_group p_g
+                JOIN recursetree rt ON rt.parent_id = p_g.id
+                )
+                SELECT id, name, parent_id FROM recursetree) as cgx
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <search>upper(name) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>parentId</id>
+            <domain>integer</domain>
+            <expression>cgx.parent_id</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>hasChildren</id>
+            <display>coalesce((select true from inventory.pharm_group as cg1 where cg1.parent_id = cgx.id limit 1),
+                false) as has_children
+            </display>
+        </field>
+        <field>
+            <id>iconId</id>
+            <domain>string</domain>
+            <display>coalesce((select cast('glyphicons glyphicons-folder-closed' as varchar) from inventory.pharm_group cg2 where cg2.parent_id = cgx.id limit 1),
+                'glyphicons glyphicons-chevron-right') as icon_id
+            </display>
+        </field>
+        <field>
+            <id>canResolved</id>
+            <display>coalesce((select false from inventory.pharm_group as cg1 where cg1.parent_id = cgx.id limit 1),
+                true) as can_resolved</display>
+        </field>
+    </fields>
+</query>

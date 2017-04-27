@@ -1,0 +1,252 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+>
+
+    <object-id>bills</object-id>
+    <layout>n2o/layout/top-bottom</layout>
+    <name>Картотека счетов</name>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="billList">
+                <wgt:table>
+                    <wgt:query-id>billList</wgt:query-id>
+                    <wgt:name>Счета</wgt:name>
+
+                    <wgt:filters opened="true">
+                        <ctrl:classifier id="org"
+                                         label="Медицинская организация"
+                                         required="true"
+                                         search-as-you-type="true"
+                                         control-style="width:350px;"
+                                         autoselect-alone="true">
+                            <ctrl:query query-id="pm_org_by_access_key"
+                                        value-field-id="id"
+                                        label-field-id="name"/>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id}</ctrl:value>
+                                <ctrl:value field-id="name">#{org.name}</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+
+                        <ctrl:input-text id="number" label="Номер счета"/>
+
+                        <ctrl:date-time id="billDate"
+                                        label="Дата счета"
+                                        label-style="width:120px;"
+                                        control-style="width:120px;"/>
+
+                        <ctrl:classifier id="finType" label="Вид финансирования" search-as-you-type="true">
+                            <ctrl:query query-id="pm_funding_source_payment" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:radio-group id="payerType"
+                                          label="Тип плательщика"
+                                          inline="true"
+                                          control-style="width:350px;"
+                                          required="true">
+                            <ctrl:options>
+                                <ctrl:option>{"id" : 1, "name" : "Физ. лицо"}</ctrl:option>
+                                <ctrl:option>{"id" : 2, "name" : "Юр. лицо"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                                <ctrl:value field-id="name">Физ. лицо</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:radio-group>
+                        <ctrl:classifier id="payer"
+                                         label="Плательщик"
+                                         control-style="width:400px;">
+                            <ctrl:query query-id="pm_party" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="type" ref="payerType.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:hidden id="payment.id"/>
+
+                    </wgt:filters>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" context="false" label="Создать">
+                            <wgt:show-modal page-id="billForm"
+                                            refresh-on-close="true"
+                                            width="90%"
+                                            max-width="550px" min-width="550px"
+                                            action-id="save"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="update" context="true" label="Изменить">
+                            <wgt:show-modal page-id="billForm"
+                                            width="90%"
+                                            max-width="550px" min-width="550px"
+                                            detail-field-id="id"
+                                            master-field-id="id"
+                                            refresh-on-close="true"
+                                            action-id="save"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Просмотр" context="true" id="view" icon="icon-eye-open"
+                                       type="textAndIcon">
+                            <wgt:show-modal page-id="billForm"
+                                            width="90%"
+                                            max-width="550px" min-width="550px"
+                                            detail-field-id="id"
+                                            master-field-id="id"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="paymentReports" label="Печать" icon="icon-list">
+            `               <wgt:sub-menu>
+                                <wgt:menu-item label="Печатная форма счета"
+                                               id="bill_report"
+                                               context="true"
+                                               icon="icon-share-alt"
+                                               type="textAndIcon">
+                                    <wgt:a href="${rmis.report.birt.url}/run?__report=n2o/paid_services.rptdesign&amp;bill_id=:id:&amp;__format=pdf"
+                                           target="newWindow"/>
+                                </wgt:menu-item>
+
+                                <wgt:menu-item label="Акт выполненных работ"
+                                               id="akt_done_jobs"
+                                               context="true"
+                                               icon="icon-share-alt"
+                                               type="textAndIcon">
+                                    <wgt:a href="${rmis.report.birt.url}/run?__report=n2o/act_done_jobs.rptdesign&amp;bill_id=:id:&amp;__format=pdf"
+                                           target="newWindow"/>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+
+                        </wgt:menu-item>
+
+
+                        <wgt:menu-item label="Оплатить" id="createP" context="true">
+                            <wgt:show-modal page-id="paymentForm" master-field-id="id" detail-field-id="bill.id"
+                                            focus-after-submit="true" width="90%" max-width="550px" min-width="550px"
+                                            action-id="save" refresh-on-close="true" container-id="main"
+                                            page-name="Оплата счета № {billList.number} от {billList.billDateString}" model="default">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="showBillList" value="true"></wgt:pre-filter>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        amountPaid == null
+                                    </wgt:expression>
+                                    <wgt:tooltip>Счет уже оплачен</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[
+                                            amountAfterDiscount != null && amountAfterDiscount != 0
+                                        ]]>
+                                    </wgt:expression>
+                                    <wgt:tooltip>Сумма для оплаты не указана или равна нулю</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>payment.id==null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Распределить платеж" id="distribute" context="true">
+                            <wgt:invoke-action action-id="distribute" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>payment.id!=null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Отменить распределение платежа" id="distribCancel" context="true">
+                            <wgt:invoke-action action-id="distribCancel" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>payment.id!=null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                    <wgt:rows>
+                        <wgt:color color-field-id="urgent"/>
+                    </wgt:rows>
+                    <wgt:columns>
+                        <wgt:column column-field-id="org.name"
+                                    name="МО"/>
+                        <wgt:column column-field-id="number"
+                                    name="Номер счета"/>
+                        <wgt:column column-field-id="billDate"
+                                    name="Дата счета"/>
+                        <wgt:column column-field-id="finType.name"
+                                    name="Вид финансирования"/>
+                        <wgt:column column-field-id="payerType.name"
+                                    name="Тип плательщика"/>
+                        <wgt:column column-field-id="payerName"
+                                    name="Плательщик"/>
+                        <wgt:column column-field-id="amount"
+                                    name="Сумма счета руб"/>
+                        <wgt:column column-field-id="amountAfterDiscount"
+                                    name="Сумма счета с учетом скидки/наценки руб"/>
+                        <wgt:column column-field-id="amountPaid"
+                                    name="Оплаченная сумма руб"/>
+                    </wgt:columns>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="bottom" type="list" name="Спецификация">
+            <container id="billSpec" depends-on="billList">
+                <wgt:table master-field-id="id" detail-field-id="billId">
+                    <wgt:name>Спецификация</wgt:name>
+                    <wgt:query-id>billSpec</wgt:query-id>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" context="false" label="Создать">
+                            <wgt:show-modal page-id="billSpecForm"
+                                            refresh-on-close="true"
+                                            master-field-id="billId"
+                                            detail-field-id="billId"
+                                            width="50%">
+
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить спецификацию" id="delete" context="true">
+                            <wgt:invoke-action action-id="deleteSpec" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="patientName"
+                                    name="Пациент"/>
+                        <wgt:column column-field-id="serviceName"
+                                    name="Услуга"/>
+                        <wgt:column column-field-id="case_uid"
+                                    name="Случай"/>
+                        <wgt:column column-field-id="plannedDate"
+                                    name="Дата назначения"/>
+                        <wgt:column column-field-id="provisionDate"
+                                    name="Дата оказания"/>
+                        <wgt:column column-field-id="price"
+                                    name="Стоимость услуги"/>
+                        <wgt:column column-field-id="discount"
+                                    name="Примененная скидка наценка"/>
+                        <wgt:column column-field-id="priceDiscounted"
+                                    name="Стоимость с учетом скидкой наценки"/>
+                        <wgt:column column-field-id="payment"
+                                    name="Оплата руб"/>
+                    </wgt:columns>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>

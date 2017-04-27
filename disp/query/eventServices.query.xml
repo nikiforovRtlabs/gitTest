@@ -1,0 +1,201 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <id>services</id>
+    <name>Услуги</name>
+    <object-id>eventService</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_service mes
+                left join pim_organization po on po.id = mes.org_id
+                left join sr_service ss on ss.id = mes.service_id
+                left join SR_RES_GROUP srg on srg.id = mes.resource_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+                where :where
+                group by mes.id,srg.id,po.id,ss.id,mnds.id
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mes)
+                from disp.md_event_service mes
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mes</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mes.id</display>
+            <search>mes.id = :id</search>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>Integer</domain>
+            <display>mes.event_id</display>
+            <search>mes.event_id = :eventId</search>
+        </field>
+        <field>
+            <id>service.id</id>
+            <domain>Integer</domain>
+            <expression>ss.id</expression>
+            <display>ss.id</display>
+            <search>ss.id = :service.id</search>
+        </field>
+        <field>
+            <id>service.name</id>
+            <name>Услуга</name>
+            <domain>String</domain>
+            <display>ss.name</display>
+            <search>ss.name = :service.name</search>
+            <sorting>ss.name</sorting>
+        </field>
+        <field>
+            <id>priority.id</id>
+            <domain>Integer</domain>
+            <expression>CAST(CASE WHEN mes.first THEN 1 WHEN mes.last THEN 2 else 3 end as integer)</expression>
+            <display>CAST(CASE WHEN mes.first THEN 1 WHEN mes.last THEN 2 else 3 end as integer)</display>
+            <search unavailable="true">priority.id</search>
+        </field>
+        <field>
+            <id>order</id>
+            <domain>integer</domain>
+            <name>Порядок</name>
+            <display>mes.order_idx</display>
+            <expression>mes.order_idx</expression>
+            <sorting>mes.order_idx</sorting>
+        </field>
+        <field>
+            <id>first</id>
+            <name>Выполнить первой</name>
+            <domain>String</domain>
+            <expression>CASE WHEN mes.first THEN 'Да' else 'Нет' end</expression>
+            <display>CASE WHEN mes.first THEN 'Да' else 'Нет' end</display>
+            <search unavailable="true">first</search>
+        </field>
+        <field>
+            <id>last</id>
+            <name>Выполнить последней</name>
+            <domain>String</domain>
+            <expression>CASE WHEN mes.last THEN 'Да' else 'Нет' end</expression>
+            <display>CASE WHEN mes.last THEN 'Да' else 'Нет' end</display>
+            <search unavailable="true">last</search>
+        </field>
+        <!--<field>
+            <id>serviceProto.id</id>
+            <domain>Integer</domain>
+            <expression>ss.name</expression>
+            <display>NULLIF(ss.id, ssp.id)</display>
+            <search>ss.id = :service.id OR ssp.id = :service.id</search>
+        </field>
+        <field>
+            <id>serviceProto.name</id>
+            <name>Услуга</name>
+            <domain>String</domain>
+            <display>NULLIF(ss.name, ssp.name)</display>
+            <search>ss.name = :service OR ssp.name = :service</search>
+            <sorting>ss.name, ssp.name</sorting>
+        </field>-->
+        <field>
+            <id>org.id</id>
+            <domain>Integer</domain>
+            <expression>po.id</expression>
+            <display>po.id</display>
+            <search>po.id = :org.id</search>
+            <sorting>po.id</sorting>
+        </field>
+        <field>
+            <id>org.short_name</id>
+            <name>Организация</name>
+            <domain>String</domain>
+            <expression>po.short_name</expression>
+            <display>po.short_name</display>
+            <search>po.short_name = :org.short_name</search>
+            <sorting>po.short_name</sorting>
+        </field>
+        <field>
+            <id>resource.id</id>
+            <domain>Integer</domain>
+            <expression>srg.id</expression>
+            <display>srg.id</display>
+            <search>srg.id = :resource.id</search>
+        </field>
+        <field>
+            <id>resource.name</id>
+            <name>Ресурс</name>
+            <domain>String</domain>
+            <expression>srg.name</expression>
+            <display>srg.name</display>
+            <search>srg.name = :resource.name</search>
+            <sorting>srg.name</sorting>
+        </field>
+        <field>
+            <id>models</id>
+            <name>Модель пациента</name>
+            <domain>String</domain>
+            <expression>(select string_agg (mmp.name, ',') from disp.md_model_patient mmp
+                left join disp.md_event_service_model mesm on mesm.model_id=mmp.id
+                and mesm.is_based = FALSE
+                where mesm.event_service_id = mes.id )</expression>
+            <display>:expression</display>
+            <sorting>:expression</sorting>
+
+
+        </field>
+        <field>
+            <id>based_model</id>
+            <name>Базовая модель</name>
+            <domain>String</domain>
+            <expression>(select string_agg (mmp.name, ',') from disp.md_model_patient mmp
+                left join disp.md_event_service_model mesm on mesm.model_id=mmp.id
+                and mesm.is_based = TRUE
+                where mesm.event_service_id = mes.id )</expression>
+            <display>:expression</display>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>districtCheck</id>
+            <name>Участковый принцип</name>
+            <domain>Boolean</domain>
+            <expression>mes.district_check</expression>
+            <display>mes.district_check</display>
+        </field>
+        <field>
+            <id>ignoreService</id>
+            <name>Не учитывать %?</name>
+            <domain>Boolean</domain>
+            <expression>mes.ignore_service</expression>
+            <display>mes.ignore_service</display>
+        </field>
+        <field>
+            <id>is_mobile_medical_teams</id>
+            <domain>boolean</domain>
+            <display>mes.is_mobile_medical_teams</display>
+        </field>
+        <field>
+            <id>required</id>
+            <name>Обязательная</name>
+            <domain>boolean</domain>
+            <display>mes.required</display>
+        </field>
+        <field>
+            <id>doc_service.id</id>
+            <domain>Integer</domain>
+            <expression>mnds.id</expression>
+            <display>mnds.id</display>
+            <search>mnds.id = :doc_service.id</search>
+        </field>
+        <field>
+            <id>doc_service.name</id>
+            <name>Услуга по приказу</name>
+            <domain>String</domain>
+            <display>mnds.code||' - '||mnds.name</display>
+            <search>mnds.name = :doc_service.name</search>
+            <sorting>mnds.name</sorting>
+        </field>
+    </fields>
+</query>

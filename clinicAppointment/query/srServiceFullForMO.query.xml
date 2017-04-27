@@ -1,0 +1,134 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>clinicAppointment</object-id>
+    <name>caseType</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from sr_service s
+                left join sr_service_fin_type sr_ft on sr_ft.service_id = s.id
+                where s.org_id = :orgId
+                and :where
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from sr_service s
+                left join sr_service_fin_type sr_ft on sr_ft.service_id = s.id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>stomatologyService</id>
+            <domain>integer</domain>
+            <expression>s.is_stomat</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>
+                (case when s.is_complex = true then '[+]' else '' end) || coalesce(s.code, '') || ' ' || coalesce(s.name, '')
+            </expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>service_id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>service_name</id>
+            <domain>string</domain>
+            <expression>(coalesce(s.code, '') || ' ' || coalesce(s.name, ''))</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>emplContext</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search value="#{emplPos.id?}"/>
+            <expression>:emplContext</expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+            <search value="#{org.id?}">(:expression = :orgId or :orgId is null)</search>
+        </field>
+
+        <field>
+            <id>fundTypeId</id>
+            <domain>integer</domain>
+            <expression>sr_ft.funding_id</expression>
+            <search>:expression = coalesce(:fundTypeId, 1)</search>
+        </field>
+
+        <field>
+            <id>notFull</id>
+            <domain>boolean</domain>
+            <expression>:notFull</expression>
+            <search>
+                exists(
+                select 1 from sr_res_group_service srgp join sr_res_group srg on srgp.group_id = srg.id where s.id = srgp.srv_type_id and srg.responsible_id = :emplContext  and srg.is_system = false
+                )
+            </search>
+        </field>
+
+
+        <field>
+            <id>isComplex</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when s.is_complex = true
+                then true
+                else false
+                end)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>requiredFields</id>
+            <domain>object[]</domain>
+            <expression>
+                (
+                select array_to_json(array_agg(r)) from (
+                select s1.id as id, (coalesce(s1.code, '') || ' ' || coalesce(s1.name, '')) as name, s1.is_need_anatomic_zone as isToothRequired
+                from sr_service s1
+                join sr_srv_composition sc1 on s1.id = sc1.service_id
+                where sc1.complex_id = s.id and (sc1.is_default = true)
+                ) r
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>requiredFieldsIds</id>
+            <domain>integer[]</domain>
+            <expression>
+                (
+                select array_agg(s1.id) from sr_service s1
+                join sr_srv_composition sc1 on s1.id = sc1.service_id
+                where sc1.complex_id = s.id and (sc1.is_required = true)
+                )
+            </expression>
+        </field>
+
+    </fields>
+</query>

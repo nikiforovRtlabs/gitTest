@@ -1,0 +1,218 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <id>disprCardRiskFactor</id>
+    <name>Фактор риска</name>
+    <object-id>disprCardRiskFactor</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                left join disp.md_dispr_risk_factor mdrf on mdrf.id=mep.id
+                left join disp.md_event_questioning meq on meq.id=mep.id
+                left join disp.md_event_anthro mea on mea.id=mep.id
+                left join disp.md_event_service_arterial_pressure mesap on mesap.event_patient_id=mep.id
+                left join disp.md_event_service_cholesterol mesc on mesc.event_patient_id=mep.id
+                left join disp.md_event_service_glucose_in_blood mesgib on mesgib.event_patient_id=mep.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mep)
+                from disp.md_event_patient mep
+                left join disp.md_dispr_risk_factor mdrf on mdrf.id=mep.id
+                left join disp.md_event_questioning meq on meq.id=mep.id
+                left join disp.md_event_anthro mea on mea.id=mep.id
+                left join disp.md_event_service_arterial_pressure mesap on mesap.event_patient_id=mep.id
+                left join disp.md_event_service_cholesterol mesc on mesc.event_patient_id=mep.id
+                left join disp.md_event_service_glucose_in_blood mesgib on mesgib.event_patient_id=mep.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+
+      <!--  <n2o:rest>
+            <n2o:query>
+                ${n2o.backend.path}/dispensary/getDisprRiskFactor
+            </n2o:query>
+           &lt;!&ndash; <n2o:query-by-id>
+                http://127.0.0.1:38088/Demo/rest/getDispr?id={id}
+            </n2o:query-by-id>&ndash;&gt;
+            <n2o:response-mapping collection="list" count="count"/>
+            &lt;!&ndash;<n2o:filter param-name="filters" separator=";"/>&ndash;&gt;
+            <n2o:sorting-direction asc="ASC" desc="DESC"/>
+        </n2o:rest>-->
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+            <search>mep.id = :id</search>
+        </field>
+        <field>
+            <id>indivId</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indivId</search>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>Integer</domain>
+            <display>mep.event_id</display>
+            <search>mep.event_id = :eventId</search>
+        </field>
+        <field>
+            <id>has_high_pressure</id>
+            <domain>boolean</domain>
+            <expression>mdrf.has_high_pressure</expression>
+            <display>case when (mdrf.id is not null) then mdrf.has_high_pressure
+                when (mesap.pathology) then true
+                else false end
+            </display>
+        </field>
+        <field>
+            <id>has_over_mass</id>
+            <domain>boolean</domain>
+            <expression>mdrf.has_over_mass</expression>
+            <display>case when (mdrf.id is not null) then mdrf.has_over_mass
+                when (mea.index_mass>25 or mea.index_mass=25)  then true
+                else false end
+            </display>
+        </field>
+        <field>
+            <id>has_hypercholesterinemia</id>
+            <domain>boolean</domain>
+            <expression>mdrf.has_hypercholesterinemia</expression>
+            <display>case when (mdrf.id is not null) then mdrf.has_hypercholesterinemia
+                when (mesc.pathology and (cast(mesc.rate as float)>5 or cast(mesc.rate as float)=5 )) then true
+                else false end
+            </display>
+        </field>
+        <field>
+            <id>has_over_glucose</id>
+            <domain>boolean</domain>
+            <expression>mdrf.has_over_glucose</expression>
+            <display>case when (mdrf.id is not null) then mdrf.has_over_glucose
+                when (mesgib.pathology and (cast(mesc.rate as float)>6.1 or cast(mesc.rate as float)=6.1 )) then true
+                else false end
+            </display>
+        </field>
+        <field>
+            <id>has_smoking</id>
+            <domain>boolean</domain>
+            <expression>mdrf.has_smoking</expression>
+            <display>case when (mdrf.id is not null) then mdrf.has_smoking
+                when (meq.q26=1 or meq.qa16=1) then true
+                else false end
+            </display>
+        </field>
+        <field>
+            <id>has_lower_physical_activity</id>
+            <domain>boolean</domain>
+            <expression>mdrf.has_lower_physical_activity</expression>
+            <display>case when (mdrf.id is not null) then mdrf.has_lower_physical_activity
+                when (meq.q31=1 or meq.qa33=2) then true
+                else false end
+            </display>
+        </field>
+        <field>
+            <id>has_poor_nutrition</id>
+            <domain>boolean</domain>
+            <expression>mdrf.has_poor_nutrition</expression>
+            <display>case when (mdrf.id is not null) then mdrf.has_poor_nutrition
+                when (meq.q32=2 or meq.q33=2 or meq.q34=1 or meq.q35=1 or meq.qa20=1 or meq.qa28=1 or meq.qa29=2 or meq.qa30=2 or meq.qa31=2 or meq.qa32=2) then true
+                else false end
+            </display>
+        </field>
+        <field>
+            <id>has_alcohol_dependence</id>
+            <domain>boolean</domain>
+            <expression>mdrf.has_alcohol_dependence</expression>
+            <display>case when (mdrf.id is not null) then mdrf.has_alcohol_dependence
+                when (meq.q36=1 and meq.q37=1
+                or meq.q36=1 and meq.q38=1
+                or meq.q36=1 and meq.q39=1
+                or meq.q36=1 and meq.q40=1
+                or meq.q37=1 and meq.q38=1
+                or meq.q37=1 and meq.q39=1
+                or meq.q37=1 and meq.q40=1
+                or meq.q38=1 and meq.q39=1
+                or meq.q38=1 and meq.q40=1
+                or meq.q39=1 and meq.q40=1) then true
+                else false end
+            </display>
+        </field>
+        <field>
+            <id>has_risk_alcohol</id>
+            <domain>boolean</domain>
+            <expression>mdrf.has_risk_alcohol</expression>
+            <display>case when (mdrf.id is not null) then mdrf.has_risk_alcohol
+                when (meq.q27=1 or meq.q28=1 or meq.q29=1 or meq.q30=1) then true
+                else false end
+            </display>
+        </field>
+        <field>
+            <id>has_high_level_stress</id>
+            <domain>boolean</domain>
+            <expression>mdrf.has_high_level_stress</expression>
+            <display>mdrf.has_high_level_stress</display>
+        </field>
+        <field>
+            <id>has_dyslipidemia</id>
+            <domain>boolean</domain>
+            <expression>mdrf.has_dyslipidemia</expression>
+            <display>mdrf.has_dyslipidemia</display>
+        </field>
+        <field>
+            <id>individual_counseling.id</id>
+            <domain>Integer</domain>
+            <expression>mdrf.individual_counseling_id</expression>
+            <display>case when (mdrf.id is not null) then mdrf.individual_counseling_id
+                when (meq.q26=1 or meq.q27=1 or meq.q28=1 or meq.q29=1 or meq.q30=1 or meq.q31=1 or meq.q32=2 or meq.q33=2 or meq.q34=1 or meq.q35=1)
+                or (meq.q36=1 and meq.q37=1
+                or meq.q36=1 and meq.q38=1
+                or meq.q36=1 and meq.q39=1
+                or meq.q36=1 and meq.q40=1
+                or meq.q37=1 and meq.q38=1
+                or meq.q37=1 and meq.q39=1
+                or meq.q37=1 and meq.q40=1
+                or meq.q38=1 and meq.q39=1
+                or meq.q38=1 and meq.q40=1
+                or meq.q39=1 and meq.q40=1)
+                then 1
+                else null end
+            </display>
+            <search>mdrf.individual_counseling_id = :individual_counseling.id</search>
+        </field>
+        <field>
+            <id>group_counseling.id</id>
+            <domain>Integer</domain>
+            <expression>mdrf.group_counseling_id</expression>
+            <display>case when (mdrf.id is not null) then mdrf.group_counseling_id
+                when (meq.q26=1 or meq.q27=1 or meq.q28=1 or meq.q29=1 or meq.q30=1 or meq.q31=1 or meq.q32=2 or meq.q33=2
+                    or meq.q34=1 or meq.q35=1 or meq.qa16=1 or meq.qa20=1 or meq.qa28=1 or meq.qa29=2 or meq.qa30=2 or meq.qa31=2 or meq.qa32=2 or meq.qa33=2)
+                or (meq.q36=1 and meq.q37=1
+                or meq.q36=1 and meq.q38=1
+                or meq.q36=1 and meq.q39=1
+                or meq.q36=1 and meq.q40=1
+                or meq.q37=1 and meq.q38=1
+                or meq.q37=1 and meq.q39=1
+                or meq.q37=1 and meq.q40=1
+                or meq.q38=1 and meq.q39=1
+                or meq.q38=1 and meq.q40=1
+                or meq.q39=1 and meq.q40=1)
+                then 1
+                else null end
+            </display>
+            <search>mdrf.group_counseling_id = :group_counseling.id</search>
+        </field>
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>(select org_id from disp.md_event me where me.id = mep.event_id)</expression>
+            <display>:expression</display>
+            <search>:expression = :org_id</search>
+        </field>
+    </fields>
+</query>

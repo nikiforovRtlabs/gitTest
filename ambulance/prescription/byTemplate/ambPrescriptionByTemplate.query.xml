@@ -1,0 +1,142 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>ambPrescription</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from services_template_prescription stp
+                inner join services_template_prescription_holding stph on stph.prescription_id = stp.id
+                where :where
+                order by stp.id, stph.id, :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(stp)
+                from services_template_prescription stp
+                inner join services_template_prescription_holding stph on stph.prescription_id = stp.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>stp</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>stp.id</expression>
+        </field>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>:case.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Препарат (Доза)</name>
+            <expression>(
+                select array_to_string(array_agg(name_hold), ' + ')
+                from (
+                select h.name
+                || coalesce(', ' || ft.short_name, '')
+                || coalesce(', ' || stph.hold_con_value || coalesce(' ' || (select name from cmn_measure where id = stph.hold_con_measure_id),''), '')
+                || coalesce(', ' || trim(to_char(stph.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' ' || (select name from cmn_measure where id = stph.hold_dose_measure_id),''), '')
+                || coalesce(', ' || mnei.name, '')
+                || coalesce(' (' || trim(to_char(stph.hold_dose_value * stph.count, 'FM9999990.999'), '.') || ' ' || (select name from cmn_measure where id = stph.hold_dose_measure_id) || ') ', '')
+                as name_hold
+                from inventory.holding h
+                left join cmn_measure mnei       				    on mnei.id = stph.hold_mnei_id
+                left join inventory.form_type ft 				    on ft.id = stph.hold_form_type_id
+                where h.id = stph.holding_id
+                ) hold
+            )</expression>
+        </field>
+
+        <field>
+            <id>count</id>
+            <domain>numeric</domain>
+            <expression>stph.count</expression>
+        </field>
+
+        <field>
+            <id>hold_mnei_id</id>
+            <domain>integer</domain>
+            <expression>stph.hold_mnei_id</expression>
+        </field>
+
+        <field>
+            <id>hold_dose_measure_id</id>
+            <domain>integer</domain>
+            <expression>stph.hold_dose_measure_id</expression>
+        </field>
+
+        <field>
+            <id>hold_form_type_id</id>
+            <domain>integer</domain>
+            <expression>stph.hold_form_type_id</expression>
+        </field>
+
+        <field>
+            <id>hold_dose_value</id>
+            <domain>numeric</domain>
+            <expression>stph.hold_dose_value</expression>
+        </field>
+
+        <field>
+            <id>holding.id</id>
+            <domain>integer</domain>
+            <expression>(
+                select h.id
+                from inventory.holding h
+                where h.id = stph.holding_id
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>holding.name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>(
+                select h.name
+                from inventory.holding h
+                where h.id = stph.holding_id
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <name>Комментарий</name>
+            <expression>stp.note</expression>
+        </field>
+
+        <field>
+            <id>administrationRoute.name</id>
+            <domain>string</domain>
+            <name>Способ введения</name>
+            <expression>(select full_name from md_administration_route where id = stp.administration_route_id)</expression>
+        </field>
+
+        <field>
+            <id>administrationRoute.id</id>
+            <domain>integer</domain>
+            <expression>stp.administration_route_id</expression>
+        </field>
+
+        <field>
+            <id>template.id</id>
+            <domain>integer</domain>
+            <display>stp.template_id</display>
+            <search>case when :template.id is null then stp.template_id is null else stp.template_id = :template.id end</search>
+        </field>
+
+    </fields>
+</query>

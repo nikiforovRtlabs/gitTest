@@ -1,0 +1,184 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>Извещения</name>
+
+    <actions>
+        <action id="save" name="Сохранить">
+            <invocation>
+                <sql:sql>
+                    select disp.save_notification(:id, :case_id, :org_id, :sr_srv_rendered_id, :notificationNumber, :notificationDate,
+                    :diagnosis_id, :disease_type_id, :is_suspicion, :disease_date, :primary_treatment_date,
+                    :diagnosis_determination_date, :last_visit_date, :hospitalization_date, :hospitalization_place,
+                    :poisoning, :antiepidemic, :reported_employee_id, :primary_ses_signal_date, :fio_accepted,
+                    :dispatch_date, :registration_number, :ses_number);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="case_id" mapping="['case_id']" domain="integer"/>
+                <param name="organization.id" mapping="['org_id']" domain="integer"/>
+                <param name="sr_srv_rendered.id" mapping="['sr_srv_rendered_id']" domain="integer"/>
+                <param name="notificationNumber" mapping="['notificationNumber']" domain="string"/>
+                <param name="notificationDate" mapping="['notificationDate']" domain="date"/>
+                <param name="diagnosis.id" mapping="['diagnosis_id']" domain="integer"/>
+                <param name="disease_type.id" mapping="['disease_type_id']" domain="integer"/>
+                <param name="is_suspicion" mapping="['is_suspicion']" domain="boolean"/>
+                <param name="disease_date" mapping="['disease_date']" domain="date"/>
+                <param name="primary_treatment_date" mapping="['primary_treatment_date']" domain="date"/>
+                <param name="diagnosis_determination_date" mapping="['diagnosis_determination_date']" domain="date"/>
+                <param name="last_visit_date" mapping="['last_visit_date']" domain="date"/>
+                <param name="hospitalization_date" mapping="['hospitalization_date']" domain="date"/>
+                <param name="hospitalization_place.id" mapping="['hospitalization_place']" domain="integer"/>
+                <param name="poisoning" mapping="['poisoning']" domain="string"/>
+                <param name="antiepidemic" mapping="['antiepidemic']" domain="string"/>
+                <param name="reported_employee.id" mapping="['reported_employee_id']" domain="integer"/>
+                <param name="primary_ses_signal_date" mapping="['primary_ses_signal_date']" domain="date"/>
+                <param name="fio_accepted" mapping="['fio_accepted']" domain="string"/>
+                <param name="dispatch_date" mapping="['dispatch_date']" domain="date"/>
+                <param name="registration_number" mapping="['registration_number']" domain="string"/>
+                <param name="ses_number" mapping="['ses_number']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]" domain="integer"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="notificationNumberUniqueConstraint"/>
+            </validations>
+        </action>
+
+        <action id="cancel" name="Аннулировать">
+            <invocation>
+                <sql:sql>
+                    select disp.change_notification_status(:id, :status_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="status_id" mapping="['status_id']" domain="integer" value="3"/>
+            </in-parameters>
+            <confirmation-text>Редактирование извещения станет недоступным.</confirmation-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="send" name="Отправить">
+            <invocation>
+                <sql:sql>
+                    select disp.change_notification_status(:id, :status_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="status_id" mapping="['status_id']" domain="integer" value="2"/>
+            </in-parameters>
+            <confirmation-text>Редактирование извещения станет недоступным.</confirmation-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="retrieve" name="Вернуть">
+            <invocation>
+                <sql:sql>
+                    select disp.change_notification_status(:id, :status_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="status_id" mapping="['status_id']" domain="integer" value="1"/>
+            </in-parameters>
+            <confirmation-text>Редактирование извещения станет доступным.</confirmation-text>
+            <validations activate="nothing"/>
+        </action>
+
+    </actions>
+
+    <validations>
+        <condition id="datesValidation" level="error">
+            <message>Дата заболевания должна быть ранее даты первичного обращения.</message>
+            <expression><![CDATA[(disease_date == null) || (primary_treatment_date == null) || (moment(primary_treatment_date, 'DD.MM.YYYY').diff(moment(disease_date, 'DD.MM.YYYY')) >= 0)]]>
+            </expression>
+        </condition>
+
+        <condition id="datesValidation2" level="error">
+            <message>Дата первичного обращения должна быть ранее даты установления диагноза.</message>
+            <expression><![CDATA[(primary_treatment_date == null) || (diagnosis_determination_date == null) || (moment(diagnosis_determination_date, 'DD.MM.YYYY').diff(moment(primary_treatment_date, 'DD.MM.YYYY')) >= 0)
+            ]]>
+            </expression>
+        </condition>
+
+        <condition id="datesValidation21" level="error">
+            <message>Дата заболевания должна быть ранее даты установления диагноза.</message>
+            <expression><![CDATA[(disease_date == null) || (diagnosis_determination_date == null) || (moment(diagnosis_determination_date, 'DD.MM.YYYY').diff(moment(disease_date, 'DD.MM.YYYY')) >= 0)
+            ]]>
+            </expression>
+        </condition>
+
+        <condition id="datesValidation3" level="error">
+            <message>Дата установления диагноза должна быть ранее даты последнего посещения дет.учреждения, школы.</message>
+            <expression><![CDATA[(diagnosis_determination_date == null) || (last_visit_date == null) || (moment(last_visit_date, 'DD.MM.YYYY').diff(moment(diagnosis_determination_date, 'DD.MM.YYYY')) >= 0)]]>
+            </expression>
+        </condition>
+
+        <condition id="datesValidation31" level="error">
+            <message>Дата первичного обращения должна быть ранее даты последнего посещения дет.учреждения, школы.</message>
+            <expression><![CDATA[(primary_treatment_date == null) || (last_visit_date == null) || (moment(last_visit_date, 'DD.MM.YYYY').diff(moment(primary_treatment_date, 'DD.MM.YYYY')) >= 0)]]>
+            </expression>
+        </condition>
+
+        <condition id="datesValidation32" level="error">
+            <message>Дата заболевания должна быть ранее даты последнего посещения дет.учреждения, школы.</message>
+            <expression><![CDATA[(disease_date == null) || (last_visit_date == null) || (moment(last_visit_date, 'DD.MM.YYYY').diff(moment(disease_date, 'DD.MM.YYYY')) >= 0)]]>
+            </expression>
+        </condition>
+
+        <condition id="datesValidation4" level="error">
+            <message>Дата последнего посещения дет.учреждения, школы должна быть ранее даты госпитализации.</message>
+            <expression><![CDATA[(last_visit_date == null) || (hospitalization_date == null) || (moment(hospitalization_date, 'DD.MM.YYYY').diff(moment(last_visit_date, 'DD.MM.YYYY')) >= 0)]]>
+            </expression>
+        </condition>
+
+        <condition id="datesValidation41" level="error">
+            <message>Дата установления диагноза должна быть ранее даты госпитализации.</message>
+            <expression><![CDATA[(diagnosis_determination_date == null) || (hospitalization_date == null) || (moment(hospitalization_date, 'DD.MM.YYYY').diff(moment(diagnosis_determination_date, 'DD.MM.YYYY')) >= 0)]]>
+            </expression>
+        </condition>
+
+        <condition id="datesValidation42" level="error">
+            <message>Дата первичного обращения должна быть ранее даты госпитализации.</message>
+            <expression><![CDATA[(primary_treatment_date == null) || (hospitalization_date == null) || (moment(hospitalization_date, 'DD.MM.YYYY').diff(moment(primary_treatment_date, 'DD.MM.YYYY')) >= 0)]]>
+            </expression>
+        </condition>
+
+        <condition id="datesValidation43" level="error">
+            <message>Дата заболевания должна быть ранее даты госпитализации.</message>
+            <expression><![CDATA[(disease_date == null) || (hospitalization_date == null) || (moment(hospitalization_date, 'DD.MM.YYYY').diff(moment(disease_date, 'DD.MM.YYYY')) >= 0)]]>
+            </expression>
+        </condition>
+
+        <condition id="datesValidation5" level="error">
+            <message>Дата заболевания должна быть ранее даты первичной сигнализации в СЭС.</message>
+            <expression><![CDATA[(disease_date == null) || (primary_ses_signal_date == null) || (moment(primary_ses_signal_date, 'DD.MM.YYYY').diff(moment(disease_date, 'DD.MM.YYYY')) >= 0)]]>
+            </expression>
+        </condition>
+
+        <constraint id="notificationNumberUniqueConstraint" level="error">
+            <message>Номер извещения не уникален.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from disp.md_notification where notif_number = :notificationNumber and org_id = :org_id
+                    and ((:id is not null and id != :id) or (:id is null));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="notificationNumber" mapping="['notificationNumber']" domain="string"/>
+                <param name="organization.id" mapping="['org_id']" domain="integer"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+</object>

@@ -1,0 +1,144 @@
+<form xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0" customize="css" src="inventory/custom/applicationSpec">
+    <query-id>applicationSpec</query-id>
+
+    <fs:field-set field-label-location="top">
+        <ctrl:classifier id="modif" label="Наименование ЛС и ИМН" search-as-you-type="true" required="true" copied="false"
+                         css-class="n2o-label-5 n2o-control-10">
+            <ctrl:query query-id="inv_holdModifWithParams" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="comGroup.id" ref="doc.comGroup.id"/>
+                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+        <fs:row css-class="vertical-align-bottom-block">
+            <ctrl:classifier id="producer" label="Производитель" search-as-you-type="true" copied="false"
+                             autoselect="true" depends-on="modif"
+                             css-class="n2o-label-4 n2o-control-8" label-style="width: 420px">
+                <ctrl:query query-id="inv_holdingProducer" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="modifId" ref="modif.id"/>
+                        <ctrl:pre-filter field-id="regDate" ref="doc.date"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+            <ctrl:checkbox id="isImport" label="Импорт" control-style="width: 200px" copied="false"
+                           css-class="vertical-align: bottom"/>
+        </fs:row>
+    </fs:field-set>
+    <fs:field-set field-label-location="left">
+        <fs:row>
+            <ctrl:input-text id="quantity" label="Кол-во" depends-on="modif" control-style="width: 110px" copied="false"
+                             dependency-condition="typeof modif=='undefined' || modif== null
+                                                               ||(typeof modif!='undefined' &amp;&amp; modif!= null &amp;&amp; typeof modif.priceUnitFlag!= 'undefined' &amp;&amp; modif.priceUnitFlag!= null
+                                                               &amp;&amp; modif.priceUnitFlag==2)"
+                             domain="integer" required="true"
+                             label-style="width: 120px; text-align: left">
+                <ctrl:set-value-expression on="mneiQuantity" on-load="false" silent-mode="true">
+                    <![CDATA[
+                        if (modif.countInMNEI>0) {
+                            mneiQuantity/modif.countInMNEI;
+                        }
+                    ]]>
+                </ctrl:set-value-expression>
+
+                <ctrl:validations>
+                    <ctrl:validation ref-id="checkQuantity" side="client"/>
+                </ctrl:validations>
+            </ctrl:input-text>
+
+            <ctrl:input-text id="mneiQuantity" label="Кол-во:" control-style="width: 110px" required="true" copied="false"
+                             label-style="width: 120px; text-align: left" depends-on="modif" domain="integer"
+                             dependency-condition=" typeof modif!='undefined' &amp;&amp; modif!= null &amp;&amp;
+                                                                typeof modif.priceUnitFlag!= 'undefined' &amp;&amp; modif.priceUnitFlag!= null &amp;&amp; modif.priceUnitFlag==0">
+                <ctrl:set-value-expression on="quantity" on-load="false" silent-mode="true">quantity*modif.countInMNEI</ctrl:set-value-expression>
+                <ctrl:set-value-expression on="modif" on-load="false" silent-mode="true">quantity*modif.countInMNEI</ctrl:set-value-expression>
+            </ctrl:input-text>
+            <ctrl:output-text id="modif.unitName" label="" label-style="width: 0px" copied="false"
+                              control-style="width: 60px" depends-on="modif" readonly="true"/>
+        </fs:row>
+
+        <ctrl:input-text id="price" label="Цена с НДС, руб." label-style="width: 120px; text-align: left" copied="false" default-value="" domain="integer">
+            <ctrl:set-value-expression on="amount" silent-mode="true" on-load="false" >
+                <![CDATA[
+                    if (typeof amount!='undefined' && amount!=null && amount!='') {
+
+                        // расчет по МНЕИ
+                        if (typeof modif!='undefined' && modif!= null &&
+                            typeof modif.priceUnitFlag!= 'undefined' && modif.priceUnitFlag!= null && modif.priceUnitFlag==0) {
+
+                            (amount/mneiQuantity).toFixed(2);
+                        } else {
+                            (amount/quantity).toFixed(2);
+                        }
+
+                    } else {
+                        price;
+                    };
+                ]]>
+            </ctrl:set-value-expression>
+        </ctrl:input-text>
+
+        <ctrl:input-text id="amount" label="Сумма с НДС, руб." label-style="width: 120px; text-align: left" copied="false" default-value="" domain="integer">
+            <ctrl:set-value-expression on="mneiQuantity" silent-mode="true" on-load="false">
+                <![CDATA[
+                    if (typeof price!='undefined' && price!=null && price!='') {
+
+                        // расчет по МНЕИ
+                        if (typeof modif!='undefined' && modif!= null &&
+                            typeof modif.priceUnitFlag!= 'undefined' && modif.priceUnitFlag!= null && modif.priceUnitFlag==0) {
+
+                            (price*mneiQuantity).toFixed(2);
+                        } else {
+                            (price*quantity).toFixed(2);
+                        }
+                    } else {
+                        amount;
+                    };
+                ]]>
+            </ctrl:set-value-expression>
+
+            <ctrl:set-value-expression on="quantity" silent-mode="true" on-load="false">
+                <![CDATA[
+                    if (typeof price!='undefined' && price!=null && price!='') {
+
+                        // расчет по МНЕИ
+                        if (typeof modif!='undefined' && modif!= null &&
+                            typeof modif.priceUnitFlag!= 'undefined' && modif.priceUnitFlag!= null && modif.priceUnitFlag==0) {
+
+                            (price*mneiQuantity).toFixed(2);
+                        } else {
+                            (price*quantity).toFixed(2);
+                        }
+                    } else {
+                        amount;
+                    };
+                ]]>
+            </ctrl:set-value-expression>
+
+            <ctrl:set-value-expression on="price" silent-mode="true" on-load="false">
+                <![CDATA[
+                if (typeof price!='undefined' && price!=null && price!='') {
+
+                    // расчет по МНЕИ
+                    if (typeof modif!='undefined' && modif!= null &&
+                           typeof modif.priceUnitFlag!= 'undefined' && modif.priceUnitFlag!= null && modif.priceUnitFlag==0) {
+
+                           (price*mneiQuantity).toFixed(2);
+                    } else {
+                           (price*quantity).toFixed(2);
+                    }
+                } else {
+                    amount;
+                }
+                ]]>
+            </ctrl:set-value-expression>
+
+        </ctrl:input-text>
+
+        <ctrl:input-text id="note" label="Примечание" label-style="width: 120px; text-align: left" copied="false"
+                         control-style="width: 360px"/>
+    </fs:field-set>
+</form>

@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>stomatologyAppointment</object-id>
+    <name>employeeResourceGroupFilter</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+            </n2o:items-query>
+            <n2o:count-query>select 1 a
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display>1</display>
+        </field>
+
+        <field>
+            <id>stomResourceGroup.id</id>
+            <domain>integer</domain>
+            <display value="#{stomResourceGroup.id?}">null</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>stomResourceGroup.name</id>
+            <domain>string</domain>
+            <display value="#{stomResourceGroup.name?}">null</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>emplPosId</id>
+            <domain>integer</domain>
+            <display value="#{emplPos.id?}"/>
+            <expression>null</expression>
+        </field>
+
+        <field>
+            <id>defaultVal</id>
+            <domain>object</domain>
+            <display/>
+            <expression>
+                <![CDATA[(select row_to_json(r) from (
+                select srg.id as id, srg.name as name
+                from sr_res_group srg
+                join sr_res_group_relationship srgr on srgr.group_id = srg.id
+                join sr_resource sr on sr.id = srgr.resource_id
+                join pim_employee_position_resource pepr on pepr.id = sr.id
+                join pim_employee_position pep on pep.id = pepr.employee_position_id
+                where (srg.is_system is null or srg.is_system = false) and pep.id = :emplPosId
+                and (srg.bdate is null or now()::date >= srg.bdate) and (srg.edate is null or srg.edate <= now()::date)
+                order by srg.id asc limit 1
+                ) r)
+                ]]>
+            </expression>
+        </field>
+    </fields>
+</query>

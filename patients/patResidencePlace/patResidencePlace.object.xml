@@ -1,0 +1,169 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>patResidencePlace</id>-->
+    <name>Места пребывания пациента</name>
+    <actions>
+        <action id="create" name="Создать">
+        <invocation>
+            <sql:sql>
+                <![CDATA[
+                    UPDATE public.pci_patient_place_of_residence
+                    SET to_dt = cast(cast(:from_dt as date) - cast('1 day' as interval) as date)
+                    WHERE id in
+                        (select pppof.id
+                        from pci_patient_place_of_residence pppof
+                        WHERE pppof.patient_id = :patient_id
+                            and :id is null
+                            and pppof.from_dt < :from_dt
+                            and pppof.to_dt is null
+                            and pppof.place_of_residence_id = :place_of_residence_id);
+
+
+                    insert into public.pci_patient_place_of_residence (patient_id,place_of_residence_id,org_id,from_dt,to_dt,note)
+                        values (:patient_id,:place_of_residence_id,:org_id,:from_dt,:to_dt,:note);
+                ]]>
+            </sql:sql>
+        </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="residence_place.id" mapping="['place_of_residence_id']" domain="integer"/>
+                <param name="org.id" mapping="['org_id']" domain="integer"/>
+                <param name="from_date" mapping="['from_dt']" domain="date"/>
+                <param name="to_date" mapping="['to_dt']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[1][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Место пребывания сохранено в системе.
+            </success-text>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    update public.pci_patient_place_of_residence set place_of_residence_id = :place_of_residence_id, org_id = :org_id
+                        ,from_dt = :from_dt, to_dt = :to_dt, note = :note where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="residence_place.id" mapping="['place_of_residence_id']" domain="integer"/>
+                <param name="org.id" mapping="['org_id']" domain="integer"/>
+                <param name="from_date" mapping="['from_dt']" domain="date"/>
+                <param name="to_date" mapping="['to_dt']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+            <success-text>
+                Измененное место пребывания сохранено в системе.
+            </success-text>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from public.pci_patient_place_of_residence where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="full_name" mapping="['full_name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что запись о месте пребывания пациента "{full_name}" должена быть удалена?
+            </confirmation-text>
+            <success-text>
+                Место пребывания "{full_name}" пациента успешно удалено.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkUniquePlace" level="error">
+            <message>Даты действия пересекаются с другими местами пребывания выбранного вида.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*)
+                        from pci_patient_place_of_residence pppof
+                        where (pppof.id != :id or :id is null)
+                            and pppof.patient_id = :pat
+                            and not ( pppof.from_dt > :to_dt and cast(:to_dt as date) is not null
+                            and pppof.from_dt is not null
+                            or pppof.to_dt < :from_dt and pppof.to_dt is not null)
+                            and not (pppof.to_dt is null and pppof.from_dt < :from_dt and :id is null)
+                            and pppof.place_of_residence_id = :place_of_residence_id
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['pat']" domain="integer"/>
+                <param name="residence_place.id" mapping="['place_of_residence_id']" domain="integer"/>
+                <param name="residence_place.id" mapping="['place_of_residence_id']" domain="string"/>
+                <param name="from_date" mapping="['from_dt']" domain="date"/>
+                <param name="to_date" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="placemess" level="warning" moment="before-action">
+            <message>Действующие места пребывания выбранного вида будут закрыты датой {date}.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*), to_char(cast(cast(:from_dt as date) - cast('1 day' as interval) as date),'dd.mm.yyyy')
+                    from public.pci_patient_place_of_residence pppof
+                    join md_place_of_residence mpor on mpor.id = pppof.place_of_residence_id
+                    left join pim_organization po on po.id = pppof.org_id
+                    where pppof.patient_id = :patient_id and pppof.place_of_residence_id = :place_of_residence_id
+                        and not(pppof.to_dt is not null and cast(:from_dt as date) > ppr.unreg_dt)
+                            or (cast(:unreg_dt as date) is not null and ppr.reg_dt is not null and cast(:unreg_dt as date) < ppr.reg_dt))
+                            and (:id is null or :id != pppof.id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="residence_place.id" mapping="['place_of_residence_id']" domain="integer"/>
+                <param name="org.id" mapping="['org_id']" domain="integer"/>
+                <param name="from_date" mapping="['from_dt']" domain="date"/>
+                <param name="to_date" mapping="['to_dt']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="date" mapping="[0][0][1]" domain="date"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="checkDate" level="error" moment="before-action">
+            <message>Дата окончания должна быть позже даты начала.</message>
+            <expression><![CDATA[
+                ((to_date == null) ||
+                (moment(to_date, 'DD.MM.YYYY') >= moment(from_date, 'DD.MM.YYYY'))
+                )
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="checkFromDate" level="error" moment="before-action">
+            <message>Дата начала не может быть раньше даты рождения.</message>
+            <invocation>
+                <sql:sql>
+                    select case when :from_dt > birth_dt then true else false end
+                    birth_dt
+                    from pim_individual
+                    where id = :patient_id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="from_date" mapping="['from_dt']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+
+    </validations>
+</object>

@@ -1,0 +1,251 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>Event</id>
+    <name>Мероприятие</name>
+
+    <actions>
+        <action id="create" name="Создать мероприятие">
+            <invocation>
+                <sp:stored-procedure name="disp.createEvent" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]"/>
+                <param name="name" mapping="[1]" domain="string"/>
+                <param name="organization.id" mapping="[2]"/>
+                <param name="fundingSourceType.id" mapping="[3]"/>
+                <param name="startDate" mapping="[4]" domain="string"/>
+                <param name="endDate" mapping="[5]" domain="string"/>
+                <param name="standard.id" mapping="[6]"/>
+                <param name="eventType.id" mapping="[7]"/>
+                <param name="is_mobile_medical_teams" mapping="[8]"/>
+                <param name="count_mmt" mapping="[9]"/>
+                <param name="paymentMethod.id" mapping="[10]"/>
+                <param name="mes.id" mapping="[11]"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="isNullService"/>
+                <validation ref-id="validationService"/>
+            </validations>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    update disp.md_event set name=:name, org_id=:orgId, event_type=:eventTypeId, pay_type=:fundId,
+                    start_date = :sDate, end_date = :eDate,
+                    standard_id=:standardId, is_mobile_medical_teams = :is_mobile_medical_teams,
+                    count_mmt = :count_mmt, pay_method = :paymentMethod, mes_id = :mes
+                    where id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="organization.id" mapping="['orgId']"/>
+                <param name="fundingSourceType.id" mapping="['fundId']"/>
+                <param name="startDate" mapping="['sDate']"/>
+                <param name="endDate" mapping="['eDate']"/>
+                <param name="standard.id" mapping="['standardId']"/>
+                <param name="eventType.id" mapping="['eventTypeId']"/>
+                <param name="is_mobile_medical_teams" mapping="['is_mobile_medical_teams']"/>
+                <param name="count_mmt" mapping="['count_mmt']"/>
+                <param name="paymentMethod.id" mapping="['paymentMethod']"/>
+                <param name="mes.id" mapping="['mes']"/>
+            </in-parameters>
+        </action>
+     <!--   <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/security">
+                    delete from audit_exclusion where user_id=:id;
+                    delete from permission_filter where permission_id in (select id from permission where user_id=:id);
+                    delete from permission where user_id=:id;
+                    delete from the_user where id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>-->
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    update disp.md_event set is_deleted=true where id=:id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="organization.id"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="canNotRemoveEvent"/>
+            </validations>
+
+        </action>
+    </actions>
+    <validations>
+
+
+        <constraint id="canNotRemoveEvent" level="error" moment="before-action">
+            <message>
+                Удалить мероприятие нельзя, т.к. на случаи пациентов сформированы счета.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(fbsi.id) from  fin_bill_spec_item fbsi
+                    left join md_srv_rendered msr on msr.id = fbsi.service_id
+                    left join mc_case mc on mc.id=msr.case_id
+                    left join  disp.md_event_patient mep on  mc.id = mep.case_id
+                    left join disp.md_event me on me.id=mep.event_id
+                    where me.id=:id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="isNullService" level="error">
+            <message>В стандарте лечения нет услуг.</message>
+            <invocation>
+                <sql:sql>
+                    select count(COALESCE(ss.id, sssd.service_id))
+                    from disp.md_standard_prescription_extended mspe
+                    left join md_standard_prescription msp on mspe.id = msp.id
+                    left join md_standard ms on ms.id = :xstandard
+                    left join md_prescription mp on mp.id = msp.id
+                    left join sr_service ss on ss.id = mp.service_type_id
+                    left join md_norm_document_service mnds on mnds.id = mspe.norm_doc_service_id
+                    left join disp.sr_srv_service_document sssd on sssd.document_service_id = mnds.id and
+                    sssd.owner_org_id = :xorg -- Документ "Взрослая дисп. 1 этап"
+                    where msp.standard_id = :xstandard;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="standard.id" mapping="['xstandard']"/>
+                <param name="organization.id" mapping="['xorg']"/>
+            </in-parameters>
+            <result expression="[0][0][0] > 0"/>
+        </constraint>
+
+        <constraint id="validationService" level="error">
+            <message>{value}</message>
+            <invocation>
+                <sql:sql>
+                    select disp.create_event_validation_service(:xstandard,:xorg );
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="standard.id" mapping="['xstandard']"/>
+                <param name="organization.id" mapping="['xorg']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="value" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] =='!'"/>
+        </constraint>
+
+
+
+
+
+        <constraint id="checkOrphansEventLength" level="error">
+            <invocation>
+                <sql:sql><![CDATA[
+                    select count(1)
+                    where :eventTypeId IS NOT NULL and ((:eventTypeId != 'ДС1' and :eventTypeId != 'ДС2') or ((:eventTypeId = 'ДС1' or :eventTypeId = 'ДС2') and to_date(:edate, 'DD.MM.YYYY') <= (to_date(:sdate, 'DD.MM.YYYY') + interval '1 year')))
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="startDate" mapping="['sdate']" domain="string"/>
+                <param name="endDate" mapping="['edate']" domain="string"/>
+                <param name="eventType.code" mapping="['eventTypeId']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 1"/>
+            <message>Продолжительность данного типа мероприятия не больше 10 рабочих дней.</message>
+        </constraint>
+        <constraint id="checkAdultEventLength" level="error">
+            <invocation>
+                <sql:sql><![CDATA[
+                    select count(1) 
+                    where :eventTypeId IS NOT NULL and ((:eventTypeId != 'ДВ1' and :eventTypeId != 'ДВ2') or ((:eventTypeId = 'ДВ1' or :eventTypeId = 'ДВ2') and to_date(:edate, 'DD.MM.YYYY') <= (to_date(:sdate, 'DD.MM.YYYY') + interval '1 year')))
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="startDate" mapping="['sdate']" domain="string"/>
+                <param name="endDate" mapping="['edate']" domain="string"/>
+                <param name="eventType.code" mapping="['eventTypeId']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 1"/>
+            <message>Продолжительность данного типа мероприятия не больше 1 года.</message>
+        </constraint>
+
+        <condition id="checkEventDate" level="error">
+            <expression><![CDATA[ endDate == null || endDate != null && startDate == null ||
+        endDate != null && moment(startDate, 'DD.MM.YYYY HH:mm').isBefore(moment(endDate, 'DD.MM.YYYY HH:mm'))
+       ]]></expression>
+            <message>Дата окончания должна быть позже даты начала.</message>
+        </condition>
+
+        <constraint id="checkAdultEventMinLength" level="error">
+            <invocation>
+                <sql:sql><![CDATA[
+                    select count(1)
+                    where :eventTypeId IS NOT NULL and
+                     ((:eventTypeId != 'ДВ1' and :eventTypeId != 'ДВ2') or ((:eventTypeId = 'ДВ1' or :eventTypeId = 'ДВ2')and to_date(:edate, 'DD.MM.YYYY') >= (to_date(:sdate, 'DD.MM.YYYY') + interval '2 day'  )))
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="startDate" mapping="['sdate']" domain="string"/>
+                <param name="endDate" mapping="['edate']" domain="string"/>
+                <param name="eventType.code" mapping="['eventTypeId']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 1"/>
+            <message>Период не может быть менее 2 дней.</message>
+        </constraint>
+        
+        <constraint id="checkSrSrvServiceDocumentExists" level="warning">
+            <message>Следующим услугам по приказу не указано соответствие услугам МО: {failedServices}. В мероприятии будут созданы пустые услуги.</message>
+            <invocation>
+                <sql:sql>
+                    select disp.checkeventservices(:orgId, :standardId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="organization.id" mapping="['orgId']"/>
+                <param name="standard.id" mapping="['standardId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="failedServices" mapping="[0][0][0]" domain="string"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 't'"/>
+        </constraint>
+
+        <constraint id="checkRefbooks" level="warning">
+            <message>
+                {message}
+            </message>
+            <invocation>
+                <sql:sql>
+                    select disp.check_refbooks(:event_type);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="eventType.id" mapping="['event_type']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="message" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] == ''"/>
+        </constraint>
+
+    </validations>
+</object>

@@ -1,0 +1,109 @@
+<form xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0">
+    <id>EventCard</id>
+    <query-id>Events</query-id>
+    <default-values-query-id>FakeEvent</default-values-query-id>
+    <name>Карточка мероприятия</name>
+    <edit model="default" refresh-after-submit="true">
+        <invoke-action action-id="create" />
+    </edit>
+
+            <fs:field-set field-label-location="top" header="none">
+<fs:row>
+                    <n2o:input-text label="Наименование" id="name" required="true"/>
+                    <n2o:classifier id="eventType" label="Вид мероприятия" required="true" autoselect="true">
+                        <n2o:query query-id="eventType" value-field-id="id" label-field-id="name"/>
+                    </n2o:classifier>
+                    <n2o:classifier id="organization" label="Организация" required="true">
+                        <n2o:query query-id="organization" value-field-id="id" label-field-id="short_name">
+                            <n2o:pre-filters>
+                                <n2o:pre-filter field-id="id" value="#{org.id?}"/>
+                            </n2o:pre-filters>
+                        </n2o:query>
+                        <n2o:default-model>
+                            <n2o:value field-id="id">#{org.id?}</n2o:value>
+                            <n2o:value field-id="short_name">#{org.name?}</n2o:value>
+                        </n2o:default-model>
+                    </n2o:classifier>
+                    <n2o:classifier id="fundingSourceType" label="Вид финансирования" depends-on="eventType" required="true" autoselect="true">
+                        <n2o:query query-id="fundingSourceType" value-field-id="id" label-field-id="name">
+                            <n2o:pre-filters>
+                                <n2o:pre-filter field-id="eventTypeId" ref="eventType.id" />
+                            </n2o:pre-filters>
+                        </n2o:query>
+                        <n2o:default-model>
+                            <n2o:value field-id="id">8</n2o:value>
+                            <n2o:value field-id="name">ОМС</n2o:value>
+                        </n2o:default-model>
+                    </n2o:classifier>
+                    <n2o:classifier id="year" label="Год проведения" required="true" depends-on="eventType"
+                                    dependency-condition="(typeof eventType != 'undefined') &amp;&amp; (eventType != null) &amp;&amp; (eventType.code == 'ДВ1')">
+                        <n2o:query query-id="eventYear" value-field-id="id" label-field-id="year"/>
+                    </n2o:classifier>
+                    <n2o:date-time format="DD.MM.YYYY" label="Дата начала" id="startDate"  required="true" depends-on="eventType"
+                                   dependency-condition="(typeof eventType != 'undefined') &amp;&amp; (eventType != null) &amp;&amp; (eventType.code != 'ДВ1')">
+                        <n2o:set-value-expression on="year">
+                            <![CDATA[
+                                if ((typeof year != 'undefined') && (year != null) && (year.year != null))
+                                    moment('01.01.' + year.year, 'DD.MM.YYYY').format('DD.MM.YYYY HH:mm');
+                                else throw '!';
+                            ]]>
+                        </n2o:set-value-expression>
+                    </n2o:date-time>
+
+                    <n2o:date-time format="DD.MM.YYYY" label="Дата окончания" id="endDate"  required="true" depends-on="eventType"
+                                   dependency-condition="(typeof eventType != 'undefined') &amp;&amp; (eventType != null) &amp;&amp; (eventType.code != 'ДВ1')">
+                        <n2o:set-value-expression on="year">
+                            <![CDATA[
+                                if ((typeof year != 'undefined') && (year != null) && (year.year != null))
+                                    moment('31.12.' + year.year, 'DD.MM.YYYY').format('DD.MM.YYYY HH:mm');
+                                else throw '!';
+                            ]]>
+                        </n2o:set-value-expression>
+                        <n2o:validations>
+
+                            <n2o:validation ref-id="checkEventDate"/>
+                            <n2o:validation ref-id="checkOrphansEventLength"/>
+                            <n2o:validation ref-id="checkAdultEventLength"/>
+                            <n2o:validation ref-id="checkAdultEventMinLength"/>
+
+                        </n2o:validations>
+                    </n2o:date-time>
+
+                    <n2o:classifier id="standard" label="Стандарт лечения"  required="true">
+                        <n2o:query query-id="md_standard" value-field-id="id" label-field-id="name">
+                            <n2o:pre-filters>
+                                <n2o:pre-filter field-id="orgId" ref="organization.id" />
+                            </n2o:pre-filters>
+                        </n2o:query>
+                    </n2o:classifier>
+                    <n2o:checkbox id="is_mobile_medical_teams" label="Мобильные медицинские бригады"/>
+                    <n2o:input-text id="count_mmt" label="Количество ММБ">
+                        <n2o:dependencies>
+                            <n2o:enabling-condition on="is_mobile_medical_teams">is_mobile_medical_teams == true</n2o:enabling-condition>
+                        </n2o:dependencies>
+                        <n2o:set-value-expression on="is_mobile_medical_teams">if (is_mobile_medical_teams == null || is_mobile_medical_teams == false) null; else throw '!';</n2o:set-value-expression>
+                    </n2o:input-text>
+
+                    <n2o:classifier id="paymentMethod" label="Способ оплаты"  required="true" autoselect="true">
+                        <n2o:query query-id="mc_payment_method" value-field-id="id" label-field-id="name">
+                        </n2o:query>
+                    </n2o:classifier>
+    <n2o:input-text label="Идентификатор мероприятия" id="id" readonly="true" label-style="width:200px;"/>
+                    <n2o:classifier id="mes" label="МЭС">
+                        <n2o:query query-id="md_mes" value-field-id="id" label-field-id="name">
+                            <n2o:pre-filters>
+                                <n2o:pre-filter field-id="orgId" ref="organization.id"/>
+                            </n2o:pre-filters>
+                        </n2o:query>
+                    </n2o:classifier>
+</fs:row>
+            </fs:field-set>
+
+    <action-menu>
+        <menu-item id="update" label="Изменить" context="true" default="true">
+            <open-page page-id="editEvent" refresh-on-close="true" model="query" />
+        </menu-item>
+    </action-menu>
+</form>

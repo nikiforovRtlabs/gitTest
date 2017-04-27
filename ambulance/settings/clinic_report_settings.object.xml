@@ -1,0 +1,106 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>clinic_report_settings</id>-->
+    <name>Настройки МО для отчетности</name>
+    <actions>
+        <action id="create" name="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into amb.md_clinic_report_settings(date,station_category_id,clinic_id,has_automated_control_system,has_industry_payment,has_payment_for_result,has_standars,time_begin,time_end)
+                        values (:date,:cat,:clinic,:has_automated_control_system,:industry,:payment,:standars,cast(:time_begin as time),cast(:time_end as time));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="station_category.id" mapping="['cat']" domain="integer"/>
+                <param name="station.id" mapping="['clinic']" domain="integer"/>
+                <param name="has_automated_control_system.code" mapping="['has_automated_control_system']" domain="boolean"/>
+                <param name="has_industry_payment.code" mapping="['industry']" domain="boolean"/>
+                <param name="has_payment_for_result.code" mapping="['payment']" domain="boolean"/>
+                <param name="has_standars.code" mapping="['standars']" domain="boolean"/>
+                <param name="time_begin" mapping="['time_begin']" domain="string"/>
+                <param name="time_end" mapping="['time_end']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+        </action>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update amb.md_clinic_report_settings set date = :date,station_category_id = :cat, clinic_id = :clinic,has_automated_control_system = :has_automated_control_system,
+                            has_industry_payment = :industry,has_payment_for_result = :payment,has_standars = :standars, time_begin = cast(:time_begin as time), time_end = cast(:time_end as time) where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="station_category.id" mapping="['cat']" domain="integer"/>
+                <param name="station.id" mapping="['clinic']" domain="integer"/>
+                <param name="has_automated_control_system.code" mapping="['has_automated_control_system']" domain="boolean"/>
+                <param name="has_industry_payment.code" mapping="['industry']" domain="boolean"/>
+                <param name="has_payment_for_result.code" mapping="['payment']" domain="boolean"/>
+                <param name="has_standars.code" mapping="['standars']" domain="boolean"/>
+                <param name="time_begin" mapping="['time_begin']" domain="string"/>
+                <param name="time_end" mapping="['time_end']" domain="string"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from amb.md_clinic_report_settings where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="clinic_report_settings_Unique" level="error">
+            <message>
+                Настройка для МО уже существует!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.md_clinic_report_settings
+                    where clinic_id = :clinic
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer" required="false"/>
+                <param name="station.id" mapping="['clinic']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="checkTimeBegin" level="error">
+            <message>Некорректный формат времени.</message>
+            <expression on="time_begin">
+                <![CDATA[
+                    var regex = new RegExp('([0-1][0-9]|2[0-3]):[0-5][0-9]');
+                    var b = true;
+                    if(typeof time_begin != 'undefined' && time_begin != null && time_begin != '')
+                    b = regex.test(time_begin);
+                    b;
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkTimeEnd" level="error">
+            <message>Некорректный формат времени.</message>
+            <expression on="time_end">
+                <![CDATA[
+                    var regex = new RegExp('([0-1][0-9]|2[0-3]):[0-5][0-9]');
+                    var b = true;
+                    if(typeof time_end != 'undefined' && time_end != null && time_end != '')
+                    b = regex.test(time_end);
+                    b;
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

@@ -1,0 +1,336 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>patients</object-id>
+    <name>patients</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from view_pim_individual_age_sort i
+                join pci_patient p on i.id = p.id
+
+                --адрес
+                left join lateral ( select distinct on(ppa.party_id) *
+                            from pim_party_address ppa
+                                join pim_party_addr_to_addr_type ppatat on ppa.id = ppatat.party_address_id
+                                join pim_address_type padt on padt.id = ppatat.address_type_id and padt.party_type_id = 1
+                            where i.id = ppa.party_id and current_date between coalesce(ppa.from_date, '-infinity')
+                                and coalesce(ppa.to_date, 'infinity')
+                ) as addr on true
+                where :where and not (:surname is null and :name is null
+                    and :patronymic is null and cast(:birthDate as date) is null and :gender.id is null
+                    and :policy is null and :document is null and :insuranceNumber is null and :is_attach is null
+                    and :is_death is null and :address.id is null)
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(i)
+                from view_pim_individual_age_sort i
+                join pci_patient p on i.id = p.id
+
+                --адрес
+                left join ( select distinct on(ppa.party_id) *
+                            from pim_party_address ppa
+                                join pim_party_addr_to_addr_type ppatat on ppa.id = ppatat.party_address_id
+                                join pim_address_type padt on padt.id = ppatat.address_type_id and padt.party_type_id = 1
+                            where current_date between coalesce(ppa.from_date, '-infinity') and coalesce(ppa.to_date, '-infinity')
+                ) as addr on i.id = addr.party_id
+                where :where and not (:surname is null and :name is null
+                    and :patronymic is null and cast(:birthDate as date) is null and :gender.id is null
+                    and :policy is null and :document is null and :insuranceNumber is null and :is_attach is null
+                    and :is_death is null and :address.id is null)
+            </n2o:count-query>
+            <n2o:alias>i</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>i.id</expression>
+        </field>
+        <field>
+            <id>surname</id>
+            <name>Фамилия</name>
+            <expression>i.surname</expression>
+            <domain>string</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="surname">case when CHAR_LENGTH(:surname)>1
+                    then replace(upper(trim(:expression)), 'Ё', 'Е') like replace(upper(trim(:surname)), 'Ё', 'Е')||'%' end
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>name</id>
+            <name>Имя</name>
+            <domain>string</domain>
+            <expression>i.name</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="name">case when CHAR_LENGTH(:name) > 1
+                    then replace(upper(trim(:expression)), 'Ё', 'Е') like replace(upper(trim(:name)), 'Ё', 'Е')||'%' end
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>patronymic</id>
+            <name>Отчество</name>
+            <expression>i.patr_name</expression>
+            <domain>string</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="patronymic">case when CHAR_LENGTH(:patronymic) >1
+                    then replace(upper(trim(:expression)), 'Ё', 'Е') like replace(upper(trim(:patronymic)), 'Ё', 'Е')||'%' end
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>fullName</id>
+            <name>ФИО</name>
+            <domain>string</domain>
+            <display/>
+            <expression>concat(i.surname,' ', i.name,' ', i.patr_name)</expression>
+            <sorting/>
+        </field>
+        <field>
+            <id>age</id>
+            <name>Возраст</name>
+            <expression>i.age_txt</expression>
+            <domain>string</domain>
+            <display/>
+            <sorting>i.age_sort</sorting>
+        </field>
+        <field>
+            <id>birthDate</id>
+            <name>Дата рождения</name>
+            <expression>i.birth_dt</expression>
+            <domain>date</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="birthDate">:expression = :birthDate::date</filter>
+            </filters>
+            <sorting/>
+        </field>
+        <field>
+            <id>birthDt</id>
+            <domain>string</domain>
+            <expression>to_char(i.birth_dt, 'DD.MM.YYYY')</expression>
+            <display/>
+        </field>
+        <field>
+            <id>death_dt</id>
+            <name>Дата смерти</name>
+            <expression>
+                i.death_dt
+            </expression>
+            <domain>string</domain>
+            <display/>
+        </field>
+        <field>
+            <id>gender.id</id>
+            <name>Пол</name>
+            <domain>integer</domain>
+            <expression>i.gender_id</expression>
+            <display>i.gender_id</display>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>insuranceNumber</id>
+            <name>СНИЛС</name>
+            <expression>
+                (case when trim(i.list_snils) = '' then null else trim(i.list_snils)  end)
+            </expression>
+            <domain>string</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="insuranceNumber">
+                    exists (select 1 from pim_indiv_code ic where i.id = ic.indiv_id and ic.type_id = 1 and upper(replace(replace(ic.code, ' ', ''), '-', '')) like '%'|| upper(replace(replace(:insuranceNumber, ' ', ''), '-', '')))
+                </filter>
+            </filters>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>document</id>
+            <name>Документ</name>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (case when trim(i.list_identity_doc) = '' then null else trim(i.list_identity_doc)  end)
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="document">
+                    exists(
+                        select 1 from pim_individual_doc pid
+                        join pim_doc_type pdt on pid.type_id = pdt.id and pid.indiv_id = i.id
+                        join pim_doc_type_category dtc on dtc.category_id = 1 and dtc.type_id = pdt.id
+                        <!--and current_date between coalesce(issue_dt, '-infinity') and coalesce(expire_dt, 'infinity')-->
+                        and upper(regexp_replace(concat(pid.series, pid.number), '-|\s|\/|\\', '', 'g')) like '%'||upper(regexp_replace(:document, '-|\s|\/|\\', '', 'g'))
+                    )
+                </filter>
+            </filters>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>policy</id>
+            <name>Полис</name>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (case when trim(i.list_oms_doc) = '' then null else trim(i.list_oms_doc)  end)
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="policy">
+                    exists (
+                        select 1 from pim_individual_doc pid
+                        join pim_doc_type pdt on pid.type_id = pdt.id and pdt.code in ('MHI_OLDER', 'MHI_TEMP', 'MHI_UNIFORM') and pid.indiv_id = i.id and concat(pid.series, ' ', pid.number, ' ') like '%'||:policy||'%'
+                        <!--and current_date between coalesce(issue_dt, '-infinity') and coalesce(expire_dt, 'infinity')-->
+                    )
+                </filter>
+            </filters>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>attach</id>
+            <domain>string</domain>
+            <name>Прикрепление</name>
+            <display/>
+            <expression>
+                (select concat(concat(mc.short_name,', ')
+                ,concat(lower(mrt.name),', ')
+                ,coalesce(mcd.name,bymcd.name,''))
+                from pci_patient_reg ppr
+                left join md_clinic mc on mc.id = ppr.clinic_id
+                left join md_clinic_district mcd on mcd.id = ppr.district_id
+                left join md_reg_type mrt on mrt.id = ppr.type_id
+                left join md_clinic_district bymcd on bymcd.id = ppr.district_by_addr_id where ppr.state_id = 1 and i.id = ppr.patient_id limit 1)
+            </expression>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>is_attach</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>1</expression>
+            <filters>
+                <filter type="eq" filter-field="is_attach">
+                    exists (select 1 from pci_patient_reg ppr where i.id = ppr.patient_id and ppr.state_id = 1)
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>number_attach</id>
+            <domain>string</domain>
+            <display/>
+            <expression>1</expression>
+            <filters>
+                <filter type="eq" filter-field="number_attach">
+                    exists (
+                        select 1 from pci_patient_reg ppr
+                        left join md_clinic mc on mc.id = ppr.clinic_id
+                        where i.id = ppr.patient_id and ppr.state_id = 1 and
+                        mc.id = cast(:name_mo.id as integer) and
+                        upper(trim(ppr.number_attach)) like '%'||trim(:number_attach)||'%')
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>name_mo.id</id>
+            <domain>ineteger</domain>
+            <display/>
+            <expression>1</expression>
+            <filters>
+                <filter type="eq" filter-field="name_mo">
+                    exists (
+                        select 1 from pci_patient_reg ppr
+                        left join md_clinic mc on mc.id = ppr.clinic_id
+                        where i.id = ppr.patient_id and ppr.state_id = 1 and mc.id = cast(:name_mo.id as integer))
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>is_death</id>
+            <name>Умер</name>
+            <domain>boolean</domain>
+            <display/>
+            <expression>case when i.death_dt is not null then true else false end</expression>
+            <filters auto-generate="true"/>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>socGroup</id>
+            <name>Социальное положение</name>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select concat(sg.code,' ',sg.name)
+                from pci_patient_social_group psg
+                    join md_soc_group sg on sg.id = psg.social_group_id
+                where current_date between coalesce(psg.from_dt, '-infinity') and
+                    coalesce(psg.to_dt, 'infinity') and i.id = psg.patient_id limit 1)
+            </expression>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>addr_filter</id>
+            <name>адрес</name>
+            <domain>boolean</domain>
+            <expression>
+                (
+                    :address.id is null or
+                    exists (
+                        with recursive t(id, p) as (
+                            select ae.id, parent_id from pim_party_address ppa
+                            join pim_party pp on pp.id = ppa.party_id and pp.type_id = 1 and i.id = ppa.party_id
+                                and current_date between coalesce(ppa.from_date, '-infinity') and coalesce(ppa.to_date, 'infinity')
+                            join pim_party_addr_to_addr_type ppatat on ppa.id = ppatat.party_address_id
+                            join pim_address_type padt on padt.id = ppatat.address_type_id and padt.party_type_id = 1
+                            join address_element ae on ppa.addr_id = ae.id
+                                union all
+                            select ae.id, ae.parent_id from address_element ae join t on t.p = ae.id and ae.level_id > 1
+                        )
+                    select 1 from t where t.id = (:address.id -> 'id')::integer
+                    )
+                )
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="address.id">
+                    :expression
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>address</id>
+            <domain>string</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>
+                coalesce(adr__get_element_as_text(addr.addr_id, '(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)'),addr.text_addr)
+            </expression>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>lastFluorographyDate</id>
+            <name>Флюорография</name>
+            <domain>date</domain>
+            <display/>
+            <expression>p.last_fluorography_date</expression>
+            <sorting/>
+        </field>
+    </fields>
+</query>

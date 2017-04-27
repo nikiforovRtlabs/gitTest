@@ -1,0 +1,145 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>productionSpecList</name>
+    <object-id>productionSpec</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select from
+                (select s.id id, s.prod_doc_id docId,batch.series series,  batch.expire_dt expireDt,ss.id as storeSupId,doc.doc_status_id as docStatusId, s.dose_value,
+                batch.hold_producer_id producerId, ss.funding_source_id fundSourceId,
+                s.modif_id holdModifId, s.amount amountVat, ss.price price,  s.mnei_quantity mneiQuantity,
+                coalesce(hm.mnei_count_in_sec_pk,1) mneiCountInSecPk,hm.price_unit_flag priceUnitFlag,
+                hm.extra_pack_unit_id extraPackUnitId, hm.sec_pack_unit_id secPackUnitId, hm.mnei_id mneiId,
+                (select inventory.get_batch_mnei_quantity(ss.id,ss.act_balance_mnei,doc.int_doc_dt)) actualBalanceMnei
+
+                from inventory.production_doc_spec s
+                inner join inventory.document doc on doc.id=s.prod_doc_id
+                left outer join inventory.hold_modif hm on hm.id=s.modif_id
+                left outer join inventory.store_supply ss on ss.id=s.store_sup_id
+                left outer join inventory.batch batch on batch.id=ss.batch_id
+                where :where) s
+            </n2o:items-query>
+            <n2o:count-query>select 1</n2o:count-query>
+            <n2o:alias>s</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>doc.id</id>
+            <domain>integer</domain>
+            <expression>docId</expression>
+        </field>
+        <field>
+            <id>storeSupply.id</id>
+            <domain>integer</domain>
+            <expression>storeSupId</expression>
+        </field>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <expression>series</expression>
+        </field>
+        <field>
+            <id>expireDt</id>
+            <domain>date</domain>
+            <expression>expireDt</expression>
+        </field>
+        <field>
+            <id>producer.id</id>
+            <domain>integer</domain>
+            <expression>producerId</expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fundSourceId</expression>
+        </field>
+        <field>
+            <id>modif.id</id>
+            <domain>integer</domain>
+            <expression>holdModifId</expression>
+        </field>
+        <field>
+            <id>amountWithVat</id>
+            <domain>string</domain>
+            <expression>trim(to_char(amountVat, 'FM999999999999990.999'), '.')</expression>
+        </field>
+        <field>
+            <id>priceWithVat</id>
+            <domain>string</domain>
+            <expression>trim(to_char(price, 'FM999999999990.99999'), '.')</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>integer</domain>
+            <expression>trim(to_char(mneiQuantity/mneiCountInSecPk, 'FM999999990.999999'), '.')</expression>
+        </field>
+        <field>
+            <id>mneiQuantity</id>
+            <domain>integer</domain>
+            <expression>trim(to_char(mneiQuantity, 'FM999999990.999999'), '.')</expression>
+        </field>
+        <field>
+            <id>actualBalanceArr</id>
+            <domain>string</domain>
+            <expression>actualBalanceMnei/mneiCountInSecPk</expression>
+        </field>
+        <field>
+            <id>actualBalanceMnei</id>
+            <domain>string</domain>
+            <expression>actualBalanceMnei</expression>
+        </field>
+
+        <field>
+            <id>unit</id>
+            <domain>string</domain>
+            <expression>inventory.get_unit_name_by_flag_of_modif(priceUnitFlag,holdModifId)</expression>
+        </field>
+        <field>
+            <id>mnei</id>
+            <domain>string</domain>
+            <expression>(select mnemocode from cmn_measure where id= mneiId)</expression>
+        </field>
+        <field>
+            <id>mneiCountInSecPk</id>
+            <domain>integer</domain>
+            <expression>mneiCountInSecPk</expression>
+        </field>
+        <field>
+            <id>priceUnitFlag.id</id>
+            <domain>integer</domain>
+            <expression>priceUnitFlag</expression>
+        </field>
+        <field>
+            <id>docStatusId</id>
+            <domain>integer</domain>
+            <expression>docStatusId</expression>
+        </field>
+        <field>
+            <id>doseValue</id>
+            <domain>string</domain>
+            <expression>trim(to_char(s.dose_value, 'FM999999999990.99999'), '.')</expression>
+        </field>
+        <field>
+            <id>dosage.value</id>
+            <domain>string</domain>
+            <name>Дозировка - значение</name>
+            <expression>(select p.value from inventory.form_param_value p
+                where p.form_param_id=3 and p.hold_modif_id=holdModifId)</expression>
+        </field>
+        <field>
+            <id>dosage.name</id>
+            <domain>string</domain>
+            <name>Ед. изм</name>
+            <expression>(select c.mnemocode from inventory.form_param_value p
+                inner join cmn_measure c on c.id = p.unit_id
+                where p.form_param_id=3 and p.hold_modif_id=holdModifId)</expression>
+        </field>
+    </fields>
+</query>

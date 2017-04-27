@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>treatmentStandard</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.sr_srv_prototype p, public.sr_srv_type st, public.services_template t
+                where st.id = p.type_id and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(p)
+                from public.sr_srv_prototype p, public.sr_srv_type st, public.services_template t
+                where st.id = p.type_id and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>code</id>
+            <name>Код</name>
+            <domain>string</domain>
+            <expression>p.code</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <name>Наименование</name>
+            <domain>string</domain>
+            <expression>p.name</expression>
+            <search>upper(:expression) like upper('%' || :name || '%')</search>
+        </field>
+
+        <field>
+            <id>synonym</id>
+            <name>Синонимы</name>
+            <domain>string</domain>
+            <expression>
+                (select array_to_string(ARRAY(select ps.name from public.sr_srv_prototype_synonym ps WHERE ps.prototype_id = p.id order by ps.name), ', ', 'NULL'))
+            </expression>
+            <search>upper(:expression) like upper('%' || :synonym || '%')</search>
+        </field>
+
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <expression>st.id</expression>
+        </field>
+
+        <field>
+            <id>type.name</id>
+            <domain>string</domain>
+            <name>Тип услуги</name>
+            <expression>st.name</expression>
+        </field>
+
+        <field>
+            <id>templateId</id>
+            <domain>integer</domain>
+            <expression>t.id</expression>
+        </field>
+
+        <field>
+            <id>isChecked</id>
+            <domain>boolean</domain>
+            <name> </name>
+            <expression>
+                exists(select 1 from public.services_template_prototype stt where stt.template_id = t.id and stt.prototype_id = p.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>choiceFilter</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search filter-field="choice*.id" type="in">
+                (('added' in (:choice*.id)  and p.id in (select prototype_id from services_template_prototype where template_id = :templateId)) or
+                ('besidesAdded' in (:choice*.id)  and p.id not in (select prototype_id from services_template_prototype where template_id = :templateId)))
+            </search>
+        </field>
+    </fields>
+</query>

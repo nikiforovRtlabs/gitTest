@@ -1,0 +1,154 @@
+<form xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0">
+
+    <name>Направление на операцию</name>
+    <object-id>operation</object-id>
+    <query-id>operationPlanningForm</query-id>
+    <default-values-query-id>operationPlanningForm_default</default-values-query-id>
+
+    <fs:field-set field-label-location="left">
+
+        <ctrl:classifier id="department" label="Отделение" required="true" search-are-you-type="true"
+                         control-style="width:400px;">
+            <ctrl:query query-id="hosp_clinicalOrResuscitDepartmentByOrg" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+            <ctrl:dependencies>
+                <ctrl:enabling-condition>
+                    typeof id == 'undefined' || id == null
+                </ctrl:enabling-condition>
+            </ctrl:dependencies>
+        </ctrl:classifier>
+
+        <ctrl:classifier id="medicalCase" label="Случай" required="true" search-are-you-type="true"
+                         control-style="width:400px;" depends-on="department">
+            <ctrl:query query-id="hosp_medicalCaseByLastDep" value-field-id="id" label-field-id="name"
+                        master-field-id="id" detail-field-id="departmentId">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="clinic.id" value="#{org.id?}"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+            <ctrl:dependencies>
+                <ctrl:enabling-condition>
+                    typeof id == 'undefined' || id == null
+                </ctrl:enabling-condition>
+            </ctrl:dependencies>
+        </ctrl:classifier>
+
+        <ctrl:date-time id="plannedDate" format="DD.MM.YYYY HH:mm" label="Дата" required="true"
+                        default-value="now()" default-time="now()">
+            <ctrl:validations>
+                <ctrl:validation ref-id="checkPlannedDate2" side="client"/>
+            </ctrl:validations>
+        </ctrl:date-time>
+
+        <ctrl:classifier id="service" label="Операция" search-are-you-type="true" required="true"
+                         control-style="width:400px;">
+            <ctrl:query query-id="hosp_operatonService" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="orgId" ref="clinicId"/>
+                    <ctrl:pre-filter field-id="dt" ref="plannedDate"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+
+        <ctrl:classifier id="surgeon" label="Хирург" search-are-you-type="true"
+                         control-style="width:400px;">
+            <ctrl:query query-id="hosp_surgeonEmployeeResource" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+
+        <ctrl:classifier id="plan.operationRoom" label="Операционная" search-are-you-type="true"
+                         control-style="width:400px;"
+                         depends-on="service">
+            <ctrl:query query-id="hosp_operationRoom" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                    <ctrl:pre-filter field-id="serviceId" ref="service.id" reset-mode="on" type="eqOrIsNull"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+
+        <fs:row>
+            <ctrl:classifier id="plan.queue" label="Очередь" readonly="true" depends-on="service">
+
+                <ctrl:query query-id="operationSchedule" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="plannedDate" ref="plannedDate"/>
+                        <ctrl:pre-filter field-id="clinicId" ref="clinicId"/>
+                        <ctrl:pre-filter field-id="operationRoomResourceId" ref="hosp_operationRoom.id"/>
+                        <ctrl:pre-filter field-id="serviceId" ref="service.id"/>
+                        <ctrl:pre-filter field-id="operationRoomId" ref="plan.operationRoom.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+
+                <ctrl:validations>
+                    <ctrl:validation ref-id="checkQueueIsBusy"/>
+                </ctrl:validations>
+
+                <ctrl:actions>
+
+                    <ctrl:button icon="icon-search">
+                        <ctrl:show-modal page-id="operationSchedule" result-container-id="operationSchedule"
+                                        value-field-id="plan" target-field-id="plan">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="plannedDate" ref="plannedDate"/>
+                                <ctrl:pre-filter field-id="clinicId" ref="clinicId"/>
+                                <ctrl:pre-filter field-id="operationRoomResourceId" ref="hosp_operationRoom.id"/>
+                                <ctrl:pre-filter field-id="serviceId" ref="service.id"/>
+                                <ctrl:pre-filter field-id="operationRoomId" ref="plan.operationRoom.id"/>
+                            </ctrl:pre-filters>
+                        </ctrl:show-modal>
+                        <ctrl:dependencies>
+                            <ctrl:enabling-condition>
+                                (typeof urgent == 'undefined' || urgent == null || urgent == false || service.id==null)
+                            </ctrl:enabling-condition>
+                        </ctrl:dependencies>
+                    </ctrl:button>
+
+                    <ctrl:link label="Заполнить">
+                        <ctrl:on-click function-name="getFirstFreeQueue" src="hospital/n2o/custom/operation/planning/oper.planning"/>
+                        <ctrl:dependencies>
+                            <ctrl:enabling-condition>
+                                (typeof urgent == 'undefined' || urgent == null || urgent == false) &amp;&amp;
+                                typeof plannedDate != 'undefined' &amp;&amp; plannedDate != null &amp;&amp;
+                                typeof plan.operationRoom != 'undefined' &amp;&amp; plan.operationRoom != null &amp;&amp; plan.operationRoom.id != null
+                            </ctrl:enabling-condition>
+                        </ctrl:dependencies>
+                    </ctrl:link>
+
+                </ctrl:actions>
+
+                <ctrl:set-value-expression on-load="false">
+                    if(typeof urgent != 'undefined' &amp;&amp; urgent != null &amp;&amp; urgent == true) null; else queue;
+                </ctrl:set-value-expression>
+
+            </ctrl:classifier>
+
+            <ctrl:checkbox id="urgent" label="Срочно"/>
+        </fs:row>
+
+        <ctrl:classifier id="financialType" label="Вид оплаты" required="true"
+                         search-are-you-type="true" control-style="width:400px;">
+            <ctrl:query query-id="hosp_financialTypeByOrg" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+            <ctrl:set-value-expression on-load="false">
+                    if(medicalCase == null)
+                        null;
+                    else medicalCase.financialType;
+            </ctrl:set-value-expression>
+        </ctrl:classifier>
+
+    </fs:field-set>
+
+
+</form>

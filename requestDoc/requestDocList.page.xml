@@ -1,0 +1,197 @@
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+
+    <object-id>requestDoc</object-id>
+    <layout>n2o/layout/top-bottom</layout>
+    <name>Требования</name>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="requestDocList" refresh-dependent-container="true">
+                <wgt:table>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Добавить" context="false" id="create">
+                            <wgt:show-modal page-id="requestDoc" container-id="main" action-id="save"
+                                            refresh-on-close="true" width="800px" focus-after-submit="true">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Копировать" context="true" id="copy" icon="icon-file">
+                            <wgt:show-modal page-id="requestDoc" container-id="main" width="800px" action-id="copy"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            focus-after-submit="true" model="copy">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Изменить" context="true" id="update">
+                            <wgt:show-modal page-id="requestDoc" container-id="main" width="800px" action-id="save"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            focus-after-submit="true">
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id==6 || status.id==8</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Просмотр" context="true" id="view"  icon="icon-eye-open" type="textAndIcon">
+                            <wgt:show-modal page-id="requestDoc" container-id="main" width="800px"
+                                            detail-field-id="id" master-field-id="id" focus-after-submit="true">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" label="Удалить">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id!=7</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="approve" label="Утвердить" icon="icon-ok-sign" type="textAndIcon">
+                            <wgt:invoke-action action-id="approve" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>(status.id==6  || status.id==8)&amp;&amp; countOfSpec!=0</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="not_approve" label="Отменить утверждение" icon="icon-remove-sign" type="textAndIcon">
+                            <wgt:invoke-action action-id="not_approve" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id==7 &amp;&amp; countOfSpec!=0 &amp;&amp; expSpecDocExists==false</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:name>Требования</wgt:name>
+                    <wgt:query-id>requestDocList</wgt:query-id>
+                    <wgt:size>10</wgt:size>
+
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="docDate" direction="DESC"/>
+                    </wgt:sortings>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="docNumber"/>
+                        <wgt:column column-field-id="docDate" width="8%"/>
+                        <wgt:column column-field-id="recStore.name"/>
+                        <wgt:column column-field-id="fundSource.name"/>
+                        <wgt:column column-field-id="comGroup.name"/>
+                        <wgt:column column-field-id="trustDoc.number"/>
+                        <wgt:column column-field-id="status.name"/>
+                        <wgt:column column-field-id="expInvoiceDate" width="8%"/>
+                        <wgt:column column-field-id="expInvoice.number"/>
+                    </wgt:columns>
+                    <wgt:rows>
+                        <wgt:color color-field-id="executedColor"/>
+                    </wgt:rows>
+                    <wgt:filters>
+                        <ctrl:date-interval id="docDate" label="Дата документа">
+                            <ctrl:default-model begin="beginMonth()" end="today()"/>
+                        </ctrl:date-interval>
+                        <ctrl:select-tree id="fundSource" label="Финансирование" ajax="false" search="true">
+                            <ctrl:inheritance-nodes query-id="inv_fundingSource_inheritance" parent-field-id="parentId"
+                                                    has-children-field-id="hasChildren"  search-field-id="name"
+                                                    label-field-id="name" icon-field-id="iconId">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:inheritance-nodes>
+                        </ctrl:select-tree>
+                        <ctrl:classifier id="comGroup" label="Товарная группа" search-as-you-type="true">
+                            <ctrl:query query-id="inv_commodityGroup" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:multi-classifier id="holdModif" label="Наименование ЛС и ИМН">
+                            <ctrl:query query-id="inv_holdingModif" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:multi-classifier>
+                        <ctrl:classifier id="recStore" label="Получатель" search-as-you-type="true">
+                            <ctrl:query query-id="inv_store" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="status" label="Статус" search-as-you-type="true">
+                            <ctrl:query query-id="inv_docStatus" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:date-interval id="expInvoiceDate" label="Дата отработки"/>
+                    </wgt:filters>
+                    <wgt:paging mode="lazy"/>
+                </wgt:table>
+            </container>
+        </region>
+
+       <region place="bottom" type="list">
+            <container id="specList" depends-on="requestDocList" refresh-dependent-container="true">
+                <pre-filters>
+                    <pre-filter field-id="docStatus.id" ref="status.id"/>
+                    <pre-filter field-id="recStore.id" ref="recStore.id"/>
+                </pre-filters>
+                <wgt:table  detail-field-id="doc.id" master-field-id="id">
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Добавить" context="false" id="create">
+                            <wgt:open-page page-id="storeSuppliesListForRequestDoc" container-id="batchList" result-container-id="batchList"
+                                           detail-field-id="doc.id" master-field-id="doc.id" refresh-on-close="true"
+                                           page-name="Требование №{requestDocList.docNumber} от {requestDocList.docDateString}. Добавление спецификации."
+                                           focus-after-submit="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>docStatus.id!=7</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:properties>
+                                <wgt:property key="security-action" value="save"/>
+                                <wgt:property key="security-object" value="requestSpec"/>
+                            </wgt:properties>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Изменить" context="true" id="update" >
+                            <wgt:show-modal page-id="requestSpec" container-id="main" action-id="save" width="800px"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            focus-after-submit="true"
+                                            page-name="Спецификация требование №{requestDocList.docNumber} от {requestDocList.docDateString}.">
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id==6 || status.id==8</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Просмотр" context="true" id="view" icon="icon-eye-open" type="textAndIcon" >
+                            <wgt:show-modal page-id="requestSpec" container-id="main" width="800px"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            focus-after-submit="true"
+                                            page-name="Спецификация требование №{requestDocList.docNumber} от {requestDocList.docDateString}.">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" label="Удалить">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>status.id==6 || status.id==8</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:name>Спецификации</wgt:name>
+                    <wgt:query-id>requestSpecList</wgt:query-id>
+                    <wgt:size>10</wgt:size>
+                    <wgt:columns>
+                        <wgt:column column-field-id="modif.name"/>
+                        <wgt:column column-field-id="quantityInfo"/>
+                        <wgt:column column-field-id="releasedQuantity"/>
+                        <wgt:column column-field-id="status.name"/>
+                        <wgt:column column-field-id="fundSource.name"/>
+                    </wgt:columns>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>

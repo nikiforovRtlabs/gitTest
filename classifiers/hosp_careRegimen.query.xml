@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from (
+                select cr.id, cr.name, cr.from_dt, cr.to_dt
+                from mc_care_regimen cr
+                where not exists
+                (select cr.id, cr.name from mc_care_regimen cr
+                join md_dep_care_regimen dcr on dcr.care_regimen_id = cr.id
+                where dcr.dep_id = :depId or :depId is null) and cr.case_mode_id = 2 and (:name::text is null or upper(cr.name) like '%'||upper(:name)||'%')
+                union
+                select  cr.id, cr.name, cr.from_dt, cr.to_dt
+                from mc_care_regimen cr
+                join md_dep_care_regimen dcr on dcr.care_regimen_id = cr.id
+                where (dcr.dep_id = :depId or :depId is null) and cr.case_mode_id = 2 and (:name::text is null or upper(cr.name) like '%'||upper(:name)||'%')) as cr
+                where :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1) from (
+                select cr.id, cr.name, cr.from_dt, cr.to_dt
+                from mc_care_regimen cr
+                where not exists
+                (select cr.id, cr.name from mc_care_regimen cr
+                join md_dep_care_regimen dcr on dcr.care_regimen_id = cr.id
+                where dcr.dep_id = :depId or :depId is null) and cr.case_mode_id = 2 and (:name::text is null or upper(cr.name) like '%'||upper(:name)||'%')
+                union
+                select cr.id, cr.name, cr.from_dt, cr.to_dt
+                from mc_care_regimen cr
+                join md_dep_care_regimen dcr on dcr.care_regimen_id = cr.id
+                where (dcr.dep_id = :depId or :depId is null) and cr.case_mode_id = 2 and (:name::text is null or upper(cr.name) like '%'||upper(:name)||'%')) as t
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>name</expression>
+            <search unavailable="true" value="null"/>
+        </field>
+
+        <field>
+            <id>depId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <search>
+                <![CDATA[
+                (
+                    from_dt is null and to_dt is null or
+                    (from_dt is null or from_dt <= to_date(:date, 'yyyy-MM-dd')) and
+                    (to_dt is null or to_dt >= to_date(:date, 'yyyy-MM-dd'))
+                )
+                ]]>
+            </search>
+            <display unavailable="true"/>
+        </field>
+    </fields>
+
+</query>

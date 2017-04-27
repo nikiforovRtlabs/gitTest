@@ -1,0 +1,148 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>team_template_setting</id>-->
+    <name>Настройка вида бригады</name>
+    <actions>
+        <action id="create" name="Добавить">
+            <invocation>
+                <sql:sql>
+                    <!--insert into amb.sr_res_team_template(id,org_id,code,name,team_kind_id,job_kind_id,team_type_id)-->
+                        <!--values (nextval('amb.sr_res_team_template_id_seq'),:org,:code,:name,:team_kind,:job_kind,:team_type);-->
+                    <!--insert into amb.sr_res_team_template_profile(team_template_id,profile_id)-->
+                        <!--values (:id,:profile);-->
+                    select amb.ins_team_template(:org,:code,:name,:team_kind,:job_kind,:team_type,:profile)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="station.id" mapping="['org']" domain="integer" value="#{org.id?}"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="team_kind.id" mapping="['team_kind']" domain="integer"/>
+                <param name="job_kind.id" mapping="['job_kind']" domain="integer"/>
+                <param name="team_type.id" mapping="['team_type']" domain="integer"/>
+                <param name="md_profile.id" mapping="['profile']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]" domain="integer"/>
+            </out-parameters>
+        </action>
+        <action id="update" name="Изменить" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    select amb.upd_team_template(:id,:org,:code,:name,:team_kind,:job_kind,:team_type,:profile);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="station.id" mapping="['org']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="team_kind.id" mapping="['team_kind']" domain="integer"/>
+                <param name="job_kind.id" mapping="['job_kind']" domain="integer"/>
+                <param name="team_type.id" mapping="['team_type']" domain="integer"/>
+                <param name="md_profile.id" mapping="['profile']" domain="integer"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    select amb.del_team_template(:id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkUniqueTeamtemplate" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.sr_res_team_template
+                    where org_id = :org
+                    and trim(upper(code)) = trim(upper(:code))
+                    and trim(upper(name)) = trim(upper(:name))
+                    and ((close_dt is null) or (close_dt > now()))
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="station.id" mapping="['org']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Шаблон бригады уже существует в системе</message>
+        </constraint>
+        <constraint id="TeamtemplatecodeUnique" level="error">
+            <!--<message summary ="Шаблон бригады с кодом '%code%' уже существует ->
+                Укажите другой код!
+            </message>-->
+            <message>Шаблон бригады с кодом '{code}' уже существует ->
+                Укажите другой код!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count (*)
+                    from amb.sr_res_team_template
+                    where org_id = :org
+                    and trim(upper(code)) = trim(upper(:code))
+                    and ((close_dt is null) or (close_dt > now()))
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="station.id" mapping="['org']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="TeamtemplatenameUnique" level="error">
+            <!--<message summary ="Шаблон бригады с наименованием '%name%' уже существует ->
+                Назовите шаблон бригады иначе!
+            </message>-->
+            <message>Шаблон бригады с наименованием '{name}' уже существует ->
+                Назовите шаблон бригады иначе!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count (*)
+                    from amb.sr_res_team_template
+                    where org_id = :org
+                    and trim(upper(name)) = trim(upper(:name))
+                    and ((close_dt is null) or (close_dt > now()))
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="station.id" mapping="['org']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="checkUniqueTemplateprof" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.sr_res_team_template_profile
+                    where team_template_id = :team_template
+                    <!--and profile_id = :profile-->
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="team_template.id" mapping="['team_template']" domain="integer"/>
+                <param name="md_profile.id" mapping="['profile']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Профиль для выбранной бригады уже существует в системе</message>
+        </constraint>
+    </validations>
+</object>

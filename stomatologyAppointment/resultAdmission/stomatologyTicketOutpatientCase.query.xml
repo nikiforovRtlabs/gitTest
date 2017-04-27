@@ -1,0 +1,511 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>stomatologyAdmission</object-id>
+    <name>stomatologyTicketOutpatientCase</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from plc_visit pv
+                left join mc_step ms on ( pv.id = ms.id )
+                left join mc_diagnosis md on ( ms.main_diagnosis_id = md.id  )
+                left join md_diagnosis md1 on ( md.diagnos_id = md1.id  )
+                left join mc_disease_type mdt on ( md.disease_type_id = mdt.id  )
+                left join mc_case mc on ( ms.case_id = mc.id )
+                left join mc_case_type mct on ( mc.case_type_id = mct.id )
+                left join mc_care_level mcl on ( mc.care_level_id = mcl.id )
+                left join plc_visit_place pvp on ( pv.place_id = pvp.id )
+                left join mc_case_init_goal mcig on ( mc.init_goal_id = mcig.id )
+                left join md_care_provision_condition mcpc on ( mc.provision_condition_id = mcpc.id )
+                left join mc_care_regimen mcr on ( mc.care_regimen_id = mcr.id )
+                left join md_care_providing_form mcpf on ( mc.care_providing_form_id = mcpf.id )
+                left join fin_funding_source_type ffst on ( mc.funding_id = ffst.id )
+                left join mc_step_care_result mscr on ( ms.outcome_id = mscr.id )
+                left join mc_step_result msr on ( ms.result_id = msr.id )
+                left join mc_payment_method mpm on ( mc.payment_method_id = mpm.id )
+                left join sr_res_group srg on ( ms.res_group_id = srg.id )
+                left join pim_employee_position pep on ( srg.responsible_id = pep.id  )
+                left join pim_employee pe on ( pep.employee_id = pe.id )
+                left join pim_individual pi on ( pe.individual_id = pi.id )
+                left join md_srv_rendered msrv on ( ms.id = msrv.step_id )
+                left join sr_srv_rendered ssr on ( msrv.id = ssr.id )
+                left join md_appointment ma on ( ssr.id = ma.srv_rendered_id )
+                left join pim_organization po on ( ma.organization_id = po.id  )
+                left join sr_service ssrss on ( ssr.service_id = ssrss.id )
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(pv)
+                from plc_visit pv
+                left join md_srv_rendered msrv on ( pv.id = msrv.step_id )
+                left join sr_srv_rendered ssr on ( msrv.id = ssr.id )
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pv</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>visit.id</id>
+            <domain>integer</domain>
+            <expression>pv.id</expression>
+        </field>
+
+        <field>
+            <id>appointmentId</id>
+            <domain>integer</domain>
+            <expression>ma.id</expression>
+        </field>
+
+        <field>
+            <id>isAppointment</id>
+            <domain>boolean</domain>
+            <expression>(case when ssr.planned_date is null
+                then false
+                else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>mc.patient_id</expression>
+        </field>
+
+        <field>
+            <id>admissionDate</id>
+            <domain>date</domain>
+            <expression>ms.admission_date</expression>
+        </field>
+
+        <field>
+            <id>caseCreateDate</id>
+            <domain>date</domain>
+            <expression>mc.create_date</expression>
+        </field>
+
+        <field>
+            <id>caseOpenDate</id>
+            <domain>date</domain>
+            <expression>mc.open_date</expression>
+        </field>
+
+        <field>
+            <id>profileId</id>
+            <domain>integer</domain>
+            <expression>ms.profile_id</expression>
+        </field>
+
+        <field>
+            <id>diagnosisId</id>
+            <domain>integer</domain>
+            <expression>mc.main_diagnos_id</expression>
+        </field>
+
+        <field>
+            <id>mainDiagnosis</id>
+            <domain>string</domain>
+            <expression>
+                (select (coalesce(md1md.code, '') || ' ' || coalesce(md1md.name, ''))
+                from mc_case mcmd
+                left join  mc_diagnosis mdmd on ( mcmd.main_diagnos_id = mdmd.id  )
+                left join md_diagnosis md1md on ( mdmd.diagnos_id = md1md.id  )
+                where mcmd.id = mc.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>mcCase.diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>md1.id</expression>
+        </field>
+
+        <field>
+            <id>mcCase.diagnosis.name</id>
+            <domain>string</domain>
+            <expression>md1.code || ' ' || md1.name</expression>
+        </field>
+
+        <field>
+            <id>mcCase.diagnosis.repeatCount</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(r) from (
+                select
+                mrc.id as id,
+                mrc.name as name
+                from mc_repeat_count mrc where mrc.id = (case when (select count(mccount.id) from mc_case mccount
+                left join mc_diagnosis mdcount on ( mccount.main_diagnos_id = mdcount.id  )
+                where mdcount.diagnos_id = md1.id and
+                mccount.patient_id = mc.patient_id and date_part('year', now()) = date_part('year', mccount.create_date)) > 0 then 2 else 1
+                end)) as r)
+            </expression>
+        </field>
+
+        <field>
+            <id>visitMainDiagnosisIsCreate</id>
+            <domain>boolean</domain>
+            <expression>(case when ms.main_diagnosis_id is null then false
+                else true end)</expression>
+        </field>
+
+        <field>
+            <id>mcCase.diseaseType.id</id>
+            <domain>integer</domain>
+            <expression>mdt.id</expression>
+        </field>
+
+        <field>
+            <id>mcCase.diseaseType.name</id>
+            <domain>string</domain>
+            <expression>mdt.code || ' - ' || mdt.name</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>mc.id</expression>
+        </field>
+
+        <field>
+            <id>casePatientId</id>
+            <domain>integer</domain>
+            <expression>mc.patient_id</expression>
+        </field>
+
+        <field>
+            <id>mcCase.caseType.id</id>
+            <domain>integer</domain>
+            <expression>mct.id</expression>
+        </field>
+
+        <field>
+            <id>mcCase.caseType.name</id>
+            <domain>string</domain>
+            <expression>mct.name</expression>
+        </field>
+
+        <field>
+            <id>mcCase.careLevel.id</id>
+            <domain>integer</domain>
+            <expression>mcl.id</expression>
+        </field>
+
+        <field>
+            <id>mcCase.careLevel.name</id>
+            <domain>string</domain>
+            <expression>mcl.name</expression>
+        </field>
+
+        <field>
+            <id>visitPlace.id</id>
+            <domain>integer</domain>
+            <expression>pvp.id</expression>
+        </field>
+
+        <field>
+            <id>visitPlace.name</id>
+            <domain>string</domain>
+            <name>Место посещения</name>
+            <expression>pvp.name</expression>
+        </field>
+
+        <field>
+            <id>mcCase.caseInitGoal.id</id>
+            <domain>integer</domain>
+            <expression>mcig.id</expression>
+        </field>
+
+        <field>
+            <id>mcCase.caseInitGoal.name</id>
+            <domain>string</domain>
+            <expression>mcig.name</expression>
+        </field>
+
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>ssrss.id</expression>
+        </field>
+
+        <field>
+            <id>service.name</id>
+            <domain>string</domain>
+            <name>Наименование услуги</name>
+            <expression>
+                case when ssrss.id is null then null
+                else(coalesce(ssrss.code, '') || ' ' || coalesce(ssrss.name, ''))
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>mcCase.careProvisionCondition.id</id>
+            <domain>integer</domain>
+            <expression>mcpc.id</expression>
+        </field>
+
+        <field>
+            <id>mcCase.careProvisionCondition.name</id>
+            <domain>string</domain>
+            <expression>mcpc.name</expression>
+        </field>
+
+        <field>
+            <id>mcCase.careRegimen.id</id>
+            <domain>integer</domain>
+            <expression>
+                (case when mcr.id is null then (select id from mc_care_regimen where code = 1)
+                else mcr.id end)
+            </expression>
+        </field>
+
+        <field>
+            <id>mcCase.careRegimen.name</id>
+            <domain>string</domain>
+            <expression>mcr.name</expression>
+        </field>
+
+        <field>
+            <id>stage.id</id>
+            <domain>integer</domain>
+            <expression>
+                <!--default значение для этап установления -->
+                (case when md.stage_id is null then 3 else md.stage_id end)
+            </expression>
+        </field>
+
+        <field>
+            <id>mcCase.careProvidingForm.id</id>
+            <domain>integer</domain>
+            <expression>mcpf.id</expression>
+        </field>
+
+        <field>
+            <id>mcCase.careProvidingForm.name</id>
+            <domain>string</domain>
+            <expression>mcpf.name</expression>
+        </field>
+
+        <field>
+            <id>mcCase.fundingSourceType.id</id>
+            <domain>integer</domain>
+            <expression>ffst.id</expression>
+        </field>
+
+        <field>
+            <id>mcCase.fundingSourceType.name</id>
+            <domain>string</domain>
+            <expression>ffst.name</expression>
+        </field>
+
+        <field>
+            <id>isCaseState</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when mc.closing_step_id is null then false
+                else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>isCaseStateFin</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when mc.closing_step_id is null then false
+                else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>isLastStep</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when (select mst.id from mc_step mst where mst.admission_date > ms.admission_date and mst.case_id = mc.id LIMIT 1) is null
+                then true
+                else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>repeatCount.id</id>
+            <domain>integer</domain>
+            <expression>
+                (case when mc.repeat_count_id is not null then mc.repeat_count_id
+                else
+                :repeatCount.id end)
+            </expression>
+        </field>
+
+        <field>
+            <id>repeatCount.name</id>
+            <domain>integer</domain>
+            <expression>
+                coalesce((select mrc.name from mc_repeat_count mrc where mrc.id = mc.repeat_count_id), :repeatCount.name)
+            </expression>
+        </field>
+
+        <field>
+            <id>outcome.id</id>
+            <domain>integer</domain>
+            <expression>mscr.id</expression>
+        </field>
+
+        <field>
+            <id>outcome.name</id>
+            <domain>string</domain>
+            <expression>mscr.name</expression>
+        </field>
+
+        <field>
+            <id>outcomeDate</id>
+            <domain>date</domain>
+            <expression>
+                (case when mc.closing_step_id is null then now()
+                else (select ms.outcome_date from mc_step ms where id = mc.closing_step_id) end)
+            </expression>
+        </field>
+
+        <field>
+            <id>lastVisitDate</id>
+            <domain>date</domain>
+            <display/>
+            <expression>
+                (SELECT MAX(ms1.admission_date)
+                FROM public.mc_case mc1
+                LEFT JOIN public.mc_step ms1 ON mc1.id = ms1.case_id
+                WHERE mc1.id = mc.id)
+            </expression>
+        </field>
+
+
+        <field>
+            <id>stepResult.id</id>
+            <domain>integer</domain>
+            <expression>ms.result_id</expression>
+        </field>
+
+        <field>
+            <id>stepResult.name</id>
+            <domain>string</domain>
+            <expression>msr.name</expression>
+        </field>
+
+        <field>
+            <id>paymentMethod.id</id>
+            <domain>integer</domain>
+            <expression>
+                (case when mc.closing_step_id is null then mc.payment_method_id
+                else (select mc.payment_method_id from mc_case ms where id = mc.closing_step_id) end)
+            </expression>
+        </field>
+
+        <field>
+            <id>paymentMethod.name</id>
+            <domain>string</domain>
+            <expression>mpm.name</expression>
+        </field>
+
+        <field>
+            <id>resGroup.id</id>
+            <domain>integer</domain>
+            <expression>srg.id</expression>
+        </field>
+
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>pep.id</expression>
+        </field>
+
+        <field>
+            <id>resGroup.name</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <expression>
+                (coalesce(pi.surname, '') || ' ' || coalesce(pi.name, '') || ' ' || coalesce(pi.patr_name, '')|| ' ' || coalesce(pe.note, ''))
+            </expression>
+        </field>
+
+        <field>
+            <id>initiatior</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when pv.initiator_id = 2 then true
+                else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>viewed</id>
+            <domain>boolean</domain>
+            <expression>pv.is_viewed</expression>
+        </field>
+
+        <field>
+            <id>needed</id>
+            <domain>boolean</domain>
+            <expression>pv.is_needed</expression>
+        </field>
+
+        <field>
+            <id>sanitized</id>
+            <domain>boolean</domain>
+            <expression>pv.is_sanitized</expression>
+        </field>
+
+        <field>
+            <id>ticketIdForReport</id>
+            <domain>string</domain>
+            <expression>(case when ma.id is null then '' else 'ticket_id='||ma.id end)</expression>
+        </field>
+
+        <field>
+            <id>previewDiagnosisId</id>
+            <domain>integer</domain>
+            <expression>
+                (select mdpr.id
+                from mc_diagnosis mdpr
+                left join md_diagnosis md1pr on ( mdpr.diagnos_id = md1pr.id )
+                left join mc_step mspr on ( mdpr.step_id = mspr.id  )
+                where mdpr.case_id = mc.id and mspr.admission_date + mspr.admission_time =
+                (select min(ms1.admission_date + ms1.admission_time) from mc_step ms1 where ms1.case_id = mc.id limit 1) and mdpr.is_main = 'true'  limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.id</id>
+            <domain>integer</domain>
+            <expression>ssr.id</expression>
+        </field>
+
+        <field>
+            <id>dentalFormulaId</id>
+            <domain>integer</domain>
+            <expression>pv.dental_formula_id</expression>
+        </field>
+
+        <field>
+            <id>mainDiagnosisObject</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(r) from (select mcd.id as id, (mdd.code || ' ' || mdd.name) as name from mc_diagnosis mcd
+                left join md_diagnosis mdd on mdd.id = mcd.diagnos_id
+                where mcd.id = mc.main_diagnos_id) r)
+            </expression>
+        </field>
+
+        <field>
+            <id>mes.id</id>
+            <domain>integer</domain>
+            <expression>ms.mes_id</expression>
+        </field>
+
+    </fields>
+</query>

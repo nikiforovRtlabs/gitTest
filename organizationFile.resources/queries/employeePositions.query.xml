@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>dummy</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                <![CDATA[
+                select :select
+                from (
+                        select pep.id, pep.name, count(*) as count
+                        from ( select id, sickdoc.employee_position_displayname(id) as name, start_date, end_date, position_id
+                               from pim_employee_position ) pep
+                        inner join pim_position pp on pp.id=pep.position_id
+                        inner join sr_res_group rg on rg.department_id=pp.department_id
+                        where
+                            (pep.start_date is null and pep.end_date is null) or
+                            ((pep.end_date is null or pep.end_date >= now()::date) and
+                             (pep.start_date is null or pep.start_date <= (now()::date + 1))) and :where
+                        group by pep.id, pep.name
+                     ) pep
+                order by pep.name
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                <![CDATA[
+                select count(pep)
+                from (
+                        select pep.id, pep.name || ' (' || count(*) || ')' as name
+                        from ( select id, sickdoc.employee_position_displayname(id) as name, start_date, end_date, position_id
+                               from pim_employee_position ) pep
+                        inner join pim_position pp on pp.id=pep.position_id
+                        inner join sr_res_group rg on rg.department_id=pp.department_id
+                        where
+                            (pep.start_date is null and pep.end_date is null) or
+                            ((pep.end_date is null or pep.end_date >= now()::date) and
+                             (pep.start_date is null or pep.start_date <= (now()::date + 1))) and :where
+                        group by pep.id, pep.name
+                     ) pep
+                ]]>
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>oid</id>
+            <domain>integer</domain>
+            <expression>pep.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>pep.name || ' (' || pep.count || ')'</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    upper(:expression) like '%'||upper(:name)||'%'
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>department_id</id>
+            <domain>integer</domain>
+            <expression>pp.department_id</expression>
+            <filters>
+                <filter type="eq" filter-field="department_id">
+                    (:department_id is null or pp.department_id=:department_id)
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>org.oid</id>
+            <domain>integer</domain>
+            <expression>pp.organization_id</expression>
+            <filters>
+                <filter type="eq" filter-field="org.oid">
+                    (:org.oid is not null and pp.organization_id=:org.oid)
+                </filter>
+            </filters>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <actions>
+
+        <action id="create">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/phthisiatry/visit
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="mcase.id" mapping="['caseId']" domain="integer"/>
+                <param name="admission_date" mapping="['admissionDate']" domain="date"/>
+                <param name="admissionTime" mapping="['admissionTime']" domain="date"/>
+                <param name="initGoal.id" mapping="['goalId']" domain="integer"/>
+                <param name="place.id" mapping="['placeId']" domain="integer"/>
+                <param name="profile.id" mapping="['profileId']" domain="integer"/>
+                <param name="vrach.id" mapping="['doctorResourceId']" domain="integer"/>
+                <param name="equip.id" mapping="['deviceResourceId']" domain="integer"/>
+                <param name="service.id" mapping="['serviceId']" domain="integer"/>
+                <param name="mcase.patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="main_diagnos.id" mapping="['mainDiagnosisId']" domain="integer"/>
+                <!-- todo need new version of n2o 3.0 <param name="main_diagnos.attr*.value_id" mapping="['attributeValues']" domain="integer[]"/>-->
+                <param name="main_diagnos.attr" mapping="['attributes']" domain="object[]"/>
+                <param name="clinicalForm.id" mapping="['clinicalFormId']" domain="integer"/>
+                <param name="localization.id" mapping="['localizationId']" domain="integer"/>
+                <param name="complication.id" mapping="['complicationId']" domain="integer"/>
+                <param name="disease_type.id" mapping="['diseaseTypeId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="update">
+            <invocation>
+                <rest:rest method="PUT" >
+                    ${n2o.backend.path}/phthisiatry/visit/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="mcase.id" mapping="['caseId']" domain="integer"/>
+                <param name="admission_date" mapping="['admissionDate']" domain="date"/>
+                <param name="admissionTime" mapping="['admissionTime']" domain="date"/>
+                <param name="initGoal.id" mapping="['goalId']" domain="integer"/>
+                <param name="place.id" mapping="['placeId']" domain="integer"/>
+                <param name="profile.id" mapping="['profileId']" domain="integer"/>
+                <param name="vrach.id" mapping="['doctorResourceId']" domain="integer"/>
+                <param name="resVrachRelaition.id" mapping="['doctorRelationshipId']" domain="integer"/>
+                <param name="equip.id" mapping="['deviceResourceId']" domain="integer"/>
+                <param name="resEquipRelation.id" mapping="['deviceRelationshipId']" domain="integer"/>
+                <param name="service.id" mapping="['serviceId']" domain="integer"/>
+                <param name="res.id" mapping="['resGroupId']" domain="integer"/>
+                <param name="main_diagnos.id" mapping="['mainDiagnosisId']" domain="integer"/>
+                <!-- todo need new version of n2o 3.0 <param name="main_diagnos.attr*.value_id" mapping="['attributeValues']" domain="integer[]"/>-->
+                <param name="main_diagnos.attr" mapping="['attributes']" domain="object[]"/>
+                <param name="disease_type.id" mapping="['diseaseTypeId']" domain="integer"/>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="mc_main_diagnos.id" mapping="['patientDiagnosisId']" domain="integer"/>
+                <param name="clinicalForm.id" mapping="['clinicalFormId']" domain="integer"/>
+                <param name="localization.id" mapping="['localizationId']" domain="integer"/>
+                <param name="complication.id" mapping="['complicationId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="deleteStep" name="Удаление посещения">
+            <invocation>
+                <n2o:sql>
+                    delete from mc_step where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы действительно хотите удалить посещение?</confirmation-text>
+            <success-text>Посещение и все, связанные с ним услуги, удалены.</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="serviceInFinBillSpecItemExists"/>
+            </validations>
+        </action>
+
+        <action id="deleteDAccountStep" name="Удаление посещения">
+            <invocation>
+                <rest:rest method="DELETE" >
+                    ${n2o.backend.path}/d-accounting/visit/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="account.id" mapping="['accountId']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы действительно хотите удалить посещение?</confirmation-text>
+            <success-text>Посещение и все, связанные с ним услуги, удалены.</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="serviceInFinBillSpecItemExists"/>
+            </validations>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="serviceInFinBillSpecItemExists" level="error">
+            <message>Случай выгружен в счёт-реестр. Удаление невозможно.</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from fin_bill_spec_item fi
+                    join md_srv_rendered srv on fi.service_id=srv.id
+                    join mc_step st on st.case_id=srv.case_id
+                    where st.id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

@@ -1,0 +1,131 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>returnSpecList</name>
+    <object-id>returnSpec</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.return_doc_spec spec
+                inner join  inventory.return_document rd on rd.id=spec.document_id
+                left outer join inventory.hold_modif hm on hm.id=spec.hold_modif_id
+                left outer join inventory.store_supply ss on ss.id=spec.store_sup_id
+                left outer join inventory.funding_source fs on fs.id=ss.funding_source_id
+                inner join inventory.batch b on b.id=ss.batch_id
+                left outer join inventory.holding_producer hprod on hprod.id=b.hold_producer_id
+                left outer join pim_organization org on org.id=hprod.org_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(spec)
+                from inventory.return_doc_spec spec
+                where :where
+            </n2o:count-query>
+            <n2o:alias>spec</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>doc.id</id>
+            <domain>integer</domain>
+            <expression>spec.document_id</expression>
+            <search>:expression = :doc.id</search>
+        </field>
+        <field>
+            <id>modif.name</id>
+            <domain>string</domain>
+            <name>Наименование ЛС и ИМН</name>
+            <expression>hm.name</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>string</domain>
+            <name>Количество</name>
+            <expression>spec.quantity</expression>
+        </field>
+        <field>
+            <id>mneiUnit.name</id>
+            <domain>string</domain>
+            <name>Ед. изм.</name>
+            <expression>(select cm.mnemocode from cmn_measure cm where cm.id=hm.mnei_id)</expression>
+        </field>
+        <field>
+            <id>price</id>
+            <domain>string</domain>
+            <name>Цена</name>
+            <expression>spec.price</expression>
+        </field>
+        <field>
+            <id>amount</id>
+            <domain>string</domain>
+            <name>Сумма</name>
+            <expression>spec.amount</expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <name>Финансирование</name>
+            <expression>fs.name</expression>
+        </field>
+        <field>
+            <id>isExecuted</id>
+            <domain>string</domain>
+            <expression>(case when spec.status_id=2 then 'true' else 'false' end)</expression>
+        </field>
+        <field>
+            <id>statusDate</id>
+            <domain>date</domain>
+            <expression>spec.status_dt</expression>
+        </field>
+        <field>
+            <id>isExecutedSimbol</id>
+            <domain>string</domain>
+            <name> </name>
+            <expression>(case when spec.status_id=1 then '&#10008;' else '&#10004;' end)</expression>
+        </field>
+        <field>
+            <id>statusTooltip</id>
+            <domain>string</domain>
+            <display>
+                case when spec.status_id=1 then 'не проведен' else 'проведен' end
+            </display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>producer.name</id>
+            <domain>string</domain>
+            <name>Производитель</name>
+            <expression>coalesce(org.short_name, org.full_name)</expression>
+        </field>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <expression>b.series</expression>
+        </field>
+        <field>
+            <id>expireDate</id>
+            <domain>date</domain>
+            <expression>b.expire_dt</expression>
+        </field>
+        <field>
+            <id>docType.name</id>
+            <domain>string</domain>
+            <expression>'RETURN_DOC'</expression>
+        </field>
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <expression>rd.send_store_id</expression>
+        </field>
+        <field>
+            <id>isExecutedColor</id>
+            <domain>string</domain>
+            <expression>case when spec.status_id=2 then 'success' end</expression>
+        </field>
+    </fields>
+</query>

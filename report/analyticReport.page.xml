@@ -1,0 +1,197 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+
+    <name>Отчеты</name>
+    <object-id>analyticReport</object-id>
+    <layout>n2o/layout/top-bottom</layout>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="selection">
+                <wgt:form src="analytics/n2o/ext/widget/form/report" customize="js,css" css-class="withoutCancel">
+                    <wgt:name>Выбор отчета</wgt:name>
+                    <wgt:query-id>analyticReport</wgt:query-id>
+
+                    <wgt:edit after-submit="edit" model="default" form-submit-label="Сформировать">
+                        <wgt:invoke-action action-id="generate"/>
+                    </wgt:edit>
+
+                    <fs:field-set>
+                        <ctrl:select-tree id="report" label="Отчет" required="true" search="true" ajax="true">
+                            <ctrl:inheritance-nodes query-id="analyticReportList" parent-field-id="parentId"
+                                                    label-field-id="name" has-children-field-id="hasChildren"
+                                                    can-resolved-field-id="canResolved" search-field-id="name"/>
+                        </ctrl:select-tree>
+
+                        <ctrl:select-tree id="part" label="Разделы" required="true" depends-on="report"
+                                          search="true" ajax="true">
+                            <ctrl:inheritance-nodes query-id="analyticReportPartitions" parent-field-id="parentId"
+                                                    master-field-id="reportId" detail-field-id="reportId"
+                                                    label-field-id="name" has-children-field-id="hasChildren"
+                                                    search-field-id="name"/>
+                        </ctrl:select-tree>
+
+                        <ctrl:classifier id="clinic" label="МО" required="true" readonly="true">
+                            <ctrl:query query-id="clinicForAnalytic" value-field-id="id" label-field-id="name"/>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+                                <ctrl:value field-id="name">#{org.name?}</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+
+                        <!--<ctrl:classifier id="doctor" label="Врач" required="true" search-are-you-type="true"-->
+                                         <!--dependency-condition="report.code == 'form_039y02'">-->
+                            <!--<ctrl:query query-id="doctorForAnalytic" value-field-id="id" label-field-id="name">-->
+                                <!--<ctrl:pre-filters>-->
+                                    <!--<ctrl:pre-filter field-id="clinicId" ref="clinic.id"/>-->
+                                <!--</ctrl:pre-filters>-->
+                            <!--</ctrl:query>-->
+
+                            <!--<ctrl:show-modal page-id="doctorSearch" result-container-id="list" value-field-id="id"-->
+                                             <!--label-field-id="name">-->
+                                <!--<ctrl:pre-filters>-->
+                                    <!--<ctrl:pre-filter field-id="clinicId" ref="clinic.id"/>-->
+                                <!--</ctrl:pre-filters>-->
+                            <!--</ctrl:show-modal>-->
+                        <!--</ctrl:classifier>-->
+
+                        <ctrl:classifier id="year" label="Год" required="true" depends-on="report">
+                            <ctrl:query query-id="periodForAnalytic" value-field-id="id" label-field-id="name"
+                                        master-field-id="dimDateDefId" detail-field-id="dimDateDefId">
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <!--<ctrl:select id="halfYear" label="Полугодие" required="true"-->
+                                     <!--dependency-condition="report.code == 'form_14med_halfyear'">-->
+                            <!--<ctrl:options>-->
+                                <!--<ctrl:option>{"id": 1, "name":"Первое полугодие"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 2, "name":"Второе полугодие"}</ctrl:option>-->
+                            <!--</ctrl:options>-->
+                        <!--</ctrl:select>-->
+
+                        <!--<ctrl:select id="month" label="Месяц" required="true"-->
+                                     <!--dependency-condition="report.code == 'form_039y02'">-->
+                            <!--<ctrl:options>-->
+                                <!--<ctrl:option>{"id": 1, "name":"Январь"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 2, "name":"Февраль"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 3, "name":"Март"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 4, "name":"Апрель"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 5, "name":"Май"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 6, "name":"Июнь"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 7, "name":"Июль"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 8, "name":"Август"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 9, "name":"Сентябрь"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 10, "name":"Октябрь"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 11, "name":"Ноябрь"}</ctrl:option>-->
+                                <!--<ctrl:option>{"id": 12, "name":"Декабрь"}</ctrl:option>-->
+                            <!--</ctrl:options>-->
+                        <!--</ctrl:select>-->
+                    </fs:field-set>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="generate" label="Сформировать" context="false">
+                            <wgt:go-edit action-id="generate" after-submit="stay"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+            </container>
+        </region>
+
+        <region place="bottom" type="none">
+            <container id="report_list">
+
+                <pre-filters>
+                    <pre-filter field-id="clinicId" value="#{org.id?}"/>
+                </pre-filters>
+
+                <wgt:table customize="js">
+                    <wgt:query-id>userReport</wgt:query-id>
+                    <wgt:size>10</wgt:size>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="reportName"/>
+                        <wgt:column column-field-id="partitionName"/>
+                        <wgt:column column-field-id="period"/>
+                        <wgt:column column-field-id="statusName" width="10%"/>
+                        <wgt:column column-field-id="whenChange" width="15%"/>
+                        <wgt:column column-field-id="whoChange"/>
+                        <wgt:column column-field-id="scheduled" width="7%">
+                            <wgt:checkbox/>
+                        </wgt:column>
+                    </wgt:columns>
+
+                    <wgt:filters opened="true" position="top">
+                        <ctrl:input-text id="reportName"/>
+                        <ctrl:classifier id="status" label="Статус отчета" search-as-you-type="true">
+                            <ctrl:query query-id="reportStatusForAnalytic" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                    </wgt:filters>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="open" label="Открыть" context="true">
+                            <wgt:a href="${n2o.backend.path}/analytics/userReport/open?id={id}" target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status.id == 1 || status.id == 2 || status.id == 4</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="view" label="Просмотреть" context="true">
+                            <wgt:a href=" ${n2o.backend.path}/analytics/userReport/view?id={id}" target="newWindow"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="recalc" label="Пересчитать" context="true">
+                            <wgt:a href=" ${n2o.backend.path}/analytics/userReport/recalc?id={id}" target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status.id == 1 || status.id == 2 || status.id == 4</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="ready" label="Готов" context="true">
+                            <wgt:invoke-action action-id="ready"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status.id == 1 || status.id == 2 || status.id == 4</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        
+                        <wgt:menu-item id="return" label="Вернуть в работу" context="true">
+                            <wgt:invoke-action action-id="return"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status.id == 3</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="create_schedule" label="Задать расписание" context="true" bulk="true">
+                            <wgt:show-modal page-id="schedule" action-id="save" model="default"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status.id == 1 || status.id == 2 || status.id == 4</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="deleteSchedule" label="Удалить расписание" context="true">
+                            <wgt:invoke-action action-id="deleteSchedule" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>scheduled == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+
+</page>

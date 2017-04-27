@@ -1,0 +1,67 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>inventory_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select
+                FROM inventory.application_doc_prod AS doc
+                LEFT JOIN inventory.formula_doc AS f_doc ON doc.formula_doc_id = f_doc.id
+                WHERE :where
+                ORDER by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                SELECT count(doc)
+                FROM inventory.application_doc_prod AS doc
+                LEFT JOIN inventory.formula_doc AS f_doc ON doc.formula_doc_id = f_doc.id
+                WHERE :where
+                ORDER by :order
+            </n2o:count-query>
+            <n2o:alias>doc</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>concat(doc.number,' ',to_char(doc.doc_date, 'dd.MM.YYYY'))</expression>
+            <search>translate(upper(:expression),', ','') like '%'||translate(upper(:name),', ','')||'%'</search>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>modifId</id>
+            <domain>integer</domain>
+            <expression>f_doc.modif_id</expression>
+        </field>
+        <field>
+            <id>modifName</id>
+            <domain>string</domain>
+            <expression>(select name from inventory.hold_modif where id = f_doc.modif_id)</expression>
+        </field>
+        <field>
+            <id>MNEI</id>
+            <domain>string</domain>
+            <expression>
+                (SELECT mnei.mnemocode
+                FROM cmn_measure AS mnei
+                INNER JOIN inventory.hold_modif AS m ON m.mnei_id = mnei.id
+                WHERE m.id = f_doc.modif_id)</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>numeric</domain>
+            <expression>doc.quantity</expression>
+        </field>
+        <field>
+            <id>statusId</id>
+            <domain>integer</domain>
+            <expression>doc.status_id</expression>
+            <search>(:expression = :statusId)</search>
+        </field>
+    </fields>
+</query>

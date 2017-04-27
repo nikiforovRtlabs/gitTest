@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0">
+    <!--<id>update_date</id>-->
+    <name>Редактирование полей</name>
+    <actions>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    select amb.update_call_dt(
+                     :call
+                    ,cast(:data as date)
+                    ,cast(:f_time as time)
+                    ,cast(:trans_time as time)
+                    ,cast(:exit_time as time)
+                    ,cast(:com_time as time)
+                    ,cast(:transp_time as time)
+                    ,cast(:tocl_time as time)
+                    ,cast(:time_tocl as time)
+                    ,cast(:tosubs_time as time)
+                    ,cast(:t_time as time)
+                    ,cast(:death_time as time)
+                    ,:brg
+                    ,:team
+                    ,:user
+                    );
+                </sql:sql>
+            </invocation>
+
+            <in-parameters>
+                <param name="id" mapping="['call']" domain="integer"/>
+                <param name="call_data" mapping="['data']" domain="date"/>
+                <param name="receipt_time" mapping="['f_time']" domain="string"/>
+                <param name="transmit_time" mapping="['trans_time']" domain="string"/>
+                <param name="exit_time" mapping="['exit_time']" domain="string"/>
+                <param name="coming_time" mapping="['com_time']" domain="string"/>
+                <param name="transportation_time" mapping="['transp_time']" domain="string"/>
+                <param name="toclinic_time" mapping="['tocl_time']" domain="string"/>
+                <param name="time_toclinic" mapping="['time_tocl']" domain="string"/>
+                <param name="tosubstation_time" mapping="['tosubs_time']" domain="string"/>
+                <param name="end_time" mapping="['t_time']" domain="string"/>
+                <param name="death_time" mapping="['death_time']" domain="string"/>
+                <param name="brg.id" mapping="['brg']" domain="integer"/>
+                <param name="team.id" mapping="['team']" domain="integer"/>
+                <param name="user" mapping="['user']" domain="integer" value="#{user.id}"/>
+            </in-parameters>
+            <success-text>
+                Изменения по вызову сохранены в системе
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <condition id="AfterDatacheck" level="error">
+            <expression on="data">
+                <![CDATA[
+                    moment(data, 'DD.MM.YYYY').valueOf() <= moment().valueOf()
+                ]]>
+            </expression>
+            <message>Дата больше текущей</message>
+        </condition>
+
+        <constraint id="BeforDatacheck" level="warning">
+            <invocation>
+                <sql:sql>
+                <![CDATA[
+                    select case when (cast(now() as date) = date_trunc('month', cast(now() as date)) and :data < date_trunc('month', cast(now() as date) - cast('1 month' as interval))
+                                or cast(now() as date) > date_trunc('month', cast(now() as date)) and :data < date_trunc('month', cast(now() as date)))
+                            then false
+                            else true
+                    end;
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="data" mapping="['data']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0]"/>
+            <message>Проверьте корректность даты</message>
+        </constraint>
+    </validations>
+</object>

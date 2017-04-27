@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>patientSearchServicePrescription</name>
+<actions>
+    <action id="update" name="Изменить">
+        <invocation>
+            <sql:sql>
+                select disp.setPresForPatient(:checkPresGroup,
+                :event_patient_id);
+
+            </sql:sql>
+        </invocation>
+        <in-parameters>
+            <param name="check_pres_group*.id" mapping="['checkPresGroup']" domain="integer[]"/>
+            <param name="event_patient_id" mapping="['event_patient_id']" domain="integer"/>
+            <param name="id" mapping="['id']"/>
+            <param name="event_age" mapping="['event_age']"/>
+        </in-parameters>
+        <validations activate="whiteList">
+            <validation ref-id="attention"/>
+            <validation ref-id="setRequiredService"/>
+            <validation ref-id="validRenderService"/>
+        </validations>
+    </action>
+</actions>
+
+    <validations>
+        <constraint id="attention" level="info" moment="before-edit-model">
+            <message>Список услуг определен на момент отбора пациента (соответствует возрасту {event_age}). Изменить список назначений можно вручную, либо задав дату согласия пациента на требуемый возраст</message>
+            <invocation>
+                <sql:sql>
+                    select exists (select me.id from disp.md_event me
+                    left join disp.md_event_type met on met.id=me.event_type where me.id=:id and  met.code like 'ДВ%' )
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="event_age" mapping="['event_age']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+        <constraint id="setRequiredService" level="error">
+            <message>Не назначены обязательные услуги : "{value}"</message>
+            <invocation>
+                <sql:sql>
+                    select disp.setRequiredService(:checkPresGroup,
+                    :id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="check_pres_group*.id" mapping="['checkPresGroup']" domain="integer[]"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="value" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0]=='true'"/>
+        </constraint>
+
+
+        <constraint id="validRenderService" level="error" moment="before-action">
+            <message>Услуга "{value}" оказана, отмена назначения запрещена</message>
+            <invocation>
+                <sql:sql>
+                    select disp.validpresforpatient(:checkPresGroup,
+                    :id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="check_pres_group*.id" mapping="['checkPresGroup']" domain="integer[]"/>
+                <param name="event_patient_id" mapping="['id']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="value" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0]=='true'"/>
+        </constraint>
+
+    </validations>
+</object>

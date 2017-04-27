@@ -1,0 +1,113 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>service</id>-->
+    <name>Вид услуги</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    insert into sr_service (code,is_death,is_multuplicity
+                    ,name,terms,org_id,category_id,prototype_id,type_id,
+                    from_dt,to_dt,is_complex,is_stomat)
+                    values (:code,false,true,
+                    :name,:terms,:org,:category,:prototype,7,
+                    :from_dt,:to_dt,false,false);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="is_death" mapping="['is_death']" domain="boolean"/>
+                <param name="is_fictitious" mapping="['is_fictitious']" domain="boolean"/>
+                <param name ="name" mapping = "['name']" domain="string"/>
+                <param name="terms" mapping="['terms']" domain="string"/>
+                <param name="org.id" mapping="['org']" domain="integer" value="#{org.id}"/>
+                <param name="category.id" mapping="['category']" domain="integer"/>
+                <param name="prototype.id" mapping="['prototype']" domain="integer"/>
+                <param name="type.id" mapping="['type']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+        </action>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update sr_service set code = trim(upper(:code))
+                    ,name = trim(:name)
+                    ,terms = trim(:terms)
+                    ,category_id = :category
+                    ,to_dt = :to_dt
+                    where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name ="name" mapping = "['name']" domain="string"/>
+                <param name="terms" mapping="['terms']" domain="string"/>
+                <param name="category.id" mapping="['category']" domain="integer"/>
+                <param name="prototype.id" mapping="['prototype']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    update sr_service set to_dt = cast(now() as date) where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="servicecodeUnique" level="error">
+            <message>Вид услуги с кодом '{code}' уже существует ->
+                Укажите другой код!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count (*)
+                    from sr_service
+                    where trim(upper(code)) = trim(upper(:code))
+                    and ((to_dt is null) or (to_dt > cast(now() as date)))
+                    and (org_id = :org)
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer" required="false"/>
+                <param name = "code" mapping = "['code']" domain="string"/>
+                <param name = "org.id" mapping="['org']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="servicenameUnique" level="error">
+            <message>Вид вызова с наименованием '{name}' уже существует ->
+                Назовите вид иначе!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count (*)
+                    from sr_service
+                    where trim(upper(name)) = trim(upper(:name))
+                    and ((to_dt is null) or (to_dt > cast(now() as date)))
+                    and (org_id = :org)
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name ="name" mapping = "['name']" domain="string"/>
+                <param name ="org.id" mapping="['org']" domain="integer"/>
+                <param name ="id" mapping ="['id']" domain="integer" required="false"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>anestheticMap</object-id>
+    <name>caseNumber</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from mc_case c
+                left join mc_step ms on ms.case_id = c.id
+                <!--left join mc_diagnosis mc on mc.id = c.main_diagnos_id-->
+                <!--left join md_diagnosis md on md.id = mc.diagnos_id-->
+                where :where and c.patient_id = :patientId and ms.id = (select ms1.id from mc_step ms1 where ms1.case_id = c.id ORDER BY ms1.admission_date DESC nulls last, ms1.admission_time DESC nulls last, ms1.id DESC limit 1)
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(c)
+                from mc_case c
+                left join mc_step ms on ms.case_id = c.id
+                <!--left join mc_diagnosis mc on mc.id = c.main_diagnos_id-->
+                <!--left join md_diagnosis md on md.id = mc.diagnos_id-->
+                where :where and c.patient_id = :patientId and ms.id = (select ms1.id from mc_step ms1 where ms1.case_id = c.id ORDER BY ms1.admission_date DESC nulls last, ms1.admission_time DESC nulls last, ms1.id DESC limit 1)
+            </n2o:count-query>
+            <n2o:alias>c.id</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>c.id</expression>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                '№' ||coalesce(c.uid, '') || '  Открыт:' || coalesce(to_char(c.create_date, 'dd.mm.yyyy'), '')|| ' ' ||
+                coalesce(md.code, '') || ' ' || coalesce(md.name, '')
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="uid">
+                    upper(:expression) like '%'||upper(:uid)||'%'
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>c.patient_id</expression>
+            <filters auto-generate="true"/>
+        </field>
+
+        <!--<field>-->
+            <!--<id>diagnosis.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display/>-->
+            <!--<expression>md.id</expression>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>diagnosis.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<display/>-->
+            <!--<expression>md.name</expression>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>uidBool</id>-->
+            <!--<domain>boolean</domain>-->
+            <!--<expression>-->
+                <!--(case when (select msr2.is_closed from mc_step ms2 left join mc_step_result msr2 on ms2.result_id = msr2.id-->
+                <!--where ms2.id = ms.id) is not null then (select msr2.is_closed from mc_step ms2 left join mc_step_result msr2 on ms2.result_id = msr2.id-->
+                <!--where ms2.id = ms.id) else false end)-->
+            <!--</expression>-->
+            <!--<filter type="eq" filter-field="uidBool">(FALSE = :expression)</filter>-->
+        <!--</field>-->
+    </fields>
+</query>

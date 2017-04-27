@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>cert_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select id,
+                concat(i.surname, ' ' || left(i.name, 1) || '.', ' ' || left(i.patr_name, 1) || '.', ' (пациент)')
+                from pim_individual i where i.id = :patientId
+
+                union
+
+                select :select
+                from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i on prp1.party_id=i.id
+                left join pim_gender g on g.id = i.gender_id
+                join pim_party_relation_type_side prts on prts.id = prp1.side_id
+                join pim_party_relation_type prt on prt.id = prts.rel_type_id
+                left join pim_party_relation_side_name prsn on prsn.side_id = prts.id and prsn.scope_id = g.scope_id
+                where pr1.is_active is true and prt.category_id = 1 and :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1 + prp1.party_id) from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i on prp1.party_id=i.id
+                left join pim_gender g on g.id = i.gender_id
+                join pim_party_relation_type_side prts on prts.id = prp1.side_id
+                join pim_party_relation_type prt on prt.id = prts.rel_type_id
+                left join pim_party_relation_side_name prsn on prsn.side_id = prts.id and prsn.scope_id = g.scope_id
+                where pr1.is_active is true and prt.category_id = 1 and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>i.id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>
+                concat(i.surname, ' ' || left(i.name, 1) || '.', ' ' || left(i.patr_name, 1) || '.', ' (' || lower(coalesce(prsn.name, prts.name)) || ')')
+            </expression>
+            <search>(upper(:expression) like '%'||upper(:name)||'%')</search>
+            <sorting>i.surname, i.name, i.patr_name, coalesce(prsn.name, prts.name)</sorting>
+        </field>
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[prp1.party_id <> :patientId and prp2.party_id = :patientId]]></search>
+        </field>
+    </fields>
+
+</query>

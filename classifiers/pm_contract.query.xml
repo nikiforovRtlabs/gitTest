@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>pm_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from fin_contract con
+                left join fin_contractor fc on con.id = fc.contract_id
+                left join fin_contractor cn on fc.contract_id = cn.contract_id
+                where (case when :payerId is not null
+                            then fc.role_id = 1 and (case when 1 = :type then fc.individual_id = :payerId else fc.organization_id = :payerId end) else true end)
+                    and (case when :recipientId is not null then cn.role_id = 2 and cn.organization_id = :recipientId else true end)
+                and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(distinct con.id)
+                from fin_contract con
+                left join fin_contractor fc on con.id = fc.contract_id
+                left join fin_contractor cn on fc.contract_id = cn.contract_id
+                where (case when :payerId is not null
+                            then fc.role_id = 1 and (case when 1 = :type then fc.individual_id = :payerId else fc.organization_id = :payerId end) else true end)
+                    and (case when :recipientId is not null then cn.role_id = 2 and cn.organization_id = :recipientId else true end)
+                and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>distinct con.id</expression>
+            <search>con.id = :id</search>
+        </field>
+        <field>
+            <id>title</id>
+            <domain>string</domain>
+            <expression>con.number || ' от ' || to_char(con.date, 'DD.MM.YYYY')</expression>
+            <search>(upper(:expression) like '%' || upper(:title) || '%')</search>
+        </field>
+        <field>
+            <id>payerId</id>
+            <domain>integer</domain>
+            <expression>:payerId</expression>
+        </field>
+        <field>
+            <id>recipientId</id>
+            <domain>integer</domain>
+            <expression>:recipientId</expression>
+        </field>
+        <field>
+            <id>type</id>
+            <domain>integer</domain>
+            <expression>:type</expression>
+        </field>
+    </fields>
+
+</query>

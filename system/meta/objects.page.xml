@@ -1,0 +1,229 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0">
+    <name>Каталог объектов</name>
+    <object-id>object</object-id>
+    <layout>n2o/layout/left-right(top-bottom)</layout>
+    <regions>
+        <region place="left" type="tabs" width="30%">
+            <container id="catalog">
+                <wgt:tree>
+                    <wgt:query-id>catalog</wgt:query-id>
+                    <wgt:size>1000</wgt:size>
+                    <wgt:ajax>false</wgt:ajax>
+                    <wgt:inheritance-nodes parent-field-id="parent.id" label-field-id="name"
+                                           has-children-field-id="hasChildren"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createCatalog" icon="icon-plus" type="icon">
+                            <wgt:sub-menu>
+                                <wgt:menu-item id="createCurrent" label="Создать в текущем узле" context="true" >
+                                    <wgt:show-modal page-id="catalog" action-id="create" master-field-id="parent.id" detail-field-id="parent.id" model="default"/>
+                                    <wgt:conditions>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>id != '\$null'</wgt:expression>
+                                            <wgt:tooltip>Нельзя создать каталог в текущем узле</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                    </wgt:conditions>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="createChild" label="Создать дочерний узел" context="true">
+                                    <wgt:show-modal page-id="catalog" action-id="create" master-field-id="id" detail-field-id="parent.id" model="default"/>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" icon="icon-pencil" type="icon" context="true" default="true">
+                            <wgt:show-modal page-id="catalog" action-id="update" master-field-id="catalog.id" detail-field-id="id"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isSystem == false</wgt:expression>
+                                    <wgt:tooltip>Нельзя изменить системный каталог</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" icon="icon-remove" type="icon" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isSystem == false</wgt:expression>
+                                    <wgt:tooltip>Нельзя удалить системный каталог</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:tree>
+            </container>
+        </region>
+        <region place="top" type="tabs" width="70%">
+            <container id="object" depends-on="catalog">
+                <wgt:table detail-field-id="catalog.id" master-field-id="catalog.id">
+                    <wgt:name>Объекты</wgt:name>
+                    <wgt:query-id>object</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="id"/>
+                        <wgt:column column-field-id="name"/>
+                        <wgt:column column-field-id="catalog.id"/>
+                        <wgt:column column-field-id="invalid" tooltip-field-id="invalidMessage" width="5%">
+                            <wgt:icon>
+                                <wgt:switch>
+                                    <wgt:case value="true">icon-exclamation-sign</wgt:case>
+                                </wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+                    </wgt:columns>
+                    <wgt:rows>
+                        <wgt:color>
+                            <wgt:switch value-field-id="invalid">
+                                <wgt:case value="true">error</wgt:case>
+                            </wgt:switch>
+                        </wgt:color>
+                    </wgt:rows>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createFromDB" label="Создание по таблице БД" icon="glyphicons glyphicons-database" type="icon" color="btn-success" context="false">
+                            <wgt:show-modal page-id="objectNew" action-id="createFromDB" focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" icon="icon-pencil" type="icon" context="true" default="true">
+                            <wgt:show-modal page-id="objectEdit" action-id="update"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="changeCatalog" label="Изменить каталог" icon="icon-folder-close" type="icon" context="true" default="false">
+                            <wgt:show-modal page-id="objectChange" action-id="changeCatalog"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="restore" label="Восстановить" icon="icon-share-alt" type="icon" context="true">
+                            <wgt:invoke-action action-id="restore" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isSystem == false &amp;&amp; hasAncestor == true</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="delete" label="Удалить" icon="icon-remove" type="icon" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isSystem == false</wgt:expression>
+                                    <wgt:tooltip>Нельзя удалить системный объект</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isSystem == true || (isSystem == false &amp;&amp; hasAncestor == false)</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="xml" context="true" label="XML" color="btn-inverse">
+                            <wgt:open-page page-id="objectXmlEdit" container-id="main" detail-field-id="id" master-field-id="id" result-container-id="main"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:filters position="top">
+                        <ctrl:input-text id="displayId"/>
+                        <ctrl:input-text id="name"/>
+                    </wgt:filters>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="bottom" type="tabs">
+            <container id="action" place="bottom" depends-on="object">
+                <wgt:table master-field-id="id" detail-field-id="object.id">
+                    <wgt:name>Действия</wgt:name>
+                    <wgt:query-id>action</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="localId" width="20%"/>
+                        <wgt:column column-field-id="name" width="20%"/>
+                        <wgt:column column-field-id="sql"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Создать" context="false">
+                            <wgt:open-page page-id="action" action-id="create"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true">
+                            <wgt:open-page page-id="action" action-id="update"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" label="Удалить" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+            <container id="query" depends-on="object">
+                <wgt:table master-field-id="id" detail-field-id="object.id">
+                    <wgt:name>Выборки</wgt:name>
+                    <wgt:query-id>query</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="id" width="20%"/>
+                        <wgt:column column-field-id="name" width="20%"/>
+                        <wgt:column column-field-id="sql.queryItems"/>
+                        <wgt:column column-field-id="invalid" tooltip-field-id="invalidMessage" width="5px">
+                            <wgt:icon>
+                                <wgt:switch>
+                                    <wgt:case value="true">icon-exclamation-sign</wgt:case>
+                                </wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+                    </wgt:columns>
+                    <wgt:rows>
+                        <wgt:color>
+                            <wgt:switch value-field-id="invalid">
+                                <wgt:case value="true">error</wgt:case>
+                            </wgt:switch>
+                        </wgt:color>
+                    </wgt:rows>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createFromDB" label="Создать" context="false" icon="icon-plus">
+                            <wgt:show-modal page-id="queryFromDB" action-id="createFromDB"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true">
+                            <wgt:open-page page-id="query" action-id="update"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" label="Удалить" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="xml" context="true" label="XML" color="btn-inverse">
+                            <wgt:open-page page-id="queryXmlEdit" container-id="main" detail-field-id="id" master-field-id="id" result-container-id="main"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+            <container id="page" place="bottom" depends-on="object">
+                <wgt:table master-field-id="id" detail-field-id="object.id">
+                    <wgt:name>Страницы</wgt:name>
+                    <wgt:query-id>page</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="id">
+                            <wgt:link>
+                                <wgt:a href="#{id}"/>
+                            </wgt:link>
+                        </wgt:column>
+                        <wgt:column column-field-id="name"/>
+                        <wgt:column column-field-id="layout.name"/>
+                        <wgt:column column-field-id="invalid" tooltip-field-id="invalidMessage" width="5%">
+                            <wgt:icon>
+                                <wgt:switch>
+                                    <wgt:case value="true">icon-exclamation-sign</wgt:case>
+                                </wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+                    </wgt:columns>
+                    <wgt:rows>
+                        <wgt:color>
+                            <wgt:switch value-field-id="invalid">
+                                <wgt:case value="true">error</wgt:case>
+                            </wgt:switch>
+                        </wgt:color>
+                    </wgt:rows>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Создать" context="false">
+                            <wgt:show-modal page-id="pageNew" action-id="create"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="view" label="Изменить" context="true" default="true" icon="icon-pencil">
+                            <wgt:open-page page-id="Configurator" container-id="page" result-container-id="page"/>
+                        </wgt:menu-item>
+                        <!--<menu-item label="Удалить" context="true">-->
+                        <!--<invoke-action action-id="delete" confirmation="true"/>-->
+                        <!--</menu-item>-->
+                        <wgt:menu-item id="xml" context="true" label="XML" color="btn-inverse">
+                            <wgt:open-page page-id="pageXmlEdit" container-id="main" detail-field-id="id" master-field-id="id" result-container-id="main"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>

@@ -1,0 +1,459 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+
+    <object-id>operation</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hospital.md_srv_rendered_oper msro
+                join md_srv_rendered msr on msr.id = msro.service_id
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join mc_case c on c.id = msr.case_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+                join hsp_record hr on hr.id = msr.step_id
+                join pim_department d on d.id = hr.department_id
+
+                left join fin_funding_source_type fst on fst.id = ssr.funding_id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual srg on srg.id = e.individual_id
+
+                where msro.state_id != 4 and :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(msro)
+                from hospital.md_srv_rendered_oper msro
+                join md_srv_rendered msr on msr.id = msro.service_id
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join mc_case c on c.id = msr.case_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+                join hsp_record hr on hr.id = msr.step_id
+                join pim_department d on d.id = hr.department_id
+
+                left join fin_funding_source_type fst on fst.id = ssr.funding_id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual srg on srg.id = e.individual_id
+                where msro.state_id != 4 and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>msro.id</expression>
+        </field>
+
+        <field>
+            <id>msrId</id>
+            <domain>integer</domain>
+            <expression>msr.id</expression>
+        </field>
+
+        <field>
+            <id>msroId</id>
+            <domain>integer</domain>
+            <expression>msro.id</expression>
+        </field>
+
+        <field>
+            <id>patientName</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>coalesce(i.surname, '') || coalesce(' ' || i.name, '')  || coalesce(' ' || i.patr_name, '')</expression>
+        </field>
+
+
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <name>Возраст</name>
+            <expression>extract(year from AGE(NOW(), i.birth_dt))</expression>
+        </field>
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <name>Номер ИБ</name>
+            <expression>c.uid</expression>
+        </field>
+
+        <field>
+            <id>caceUid</id>
+            <domain>string</domain>
+            <expression>
+                (SELECT ('№' ||coalesce(c.uid, '') || '  Открыт:' || coalesce(to_char(c.create_date, 'dd.mm.yyyy'), '')|| ' ' ||
+                coalesce(md1.code, '') || ' ' || coalesce(md1.name, ''))  FROM mc_diagnosis mc1
+                left join md_diagnosis md1 on md1.id = mc1.diagnos_id
+                WHERE mc1.id = c.main_diagnos_id limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>uidBool</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when (
+                    select msr1.is_closed
+                    from mc_step ms1
+                        left join mc_step_result msr1 on ms1.result_id = msr1.id
+                    where ms1.case_id = c.id and ms1.id = (
+                        select ms2.id
+                        from mc_step ms2 where ms2.case_id = c.id
+                        ORDER BY ms2.admission_date DESC nulls last, ms2.admission_time DESC nulls last, ms2.id DESC
+                        limit 1)
+                    ) is not null
+                then (
+                    select msr1.is_closed
+                    from mc_step ms1
+                        left join mc_step_result msr1 on ms1.result_id = msr1.id
+                    where ms1.case_id = c.id and ms1.id = (
+                        select ms2.id
+                        from mc_step ms2 where ms2.case_id = c.id
+                        ORDER BY ms2.admission_date DESC nulls last, ms2.admission_time DESC nulls last, ms2.id DESC
+                        limit 1)
+                    )
+                else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>msCaseClosingStepId</id>
+            <domain>integer</domain>
+            <expression>
+                c.closing_step_id
+            </expression>
+        </field>
+
+        <field>
+            <id>anestheticMap</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when (
+                    select bdam1.id
+                    from hospital.basic_data_anesthetic_map bdam1
+                    where msro.id = bdam1.md_srv_rendered_oper_id
+                    limit 1
+                ) is not null then true else false end)
+            </expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>controlSavingDone</id>-->
+            <!--<domain>boolean</domain>-->
+            <!--<expression>-->
+                <!--(select bdam1.control_saving_done-->
+                <!--from hospital.basic_data_anesthetic_map bdam1-->
+                <!--where msro.id = bdam1.md_srv_rendered_oper_id limit 1)-->
+            <!--</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>operationFlow</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when exists(
+                    select id
+                    from hospital.operation_flow
+                    where anesthetic_map_id in (
+                        select bdam1.id
+                        from hospital.basic_data_anesthetic_map bdam1
+                        where msro.id = bdam1.md_srv_rendered_oper_id)
+                    )
+                then true else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>opertationFlowConclusion</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when exists(
+                    select id
+                    from hospital.operation_conclusion
+                    where anesthetic_map_id in (
+                        select bdam1.id
+                        from hospital.basic_data_anesthetic_map bdam1
+                        where msro.id = bdam1.md_srv_rendered_oper_id)
+                    )
+                then true else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>operationFlowPrescription</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when exists(
+                    select bdam1.id
+                    from hospital.basic_data_anesthetic_map bdam1
+                        inner join hospital.patient_before_procedure pbp on pbp.id=bdam1.id
+                        inner join hospital.prescription p on p.case_id=bdam1.uid_id
+                        left join hospital.prescription_schedule ps on p.id=ps.prescription_id
+                    where bdam1.md_srv_rendered_oper_id = msro.id
+                        and p.is_operation is true and p.used_type_id in (1,2,3))
+                then true else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>anesthetic</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when exists(
+                    select bdam1.id
+                    from hospital.basic_data_anesthetic_map bdam1
+                        inner join hospital.patient_before_procedure pbp on pbp.id=bdam1.id
+                        inner join hospital.prescription p on p.case_id=bdam1.uid_id
+                        left join hospital.prescription_schedule ps on p.id=ps.prescription_id
+                    where bdam1.md_srv_rendered_oper_id = msro.id and p.id=pbp.anesthetic_id
+                        and p.is_operation is true and p.status_id in (3,4) and ps.store_opr_id is not null)
+                then true else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>premedication</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when exists(
+                    select bdam1.id from hospital.basic_data_anesthetic_map bdam1
+                        inner join hospital.patient_before_procedure pbp on pbp.id=bdam1.id
+                        inner join hospital.prescription p on p.case_id=bdam1.uid_id
+                        left join hospital.prescription_schedule ps on p.id=ps.prescription_id
+                    where bdam1.md_srv_rendered_oper_id = msro.id and p.id=pbp.premedication_id
+                        and p.status_id in (3,4) and ps.store_opr_id is not null)
+                then true else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>prescription</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when exists(
+                    select bdam1.id from hospital.basic_data_anesthetic_map bdam1
+                        inner join hospital.patient_before_procedure pbp on pbp.id=bdam1.id
+                        inner join hospital.prescription p on p.case_id=bdam1.uid_id
+                        left join hospital.prescription_schedule ps on p.id=ps.prescription_id
+                    where bdam1.md_srv_rendered_oper_id = msro.id
+                    and p.is_operation is true and p.status_id in (3,4) and  p.used_type_id in (1,2,3) and ps.store_opr_id is not null)
+                then true else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>monitoringPos</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when (
+                    select bdam1.id
+                    from hospital.basic_data_anesthetic_map bdam1
+                        left join hospital.patient_before_procedure pbp on pbp.id=bdam1.id
+                    where msro.id = bdam1.md_srv_rendered_oper_id and exists (
+                        select *
+                        from hospital.patient_anesthetic_monitoring pam
+                        where pbp.id=pam.patient_before_procedure_id
+                    )
+                    limit 1
+                ) is not null then true else false end)
+            </expression>
+        </field>
+
+
+        <field>
+            <id>queue</id>
+            <domain>string</domain>
+            <name>Очередь</name>
+            <expression>(case when msr.is_urgent is true then 'Срочно' else msro.queue || ''  end)</expression>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>d.id</expression>
+        </field>
+
+        <field>
+            <id>financialTypeName</id>
+            <domain>string</domain>
+            <name>Вид оплаты</name>
+            <expression>fst.name</expression>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>fst.id</expression>
+        </field>
+
+        <field>
+            <id>serviceName</id>
+            <domain>string</domain>
+            <name>Операция</name>
+            <expression>coalesce(s.code || ' ', '') || s.name</expression>
+        </field>
+
+        <field>
+            <id>serviceId</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>status</id>
+            <domain>integer</domain>
+            <name></name>
+            <expression>msro.state_id</expression>
+        </field>
+
+        <field>
+            <id>surgeonName</id>
+            <domain>string</domain>
+            <name>Хирург</name>
+            <expression>
+                coalesce(srg.surname, '') ||
+                coalesce(' ' || substring(srg.name for 1) || '.', '') ||
+                coalesce(' ' || substring(srg.patr_name for 1) || '.', '')
+            </expression>
+        </field>
+
+        <field>
+            <id>operationRoomName</id>
+            <domain>string</domain>
+            <name>Операционная</name>
+            <expression>
+                (select r.name
+                from sr_res_group_relationship rgr
+                    join pim_room_resource rr on rr.id = rgr.resource_id
+                    join pim_room r on r.id = rr.room_id
+                    join sr_res_role rl on rl.id = rgr.role_id
+                where rgr.group_id = rg.id and (rgr.is_disabled is null or rgr.is_disabled is false)
+                    and rl.code = 'OPERATING'
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>operationRoom.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select rr.id from sr_res_group_relationship rgr
+                    join pim_room_resource rr on rr.id = rgr.resource_id
+                    join pim_room r on r.id = rr.room_id
+                    join sr_res_role rl on rl.id = rgr.role_id
+                where rgr.group_id = rg.id and (rgr.is_disabled is null or rgr.is_disabled is false)
+                    and rl.code = 'OPERATING'
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>c.clinic_id</expression>
+            <search value="#{org.id?}">(:expression = :orgId or :orgId is null)</search>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>plannedDate</id>
+            <expression>ssr.planned_date</expression>
+            <search><![CDATA[
+                (:plannedDate.begin::date is null and :plannedDate.end::date is null or
+                ((:plannedDate.begin::date is null or ssr.planned_date >= :plannedDate.begin) and
+                 (:plannedDate.end::date is null or ssr.planned_date <= :plannedDate.end)
+                ))
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>plannedDate.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>plannedDate.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>showPlannedAndRendered</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>(:showPlannedAndRendered::boolean is not null and :showPlannedAndRendered is true and msro.state_id in (2,3))</search>
+        </field>
+
+        <field>
+            <id>statusIconTooltip</id>
+            <expression>
+                (case when msro.state_id = 1 then 'Ожидает подтверждения'
+                    else
+                case when msro.state_id = 2 then 'Запланирована'
+                    else
+                case when msro.state_id = 3 then 'Оказана'
+                    else
+                'Отменена'
+                end end end
+               )
+            </expression>
+        </field>
+
+        <field>
+            <id>protocolId</id>
+            <domain>integer</domain>
+            <expression>(select id from md_srv_protocol where srv_rendered_id = ssr.id limit 1)</expression>
+        </field>
+
+        <field>
+            <id>mdSrvRendered.id</id>
+            <domain>integer</domain>
+            <expression>msr.id</expression>
+        </field>
+
+        <field>
+            <id>mdSrvRendered.case.id</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+        </field>
+
+        <field>
+            <id>mdSrvRendered.patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>mdSrvRendered.resGroupId</id>
+            <domain>integer</domain>
+            <expression>rg.id</expression>
+        </field>
+
+    </fields>
+
+
+</query>

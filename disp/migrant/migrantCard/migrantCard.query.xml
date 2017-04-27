@@ -1,0 +1,275 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+
+    <name>migrantCard</name>
+    <object-id>migrantCard</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from migr.md_migr_card mmc
+                left join disp.md_event_patient mep on mep.id= mmc.id
+                left join disp.md_event me on me.id = mep.event_id
+                left join pim_individual i on i.id = mep.indiv_id
+--                 left join sr_res_group srg on srg.id=mmc.med_commission_id
+                left join migr.md_migr_close_reason mmcr on mmcr.id=mmc.close_reason_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mmc)
+                from migr.md_migr_card mmc
+                left join disp.md_event_patient mep on mep.id= mmc.id
+                left join disp.md_event me on me.id = mep.event_id
+                left join pim_individual i on i.id = mep.indiv_id
+--                 left join sr_res_group srg on srg.id=mmc.med_commission_id
+                left join migr.md_migr_close_reason mmcr on mmcr.id=mmc.close_reason_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mmc</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mmc.id</display>
+            <search>mmc.id = :id</search>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>Integer</domain>
+            <display>mep.event_id</display>
+            <search>mep.event_id = :eventId</search>
+        </field>
+        <field>
+            <id>indivId</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indivId</search>
+        </field>
+        <field>
+            <id>HIV</id>
+            <domain>boolean</domain>
+            <display>(select true from disp.md_event_service_patient mesp
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join (select case_id, service_id, res_group_id, ssr2.id from MD_SRV_RENDERED amsr2
+                left join SR_SRV_RENDERED ssr2 on ssr2.id = amsr2.id
+                ) as msr on msr.case_id = mep.case_id and msr.service_id = mes.service_id
+                left join sr_service ss on ss.id = mes.service_id
+                where mesp.event_patient_id = mep.id
+                and ss.code ='MIG2')
+            </display>
+            <expression>()
+            </expression>
+            <name>Пациенту назначена услуга ВИЧ</name>
+        </field>
+        <field>
+            <id>main_diagnosis</id>
+            <domain>string</domain>
+            <display>(select string_agg(md.code || ' ' || md.name || case when (mgs.is_second = true) then  '/Пролечен ' || to_char(mgs.ref_date, 'DD.MM.YYYY') else '' end, ',  ')
+                from md_diagnosis md
+                join migr.md_migr_service mgs on mgs.main_diagnosis_id = md.id and mgs.event_patient_id = mep.id
+                left join disp.md_event_service_patient mesp on mesp.id = mgs.event_service_patient_id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                left join md_diagnosis md1 on mgs.diagnosis_id = md1.id
+                where
+                (mnds.code='ОМ4' or mnds.code='ОМ5' or mnds.code='ОМ7') and
+                (mgs.is_second is null and
+                (md.code like 'F10%' or md.code like 'F11%' or md.code like 'F12%' or md.code like 'F13%' or
+                md.code like 'F14%' or md.code like 'F15%' or md.code like 'F16%' or md.code like 'F17%' or
+                md.code like 'F18%' or md.code like 'F19%' or md.code like 'A15%' or md.code like 'A16%' or
+                md.code like 'A17%' or md.code like 'A18%' or md.code like 'A19%' or md.code like 'B20%' or
+                md.code like 'B21%' or md.code like 'B22%' or md.code like 'B23%' or md.code like 'B24%' or
+                md.code like 'A30%' or md.code like 'A50%' or md.code like 'A51%' or md.code like 'A52%' or
+                md.code like 'A53%' or md.code like 'A55%' or md.code like 'A57%')) or
+                (mgs.is_second = true and
+                (md1.code like 'F10%' or md1.code like 'F11%' or md1.code like 'F12%' or md1.code like 'F13%' or
+                md1.code like 'F14%' or md1.code like 'F15%' or md1.code like 'F16%' or md1.code like 'F17%' or
+                md1.code like 'F18%' or md1.code like 'F19%' or md1.code like 'A15%' or md1.code like 'A16%' or
+                md1.code like 'A17%' or md1.code like 'A18%' or md1.code like 'A19%' or md1.code like 'B20%' or
+                md1.code like 'B21%' or md1.code like 'B22%' or md1.code like 'B23%' or md1.code like 'B24%' or
+                md1.code like 'A30%' or md1.code like 'A50%' or md1.code like 'A51%' or md1.code like 'A52%' or
+                md1.code like 'A53%' or md1.code like 'A55%' or md1.code like 'A57%')))
+            </display>
+            <search unavailable="true"/>
+            <name>Диагнозы осмотров нарколога, фтизиатра, дерматовенеролога</name>
+        </field>
+        <field>
+            <id>positiveResultStr</id>
+            <domain>string</domain>
+            <display>rtrim(coalesce((
+                select case when (mgs.result = true and (mgs.second_result is null or mgs.second_result = true)) then 'Рентгенография' || case when (mgs.is_second = true) then '/Повторный анализ ' || to_char(mgs.ref_date, 'DD.MM.YYYY') else '' end else null end
+                from migr.md_migr_service mgs
+                left join disp.md_event_service_patient mesp on mesp.id = mgs.event_service_patient_id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                where mgs.event_patient_id = mep.id
+                and mnds.code='ОМ6' limit 1
+                )||', ', '') ||
+                coalesce((
+                select case when (mgs.result = true and (mgs.second_result is null or mgs.second_result = true)) then 'ВИЧ' || case when (mgs.is_second = true) then '/Повторный анализ ' || to_char(mgs.ref_date, 'DD.MM.YYYY') else '' end else null end
+                from migr.md_migr_service mgs
+                left join disp.md_event_service_patient mesp on mesp.id = mgs.event_service_patient_id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                where mgs.event_patient_id = mep.id
+                and mnds.code='ОМ2' limit 1
+                ) || ', ', '') ||
+                coalesce((
+                select case when (mgs.result = true and (mgs.second_result is null or mgs.second_result = true)) then 'Сифилис' || case when (mgs.is_second = true) then '/Повторный анализ ' || to_char(mgs.ref_date, 'DD.MM.YYYY') else '' end else null end
+                from migr.md_migr_service mgs
+                left join disp.md_event_service_patient mesp on mesp.id = mgs.event_service_patient_id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                where mgs.event_patient_id = mep.id
+                and mnds.code='ОМ1' limit 1
+                ) || ', ', '') ||
+                coalesce((
+                select case when (mgs.result = true and (mgs.second_result is null or mgs.second_result = true)) then 'Экспресс-тест мочи на содержание нарк.веществ' || case when (mgs.is_second = true) then '/Повторный анализ ' || to_char(mgs.ref_date, 'DD.MM.YYYY') else '' end else null end
+                from migr.md_migr_service mgs
+                left join disp.md_event_service_patient mesp on mesp.id = mgs.event_service_patient_id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                where mgs.event_patient_id = mep.id
+                and mnds.code='ОМ3' limit 1
+                ), ''), ', ')
+            </display>
+        </field>
+        <field>
+            <id>positiveServicesResult</id>
+            <domain>string</domain>
+            <display>(case when exists(
+                select 1 from migr.md_migr_service mgs
+                left join disp.md_event_service_patient mesp on mesp.id = mgs.event_service_patient_id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                where mgs.event_patient_id = mep.id and (mgs.result = true and (mgs.second_result is null or mgs.second_result = true))
+                and (mnds.code='ОМ6' or mnds.code='ОМ1' or mnds.code='ОМ2' or mnds.code='ОМ3')
+                ) then 'Положительный тест на: ' else '' end)
+            </display>
+            <expression>()
+            </expression>
+            <name>Рентгенография</name>
+        </field>
+        <field>
+            <id>radiographyResultStr</id>
+            <domain>string</domain>
+            <display>(
+                select case when (mgs.result = true and (mgs.second_result is null or mgs.second_result = true)) then 'Рентгенография' || case when (mgs.is_second = true) then '/Повторный анализ ' || to_char(mgs.ref_date, 'DD.MM.YYYY') else '' end else '' end
+                from migr.md_migr_service mgs
+                left join disp.md_event_service_patient mesp on mesp.id = mgs.event_service_patient_id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                where mgs.event_patient_id = mep.id
+                and mnds.code='ОМ6' limit 1
+                )
+            </display>
+            <name>Рентгенография</name>
+        </field>
+        <field>
+            <id>HIVResultStr</id>
+            <domain>string</domain>
+            <display>(
+                select case when (mgs.result = true and (mgs.second_result is null or mgs.second_result = true)) then 'ВИЧ' || case when (mgs.is_second = true) then '/Повторный анализ ' || to_char(mgs.ref_date, 'DD.MM.YYYY') else '' end else '' end
+                from migr.md_migr_service mgs
+                left join disp.md_event_service_patient mesp on mesp.id = mgs.event_service_patient_id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                where mgs.event_patient_id = mep.id
+                and mnds.code='ОМ2' limit 1
+                )
+            </display>
+            <name>Рентгенография</name>
+        </field>
+        <field>
+            <id>syphilisResultStr</id>
+            <domain>string</domain>
+            <display>(
+                select case when (mgs.result = true and (mgs.second_result is null or mgs.second_result = true)) then 'Сифилис' || case when (mgs.is_second = true) then '/Повторный анализ ' || to_char(mgs.ref_date, 'DD.MM.YYYY') else '' end else '' end
+                from migr.md_migr_service mgs
+                left join disp.md_event_service_patient mesp on mesp.id = mgs.event_service_patient_id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                where mgs.event_patient_id = mep.id
+                and mnds.code='ОМ1' limit 1
+                )
+            </display>
+            <name>Рентгенография</name>
+        </field>
+        <field>
+            <id>toxicSubstancesResultStr</id>
+            <domain>string</domain>
+            <display>(
+                select case when (mgs.result = true and (mgs.second_result is null or mgs.second_result = true)) then 'Экспресс-тест мочи на содержание нарк.веществ' || case when (mgs.is_second = true) then '/Повторный анализ ' || to_char(mgs.ref_date, 'DD.MM.YYYY') else '' end else '' end
+                from migr.md_migr_service mgs
+                left join disp.md_event_service_patient mesp on mesp.id = mgs.event_service_patient_id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                where mgs.event_patient_id = mep.id
+                and mnds.code='ОМ3' limit 1
+                )
+            </display>
+            <name>Рентгенография</name>
+        </field>
+        <field>
+            <id>statusId</id>
+            <domain>integer</domain>
+            <display>mmc.status_id</display>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <display>me.org_id</display>
+            <search>me.org_id = :org.id</search>
+        </field>
+        <!--<field>-->
+            <!--<id>readOnly</id>-->
+            <!--<domain>boolean</domain>-->
+            <!--<display>:readOnly</display>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+    </fields>
+</query>

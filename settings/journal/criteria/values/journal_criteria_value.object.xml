@@ -1,0 +1,154 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Значение критериев</name>
+
+    <actions>
+        <action id="save" name="Сохранение">
+            <invocation>
+                <n2o:rest method="POST">
+                    <n2o:query>
+                        ${n2o.backend.path}/monitoring/criteria/save-value
+                    </n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="criteria_id" mapping="['criteriaId']" domain="integer"/>
+                <param name="is_range" mapping="['range']" domain="boolean"/>
+                <param name="type_id" mapping="['typeId']" domain="integer"/>
+                <param name="point" mapping="['point']" domain="integer"/>
+                <param name="event.id" mapping="['eventId']" domain="integer"/>
+                <param name="event.value" mapping="['eventValue']" domain="boolean"/>
+                <param name="age" mapping="['age']" domain="integer"/>
+                <param name="age_from" mapping="['ageFrom']" domain="integer"/>
+                <param name="age_to" mapping="['ageTo']" domain="integer"/>
+                <param name="measure.id" mapping="['measureId']" domain="integer"/>
+                <param name="diagnosis.id" mapping="['diagnosisId']" domain="integer"/>
+                <param name="refbook.id" mapping="['refbookId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <success-text>Значение критерия успешно сохранено.</success-text>
+            <fail-text>Не удалось сохранить значение критерия.</fail-text>
+            <validations activate="all"/>
+        </action>
+
+        <action id="delete">
+            <invocation>
+                <n2o:sql>
+                    delete from monitoring.mn_journal_criteria_value
+                    where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить значение критерия?</confirmation-text>
+            <success-text>Значение критерия удалено.</success-text>
+            <fail-text>Не удалось удалить значение критерия.</fail-text>
+        </action>
+    </actions>
+        
+    <validations>
+        <constraint id="checkIntersectionAgeRange" level="error">
+            <message>Имеется пересечение с другими диапазонами критерия</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                    select count(mjc)
+                        from monitoring.mn_journal_criteria  mjc
+                        JOIN monitoring.mn_journal_criteria_value mjcv ON mjc.id = mjcv.criteria_id
+                        JOIN monitoring.mn_age_measure mam ON mjcv.age_measure_id = mam.id
+                    where mjc.is_range IS TRUE AND mjc.id = :criteriaId  AND mjc.type_id = :typeId
+                    and (CASE
+                        WHEN :typeId = 2 THEN
+                            (
+                               (:ageFrom is not null and :ageTo is not null) AND
+                               (
+                                 (
+                                   numrange((monitoring.age_to_day(:ageFrom, :code)), (monitoring.age_to_day(:ageTo, :code))) &&
+                                   numrange((monitoring.age_to_day(mjcv.value_start :: INTEGER, mam.code)),
+                                            (monitoring.age_to_day(mjcv.value_end :: INTEGER, mam.code)))
+                                 )
+                                 OR
+                                 (
+                                   numrange((monitoring.age_to_day(:ageFrom, :code)), (monitoring.age_to_day(:ageTo, :code))) -|-
+                                   numrange((monitoring.age_to_day(mjcv.value_start :: INTEGER, mam.code)),
+                                            (monitoring.age_to_day(mjcv.value_end :: INTEGER, mam.code)))
+                                 )
+                               )
+                              )
+                            ELSE TRUE
+                        END) AND
+                        (CASE
+                            WHEN :typeId = 3 THEN
+                                (WITH diagnosisSetting AS (
+                                        SELECT md.id, md.parent_id FROM monitoring.mn_journal_criteria_value mjd2
+                                        JOIN md_diagnosis md ON md.id = mjd2.value::INTEGER
+                                        where mjd2.criteria_id = mjc.id)
+
+                                SELECT count(dS2) > 0 from diagnosisSetting dS2 where (dS2.id = :diagnosisId OR monitoring.check_interval_diagnosis (dS2.id, :diagnosisId) OR monitoring.check_interval_diagnosis (:diagnosisId, dS2.id))) ELSE TRUE
+                        END) AND
+                    (mjcv.id != :id or :id is null);
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="criteria_id" mapping="['criteriaId']" domain="integer"/>
+                <param name="type_id" mapping="['typeId']" domain="integer"/>
+                <param name="age_from" mapping="['ageFrom']" domain="integer"/>
+                <param name="age_to" mapping="['ageTo']" domain="integer"/>
+                <param name="measure.id" mapping="['measureId']" domain="integer"/>
+                <param name="diagnosis.id" mapping="['diagnosisId']" domain="integer"/>
+                <param name="measure.code" mapping="['code']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="uniqueValue" level="error">
+            <message>Значение критерия уже существует</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT count(mjcv)
+                    FROM monitoring.mn_journal_criteria_value mjcv
+                    where mjcv.criteria_id = :criteriaId AND
+                    (mjcv.value in (:eventValue::text, :age::text, :diagnosisId::text, :refbookId::text)) AND
+                    case when :age is not null then mjcv.age_measure_id = :measureId else true end AND
+                    (mjcv.id != :id or :id is null)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="age" mapping="['age']" domain="integer"/>
+                <param name="measure.id" mapping="['measureId']" domain="integer"/>
+                <param name="event.value" mapping="['eventValue']" domain="boolean"/>
+                <param name="criteria_id" mapping="['criteriaId']" domain="integer"/>
+                <param name="diagnosis.id" mapping="['diagnosisId']" domain="integer"/>
+                <param name="refbook.id" mapping="['refbookId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="endAfterBegin" level="error">
+            <message>Начало диапазона должно быть не больше окончания!</message>
+            <expression on="age_to,age_from">
+                parseInt(age_to,10) >=  parseInt(age_from,10)
+            </expression>
+        </condition>
+        <condition id="beginOverZero" level="error">
+            <message>Начало диапазона не может быть отрицательным</message>
+            <expression on="age_to,age_from">
+                beginAge >= 0
+            </expression>
+        </condition>
+        <condition id="endOverZero" level="error">
+            <message>Окончание диапазона должно быть больше нуля</message>
+            <expression on="age_to,age_from">
+                age_to > 0
+            </expression>
+        </condition>
+    </validations>
+</object>

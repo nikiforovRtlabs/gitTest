@@ -1,0 +1,69 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i on prp1.party_id=i.id
+                left join pim_gender g on g.id = i.gender_id
+                join pim_party_relation_type_side prts on prts.id = prp1.side_id
+                join pim_party_relation_type prt on prt.id = prts.rel_type_id
+                left join pim_party_relation_side_name prsn on prsn.side_id = prts.id and prsn.scope_id = g.scope_id
+                where pr1.is_active is true and prt.category_id = 1 and i.death_dt is null and :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1) from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i on prp1.party_id=i.id
+                left join pim_gender g on g.id = i.gender_id
+                join pim_party_relation_type_side prts on prts.id = prp1.side_id
+                join pim_party_relation_type prt on prt.id = prts.rel_type_id
+                left join pim_party_relation_side_name prsn on prsn.side_id = prts.id and prsn.scope_id = g.scope_id
+                where pr1.is_active is true and prt.category_id = 1 and i.death_dt is null and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>i.id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>coalesce(i.surname, '')
+                || ' ' || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.'
+                end
+                || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for
+                1) || '.' end || coalesce(' (' || to_char(i.birth_dt, 'DD.MM.YYYY') || ')', '') || ' - ' || coalesce(prsn.name, prts.name)
+            </expression>
+            <search>
+               (upper(:expression) like '%'||upper(:name)||'%')
+            </search>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[prp1.party_id <> :patientId and prp2.party_id = :patientId]]></search>
+        </field>
+
+        <field>
+            <id>relationSideNameId</id>
+            <domain>integer</domain>
+            <expression>prsn.id</expression>
+        </field>
+
+    </fields>
+
+</query>

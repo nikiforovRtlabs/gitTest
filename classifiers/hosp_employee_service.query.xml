@@ -1,0 +1,97 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from sr_service s
+                left join sr_srv_prototype spt on spt.id = s.prototype_id
+                join sr_srv_type st on st.id = s.type_id
+                where (:employeePositionResourceId is null or (case when
+                (select count(1) from sr_resource_service rs
+                where rs.resource_id = :employeePositionResourceId) > 0 then
+                exists(select 1 from sr_resource_service rs where rs.service_id = s.id and rs.resource_id = :employeePositionResourceId) else true end)) and :where
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1) from sr_service s
+                join sr_srv_type st on st.id = s.type_id
+                where (:employeePositionResourceId is null or (case when
+                (select count(1) from sr_resource_service rs
+                where rs.resource_id = :employeePositionResourceId) > 0 then
+                exists(select 1 from sr_resource_service rs where rs.service_id = s.id and rs.resource_id = :employeePositionResourceId) else true end)) and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>coalesce(s.code || ' ' || s.name, s.name)</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>s.org_id</expression>
+            <search>:expression = :orgId</search>
+        </field>
+        <field>
+            <id>dt</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+                ((s.from_dt is null or s.from_dt<=to_date(:dt, 'yyyy-MM-dd')) and (s.to_dt is null or s.to_dt>=to_date(:dt, 'yyyy-MM-dd')))
+             ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>isPhysical</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+                (case when :isPhysical is true then st.is_physical is true else (st.is_physical is false or st.is_physical is null) end)
+             ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>employeePositionResourceId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>pregnantOutcomeId</id>
+            <domain>integer</domain>
+            <expression>
+                <![CDATA[
+                (case when spt.code = 'A16.20.037' or spt.code = 'A1620037' then 1 else null end)
+             ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>gender</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+                (:gender != 'MALE' or st.code not in ('PHYSIOLOGICAL_BIRTH', 'CAESARIAN'))
+             ]]>
+            </search>
+        </field>
+    </fields>
+
+</query>

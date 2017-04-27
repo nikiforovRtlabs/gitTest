@@ -1,0 +1,156 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>requestSpec</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query><![CDATA[
+                with requestSpecList as
+                (select spec.id id, reqdoc.id reqdocid, doc.id docid, doc.int_doc_dt docint_doc_dt,doc.int_doc_number docint_doc_number, inv.send_store_id sendStoreId, spec.modif_id specmodif_id,
+                m.name mname, spec.quantity specQuantity,
+                (select coalesce(sum(s.quantity),0) from inventory.exp_spec s where s.request_spec_id=spec.id) releasedQuantity,
+                spec.mnei_quantity specmnei_quantity, (select inventory.get_unit_name_by_flag_of_modif(m.price_unit_flag, m.id)) unitName,
+                fs.id fsid, fs.name fsname, reqdoc.status_id reqdocstatus_id, cg.id cgid, cg.name cgname
+
+                from inventory.request_spec spec
+                left outer join inventory.request_doc reqdoc on reqdoc.id = spec.request_doc_id
+                left outer join inventory.exp_invoice inv on inv.request_doc_id=reqdoc.id
+                inner join inventory.document doc on doc.id=inv.id
+                left outer join inventory.hold_modif m on m.id=spec.modif_id
+                left outer join inventory.holding h on h.id=m.holding_id
+                left outer join inventory.commodity_group cg on cg.id=h.commodity_group_id
+                left outer join inventory.funding_source fs on fs.id=spec.fund_source_id
+                )
+                select -1, null, (select :expDoc.id), current_date,'','',1, 1,'' as mname ,null::int,null::int,0, '',1, '', 2, 1,'' from requestSpecList
+                union
+                select :select from requestSpecList  where :where
+                order by :order
+            ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from (select spec.id id, reqdoc.id reqdocid, doc.id docid, doc.int_doc_dt docint_doc_dt,doc.int_doc_number docint_doc_number, inv.send_store_id sendStoreId, spec.modif_id specmodif_id,m.name mname, spec.quantity specQuantity,
+                (select coalesce(sum(s.quantity),0) from inventory.exp_spec s where s.request_spec_id=spec.id) releasedQuantity,
+                spec.mnei_quantity specmnei_quantity, (select inventory.get_unit_name_by_flag_of_modif(m.price_unit_flag, m.id)) unitName,
+                fs.id fsid, fs.name fsname, reqdoc.status_id reqdocstatus_id, cg.id cgid, cg.name cgname
+
+                from inventory.request_spec spec
+                left outer join inventory.request_doc reqdoc on reqdoc.id = spec.request_doc_id
+                left outer join inventory.exp_invoice inv on inv.request_doc_id=reqdoc.id
+                inner join inventory.document doc on doc.id=inv.id
+                left outer join inventory.hold_modif m on m.id=spec.modif_id
+                left outer join inventory.holding h on h.id=m.holding_id
+                left outer join inventory.commodity_group cg on cg.id=h.commodity_group_id
+                left outer join inventory.funding_source fs on fs.id=spec.fund_source_id) as requestSpec
+                where :where
+            </n2o:count-query>
+            <n2o:alias>requestSpec</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>id</expression>
+        </field>
+        <field>
+            <id>doc.id</id>
+            <domain>integer</domain>
+            <expression>reqdocid</expression>
+        </field>
+        <field>
+            <id>expDoc.id</id>
+            <domain>integer</domain>
+            <expression>docid</expression>
+            <search>:expression = :expDoc.id</search>
+        </field>
+        <field>
+            <id>expDoc.date</id>
+            <domain>date</domain>
+            <expression>docint_doc_dt</expression>
+        </field>
+        <field>
+            <id>expDoc.dateString</id>
+            <domain>string</domain>
+            <expression>to_char(docint_doc_dt, 'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>expDoc.number</id>
+            <domain>string</domain>
+            <expression>docint_doc_number</expression>
+        </field>
+        <field>
+            <id>expDoc.sendStoreId</id>
+            <domain>integer</domain>
+            <expression>sendStoreId</expression>
+        </field>
+        <field>
+            <id>modif.id</id>
+            <domain>integer</domain>
+            <expression>specmodif_id</expression>
+        </field>
+        <field>
+            <id>modif.name</id>
+            <domain>string</domain>
+            <name>Наименование ЛС и ИМН</name>
+            <expression>mname</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <name>Количество</name>
+            <domain>string</domain>
+            <expression>specQuantity</expression>
+        </field>
+        <field>
+            <id>releasedQuantity</id>
+            <name>Отпущенное кол-во</name>
+            <domain>string</domain>
+            <expression>releasedQuantity</expression>
+        </field>
+        <field>
+            <id>wasted.id</id>
+            <domain>integer</domain>
+            <expression><![CDATA[(case when specQuantity <= releasedQuantity then 1 else 2 end)]]></expression>
+            <display unavailable="true"/>
+            <search>(:expression = :wasted.id)</search>
+        </field>
+        <field>
+            <id>mneiQuantity</id>
+            <domain>integer</domain>
+            <expression>specmnei_quantity</expression>
+        </field>
+        <field>
+            <id>unit.name</id>
+            <domain>string</domain>
+            <name>Ед. изм.</name>
+            <expression>unitName</expression>
+        </field>
+        <field>
+            <id>paymentType.id</id>
+            <domain>integer</domain>
+            <expression>fsid</expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <name>Финансирование</name>
+            <expression>fsname</expression>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>reqdocstatus_id</expression>
+        </field>
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>cgid</expression>
+        </field>
+        <field>
+            <id>comGroup.name</id>
+            <name>Товарная группа</name>
+            <domain>string</domain>
+            <expression>cgname</expression>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,104 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>pregnant_map_risk_option</object-id>
+    <name>pregnant_map_risk_option</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>SELECT :select
+                FROM motherhood.mh_pregnant_map a,
+                motherhood.risk_factory_group g
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(a)
+                FROM motherhood.mh_pregnant_map a,
+                motherhood.risk_factory_group g
+                where :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>mapId</id>
+            <domain>integer</domain>
+            <display>a.id</display>
+            <expression>a.id</expression>
+            <filters>
+                <filter type="eq" filter-field="mapId">
+                    :expression = :mapId
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>groupId</id>
+            <domain>integer</domain>
+            <display>g.id</display>
+            <expression>g.id</expression>
+            <filters>
+                <filter type="eq" filter-field="groupId">
+                    :expression = :groupId
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>options</id>
+            <domain>object[]</domain>
+            <display/>
+            <expression>(select array_to_json(array_agg(t)) from (
+                SELECT rfo.id as id, rfo.id as option_id, rfo.name as name, rfo.points,
+                rfv.id as value_id, rfv.name as value_name,
+                g.id as group_id, g.name as group_name,
+                a.id as map_id
+                FROM motherhood.mh_pregnant_map_risk_option b
+                LEFT JOIN motherhood.risk_factory_options rfo ON rfo.id = b.risk_option_id
+                LEFT JOIN motherhood.risk_factory_value rfv ON rfo.value_id = rfv.id
+                WHERE rfv.is_only_one_option and b.pregnant_map_id = a.id AND rfv.group_id = g.id
+                union all
+                SELECT null as id, null as option_id, null as name, null,
+                fv.id as value_id, fv.name as value_name,
+                null as group_id, null as group_name,
+                null as map_id
+                FROM motherhood.risk_factory_value fv
+                WHERE fv.is_only_one_option and fv.group_id = g.id and fv.id not in
+                (select rfv.id FROM motherhood.mh_pregnant_map_risk_option b
+                LEFT JOIN motherhood.risk_factory_options rfo ON rfo.id = b.risk_option_id
+                LEFT JOIN motherhood.risk_factory_value rfv ON rfo.value_id = rfv.id
+                WHERE b.pregnant_map_id = a.id AND rfv.group_id = g.id)
+                order by value_id
+                ) as t)
+            </expression>
+        </field>
+        <field>
+            <id>multioptions</id>
+            <domain>object[]</domain>
+            <display/>
+            <expression>(select array_to_json(array_agg(case when (m::TEXT = '([null])') then null else m end)) from (select array_to_json(array_agg(case when t.id is not null then t else null end )) as options from (
+                SELECT rfo.id as id, rfo.id as option_id, rfo.name as name, rfo.points,
+                rfv.id as value_id, rfv.name as value_name,
+                g.id as group_id, g.name as group_name,
+                a.id as map_id
+                FROM motherhood.mh_pregnant_map_risk_option b
+                LEFT JOIN motherhood.risk_factory_options rfo ON rfo.id = b.risk_option_id
+                LEFT JOIN motherhood.risk_factory_value rfv ON rfo.value_id = rfv.id
+                WHERE (rfv.is_only_one_option is null or not rfv.is_only_one_option) and b.pregnant_map_id = a.id AND rfv.group_id = g.id
+                union all
+                SELECT null as id, null as option_id, null as name, null,
+                fv.id as value_id, fv.name as value_name,
+                null as group_id, null as group_name,
+                null as map_id
+                FROM motherhood.risk_factory_value fv
+                WHERE (fv.is_only_one_option is null or not fv.is_only_one_option) and fv.group_id = g.id and fv.id not in
+                (select rfv.id FROM motherhood.mh_pregnant_map_risk_option b
+                LEFT JOIN motherhood.risk_factory_options rfo ON rfo.id = b.risk_option_id
+                LEFT JOIN motherhood.risk_factory_value rfv ON rfo.value_id = rfv.id
+                WHERE (rfv.is_only_one_option is null or not rfv.is_only_one_option) and b.pregnant_map_id = a.id AND rfv.group_id = g.id)
+                order by value_id
+                ) as t group by t.value_id) as m)
+            </expression>
+        </field>
+    </fields>
+</query>

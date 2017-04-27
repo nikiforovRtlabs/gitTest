@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>treatmentStandard</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_diagnosis d
+                where is_leaf is true and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(d)
+                from md_diagnosis d
+                where is_leaf is true and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>d.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>d.code || ' ' || d.name</expression>
+            <name>Наименование</name>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>templateId</id>
+            <domain>integer</domain>
+            <expression>:templateId</expression>
+        </field>
+
+        <field>
+            <id>servicesTemplateDiagnosisId</id>
+            <domain>integer</domain>
+            <expression>(select id from services_template_diagnosis where template_id = :templateId and diagnosis_id = d.id)</expression>
+        </field>
+
+        <field>
+            <id>createOrDeleteServicesTemplateDiagnosis</id>
+            <domain>boolean</domain>
+            <name> </name>
+            <expression>(d.id in (select diagnosis_id from services_template_diagnosis where template_id = :templateId))</expression>
+        </field>
+
+        <field>
+            <id>choiceFilter</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search filter-field="choice*.id" type="in">
+                (('added' in (:choice*.id)  and d.id in (select diagnosis_id from services_template_diagnosis where template_id = :templateId)) or
+                ('besidesAdded' in (:choice*.id)  and d.id not in (select diagnosis_id from services_template_diagnosis where template_id = :templateId)))
+            </search>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,106 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>anthropometryEvent</id>
+    <name>anthropometryEvent</name>
+
+    <validations>
+
+        <condition id="correctHeight" level="error">
+            <message>Допустимые символы: цифры и "."</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]*(\\.)?([0-9]+)\$');
+                var b = true;
+                if(typeof height != 'undefined' && height != null && height != '')
+                    b = regex.test(height);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="correctWeight" level="error">
+            <message>Допустимые символы: цифры и "."</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]*(\\.)?([0-9]+)\$');
+                var b = true;
+
+                    if(typeof weight != 'undefined' && weight != null && weight != '')
+                    b = regex.test(weight);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="correctWaist" level="error">
+            <message>Допустимые символы: цифры и "."</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]*(\\.)?([0-9]+)\$');
+                var b = true;
+                    if(typeof waist != 'undefined' && waist != null && waist != '')
+                    b = regex.test(waist);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+
+        <constraint id="checkDateByCase" level="error">
+            <invocation>
+                <sql:sql><![CDATA[
+                    select count(1)
+                    where ((select open_date from mc_case where id = :case) - interval '1 year') > to_date(:date, 'DD.MM.YYYY')
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="case_id" mapping="['case']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Срок давности услуги истек</message>
+        </constraint>
+        <constraint id="serviceInBill" level="error">
+            <message>На случай сформирован счет-реестр, действие запрещено</message>
+            <invocation>
+                <sql:sql>
+                    select disp.service_validate5(:id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="meaId" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+    <actions>
+        <action id="anthropometry" name="Антропометрия">
+            <invocation>
+                <sql:sql>
+                    select disp.anthropometryEvent_withMes(:meaId, :case_id, cast(:height as varchar), cast(:weight as varchar), cast(:waist as varchar), :service_id, :resource_srg_id, :date,
+                    (select e.mes_id from disp.md_event e where e.id = :eventId));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="meaId" mapping="['meaId']" domain="integer"/>
+                <param name="case_id" mapping="['case_id']" domain="integer"/>
+                <param name="height" mapping="['height']" domain="string"/>
+                <param name="weight" mapping="['weight']" domain="string"/>
+                <param name="waist" mapping="['waist']" domain="string"/>
+                <param name="service_id" mapping="['service_id']" domain="integer"/>
+                <param name="resource.srg_id" mapping="['resource_srg_id']" domain="integer"/>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="eventId" mapping="['eventId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="ssr_id" mapping="[0][0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="serviceInBill"/>
+            </validations>
+        </action>
+    </actions>
+</object>

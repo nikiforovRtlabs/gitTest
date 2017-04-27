@@ -1,0 +1,249 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>dAccountHospital</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from (select
+                        g.id as id,
+                        g.account_id as account_id, reg.code as reg_code, pic.indiv_id as patient_id,
+                        g.admission_dt as admission_dt, g.outcome_date as outcome_date,
+                        g.goal_id as goal_id,
+                        (SELECT dg.name FROM d_accounting.hospital_goal dg WHERE dg.id = g.goal_id) as goal_name,
+                        g.diagnosis_id as diagnosis_id,
+                        diagn.code || ' ' ||  diagn.name as diagnosis_name,
+                        diagn.code as d_code,
+                        false as is_case,
+                        g.clinic_id as clinic_id,
+                        (SELECT mc.short_name
+                        FROM md_clinic mc WHERE mc.id = g.clinic_id) as clinic_name,
+                        g.result_id as result_id,
+                        (SELECT res.name
+                        FROM mc_step_result res WHERE res.id = g.result_id) as result_name,
+                        g.outcome_id as outcome_id,
+                        (SELECT out.name
+                        FROM mc_step_care_result out WHERE out.id = g.outcome_id) as outcome_name,
+                        g.uid
+                        from d_accounting.hospital g
+                        join d_accounting.account a on a.id=g.account_id
+                        join public.pim_indiv_code pic on pic.code=a.patient_uid
+                        join d_accounting.register reg on a.register_id = reg.id
+                        left join md_diagnosis diagn on diagn.id = g.diagnosis_id
+                        where pic.type_id = (select pct.id from public.pim_code_type pct where pct.code='UID' limit 1)
+                    union
+                        select
+                        c.id as id,
+                        a.id as account_id, reg.code as reg_code, c.patient_id as patient_id,
+                        coalesce(ls.admission_date, c.open_date) as admission_dt,
+                        ls.outcome_date as outcome_date,
+                        c.init_goal_id as goal_id,
+                        (SELECT dg.name FROM public.mc_case_init_goal dg WHERE dg.id = c.init_goal_id) as goal_name,
+                        c.main_diagnos_id as diagnosis_id,
+                        diagn.code || ' ' ||  diagn.name as diagnosis_name,
+                        diagn.code as d_code,
+                        true as is_case,
+                        c.clinic_id as clinic_id,
+                        (SELECT mc.short_name
+                        FROM md_clinic mc WHERE mc.id = c.clinic_id) as clinic_name,
+                        ls.result_id as result_id,
+                        (SELECT res.name
+                        FROM public.mc_step_result res WHERE res.id = ls.result_id) as result_name,
+                        ls.outcome_id as outcome_id,
+                        (SELECT out.name
+                        FROM public.mc_step_care_result out WHERE out.id = ls.outcome_id) as outcome_name,
+                        c.uid
+                        from public.mc_case c
+                        join public.mc_case_type ct on ct.id=c.case_type_id
+                        left join public.mc_step ls on ls.id = c.closing_step_id
+                        left join public.mc_diagnosis mc_diag on mc_diag.id = c.main_diagnos_id
+                        left join public.md_diagnosis diagn on diagn.id=mc_diag.diagnos_id
+                        , d_accounting.account a, d_accounting.register reg
+                        where ct.case_mode_id=2 and a.register_id = reg.id) as tab
+                        where (d_code is null or case
+                        when reg_code = '1' then d_code like 'F1%'
+                        when reg_code = '2' then d_code like 'F%'
+                        when reg_code = '3' then d_code like 'A0%' or d_code like 'B15%'
+                        or d_code like 'B16%' or d_code like 'B17%' or d_code like 'B18%' or d_code like 'B19%'
+                        or d_code like 'B5%' or d_code like 'B6%' or d_code like 'B7%' or d_code like 'B80%'
+                        or d_code like 'B81%' or d_code like 'B82%' or d_code like 'B83%' or d_code like 'B85%'
+                        or d_code like 'B86%' or d_code like 'B87%' or d_code like 'B88%' or d_code like 'B89%'
+                        when reg_code = '4' then d_code like 'A15%' or d_code like 'A16%'
+                        or d_code like 'A17%' or d_code like 'A18%' or d_code like 'A19%'
+                        end)
+                        and :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from (select
+                g.id as id,
+                g.account_id as account_id, reg.code as reg_code, pic.indiv_id as patient_id,
+                g.admission_dt as admission_dt, g.outcome_date as outcome_date,
+                g.goal_id as goal_id,
+                (SELECT dg.name FROM d_accounting.hospital_goal dg WHERE dg.id = g.goal_id) as goal_name,
+                g.diagnosis_id as diagnosis_id,
+                diagn.code || ' ' ||  diagn.name as diagnosis_name,
+                diagn.code as d_code,
+                false as is_case,
+                g.clinic_id as clinic_id,
+                (SELECT mc.short_name
+                FROM md_clinic mc WHERE mc.id = g.clinic_id) as clinic_name,
+                g.result_id as result_id,
+                (SELECT res.name
+                FROM mc_step_result res WHERE res.id = g.result_id) as result_name,
+                g.outcome_id as outcome_id,
+                (SELECT out.name
+                FROM mc_step_care_result out WHERE out.id = g.outcome_id) as outcome_name,
+                g.uid
+                from d_accounting.hospital g
+                join d_accounting.account a on a.id=g.account_id
+                join public.pim_indiv_code pic on pic.code=a.patient_uid
+                join d_accounting.register reg on a.register_id = reg.id
+                left join md_diagnosis diagn on diagn.id = g.diagnosis_id
+                where pic.type_id = (select pct.id from public.pim_code_type pct where pct.code='UID' limit 1)
+                union
+                select
+                c.id as id,
+                a.id as account_id, reg.code as reg_code, c.patient_id as patient_id,
+                coalesce(ls.admission_date, c.open_date) as admission_dt,
+                ls.outcome_date as outcome_date,
+                c.init_goal_id as goal_id,
+                (SELECT dg.name FROM public.mc_case_init_goal dg WHERE dg.id = c.init_goal_id) as goal_name,
+                c.main_diagnos_id as diagnosis_id,
+                diagn.code || ' ' ||  diagn.name as diagnosis_name,
+                diagn.code as d_code,
+                true as is_case,
+                c.clinic_id as clinic_id,
+                (SELECT mc.short_name
+                FROM md_clinic mc WHERE mc.id = c.clinic_id) as clinic_name,
+                ls.result_id as result_id,
+                (SELECT res.name
+                FROM public.mc_step_result res WHERE res.id = ls.result_id) as result_name,
+                ls.outcome_id as outcome_id,
+                (SELECT out.name
+                FROM public.mc_step_care_result out WHERE out.id = ls.outcome_id) as outcome_name,
+                c.uid
+                from public.mc_case c
+                join public.mc_case_type ct on ct.id=c.case_type_id
+                left join public.mc_step ls on ls.id = c.closing_step_id
+                left join public.mc_diagnosis mc_diag on mc_diag.id = c.main_diagnos_id
+                left join public.md_diagnosis diagn on diagn.id=mc_diag.diagnos_id
+                , d_accounting.account a, d_accounting.register reg
+                where ct.case_mode_id=2 and a.register_id = reg.id) as tab
+                where (d_code is null or case
+                when reg_code = '1' then d_code like 'F1%'
+                when reg_code = '2' then d_code like 'F%'
+                when reg_code = '3' then d_code like 'A0%' or d_code like 'B15%'
+                or d_code like 'B16%' or d_code like 'B17%' or d_code like 'B18%' or d_code like 'B19%'
+                or d_code like 'B5%' or d_code like 'B6%' or d_code like 'B7%' or d_code like 'B80%'
+                or d_code like 'B81%' or d_code like 'B82%' or d_code like 'B83%' or d_code like 'B85%'
+                or d_code like 'B86%' or d_code like 'B87%' or d_code like 'B88%' or d_code like 'B89%'
+                when reg_code = '4' then d_code like 'A15%' or d_code like 'A16%'
+                or d_code like 'A17%' or d_code like 'A18%' or d_code like 'A19%'
+                end)
+                and :where
+            </n2o:count-query>
+            <n2o:alias>tab</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>tab.id</expression>
+        </field>
+        <field>
+            <id>account.id</id>
+            <domain>integer</domain>
+            <expression>tab.account_id</expression>
+        </field>
+        <field>
+            <id>account.patient.id</id>
+            <domain>integer</domain>
+            <expression>tab.patient_id</expression>
+        </field>
+        <field>
+            <id>admission_dt</id>
+            <domain>date</domain>
+            <name>Дата поступления</name>
+            <expression>tab.admission_dt</expression>
+        </field>
+        <field>
+            <id>outcome_date</id>
+            <name>Дата выбытия</name>
+            <domain>date</domain>
+            <expression>tab.outcome_date</expression>
+        </field>
+        <field>
+            <id>goal.id</id>
+            <domain>integer</domain>
+            <expression>tab.goal_id</expression>
+        </field>
+        <field>
+            <id>goalName</id>
+            <name>Цель госпитализации</name>
+            <domain>string</domain>
+            <expression>tab.goal_name</expression>
+        </field>
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <expression>tab.clinic_id</expression>
+        </field>
+        <field>
+            <id>clinicName</id>
+            <name>МО</name>
+            <domain>string</domain>
+            <expression>tab.clinic_name</expression>
+        </field>
+        <field>
+            <id>result.id</id>
+            <domain>integer</domain>
+            <expression>tab.result_id</expression>
+        </field>
+        <field>
+            <id>resultName</id>
+            <name>Результат</name>
+            <domain>string</domain>
+            <expression>tab.result_name</expression>
+        </field>
+        <field>
+            <id>outcome.id</id>
+            <domain>integer</domain>
+            <expression>tab.outcome_id</expression>
+        </field>
+        <field>
+            <id>outcomeName</id>
+            <name>Исход</name>
+            <domain>string</domain>
+            <expression>tab.outcome_name</expression>
+        </field>
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <name>Номер ИБ</name>
+            <expression>tab.uid</expression>
+        </field>
+        <field>
+            <id>diag.id</id>
+            <domain>integer</domain>
+            <expression>tab.diagnosis_id</expression>
+        </field>
+        <field>
+            <id>diagName</id>
+            <name>Основной диагноз</name>
+            <domain>string</domain>
+            <expression>tab.diagnosis_name</expression>
+        </field>
+        <field>
+            <id>isCase</id>
+            <domain>boolean</domain>
+            <expression>tab.is_case</expression>
+        </field>
+    </fields>
+</query>

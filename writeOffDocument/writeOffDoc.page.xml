@@ -1,0 +1,106 @@
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+
+    <object-id>writeOffDoc</object-id>
+    <layout>n2o/layout/single</layout>
+
+    <containers>
+        <container id="main" place="single">
+            <wgt:form detail-field-id="id" master-field-id="id">
+                <wgt:query-id>writeOffDoc</wgt:query-id>
+
+                <wgt:edit model="query-or-default" condition="isExecuted == false &amp;&amp; existsExecutedSpec == false" after-submit="closeModal">
+                    <wgt:invoke-action action-id="save"/>
+                </wgt:edit>
+
+                <wgt:name>Акт списания</wgt:name>
+                <fs:field-set field-label-location="top">
+                    <ctrl:hidden id="org.id" default-value="#{org.id?}"/>
+                    <ctrl:hidden id="emplPos.id" default-value="#{emplPos.id?}"/>
+                    <fs:row>
+                        <ctrl:classifier id="docType" label="Тип документа" required="true" readonly="true"
+                                         label-style="width: 100px" control-style="width: 180px">
+                            <ctrl:query query-id="inv_documentType" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="sectionId" value="5"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">6</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+                        <ctrl:input-text id="docNumber" label="Номер" label-style="width: 70px" control-style="width: 110px">
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="writeOffDocCheckUnique"/>
+                            </ctrl:validations>
+                            <ctrl:dependencies>
+                                <ctrl:required-condition>typeof id!='undefined' &amp;&amp; id!=null</ctrl:required-condition>
+                            </ctrl:dependencies>
+                        </ctrl:input-text>
+                        <ctrl:date-time id="docDate" label="Дата" default-value="today()" required="true"
+                                        label-style="width: 40px" control-style="width: 130px"/>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="sendStore" label="Склад" required="true" autoselect="true">
+                            <ctrl:query query-id="inv_store" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="storeOpr" label="Операция расхода" required="true" autoselect-alone="true" depends-on="sendStore">
+                            <ctrl:query query-id="inv_storeOprForWriteOffDoc" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="oprTypeId" value="2"/>
+                                    <ctrl:pre-filter field-id="oprKindId" value="1"/>
+                                    <ctrl:pre-filter field-id="sendTypeId" ref="sendStore.storeTypeId"/>
+                                    <ctrl:pre-filter field-id="referral" value="1"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:select-tree id="fundSource" label="Источник финансирования" ajax="false" search="true"
+                                          label-style="width: 220px" depends-on="sendStore">
+                            <ctrl:inheritance-nodes query-id="inv_fundingSource_inheritance" parent-field-id="parentId"
+                                                    has-children-field-id="hasChildren" search-field-id="name"
+                                                    label-field-id="name" icon-field-id="iconId">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:inheritance-nodes>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>
+                                    typeof sendStore == 'undefined' || sendStore == '' || sendStore==null ||
+                                    sendStore.fundSource==null || sendStore.fundSource.id==null
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                            <ctrl:set-value-expression on="sendStore" on-load="false">
+                                if(typeof sendStore!='undefined' &amp;&amp; sendStore!=null &amp;&amp;
+                                   sendStore.fundSource!=null &amp;&amp; sendStore.fundSource.id!=null)
+                                sendStore.fundSource;
+                            </ctrl:set-value-expression>
+                        </ctrl:select-tree>
+
+                        <ctrl:classifier id="comGroup" label="Товарная группа">
+                            <ctrl:query query-id="inv_commodityGroup" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="reason" label="Причина списания">
+                            <ctrl:query query-id="inv_reasonOfWriteOffOperation" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:text-area id="note" label="Примечание" control-style="width: 220px; height:30px" rows="1"/>
+                    </fs:row>
+                </fs:field-set>
+            </wgt:form>
+        </container>
+    </containers>
+</page>

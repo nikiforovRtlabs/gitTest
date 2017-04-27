@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>productionSpec</name>
+
+    <actions>
+        <action id="save">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/productionDoc/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="priceWithVat" mapping="['price']"/>
+                <param name="doc.id" mapping="['docId']"/>
+                <param name="storeSupply.id" mapping="['storeSupplyId']"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="mneiQuantity" mapping="['mneiQuantity']"/>
+                <param name="doseValue" mapping="['doseValue']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Спецификация сохранена</success-text>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/inventory/productionDoc/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить спецификацию?</confirmation-text>
+            <success-text>Спецификация удалена</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="quantityValidation" level="error">
+            <expression>
+                <![CDATA[ quantity == null || (quantity!=null && actualBalanceArr!=null && Number(quantity) <= Number(actualBalanceArr))]]></expression>
+            <message>Значение не может превышать "Фактический остаток"</message>
+        </condition>
+        <condition id="mneiQuantityValidation" level="error">
+            <expression>
+                <![CDATA[ mneiQuantity == null || (mneiQuantity!=null && actualBalanceMnei!=null && Number(mneiQuantity) <= Number(actualBalanceMnei))]]></expression>
+            <message>Значение не может превышать "Фактический остаток в МНЕИ"</message>
+        </condition>
+
+        <constraint id="prodSpecCheckUnique" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.production_doc_spec
+                    where store_sup_id = :storeSupId
+                    and prod_doc_id = :prodDocId
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc.id" mapping="['prodDocId']"/>
+                <param name="storeSupply.id" mapping="['storeSupId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Спецификация с данными параметрами уже существует.</message>
+        </constraint>
+    </validations>
+
+</object>

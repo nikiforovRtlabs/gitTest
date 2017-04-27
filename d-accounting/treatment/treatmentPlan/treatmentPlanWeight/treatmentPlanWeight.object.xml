@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Вес пациента</name>
+
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    insert into d_accounting.treatment_plan_weight(id, treatment_month_id, treatment_plan_id,
+                    patient_weight, weighing_dt) values(nextval('d_accounting.treatment_plan_weight_id_seq'),
+                    :monthId, :planId, to_number(:patientWeight::varchar,'999.99'::varchar), :weighingDt);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="month.id" mapping="['monthId']" domain="integer"/>
+                <param name="plan.id" mapping="['planId']" domain="integer"/>
+                <param name="patient_weight" mapping="['patientWeight']"/>
+                <param name="weighing_dt" mapping="['weighingDt']" domain="date"/>
+            </in-parameters>
+        </action>
+        <action id="update">
+            <invocation>
+                <n2o:sql>
+                    update d_accounting.treatment_plan_weight set treatment_month_id = :monthId,
+                    patient_weight = to_number(:patientWeight::varchar,'999.99'::varchar), weighing_dt = :weighingDt where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="month.id" mapping="['monthId']" domain="integer"/>
+                <param name="patient_weight" mapping="['patientWeight']"/>
+                <param name="weighing_dt" mapping="['weighingDt']" domain="date"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удаление веса">
+            <invocation>
+                <n2o:sql>
+                    delete from d_accounting.treatment_plan_weight where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы действительно хотите удалить вес?</confirmation-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="weightValValidation" level="error">
+            <message>Введенное значение должно быть числом формате 999.99!</message>
+            <expression on="patient_weight"><![CDATA[
+                var regex = new RegExp('\^[0-9]{0,3}([.]{1}[0-9]{1,2}){0,1}\$');
+                var b = true;
+                if(typeof patient_weight != 'undefined' && patient_weight != null && patient_weight != '')
+                    b = regex.test(patient_weight);
+                b;
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+
+</object>

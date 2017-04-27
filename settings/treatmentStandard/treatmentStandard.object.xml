@@ -1,0 +1,353 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Шаблон лечения беременных</name>
+
+    <actions>
+        <action id="createServiceTemplate" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    insert into services_template (id, clinic_id, name, note, begin_date, end_date, is_holding,
+                    is_service, is_motherhood, standard_id, is_base)
+                    VALUES (nextval('services_template_seq'), :clinicId, :name, :note, :beginDate, :endDate, false,
+                    true, true, :standardId, :isBase);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="clinic.id" mapping="['clinicId']" domain="integer"/>
+                <param name="period.begin" mapping="['beginDate']"/>
+                <param name="period.end" mapping="['endDate']"/>
+                <param name="standard.id" mapping="['standardId']" domain="integer"/>
+                <param name="is_base" mapping="['isBase']" domain="boolean"/>
+            </in-parameters>
+        </action>
+
+        <action id="updateServiceTemplate" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    update services_template set name = :name, note = :note, begin_date = :beginDate, end_date =
+                    :endDate, standard_id = :standardId, is_base = :isBase, clinic_id = :clinicId
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="clinic.id" mapping="['clinicId']"/>
+                <param name="period.begin" mapping="['beginDate']"/>
+                <param name="period.end" mapping="['endDate']"/>
+                <param name="standard.id" mapping="['standardId']" domain="integer"/>
+                <param name="is_base" mapping="['isBase']" domain="boolean"/>
+            </in-parameters>
+        </action>
+
+        <action id="deleteServiceTemplate" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from services_template where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены, что хотите удалить шаблон модели лечения беременных '{name}'?
+            </confirmation-text>
+        </action>
+
+        <action id="deleteServicesTemplateService" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from services_template_prototype where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены, что хотите удалить прототип услуги стандарта?</confirmation-text>
+        </action>
+
+        <action id="checkPrototype">
+            <invocation>
+                <rest:rest method="POST">
+                    <![CDATA[
+                        ${n2o.backend.path}/motherhood/standard/check-prototype?isChecked={isChecked}&prototypeId={prototypeId}&templateId={templateId}
+                    ]]>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="templateId" mapping="['templateId']" domain="integer"/>
+                <param name="id" mapping="['prototypeId']" domain="integer"/>
+                <param name="isChecked" mapping="['isChecked']" domain="boolean"/>
+            </in-parameters>
+        </action>
+
+        <!--servicesTemplateDiagnosis-->
+        <action id="checkDiagnosis" name="Добавить">
+            <invocation>
+                <rest:rest method="POST">
+                    <![CDATA[
+                        ${n2o.backend.path}/motherhood/standard/check-diagnosis?isChecked={isChecked}&diagnosisId={diagnosisId}&templateId={templateId}
+                    ]]>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="templateId" mapping="['templateId']" domain="integer"/>
+                <param name="id" mapping="['diagnosisId']" domain="integer"/>
+                <param name="createOrDeleteServicesTemplateDiagnosis" mapping="['isChecked']" domain="boolean"/>
+            </in-parameters>
+        </action>
+
+        <action id="deleteServicesTemplateDiagnosis" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from services_template_diagnosis where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <success-text>Диагноз удаленен.</success-text>
+            <confirmation-text>Вы уверены, что хотите удалить диагноз стандарта?</confirmation-text>
+        </action>
+
+        <action id="editServiceGestation">
+            <invocation>
+                <sql:sql>
+                    select motherhood.save_gestationAge(:id, :jso);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="cases" mapping="['jso']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="notSymbolsGestationAge"/>
+                <validation ref-id="uniqueGestationAge"/>
+            </validations>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="checkBeginDateAndHospitalPeriod" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[select admission_date + coalesce(admission_time, '00:00:00') <= :beginDateTime
+                     and (outcome_date is null or outcome_date + coalesce(outcome_time, '23:59:59') >= :beginDateTime)
+                     from mc_step where id=:hospitalRecordId]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="hospitalRecordId" mapping="['hospitalRecordId']"/>
+                <param name="beginDateTime" mapping="['beginDateTime']"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+            <message>Дата начала должна соответствовать датам пребывания в отделении.</message>
+        </constraint>
+
+        <condition id="restrictionValidation" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]+\$');
+                var b = true;
+                if(typeof restriction != 'undefined' && restriction != null && restriction != '')
+                    b = regex.test(restriction);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="queueValidation" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]+\$');
+                var b = true;
+                if(typeof queue != 'undefined' && queue != null && queue != '')
+                    b = regex.test(queue);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="maxIntervalValidation" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]+\$');
+                var b = true;
+                if(typeof maxInterval != 'undefined' && maxInterval != null && maxInterval != '')
+                    b = regex.test(maxInterval);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="indentValidation" level="error">
+            <message>Введенное значение должно быть целым или дробным числом!</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]+(\.)?([0-9]+)?\$');
+                var b = true;
+                if(typeof indent != 'undefined' && indent != null && indent != '')
+                    b = regex.test(indent);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="validateServicesPeriods" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select string_agg(t.name, ', ') from (select
+                    coalesce(code || ' ' || name, name) as name
+                    from sr_service s join services_template_service sts on sts.service_id = s.id
+                    where :templateId::int4 is not null and sts.template_id = :templateId and
+                    (:beginDate::date is not null and s.to_dt is not null and to_date(:beginDate, 'yyyy-MM-dd') > s.to_dt or
+                    :endDate::date is not null and s.from_dt is not null and to_date(:endDate, 'yyyy-MM-dd') < s.from_dt)) t
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="period.begin" mapping="['beginDate']"/>
+                <param name="period.end" mapping="['endDate']"/>
+                <param name="id" mapping="['templateId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="names" mapping="[0][0][0]" domain="string"/>
+            </out-parameters>
+            <result expression="[0][0][0] == null"/>
+            <message>Стандарт содержит недействительные услуги: {names}</message>
+        </constraint>
+
+        <condition id="checkHolding0" level="error">
+            <expression>
+                typeof holdings != 'undefined' &amp;&amp; holdings != null &amp;&amp;
+                typeof holdings[0] != 'undefined' &amp;&amp; holdings[0] != null &amp;&amp;
+                typeof holdings[0].holding != 'undefined' &amp;&amp; holdings[0].holding != null &amp;&amp;
+                typeof holdings[0].holding.id != 'undefined' &amp;&amp; holdings[0].holding.id != null
+            </expression>
+            <message>Заполните поле</message>
+        </condition>
+
+        <constraint id="validateCountDay" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select case when end_date is not null and begin_date is not null
+                                and (CAST(end_date AS date) - CAST(begin_date AS date) + 1) < :countDay then true else false end
+                        from services_template
+                        where  is_motherhood is true and id = :templateId
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="countDay" mapping="['countDay']" domain="integer"/>
+                <param name="templateId" mapping="['templateId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="names" mapping="[0][0][0]" domain="string"/>
+            </out-parameters>
+            <result expression="[0][0][0] == false"/>
+            <message>Превышает количество дней действия стандарта</message>
+        </constraint>
+
+        <constraint id="validateBeginDay" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select case when end_date is not null and begin_date is not null
+                                and (CAST(end_date AS date) - CAST(begin_date AS date) + 1) < :beginDay then true else false end
+                        from services_template
+                        where is_motherhood is true and id = :templateId
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="beginDay" mapping="['beginDay']" domain="integer"/>
+                <param name="templateId" mapping="['templateId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="names" mapping="[0][0][0]" domain="string"/>
+            </out-parameters>
+            <result expression="[0][0][0] == false"/>
+            <message>Превышает количество дней действия стандарта</message>
+        </constraint>
+
+        <condition id="beginDayFormat" level="error">
+            <message>Введенное значение должно быть целым числом</message>
+            <expression><![CDATA[
+                var regex = new RegExp('^[0-9]*[1-9][0-9]*$');
+                var v = true;
+                if(typeof beginDay != 'undefined' && beginDay != null && beginDay != '')
+                    v = regex.test(beginDay);
+                v;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="countDayFormat" level="error">
+            <message>Введенное значение должно быть целым числом</message>
+            <expression><![CDATA[
+                var regex = new RegExp('^[0-9]*[1-9][0-9]*$');
+                var v = true;
+                if(typeof countDay != 'undefined' && countDay != null && countDay != '')
+                    v = regex.test(countDay);
+                v;
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="uniqueGestationAge" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(value)-count(distinct value) from json_to_recordset((:xjson)::JSON) as x(value text);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="cases" mapping="['xjson']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Все сроки беременности должны быть уникальны!</message>
+        </constraint>
+
+        <constraint id="notSymbolsGestationAge" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*) from json_to_recordset((:xjson)::JSON) as x(value text) where value SIMILAR TO
+                    '%[,.-]%' ;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="cases" mapping="['xjson']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Все сроки беременности должны быть положительными целыми числами!</message>
+        </constraint>
+
+        <constraint id="uniqueBase" level="error">
+            <message>Базовый стандарт уже существует.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from public.services_template
+                    where (:is_base = 'true' and is_base = 'true') and is_motherhood = true and (:id is null or id !=
+                    :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="is_base" mapping="['is_base']" domain="boolean"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+</object>

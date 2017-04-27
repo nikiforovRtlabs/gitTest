@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0">
+    <name>pregnantRouting</name>
+
+    <actions>
+        <action id="pregnantRoutingInsert" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    insert into public.pci_patient_reg(patient_id, clinic_id, department_id, type_id, state_id,
+                    reg_dt, unreg_dt, note)
+                    values ((select patient_id from motherhood.mh_pregnant_map where id = :pregnantMapId), :clinicId, :departmentId, :regTypeId,
+                    case when :unregDate::date is not null then 2 else 1 end,
+                    :regDate, :unregDate,  :note);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pregnantMapId" mapping="['pregnantMapId']"/>
+                <param name="regType.id" mapping="['regTypeId']"/>
+                <param name="clinic.id" mapping="['clinicId']"/>
+                <param name="department.id" mapping="['departmentId']"/>
+                <param name="regDt" mapping="['regDate']" domain="date"/>
+                <param name="unregDt" mapping="['unregDate']" domain="date"/>
+                <param name="note" mapping="['note']"/>
+            </in-parameters>
+        </action>
+
+        <action id="pregnantRoutingUpdate" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    update public.pci_patient_reg
+                    set
+                    clinic_id = :clinicId,
+                    department_id = :departmentId,
+                    type_id = :regTypeId,
+                    state_id = case when (:unregDate::date is null and state_id=2) then 1
+                                    when (:unregDate::date is not null and state_id=1)then 2
+                                    else state_id
+                                end,
+                    unreg_cause_id = case when :unregDate::date is not null then 5
+                                            else null
+                    end,
+                    reg_dt = :regDate,
+                    unreg_dt = :unregDate,
+                    note = :note
+                    where id = :id;
+                </sql:sql>
+
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="regType.id" mapping="['regTypeId']"/>
+                <param name="clinic.id" mapping="['clinicId']"/>
+                <param name="department.id" mapping="['departmentId']"/>
+                <param name="regDt" mapping="['regDate']" domain="date"/>
+                <param name="unregDt" mapping="['unregDate']" domain="date"/>
+                <param name="note" mapping="['note']"/>
+            </in-parameters>
+        </action>
+
+        <action id="pregnantRoutingDelete" form-submit-label="Удалить">
+            <invocation>
+                <!--todo: логическое удаление?-->
+                <sql:sql>
+                    delete from public.pci_patient_reg where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены, что хотите удалить прикрепление?</confirmation-text>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="hasThisTypeRegistration" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from pci_patient_reg ppr
+                    where ppr.patient_id = (select patient_id from motherhood.mh_pregnant_map where id = :pregnantMapId)
+                    and ppr.type_id = :regTypeId
+                    and
+                    (
+                    (cast(:regDate as date) >= ppr.reg_dt and (ppr.unreg_dt >= cast(:regDate as date) or ppr.unreg_dt is null))
+                    or
+                    (ppr.reg_dt >= cast(:regDate as date) and (cast(:unregDate as date) >= ppr.reg_dt or cast(:unregDate as date) is null))
+                    )
+                    and (:id is null or ppr.id != :id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="pregnantMapId" mapping="['pregnantMapId']"/>
+                <param name="regType.id" mapping="['regTypeId']"/>
+                <param name="regDt" mapping="['regDate']"/>
+                <param name="unregDt" mapping="['unregDate']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Прикрепление пересекается по времени с другими прикреплениями указанного вида.</message>
+        </constraint>
+
+
+        <condition id="birth_check_regdt" level="error">
+            <expression on="regDt,birthDt">
+                (moment(regDt.substring(0,10), 'DD.MM.YYYY')) >= (moment(birthDt.substring(0,10), 'DD.MM.YYYY'))
+                <!--reg_dt >= patient.birth_dt-->
+            </expression>
+            <message>
+                Дата прикрепления не может быть меньше даты рождения {birthDt}
+            </message>
+        </condition>
+
+        <condition id="regdt_check_death" level="error">
+            <expression on="regDt,deathDt">
+                if ((typeof deathDt != 'undefined') &amp;&amp; (deathDt != null))
+                (moment(deathDt.substring(0,10), 'DD.MM.YYYY')) > (moment(regDt.substring(0,10), 'DD.MM.YYYY'))
+                <!--(death_date > reg_dt)-->
+                ; else true
+            </expression>
+            <message>
+                Дата прикрепления не может быть больше даты смерти {deathDt}
+            </message>
+        </condition>
+
+        <condition id="check_dt" level="error">
+            <expression on="unregDt,regDt">
+                if ((typeof unregDt != 'undefined') &amp;&amp; (unregDt != null))
+                (moment(unregDt.substring(0,10), 'DD.MM.YYYY')) > (moment(regDt.substring(0,10), 'DD.MM.YYYY'))
+                <!--(unreg_dt > reg_dt)-->
+                ; else true
+            </expression>
+            <message>
+                Дата прикрепления не может быть больше даты открепления
+            </message>
+        </condition>
+
+        <condition id="death_check_unregdt" level="error">
+            <expression on="deathDt,unregDt">
+                if ((typeof unregDt != 'undefined') &amp;&amp; (unregDt != null)&amp;&amp;(typeof deathDt != 'undefined') &amp;&amp; (deathDt != null))
+                (moment(deathDt.substring(0,10), 'DD.MM.YYYY')) >= (moment(unregDt.substring(0,10), 'DD.MM.YYYY'))
+                <!--(death_date >= unreg_dt)-->
+                ;else true
+            </expression>
+            <message>
+                Дата открепления не может быть больше даты смерти {deathDt}
+            </message>
+        </condition>
+
+    </validations>
+
+
+</object>

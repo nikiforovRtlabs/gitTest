@@ -1,0 +1,259 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <object-id>report2</object-id>
+    <name>Список отчетов</name>
+    <layout>n2o/layout/top-bottom</layout>
+    <regions>
+        <region place="top" type="none">
+            <container id="reports" place="top">
+                <wgt:table>
+                    <wgt:name>Информация об отчете</wgt:name>
+                    <wgt:query-id>rc_report_record</wgt:query-id>
+                    <size>30</size>
+                    <wgt:columns>
+                        <wgt:column column-field-id="name" name="Наименование"/>
+                        <wgt:column column-field-id="query.name" name="Источник данных" tooltip-field-id="query.invalidMessage">
+                            <wgt:color>
+                                <wgt:switch value-field-id="query.isValid">
+                                    <wgt:case value="false">label label-important</wgt:case>
+                                </wgt:switch>
+                            </wgt:color>
+                        </wgt:column>
+                        <wgt:column column-field-id="template.id" name="Шаблон" tooltip-field-id="template.invalidMessage">
+                            <wgt:color>
+                                <wgt:switch value-field-id="template.isValid">
+                                    <wgt:case value="false">label label-important</wgt:case>
+                                </wgt:switch>
+                            </wgt:color>
+                        </wgt:column>
+                        <wgt:column column-field-id="form.id" name="Форма" tooltip-field-id="form.invalidMessage">
+                            <wgt:color>
+                                <wgt:switch value-field-id="form.isValid">
+                                    <wgt:case value="false">label label-important</wgt:case>
+                                </wgt:switch>
+                            </wgt:color>
+                        </wgt:column>
+                        <wgt:column column-field-id="note" name="Описание"/>
+                    </wgt:columns>
+                    <wgt:filters position="left" opened="true">
+                        <ctrl:input-text id="name" label="Наименование"/>
+                        <ctrl:classifier id="query" label="Источник данных" search-as-you-type="true">
+                            <ctrl:query query-id="rc_report_query" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="invalid" value="false"/>
+                                    <ctrl:pre-filter field-id="catalog.id" value="${rmis.report.query.reportQuery.dir}"/>
+                                    <!--<ctrl:pre-filter field-id="metaDataTypes*.id">-->
+                                    <!--<ctrl:value>query</ctrl:value>-->
+                                    <!--</ctrl:pre-filter>-->
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:select id="templateExistsFilter" label="Наличие шаблона">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Все"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Да"}</ctrl:option>
+                                <ctrl:option>{"id":3, "name":"Нет"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                                <ctrl:value field-id="name">Все</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:select>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false">
+                            <wgt:show-modal page-id="rc_report_record" page-name="Создание отчета" action-id="create" focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true">
+                            <wgt:show-modal page-id="rc_report_record" page-name="Изменение отчета" action-id="update"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" label="Удалить" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="report_form" label="Форма вызова" context="true">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>typeof form.id != 'undefined' &amp;&amp; form.id != null</wgt:expression>
+                                    <wgt:tooltip>Форма отсутствует(вероятно отчет без параметров)</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>form.isValid</wgt:expression>
+                                    <wgt:tooltip>Форма невалидна</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:sub-menu>
+                                <wgt:menu-item id="params" label="Параметры формы" context="true">
+                                    <wgt:conditions>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>typeof form.id != 'undefined' &amp;&amp; form.id != null</wgt:expression>
+                                            <wgt:tooltip>Форма отсутствует (вероятно отчет без параметров)</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                    </wgt:conditions>
+                                    <wgt:show-modal page-id="rc_form_field_list" master-field-id="form.id" detail-field-id="formId">
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="reportQuery.id" ref="query.id"/>
+                                        </wgt:pre-filters>
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="reportXmlEdit" label="Редактор XML" context="true">
+                                    <wgt:conditions>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>typeof form.id != 'undefined' &amp;&amp; form.id != null</wgt:expression>
+                                            <wgt:tooltip>Форма отсутствует(вероятно отчет без параметров)</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>form.isValid</wgt:expression>
+                                            <wgt:tooltip>Форма невалидна</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                    </wgt:conditions>
+                                    <wgt:show-modal page-id="rc_form_xml" detail-field-id="id" master-field-id="form.id" refresh-on-close="true"/>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="recreate" label="Пересоздать форму" context="true">
+                                    <wgt:conditions>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>typeof query.id != 'undefined' &amp;&amp; query.id != null</wgt:expression>
+                                            <wgt:tooltip>Выборка отсутствует</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>query.isValid</wgt:expression>
+                                            <wgt:tooltip>Выборка невалидна</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                    </wgt:conditions>
+                                    <wgt:invoke-action action-id="recreateForm"/>
+                                </wgt:menu-item>
+
+                                <!--<wgt:menu-item id="regenFormWithName" label="Пересоздать форму" context="true">-->
+                                <!--<wgt:conditions>-->
+                                <!--<wgt:visibility-condition>-->
+                                <!--<wgt:expression>form.id != null</wgt:expression>-->
+                                <!--</wgt:visibility-condition>-->
+                                <!--</wgt:conditions>-->
+                                <!--<wgt:invoke-action action-id="regenerateForm"/>-->
+                                <!--</wgt:menu-item>-->
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+
+                        <!--<wgt:menu-item id="report_query" label="Выборка" context="true">-->
+                            <!--<wgt:conditions>-->
+                                <!--<wgt:enabling-condition>-->
+                                    <!--<wgt:expression>typeof query.id != 'undefined' &amp;&amp; query.id != null</wgt:expression>-->
+                                    <!--<wgt:tooltip>Выборка отсутствует</wgt:tooltip>-->
+                                <!--</wgt:enabling-condition>-->
+                                <!--<wgt:enabling-condition>-->
+                                    <!--<wgt:expression>query.isValid</wgt:expression>-->
+                                    <!--<wgt:tooltip>Выборка не валидна</wgt:tooltip>-->
+                                <!--</wgt:enabling-condition>-->
+                            <!--</wgt:conditions>-->
+                            <!--<wgt:sub-menu>-->
+                                <!--<wgt:menu-item id="reportQueryXmlEdit" label="Редактор XML" context="true">-->
+                                    <!--<wgt:conditions>-->
+                                        <!--<wgt:enabling-condition>-->
+                                            <!--<wgt:expression>typeof query.id != 'undefined' &amp;&amp; query.id != null</wgt:expression>-->
+                                            <!--<wgt:tooltip>Выборка отсутствует</wgt:tooltip>-->
+                                        <!--</wgt:enabling-condition>-->
+                                        <!--<wgt:enabling-condition>-->
+                                            <!--<wgt:expression>query.isValid</wgt:expression>-->
+                                            <!--<wgt:tooltip>Выборка не валидна</wgt:tooltip>-->
+                                        <!--</wgt:enabling-condition>-->
+                                    <!--</wgt:conditions>-->
+                                    <!--<wgt:show-modal page-id="report_form_xml" detail-field-id="id" master-field-id="queryCode"/>-->
+                                <!--</wgt:menu-item>-->
+                            <!--</wgt:sub-menu>-->
+                        <!--</wgt:menu-item>-->
+
+                        <wgt:menu-item id="report_template" label="Шаблон" context="true">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>typeof query.id != 'undefined' &amp;&amp; query.id != null</wgt:expression>
+                                    <wgt:tooltip>Выборка отсутствует</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>query.isValid</wgt:expression>
+                                    <wgt:tooltip>Выборка не валидна</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:sub-menu>
+                                <!--<ctrl:file-upload id="uploadTemplate" label="Загрузить шаблон" upload-url="/frontend/xlsxReport/template/upload" types=".xls;.xlsx" css-class="upload-template-label"/>-->
+                                <!--<wgt:menu-item id="uploadTemplate" label="Загрузить файл шаблона" type="textAndIcon" icon="icomoon-folder-download">-->
+                                <!--<wgt:a href="xlsxReport/template/upload" target="newWindow"/>-->
+                                <!--</wgt:menu-item>-->
+
+                                <!--<wgt:menu-item id="uploadTemplate" label="Загрузить файл шаблона" type="textAndIcon" icon="icomoon-folder-download">-->
+                                <!--<wgt:a href="xlsxReport/template/upload" target="newWindow"/>-->
+                                <!--</wgt:menu-item>-->
+                                <wgt:menu-item id="downloadTemplate" label="Скачать файл шаблона" type="textAndIcon" context="true" icon="icomoon-folder-upload">
+                                    <wgt:a href=":uploadTemplate.url:"/>
+                                    <wgt:conditions>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>
+                                                typeof template.id != 'undefined' &amp;&amp; template.id != null &amp;&amp; template.id != ''
+                                            </wgt:expression>
+                                            <wgt:tooltip>Шаблон отсутсвует</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                    </wgt:conditions>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+
+
+
+                        <!--<wgt:menu-item id="uploadTemplate" label="Загрузить файл шаблона" type="textAndIcon" icon="icomoon-folder-download">-->
+                            <!--<wgt:a href="xlsxReport/template/upload" target="newWindow"/>-->
+                        <!--</wgt:menu-item>-->
+                        <!--<wgt:menu-item id="downloadTemplate" label="Скачать файл шаблона" type="textAndIcon" context="true" icon="icomoon-folder-upload">-->
+                            <!--<wgt:a href="xlsxReport/template/download?reportId=:id:"/>-->
+                            <!--<wgt:conditions>-->
+                                <!--<wgt:enabling-condition>-->
+                                    <!--<wgt:expression>-->
+                                        <!--typeof template.id != 'undefined' &amp;&amp; template.id != null &amp;&amp; template.id != ''-->
+                                    <!--</wgt:expression>-->
+                                    <!--<wgt:tooltip>Шаблон отсутсвует</wgt:tooltip>-->
+                                <!--</wgt:enabling-condition>-->
+                            <!--</wgt:conditions>-->
+                        <!--</wgt:menu-item>-->
+                        <wgt:menu-item id="printWithoutForm" label="Печать" icon="glyphicon glyphicon-print" context="true">
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>form.id == null</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        typeof template.id != 'undefined' &amp;&amp; template.id != null &amp;&amp; typeof query.id != 'undefined' &amp;&amp; query.id != null
+                                    </wgt:expression>
+                                    <wgt:tooltip>Шаблон отсутсвует</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:a href="xlsxReport?reportId={id}" target="newWindow"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="printWithForm" label="Печать" icon="glyphicon glyphicon-print">
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>form.id != null</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        typeof template.id != 'undefined' &amp;&amp; template.id != null
+                                    </wgt:expression>
+                                    <wgt:tooltip>Шаблон отсутсвует</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        typeof query.id != 'undefined' &amp;&amp; query.id != null
+                                    </wgt:expression>
+                                    <wgt:tooltip>Выборка отсутсвует</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:show-modal-form master-field-id="id" detail-field-id="reportId" form-id="{form.id}" page-name="{reports.name}">
+                                <!--<wgt:pre-filters>-->
+                                <!--<wgt:pre-filter field-id="reportId" ref="id"></wgt:pre-filter>-->
+                                <!--</wgt:pre-filters>-->
+                            </wgt:show-modal-form>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>

@@ -1,0 +1,403 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>medicalHistory</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from hsp_record hr
+                inner join mc_step step on step.id = hr.id
+                inner join mc_case c on c.id = step.case_id
+                inner join mc_case_type ct on ct.id = c.case_type_id
+                inner join pci_patient p on p.id = c.patient_id
+                inner join pim_individual i on i.id = p.id
+                left outer join pim_gender gender on gender.id = i.gender_id
+                left outer join pim_department department on department.id = hr.department_id
+                left outer join fin_funding_source_type funding on funding.id = c.funding_id
+                left outer join mc_diagnosis mcdiag on mcdiag.id = c.main_diagnos_id
+                left outer join md_diagnosis diagnosis on diagnosis.id = mcdiag.diagnos_id
+                <!--LEFT OUTER JOIN md_standard standard on mcdiag.standard_id = standard.id-->
+                left outer join md_care_provision_condition pc on pc.id = c.provision_condition_id
+                left join md_mes on md_mes.id = step.mes_id
+                left join mc_mes_duration mesd on mesd.md_mes = md_mes.id and mesd.care_regimen_id = step.regimen_id
+                left join md_clinical_statistical_group on md_clinical_statistical_group.id = step.csg_id
+                left join mc_vmp_type on mc_vmp_type.id = step.vmp_type_id
+                left join mc_vmp_method on mc_vmp_method.id = step.vmp_method_id
+                where ct.case_mode_id = 2 and not exists(select 1 from hsp_record h2 inner join mc_step s2 on s2.id = h2.id where s2.case_id = c.id and h2.previous_id = hr.id) and :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(hr) from hsp_record hr
+                inner join mc_step step on step.id = hr.id
+                inner join mc_case c on c.id = step.case_id
+                inner join mc_case_type ct on ct.id = c.case_type_id
+                inner join pci_patient p on p.id = c.patient_id
+                inner join pim_individual i on i.id = p.id
+                where ct.case_mode_id = 2 and not exists(select 1 from hsp_record h2 inner join mc_step s2 on s2.id = h2.id where s2.case_id = c.id and h2.previous_id = hr.id) and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <!--<field>-->
+            <!--<id>clinicId</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>c.clinic_id</expression>-->
+            <!--<search>:expression = :clinicId</search>-->
+        <!--</field>-->
+
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>hr.id</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>c.id = :caseId</search>
+        </field>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>step.case_id</expression>
+        </field>
+
+        <field>
+            <id>case.step.id</id>
+            <domain>integer</domain>
+            <expression>hr.id</expression>
+        </field>
+
+        <field>
+            <id>case.step.case.id</id>
+            <domain>integer</domain>
+            <expression>step.case_id</expression>
+        </field>
+
+        <field>
+            <id>case.step.patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>case.accountId</id>
+            <domain>integer</domain>
+            <expression>(select account_id from d_accounting.account_case where case_id = c.id)</expression>
+        </field>
+
+        <field>
+            <id>case.financialTypeId</id>
+            <domain>integer</domain>
+            <expression>
+                (select ffs.id from
+                inventory.funding_source ffs
+                inner join inventory.funding_source_payment_type fspt1 on fspt1.funding_source_id = ffs.id
+                inner join fin_funding_source_type ffst on ffst.id=fspt1.payment_type_id
+                where hr.funding_id = ffst.id and fspt1.is_check_accounting = true
+                and (fspt1.org_id is null or fspt1.org_id = c.clinic_id)
+                and (ffs.org_id is null or ffs.org_id = c.clinic_id)
+                order by fspt1.funding_source_id asc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>case.financialTypeName</id>
+            <domain>string</domain>
+            <expression>
+                (select ffs.name from
+                inventory.funding_source ffs
+                inner join inventory.funding_source_payment_type fspt1 on fspt1.funding_source_id = ffs.id
+                inner join fin_funding_source_type ffst on ffst.id=fspt1.payment_type_id
+                where hr.funding_id=ffst.id and fspt1.is_check_accounting = true
+                and (fspt1.org_id is null or fspt1.org_id = c.clinic_id)
+                and (ffs.org_id is null or ffs.org_id = c.clinic_id)
+                order by fspt1.funding_source_id asc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>case.financialId</id>
+            <domain>string</domain>
+            <expression>hr.funding_id
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>i.surname || ' ' || i.name || ' ' || i.patr_name</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>uidForTitle</id>
+            <domain>string</domain>
+            <expression>coalesce('№' || c.uid || ',', '')</expression>
+        </field>
+
+        <field>
+            <id>case.patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>case.fundingSourceType.id</id>
+            <domain>integer</domain>
+            <expression>c.funding_id</expression>
+        </field>
+
+        <field>
+            <id>case.organization.id</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>case.step.department.id</id>
+            <domain>integer</domain>
+            <expression>hr.department_id</expression>
+        </field>
+
+        <!--Вкладка "Случай"-->
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <expression>c.uid</expression>
+        </field>
+
+        <field>
+            <id>admissionDate</id>
+            <domain>string</domain>
+            <expression>to_char(step.admission_date ,'dd.mm.yyyy')</expression>
+        </field>
+
+        <field>
+            <id>doctor</id>
+            <domain>string</domain>
+            <expression>
+                (select concat(indiv.surname, ' ', indiv.name, ' ', indiv.patr_name) from sr_res_group res_group
+                inner join pim_employee_position empl_posit on empl_posit.id = res_group.responsible_id
+                inner join pim_employee empl on empl.id = empl_posit.employee_id
+                inner join pim_individual indiv on indiv.id = empl.individual_id where res_group.id = step.res_group_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>issuePlannedDate</id>
+            <name>Дата выписки по плану</name>
+            <domain>date</domain>
+            <expression>hr.issue_planned_date</expression>
+        </field>
+
+        <field>
+            <id>financialType</id>
+            <domain>string</domain>
+            <expression>funding.name</expression>
+        </field>
+
+        <field>
+            <id>funding.id</id>
+            <domain>integer</domain>
+            <expression>funding.id</expression>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>outcomeDate</id>
+            <domain>date</domain>
+            <expression>to_char(step.outcome_date, 'dd.mm.yyyy')</expression>
+        </field>
+
+        <field>
+            <id>department</id>
+            <domain>string</domain>
+            <expression>department.name</expression>
+        </field>
+
+        <field>
+            <id>departmentId</id>
+            <domain>integer</domain>
+            <expression>department.id</expression>
+        </field>
+
+        <field>
+            <id>bedDaysAmount</id>
+            <domain>integer</domain>
+            <expression>(select get_bed_day_amount_n2o(c.id))</expression>
+        </field>
+
+        <field>
+            <id>diet</id>
+            <domain>string</domain>
+            <expression>
+                (select value from ehr_protocol_query_result pqr
+                inner join ehr_protocol_query pq on pq.id = pqr.query_id
+                where protocol_id =
+                (select p.id from md_srv_rendered msr
+                inner join sr_srv_rendered ssr on ssr.id = msr.id
+                inner join sr_service s on s.id = ssr.service_id
+                inner join sr_srv_ehr_opt sehrp on sehrp.service_id = s.id and template like '%naznachenie diet.opt%'
+                inner join md_srv_protocol p on p.srv_rendered_id = ssr.id
+                where msr.case_id = c.id order by ssr.bdate desc limit 1
+                ) and pq.code = 'diet')
+            </expression>
+        </field>
+
+        <field>
+            <id>provisionCondition.id</id>
+            <domain>integer</domain>
+            <expression>pc.id</expression>
+        </field>
+
+        <field>
+            <id>provisionCondition.name</id>
+            <domain>string</domain>
+            <expression>pc.name</expression>
+        </field>
+
+        <!--Вкладка "Стандарт"-->
+
+        <field>
+            <id>diagnosisName</id>
+            <domain>string</domain>
+            <expression>diagnosis.code || ' ' || diagnosis.name</expression>
+        </field>
+
+        <field>
+            <id>standard</id>
+            <domain>string</domain>
+            <!--<expression>standard.name</expression>-->
+            <expression>coalesce(' МЭС : ' || md_mes.code || ' ' || md_mes.name, '') ||
+                        coalesce( case when mesd.delta is null then ' ' || mesd.duration else ' ' || mesd.duration - mesd.delta || '-' || mesd.duration + mesd.delta end, '') ||
+                        coalesce(' ; КСГ : ' || coalesce(md_clinical_statistical_group.code || ' ' || md_clinical_statistical_group.name, md_clinical_statistical_group.name), '') ||
+                        coalesce(' ; ВМП : ' || mc_vmp_type.code || ' ' || mc_vmp_type.name, '') ||
+                        coalesce(' ; Метод ВМП : ' || mc_vmp_method.code || ' ' || mc_vmp_method.name, '')
+            </expression>
+        </field>
+
+        <field>
+            <id>mes.id</id>
+            <domain>integer</domain>
+            <expression>md_mes.id</expression>
+        </field>
+
+        <!--Шапка-->
+        <field>
+            <id>birthDate</id>
+            <domain>string</domain>
+            <expression>to_char(i.birth_dt, 'DD.MM.YYYY') || ' (' || extract(year from AGE(NOW(), i.birth_dt)) || ')' </expression>
+        </field>
+
+        <field>
+            <id>gender</id>
+            <domain>string</domain>
+            <expression>gender.name</expression>
+        </field>
+
+        <field>
+            <id>patientName</id>
+            <domain>string</domain>
+            <expression>coalesce(i.surname, '') || ' ' || coalesce(i.name, '') || ' ' || coalesce(i.patr_name, '')</expression>
+        </field>
+
+        <!--Для фильтров-->
+
+        <field>
+            <id>regimenId</id>
+            <domain>integer</domain>
+            <expression>step.regimen_id</expression>
+        </field>
+
+        <!--todo: Значения из настроек-->
+        <field>
+            <id>avgBedDays</id>
+            <domain>integer</domain>
+            <expression>
+                (select case when sv.value is not null and sv.value != '' then sv.value else s.default_value end from cmn_setting s
+                left join cmn_setting_value sv on sv.setting_id = s.id
+                left join cmn_scope sc on sc.id = sv.scope_id
+                left join cmn_scope_type st on st.id = sc.type_id and st.code = 'Global'
+                where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.avgBedDays' limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>minimumDuration</id>
+            <domain>integer</domain>
+            <expression>
+                (select case when sv.value is not null and sv.value != '' then sv.value else s.default_value end from cmn_setting s
+                left join cmn_setting_value sv on sv.setting_id = s.id
+                left join cmn_scope sc on sc.id = sv.scope_id
+                left join cmn_scope_type st on st.id = sc.type_id and st.code = 'Global'
+                where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.minimumDuration' limit 1)
+            </expression>
+        </field>
+        <field>
+            <id>diet_f.id</id>
+            <domain>integer</domain>
+            <expression><![CDATA[(
+                select md.id
+                from mc_case_diet as mcd, md_diet as md
+                where mcd.from_dt <= now() and (mcd.to_dt >= now() or mcd.to_dt is null) and mcd.case_id = c.id and mcd.diet_id = md.id limit 1
+            )]]></expression>
+        </field>
+        <field>
+            <id>diet_f.name</id>
+            <domain>string</domain>
+            <expression><![CDATA[(
+                select md.name
+                from mc_case_diet as mcd, md_diet as md
+                where (mcd.from_dt >= now() (mcd.to_dt >= now() or mcd.to_dt is null)) and mcd.case_id = c.id and mcd.diet_id = md.id limit 1
+            )]]></expression>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>isRegisteredAccident</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when (select ma.id from mc_accident ma where ma.case_id = c.id)
+                is not null then true else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>isN2OModuleActive</id>
+            <domain>boolean</domain>
+            <expression>
+                (select case when sv.value is not null and sv.value != '' then sv.value::boolean else s.default_value::boolean end
+                from cmn_setting s
+                left join cmn_setting_value sv on sv.setting_id = s.id
+                where s.code='cz.atria.md.sicklist.setting.SicklistSettings.N2OModuleEnabled' union all select 'false'::boolean limit 1)
+            </expression>
+        </field>
+
+    </fields>
+
+
+</query>

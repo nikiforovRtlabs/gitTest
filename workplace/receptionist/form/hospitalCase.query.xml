@@ -1,0 +1,628 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hospitalCase</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from mc_case c
+                inner join pci_patient pat on pat.id = c.patient_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+                left outer join fin_funding_source_type fund on fund.id = c.funding_id
+                left outer join md_referral r on r.id = c.referral_id
+                left outer join pim_organization ref_org on ref_org.id = r.ref_organization_id
+                left outer join pim_department ref_dep on ref_dep.id = r.ref_department_id
+                left outer join md_diagnosis ref_diag on ref_diag.id = r.diagnosis_id
+                left outer join md_referral_type ref_type on r.referral_type_id = ref_type.id
+                left outer join mc_admission_reason admission_reason on admission_reason.id = c.admission_reason_id
+                left outer join mc_time_gone time_gone on time_gone.id = c.time_gone_id
+                left outer join mc_repeat_count repeat_count on repeat_count.id = c.repeat_count_id
+                left outer join md_care_providing_form on md_care_providing_form.id = c.care_providing_form_id
+                left outer join mc_drunkenness_type drunkenness_type on drunkenness_type.id = c.drunkenness_type_id
+                left outer join mc_transporting_type transporting_type on transporting_type.id = c.transporting_type_id
+                left outer join mc_case_init_goal on mc_case_init_goal.id = c.init_goal_id
+                left outer join mc_hsp_canal hc on hc.id = c.hsp_canal_id
+                left outer join mc_severity_level sl on sl.id = c.severity_level_id
+
+                left outer join mc_attendant att on att.case_id = c.id
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(c)
+                from mc_case c
+                inner join pci_patient pat on pat.id = c.patient_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+                left outer join fin_funding_source_type fund on fund.id = c.funding_id
+                left outer join md_referral r on r.id = c.referral_id
+                left outer join pim_organization ref_org on ref_org.id = r.ref_organization_id
+                left outer join pim_department ref_dep on ref_dep.id = r.ref_department_id
+                left outer join md_diagnosis ref_diag on ref_diag.id = r.diagnosis_id
+                left outer join md_referral_type ref_type on r.referral_type_id = ref_type.id
+                left outer join mc_admission_reason admission_reason on admission_reason.id = c.admission_reason_id
+                left outer join mc_time_gone time_gone on time_gone.id = c.time_gone_id
+                left outer join mc_repeat_count repeat_count on repeat_count.id = c.repeat_count_id
+                left outer join md_care_providing_form  on md_care_providing_form.id = c.care_providing_form_id
+                left outer join mc_drunkenness_type drunkenness_type on drunkenness_type.id = c.drunkenness_type_id
+                left outer join mc_transporting_type transporting_type on transporting_type.id = c.transporting_type_id
+                left outer join mc_case_init_goal on mc_case_init_goal.id = c.init_goal_id
+                left outer join mc_hsp_canal hc on hc.id = c.hsp_canal_id
+                left outer join mc_severity_level sl on sl.id = c.severity_level_id
+
+                left outer join mc_attendant att on att.case_id = c.id
+                where :where
+            </n2o:count-query>
+
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>isRegisteredAccident</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when (select ma.id from mc_accident ma where ma.case_id = c.id)
+                is not null then true else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>secondStepId</id>
+            <domain>integer</domain>
+            <expression>
+                (select r.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_step s2 on s2.case_id = c.id
+                inner join hsp_record r2 on r2.id = s2.id and r2.previous_id is null and r.previous_id = r2.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>isFirstStepRefusal</id>
+            <domain>boolean</domain>
+            <expression>
+                (select result.is_refusal from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_step_result result on result.id = s.result_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>careRegimenId</id>
+            <domain>integer</domain>
+            <expression>(select id from mc_care_regimen where name = 'Стационар круглосуточный' and (to_dt is NULL or to_dt >= now()) limit 1)</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>pat_ind.id</expression>
+        </field>
+
+
+        <field>
+            <id>uidForTitle</id>
+            <domain>string</domain>
+            <expression>coalesce('№' || c.uid || ',', '')</expression>
+        </field>
+
+        <field>
+            <id>patientName</id>
+            <domain>string</domain>
+            <expression>coalesce(pat_ind.surname, '') || ' ' || coalesce(pat_ind.name, '') || ' ' || coalesce(pat_ind.patr_name, '')</expression>
+        </field>
+
+        <field>
+            <id>caseUid</id>
+            <domain>string</domain>
+            <expression>c.uid</expression>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>fund.id</expression>
+        </field>
+
+        <field>
+            <id>financialType.name</id>
+            <domain>string</domain>
+            <expression>fund.name</expression>
+        </field>
+
+        <field>
+            <id>isFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>c.is_finance_type_control</expression>
+        </field>
+
+        <field>
+            <id>initialIsFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>c.is_finance_type_control</expression>
+        </field>
+
+        <!--rreferral-->
+        <field>
+            <id>rreferral.id</id>
+            <domain>integer</domain>
+            <expression>r.id</expression>
+        </field>
+
+        <field>
+            <id>rreferralType</id>
+            <domain>integer</domain>
+            <expression>(select id from md_referral_type where code = '2' limit 1)</expression>
+        </field>
+
+        <field>
+            <id>rankin.id</id>
+            <domain>integer</domain>
+            <expression>c.rankin_scale_for_admission_id</expression>
+        </field>
+
+        <field>
+            <id>rankinOutId</id>
+            <domain>integer</domain>
+            <expression>c.rankin_scale_on_disposal_id</expression>
+        </field>
+
+        <field>
+            <id>careLevel.id</id>
+            <domain>integer</domain>
+            <expression>c.care_level_id</expression>
+        </field>
+
+        <field>
+            <id>paymentMethod.id</id>
+            <domain>integer</domain>
+            <expression>c.payment_method_id</expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>rreferral.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<expression>coalesce(nullif(coalesce(ref_type.name,'')||' ', '-->
+                <!--'),'')||coalesce(nullif('№'||coalesce(r.order_number,'')||' ','№ '),'')-->
+                <!--||'от '||to_char(r.referral_date, 'DD.MM.YYYY')||' '||coalesce(ref_org.short_name,'')</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>referralOrganization.id</id>
+            <domain>integer</domain>
+            <expression>ref_org.id</expression>
+        </field>
+
+        <field>
+            <id>referralOrganization.name</id>
+            <domain>string</domain>
+            <expression>coalesce(ref_org.short_name, ref_org.full_name)</expression>
+        </field>
+
+        <field>
+            <id>referralDepartment.id</id>
+            <domain>integer</domain>
+            <expression>ref_dep.id</expression>
+        </field>
+
+        <field>
+            <id>referralDepartment.name</id>
+            <domain>string</domain>
+            <expression>ref_dep.name</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosis.id</id>
+            <domain>integer</domain>
+            <expression>ref_diag.id</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosis.name</id>
+            <domain>string</domain>
+            <expression>ref_diag.code || ' ' || ref_diag.name</expression>
+        </field>
+
+        <field>
+            <id>referralNumber</id>
+            <domain>string</domain>
+            <expression>r.order_number</expression>
+        </field>
+
+        <field>
+            <id>referralDate</id>
+            <domain>date</domain>
+            <expression>r.referral_date</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosisComment</id>
+            <domain>string</domain>
+            <expression>r.diagnosis_comment</expression>
+        </field>
+
+        <field>
+            <id>comment</id>
+            <domain>string</domain>
+            <expression>r.comment</expression>
+        </field>
+
+        <!--case-->
+        <field>
+            <id>careProvidingForm.id</id>
+            <domain>integer</domain>
+            <expression>md_care_providing_form.id</expression>
+        </field>
+
+        <field>
+            <id>careProvidingForm.name</id>
+            <domain>string</domain>
+            <expression>md_care_providing_form.name</expression>
+        </field>
+
+        <field>
+            <id>drunkennessType.id</id>
+            <domain>integer</domain>
+            <expression>drunkenness_type.id</expression>
+        </field>
+
+        <field>
+            <id>drunkennessType.name</id>
+            <domain>string</domain>
+            <expression>drunkenness_type.name</expression>
+        </field>
+
+        <field>
+            <id>admissionReason.id</id>
+            <domain>integer</domain>
+            <expression>admission_reason.id</expression>
+        </field>
+
+        <field>
+            <id>admissionReason.name</id>
+            <domain>string</domain>
+            <expression>admission_reason.name</expression>
+        </field>
+
+        <field>
+            <id>transportingType.id</id>
+            <domain>integer</domain>
+            <expression>transporting_type.id</expression>
+        </field>
+
+        <field>
+            <id>transportingType.name</id>
+            <domain>string</domain>
+            <expression>transporting_type.name</expression>
+        </field>
+
+        <field>
+            <id>whoDeliveredCode</id>
+            <domain>string</domain>
+            <expression>c.who_delivered_code</expression>
+        </field>
+
+        <field>
+            <id>whoDeliveredTeamNumber</id>
+            <domain>string</domain>
+            <expression>c.who_delivered_team_number</expression>
+        </field>
+
+        <field>
+            <id>timeGone.id</id>
+            <domain>integer</domain>
+            <expression>time_gone.id</expression>
+        </field>
+
+        <field>
+            <id>timeGone.name</id>
+            <domain>string</domain>
+            <expression>time_gone.name</expression>
+        </field>
+
+        <field>
+            <id>notesToWork</id>
+            <domain>string</domain>
+            <expression>c.notes_to_work</expression>
+        </field>
+
+        <field>
+            <id>initGoal.id</id>
+            <domain>integer</domain>
+            <expression>mc_case_init_goal.id</expression>
+        </field>
+
+        <field>
+            <id>initGoal.name</id>
+            <domain>string</domain>
+            <expression>mc_case_init_goal.name</expression>
+        </field>
+
+        <field>
+            <id>repeatCount.id</id>
+            <domain>integer</domain>
+            <expression>repeat_count.id</expression>
+        </field>
+
+        <field>
+            <id>repeatCount.name</id>
+            <domain>string</domain>
+            <expression>repeat_count.name</expression>
+        </field>
+
+
+        <!--first step-->
+
+        <field>
+            <id>firstStepId</id>
+            <domain>integer</domain>
+            <expression>
+                (select r.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+
+        <field>
+            <id>admissionDepartment.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select d.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join pim_department d on d.id = r.department_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>admissionDepartment.name</id>
+            <domain>string</domain>
+            <expression>
+                (select d.name from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join pim_department d on d.id = r.department_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>admissionDate</id>
+            <domain>date</domain>
+            <expression>
+                (select s.admission_date + coalesce(s.admission_time, '00:00')
+                from hsp_record r
+                inner join mc_step s on s.id = r.id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>admissionTime</id>
+            <domain>date</domain>
+            <expression>
+                (select s.admission_time from hsp_record r
+                inner join mc_step s on s.id = r.id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>stepCaseDiagnosisId</id>
+            <domain>integer</domain>
+            <expression>
+                (select mcd.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_diagnosis mcd on mcd.id = s.main_diagnosis_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>admissionDiagnosis.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select mdd.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_diagnosis mcd on mcd.id = s.main_diagnosis_id
+                inner join md_diagnosis mdd on mdd.id = mcd.diagnos_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>admissionDiagnosis.name</id>
+            <domain>string</domain>
+            <expression>
+                (select mdd.code|| ' ' || mdd.name from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_diagnosis mcd on mcd.id = s.main_diagnosis_id
+                inner join md_diagnosis mdd on mdd.id = mcd.diagnos_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>admissionDiagnosis.isInjury</id>
+            <domain>boolean</domain>
+            <expression>
+                (select mdd.code between 'S00' and 'T99' from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_diagnosis mcd on mcd.id = s.main_diagnosis_id
+                inner join md_diagnosis mdd on mdd.id = mcd.diagnos_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>admissionDiagnosisInjuryReason</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(tmp) from (
+                    select mdd.id as id, mdd.code|| ' ' || mdd.name as name from hsp_record r
+                    inner join mc_step s on s.id = r.id
+                    inner join mc_diagnosis mcd on mcd.id = s.main_diagnosis_id
+                    inner join md_diagnosis mdd on mdd.id = mcd.injury_reason_id
+                    where s.case_id = c.id and r.previous_id is null)
+                as tmp)
+            </expression>
+        </field>
+
+        <field>
+            <id>resGroupId</id>
+            <domain>integer</domain>
+            <expression>
+                (select rg.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join sr_res_group rg on rg.id = s.res_group_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select epr.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join sr_res_group rg on rg.id = s.res_group_id
+                inner join pim_employee_position_resource epr on epr.employee_position_id = rg.responsible_id
+                where s.case_id = c.id and r.previous_id is null limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>stepDiagnosisNotice</id>
+            <domain>string</domain>
+            <expression>
+                (select main_diag.note from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_diagnosis main_diag on main_diag.id = s.main_diagnosis_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>hspCanal.id</id>
+            <domain>integer</domain>
+            <expression>hc.id</expression>
+        </field>
+
+        <field>
+            <id>hspCanal.name</id>
+            <domain>string</domain>
+            <expression>hc.name</expression>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>isClosed</id>
+            <domain>boolean</domain>
+            <expression>c.closing_step_id is not null</expression>
+        </field>
+
+        <field>
+            <id>isTransferredFromClinical</id>
+            <domain>boolean</domain>
+            <expression>
+                (select count(s) > 2 from mc_step s
+                inner join hsp_record h on h.id=s.id
+                where s.case_id = c.id)
+            </expression>
+        </field>
+        
+        <field>
+            <id>attendant.id</id>
+            <domain>integer</domain>
+            <expression>att.id</expression>
+        </field>
+
+        <field>
+            <id>attendantIndiv.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select i.id from mc_attendant a
+                inner join pim_individual i on i.id = a.individual_id
+                where case_id = c.id limit 1)
+            </expression>
+        </field>
+        <field>
+            <id>attendantEntity.name</id>
+            <domain>string</domain>
+            <expression>
+                (select coalesce(i.surname || ' ' || i.name || ' ' || i.patr_name) from mc_attendant a
+                inner join pim_individual i on i.id = a.individual_id
+                where case_id = c.id limit 1)
+            </expression>
+        </field>
+        <field>
+            <id>mark</id>
+            <domain>integer</domain>
+            <expression>c.mark</expression>
+        </field>
+        <field>
+            <id>markMsg</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[
+                (case when c.mark <=3 and c.mark > 0 then true end) as markMsg
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>relatives</id>
+            <domain>boolean</domain>
+            <expression>
+                (case c.mark when 1 then true when 3 then true end) as relatives
+            </expression>
+        </field>
+        <field>
+            <id>institution</id>
+            <domain>boolean</domain>
+            <expression>
+                (case c.mark when 2 then true when 3 then true end) as institution
+            </expression>
+        </field>
+
+        <field>
+            <id>narcoticSubstance</id>
+            <domain>string</domain>
+            <expression>c.narcotic_substance</expression>
+        </field>
+
+        <field>
+            <id>whereFromDelivered</id>
+            <domain>string</domain>
+            <expression>c.where_from_delivered</expression>
+        </field>
+
+        <field>
+            <id>severityLevel.id</id>
+            <domain>integer</domain>
+            <expression>sl.id</expression>
+        </field>
+
+        <field>
+            <id>severityLevel.name</id>
+            <domain>string</domain>
+            <expression>sl.name</expression>
+        </field>
+    </fields>
+</query>

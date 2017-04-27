@@ -1,0 +1,168 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_prescription</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from
+                (select
+                    t.*,
+                    (case when t.count_day is null
+                        then :formToDt
+                        else case when (t.fromDt + (t.count_day  * '24:00:00'::interval)) >= :formToDt
+                            then :formToDt
+                            else (t.fromDt + (t.count_day  * '24:00:00'::interval))
+                        end
+                    end) as toDt
+
+                    from
+                    (select *,
+                        (case when begin_day is null or begin_day = 1
+                            then :formFromDt
+                            else case when :formToDt > (cast(:formFromDt as timestamp) + ((begin_day - 1)  * '24:00:00'::interval))
+                                then (cast(:formFromDt as timestamp) + ((begin_day - 1)  * '24:00:00'::interval))
+                                else null
+                            end
+                        end) as fromDt
+                        from services_template_prescription
+                    ) t
+                ) stp
+                where stp.fromDt is not null and stp.toDt is not null
+                    and :where
+                order by stp.id, :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(stp)
+                from
+                (select
+                t.*,
+                (case when t.count_day is null
+                then :formToDt
+                else case when (t.fromDt + (t.count_day  * '24:00:00'::interval)) >= :formToDt
+                then :formToDt
+                else (t.fromDt + (t.count_day  * '24:00:00'::interval))
+                end
+                end) as toDt
+
+                from
+                (select *,
+                (case when begin_day is null or begin_day = 1
+                then :formFromDt
+                else case when :formToDt > (cast(:formFromDt as timestamp) + ((begin_day - 1)  * '24:00:00'::interval))
+                then (cast(:formFromDt as timestamp) + ((begin_day - 1)  * '24:00:00'::interval))
+                else null
+                end
+                end) as fromDt
+                from services_template_prescription
+                ) t
+                ) stp
+                where stp.fromDt is not null and stp.toDt is not null
+                    and :where
+            </n2o:count-query>
+            <n2o:alias>st</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>stp.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Препарат (Доза)</name>
+            <expression>(
+                select array_to_string(array_agg(name_hold), ' + ')
+                from (
+                select h.name
+                || coalesce(', ' || ft.short_name, '')
+                || coalesce(', ' || stph.hold_con_value || coalesce(' ' || (select name from cmn_measure where id = stph.hold_con_measure_id),''), '')
+                || coalesce(', ' || trim(to_char(stph.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' ' || (select name from cmn_measure where id = stph.hold_dose_measure_id),''), '')
+                || coalesce(', ' || mnei.name, '')
+                || coalesce(' (' || trim(to_char(stph.hold_dose_value * stph.count, 'FM9999990.999'), '.') || ' ' || (select name from cmn_measure where id = stph.hold_dose_measure_id) || ') ', '')
+                as name_hold
+                from services_template_prescription stpp
+                inner join services_template_prescription_holding stph 	on stph.prescription_id = stpp.id
+                inner join inventory.holding h				        on h.id = stph.holding_id
+                left join cmn_measure mnei       				    on mnei.id = stph.hold_mnei_id
+                left join inventory.form_type ft 				    on ft.id = stph.hold_form_type_id
+                where stpp.id = stp.id
+                order by stph.id
+                ) hold
+            )</expression>
+        </field>
+
+        <field>
+            <id>administrationRoute</id>
+            <domain>string</domain>
+            <name>Способ введения</name>
+            <expression>(select full_name from md_administration_route where id = stp.administration_route_id)</expression>
+        </field>
+
+        <field>
+            <id>periodicity</id>
+            <domain>string</domain>
+            <name>Периодичность</name>
+            <expression>(select name from hospital.prescription_periodicity where id = stp.periodicity_id)</expression>
+        </field>
+
+        <field>
+            <id>formFromDt</id>
+            <domain>date</domain>
+            <expression>:formFromDt</expression>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>formToDt</id>
+            <domain>date</domain>
+            <expression>:formToDt</expression>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>period</id>
+            <domain>string</domain>
+            <name>Период</name>
+            <expression>
+                (case when :formFromDt::date is null or :formToDt::date is null then null else to_char(stp.fromDt, 'DD.MM.YYYY') || '-' || to_char(stp.toDt, 'DD.MM.YYYY') end)
+            </expression>
+        </field>
+
+        <field>
+            <id>fromDt</id>
+            <domain>date</domain>
+            <expression>stp.fromDt</expression>
+        </field>
+
+        <field>
+            <id>toDt</id>
+            <domain>date</domain>
+            <expression>stp.toDt</expression>
+        </field>
+
+        <field>
+            <id>status</id>
+            <domain>string</domain>
+            <name>Статус назначения</name>
+            <expression>'Не назначено'</expression>
+        </field>
+
+        <field>
+            <id>template.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>stp.template_id = :template.id</search>
+        </field>
+
+    </fields>
+</query>

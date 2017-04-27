@@ -1,0 +1,139 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Спецификация акта списания</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/write-off-doc/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc.id" mapping="['docId']"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+                <param name="amountWithVat" mapping="['amount']"/>
+                <param name="priceWithVat" mapping="['price']"/>
+                <param name="storeSupply.id" mapping="['storeSupId']"/>
+                <param name="quantity" mapping="['quantity']"/>
+                <param name="mneiQuantity" mapping="['mneiQuantity']"/>
+                <param name="note" mapping="['note']"/>
+                <param name="status.id" mapping="['statusId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Спецификация добавлена</success-text>
+        </action>
+
+        <action id="delete" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from inventory.write_off_spec spec where spec.id= :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить спецификацию?</confirmation-text>
+            <success-text>Спецификация удалена</success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="execute" form-submit-label="Провести" name="Провести">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/inventory/execute/specList
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="executeDate.id" mapping="['executeDate']" domain="string"/>
+                <param name="docType.name" mapping="['docType']"/>
+                <param name="empPos.id" mapping="['empPosId']"/>
+                <param name="store.id" mapping="['storeId']"/>
+                <param name="specIdList*.id" mapping="['specIdList']" domain="integer[]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Операция проводки завершена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="emplPosIsEmpty"/>
+            </validations>
+        </action>
+
+        <action id="cancel" name="Отменить проводку">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/inventory/execute/cancel/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['specId']"/>
+                <param name="docType.name" mapping="['docType']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <confirmation-text>Вы действительно хотите отменить проводку спецификации?</confirmation-text>
+            <success-text>Проводка спецификация отменена</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="quantityValidation" level="error">
+            <expression>
+                <![CDATA[ quantity == null || (quantity!=null && actualBalanceArr!=null && Number(quantity) <= Number(actualBalanceArr))]]></expression>
+            <message>Значение не может превышать "Фактический остаток"</message>
+        </condition>
+
+        <condition id="quantityValidationZero" level="error">
+            <expression>
+                <![CDATA[ quantity == null || (quantity!=null && quantity!=null && Number(quantity) >= 0)]]></expression>
+            <message>Значение должно быть > 0</message>
+        </condition>
+
+        <condition id="mneiQuantityValidation" level="error">
+            <expression>
+                <![CDATA[ mneiQuantity == null || (mneiQuantity!=null && actualBalanceMnei!=null && Number(mneiQuantity) <= Number(actualBalanceMnei))]]></expression>
+            <message>Значение не может превышать "Фактический остаток в МНЕИ"</message>
+        </condition>
+
+        <condition id="mneiQuantityValidationZero" level="error">
+            <expression>
+                <![CDATA[ mneiQuantity == null || (mneiQuantity!=null && mneiQuantity!=null && Number(mneiQuantity) >= 0)]]></expression>
+            <message>Значение должно быть > 0</message>
+        </condition>
+
+        <condition id="restQuantityValidation" level="error">
+            <expression>
+                <![CDATA[ restQuantity == null || (restQuantity!=null && actualBalanceArr!=null && Number(restQuantity) <= Number(actualBalanceArr))]]></expression>
+            <message>Значение не может превышать "Фактический остаток"</message>
+        </condition>
+
+        <condition id="restMneiQuantityValidation" level="error">
+            <expression>
+                <![CDATA[ restMneiQuantity == null || (restMneiQuantity!=null && actualBalanceMnei!=null && Number(restMneiQuantity) <= Number(actualBalanceMnei) )]]></expression>
+            <message>Значение не может превышать "Фактический остаток в МНЕИ"</message>
+        </condition>
+
+        <condition id="restQuantityValidationZero" level="error">
+            <expression>
+                <![CDATA[ restQuantity == null || (restQuantity!=null && actualBalanceArr!=null && Number(restQuantity) >= 0)]]></expression>
+            <message>Значение должно быть > 0</message>
+        </condition>
+        <condition id="restMneiQuantityValidationZero" level="error">
+            <expression>
+                <![CDATA[ restMneiQuantity == null || (restMneiQuantity!=null && restMneiQuantity!=null && Number(restMneiQuantity) >= 0)]]></expression>
+            <message>Значение должно быть > 0</message>
+        </condition>
+
+        <condition id="emplPosIsEmpty" level="error">
+            <message>Операция не может быть завершена. Не указана должность в контексте пользователя</message>
+            <expression>typeof empPos!='undefined' &amp;&amp; empPos!=null &amp;&amp; empPos.id!=null</expression>
+        </condition>
+    </validations>
+</object>

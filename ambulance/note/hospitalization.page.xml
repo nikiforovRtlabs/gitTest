@@ -1,0 +1,105 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <!--<id>hospitalization</id>-->
+    <name>Госпитализация</name>
+    <object-id>hospitalization</object-id>
+    <layout>n2o/layout/single</layout>
+    <modal-width>50%</modal-width>
+    <containers>
+        <container id="single" place="single">
+            <wgt:form>
+                <wgt:name>Госпитализация</wgt:name>
+                <wgt:query-id>hospitalization</wgt:query-id>
+                <fs:field-set>
+                    <!--<fs:row>-->
+                        <!--<ctrl:input-text id="call_dt" readonly="true" css-class="n2o-control-4 n2o-label-2"/>-->
+                        <!--<ctrl:input-text id="call_number" readonly="true" css-class="n2o-control-3 n2o-label-2"/>-->
+                        <!--<ctrl:input-text id="call_time" readonly="true" css-class="n2o-control-5 n2o-label-2"/>-->
+                    <!--</fs:row>-->
+                    <ctrl:classifier id="diagnosis" label="Диагноз-повод" search-as-you-type="true" css-class="n2o-control-9 n2o-label-4">
+                        <ctrl:query query-id="amb_diagnosis" value-field-id="id" label-field-id="codename"/>
+                    </ctrl:classifier>
+                    <!--<fs:row>-->
+                        <ctrl:classifier id="to_org" label="Организация" search-as-you-type="true" css-class="n2o-control-9 n2o-label-4" required="true" autoselect-alone="false">
+                            <ctrl:query query-id="amborg" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="party_role.id" value="2"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="to_department" label="Подразделение" search-as-you-type="true" css-class="n2o-control-9 n2o-label-4" autoselect-alone="true" depends-on="to_org">
+                            <ctrl:query query-id="ambdep" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" ref="to_org.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                    <!--RMISNNO-205 задача на set-value-expression и validation-->
+                    <!--todo RMISNNO-206 задача на ограничения уровня отображения-->
+                    <!--<ctrl:hidden id="toaddr_data">-->
+                        <!--<ctrl:set-value-expression on="to_org,to_department" on-load="false" on-non-empty="true">-->
+                            <!--if ((typeof to_department != 'undefined') &amp;&amp;(to_department != null)  &amp;&amp;(to_department.addr != null)){-->
+                            <!--var o = new Object();-->
+                            <!--o.id = to_department.addr;-->
+                            <!--o.displayName = to_department.addrname;-->
+                            <!--o;-->
+                            <!--} else if ((typeof to_org != 'undefined') &amp;&amp;(to_org != null)  &amp;&amp;(to_org.addr != null)) {-->
+                            <!--var o = new Object();-->
+                            <!--o.id = to_org.addr;-->
+                            <!--o.displayName = to_org.addrname;-->
+                            <!--o;-->
+                            <!--} else null;-->
+                        <!--</ctrl:set-value-expression>-->
+                    <!--</ctrl:hidden>-->
+                    <!--todo HOTANALYTICS-2432 address_parent = ref-->
+                    <rc:address id="toaddr_data" label="Адрес" css-class="n2o-control-9 n2o-label-4">
+                        <rc:set-value-expression on="to_org,to_department" on-load="false" on-non-empty="true" on-invisible="false">
+                            if ((typeof to_department != 'undefined') &amp;&amp;(to_department != null)  &amp;&amp;(to_department.addr != null)){
+                            var o = new Object();
+                            o.id = to_department.addr;
+                            o.displayName = to_department.addrname;
+                            o;
+                            } else if ((typeof to_org != 'undefined') &amp;&amp;(to_org != null)  &amp;&amp;(to_org.addr != null)) {
+                            var o = new Object();
+                            o.id = to_org.addr;
+                            o.displayName = to_org.addrname;
+                            o;
+                            } else null;
+                        </rc:set-value-expression>
+                    </rc:address>
+
+                    <ctrl:input-text id="to_addr_descr" css-class="n2o-control-9 n2o-label-4"/>
+                    <ctrl:input-text id="descr" css-class="n2o-control-9 n2o-label-4"/>
+                </fs:field-set>
+                <wgt:action-menu>
+                    <wgt:menu-item id="create" label="Установить(Ins)" context="true" key="Insert">
+                        <wgt:edit refresh-after-submit="true">
+                            <wgt:invoke-action action-id="create"/>
+                        </wgt:edit>
+                        <!--<wgt:go-edit action-id="create"/>-->
+                        <wgt:conditions>
+                            <wgt:enabling-condition>
+                                <wgt:expression>active != true</wgt:expression>
+                                <wgt:tooltip>Отметка уже установлена!</wgt:tooltip>
+                            </wgt:enabling-condition>
+                        </wgt:conditions>
+                    </wgt:menu-item>
+                    <wgt:menu-item id="delete" label="Снять отметку(Del)" context="true" key="Delete">
+                        <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        <wgt:conditions>
+                            <wgt:enabling-condition>
+                                <wgt:expression>active == true</wgt:expression>
+                                <wgt:tooltip>Снять неактивную отметку нельзя!</wgt:tooltip>
+                            </wgt:enabling-condition>
+                        </wgt:conditions>
+                    </wgt:menu-item>
+                </wgt:action-menu>
+            </wgt:form>
+        </container>
+    </containers>
+</page>

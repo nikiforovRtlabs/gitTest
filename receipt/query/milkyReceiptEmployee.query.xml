@@ -1,0 +1,208 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <!--<id>milky_employee</id>-->
+    <name>Сотрудники</name>
+    <object-id>receipt</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from pim_employee_position pep
+                join pim_employee pe on pep.employee_id = pe.id
+                join pim_organization o on pe.organization_id = o.id
+                join pim_individual i on pe.individual_id = i.id
+                left join pim_gender g on g.id = i.gender_id
+                join pim_position ppos on pep.position_id = ppos.id
+                left join pim_department pd on ppos.department_id = pd.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from pim_employee_position pep
+                join pim_employee pe on pep.employee_id = pe.id
+                join pim_organization o on pe.organization_id = o.id
+                join pim_individual i on pe.individual_id = i.id
+                left join pim_gender g on g.id = i.gender_id
+                join pim_position ppos on pep.position_id = ppos.id
+                left join pim_department pd on ppos.department_id = pd.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pep</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>pep.id</expression>
+        </field>
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <!--<expression>pe.organization_id</expression>-->
+            <expression>o.id</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>o.id</expression>
+        </field>
+        <field>
+            <id>org.name</id>
+            <domain>string</domain>
+            <name>Станция</name>
+            <expression>coalesce(o.short_name,o.full_name)</expression>
+        </field>
+        <field>
+            <id>full_name</id>
+            <domain>string</domain>
+            <name>ФИО</name>
+            <expression>i.surname||' '||i.name||' '||i.patr_name</expression>
+            <search>upper(i.surname||' '||i.name||' '||i.patr_name) like upper(:full_name||'%')</search>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>ФИО</name>
+            <expression>pep.id||': '||i.surname||' '||left(initcap(i.name),1)||'. '||left(initcap(i.patr_name),1)||'.'</expression>
+            <search>upper(i.surname||' '||left(initcap(i.name),1)||'. '||left(initcap(i.patr_name),1)||'.') like upper(:name||'%')</search>
+        </field>
+        <field>
+            <id>individual.id</id>
+            <domain>integer</domain>
+            <expression>i.id</expression>
+        </field>
+        <field>
+            <id>individual.surname</id>
+            <domain>string</domain>
+            <expression>i.surname</expression>
+            <name>Фамилия</name>
+            <!--<search>upper(i.surname) like upper(:individuals.surname||'%')</search>-->
+        </field>
+        <field>
+            <id>individual.name</id>
+            <domain>string</domain>
+            <name>Имя</name>
+            <expression>i.name</expression>
+            <!--<search>upper(i.name) like upper(:individuals.name||'%')</search>-->
+        </field>
+        <field>
+            <id>individual.patrName</id>
+            <domain>string</domain>
+            <name>Отчество</name>
+            <expression>i.patr_name</expression>
+        </field>
+        <field>
+            <id>individual.birthday</id>
+            <domain>Date</domain>
+            <display>i.birth_dt</display>
+            <search>i.birth_dt =: individual.birthday</search>
+            <name>Дата рождения</name>
+            <sorting>i.birth_dt</sorting>
+            <!--<expression>i.birth_dt</expression>-->
+        </field>
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <display>date_part('year', age(i.birth_dt))</display>
+            <search unavailable="true"/>
+            <name>Возраст</name>
+            <sorting>date_part('year', age(i.birth_dt))</sorting>
+        </field>
+        <field>
+            <id>gender.name</id>
+            <name>Пол</name>
+            <domain>string</domain>
+            <expression>g.name</expression>
+        </field>
+        <field access-filter="gender.id">
+            <id>gender.id</id>
+            <name>Пол</name>
+            <domain>integer</domain>
+            <expression>g.id</expression>
+        </field>
+        <field>
+            <id>position.id</id>
+            <domain>integer</domain>
+            <expression>ppos.id</expression>
+        </field>
+        <field>
+            <id>position.name</id>
+            <domain>string</domain>
+            <name>Должность</name>
+            <expression>ppos.name</expression>
+        </field>
+        <field>
+            <id>namePos</id>
+            <domain>string</domain>
+            <expression>pep.id||': '||i.surname||' '||left(initcap(i.name),1)||'. '||left(initcap(i.patr_name),1)||'.'||'('||ppos.name||')'</expression>
+            <search>trim(upper(:expression)) like trim(upper('%'||:namePos||'%'))</search>
+        </field>
+
+        <field>
+            <id>nameP</id>
+            <domain>string</domain>
+            <!--<expression>-->
+            <!--<![CDATA[-->
+            <!--pep.id||': '||i.surname||' '||left(initcap(i.name),1)||'. '||left(initcap(i.patr_name),1)||'.'||'('||case when pep.code is not null and pep.code <> '' then pep.code else cast(pep.id as varchar(10)) end||')'-->
+            <!--]]>-->
+            <!--</expression>-->
+            <expression>
+                <![CDATA[
+                i.surname||' '||left(initcap(i.name),1)||'. '||left(initcap(i.patr_name),1)||'.'||'('||case when pep.code is not null and pep.code <> '' then pep.code else cast(pep.id as varchar(10)) end||')'
+                ]]>
+            </expression>
+            <search>trim(upper(:expression)) like trim(upper('%'||:namePos||'%'))</search>
+        </field>
+
+        <field>
+            <id>depId</id>
+            <domain>integer</domain>
+            <expression>pd.id</expression>
+        </field>
+        <field>
+            <id>dep.id</id>
+            <domain>integer</domain>
+            <expression>pd.id</expression>
+        </field>
+        <field>
+            <id>dep.name</id>
+            <domain>string</domain>
+            <name>Подразделение</name>
+            <expression>pd.name</expression>
+        </field>
+
+        <!--<field>-->
+        <!--<id>vip</id>-->
+        <!--<name>VIP</name>-->
+        <!--<domain>Boolean</domain>-->
+        <!--<expression>pci.vip</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+        <!--<id>ethnicGroupName</id>-->
+        <!--<name>Этническая группа</name>-->
+        <!--<domain>string</domain>-->
+        <!--<expression>eg.name</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+        <!--<id>socialGroupName</id>-->
+        <!--<name>Социальная группа</name>-->
+        <!--<domain>string</domain>-->
+        <!--<expression>sg.name</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+        <!--<id>nationality.name</id>-->
+        <!--<name>Пол</name>-->
+        <!--<domain>string</domain>-->
+        <!--<expression>n.name</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+        <!--<id>nationality.id</id>-->
+        <!--<domain>integer</domain>-->
+        <!--<expression>n.id</expression>-->
+        <!--</field>-->
+    </fields>
+</query>

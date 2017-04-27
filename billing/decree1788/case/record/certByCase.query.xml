@@ -1,0 +1,126 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>servicesCostCertificate</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from billing.services_cost_certificate cert
+                where :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from billing.services_cost_certificate cert
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>cert.id</expression>
+        </field>
+        <field>
+            <id>clinicId</id>
+            <expression>cert.clinic_id</expression>
+        </field>
+        <field>
+            <id>creationDate</id>
+            <domain>date</domain>
+            <expression>coalesce(cert.creation_date, current_date)</expression>
+        </field>
+        <field>
+            <id>employeeIssued.id</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{emplPos.id?}"/>
+            <search value="#{emplPos.id?}">1=1</search>
+        </field>
+        <field>
+            <id>employeeIssued.name</id>
+            <domain>string</domain>
+            <display>
+                (select concat(i.surname, ' ' || left(i.name, 1) || '. ', ' ' || left(i.patr_name, 1) || '.')
+                from pim_employee_position ep
+                join pim_employee e on ep.employee_id = e.id
+                join pim_individual i on i.id = e.individual_id
+                where ep.id = :employeeIssued.id)
+            </display>
+        </field>
+        <field>
+            <id>mcase.id</id>
+            <domain>integer</domain>
+            <expression>cert.case_id</expression>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>string</domain>
+            <expression>cert.number</expression>
+        </field>
+        <field>
+            <id>remark</id>
+            <domain>string</domain>
+            <expression>cert.remark</expression>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>cert.patient_id</expression>
+        </field>
+        <field>
+            <id>period.begin</id>
+            <domain>date</domain>
+            <expression>cert.period_begin</expression>
+        </field>
+        <field>
+            <id>period.end</id>
+            <domain>date</domain>
+            <expression>cert.period_end</expression>
+        </field>
+        <field>
+            <id>receiver.id</id>
+            <domain>integer</domain>
+            <expression>cert.receiver_id</expression>
+        </field>
+        <field>
+            <id>receiver.name</id>
+            <domain>string</domain>
+            <display>
+                (select
+                concat(ind.surname, ' ' || ind.name, ' ' || ind.patr_name)
+                from pim_individual ind
+                where ind.id = cert.receiver_id) ||
+                (case when cert.patient_id = cert.receiver_id then ' (пациент)' else
+                (select ' (' || lower(coalesce(prsn.name, prts.name)) || ')'
+                from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i on prp1.party_id=i.id
+                join pim_party_relation_type_side prts on prts.id = prp1.side_id
+                left join pim_party_relation_side_name prsn on prsn.side_id = prts.id
+                where prp1.party_id = cert.receiver_id and prp2.party_id = cert.patient_id limit 1)
+                end)
+            </display>
+        </field>
+        <field>
+            <id>refused</id>
+            <domain>boolean</domain>
+            <expression>cert.refused</expression>
+        </field>
+        <field>
+            <id>totalCost</id>
+            <domain>string</domain>
+            <expression>cert.total_cost</expression>
+        </field>
+        <field>
+            <id>viewPageName</id>
+            <domain>string</domain>
+            <expression>(case when cert.refused is false then 'Справка о стоимости услуг' else 'Отказ от справки о стоимости услуг' end)</expression>
+            <search unavailable="true"/>
+        </field>
+    </fields>
+</query>

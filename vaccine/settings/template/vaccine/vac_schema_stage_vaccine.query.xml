@@ -1,0 +1,94 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>vac_schema_stage_vaccine</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from vac.schema_stage_vaccine_relevance r
+                JOIN vac.schema_stage st on st.id = r.schema_stage_id
+                JOIN vac_disease d ON d.id = st.disease_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(r)
+                from vac.schema_stage_vaccine_relevance r
+                JOIN vac.schema_stage st on st.id = r.schema_stage_id
+                JOIN vac_disease d ON d.id = st.disease_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>r.id</expression>
+        </field>
+        <field>
+            <id>schemaStageId</id>
+            <domain>integer</domain>
+            <expression>r.schema_stage_id</expression>
+            <search>r.schema_stage_id=:schemaStageId</search>
+        </field>
+        <field>
+            <id>schemaStageDiseasesLabel</id>
+            <domain>string</domain>
+            <expression>d.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>vaccine</id>
+            <domain>object[]</domain>
+            <expression>  (select json_agg(vac) from (SELECT v.id, (select v.label || ' [' || (select d.label from vac_disease d where d.id = v.disease_id) || ']') as label FROM vac_vaccine v
+                JOIN vac.schema_stage_vaccine sv ON sv.vaccine_id = v.id
+                WHERE sv.relevance_id = r.id) as vac)</expression>
+        </field>
+        <field>
+            <id>isDefault</id>
+            <domain>boolean</domain>
+            <name>По умолчанию</name>
+            <expression>r.org_id is null</expression>
+        </field>
+        <field>
+            <id>isCommonDefault</id>
+            <domain>boolean</domain>
+            <name>По умолчанию</name>
+            <expression>r.org_id is null and r.from_dt is null and r.to_dt is null</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>r.org_id</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>org.name</id>
+            <name>Организация</name>
+            <domain>string</domain>
+            <expression>(select coalesce(po.short_name, po.full_name) from pim_organization po where po.id=r.org_id)</expression>
+        </field>
+        <field>
+            <id>period.begin</id>
+            <domain>date</domain>
+            <expression>r.from_dt</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>period.end</id>
+            <domain>date</domain>
+            <expression>r.to_dt</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>numberId</id>
+            <domain>integer</domain>
+            <expression>(select st.number_id from vac.schema_stage st where st.id=r.schema_stage_id)</expression>
+        </field>
+        <field>
+            <id>diseaseId</id>
+            <domain>integer</domain>
+            <expression>(select st.disease_id from vac.schema_stage st where st.id=r.schema_stage_id)</expression>
+        </field>
+    </fields>
+</query>

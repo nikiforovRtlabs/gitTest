@@ -1,0 +1,216 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Источник финансирования</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить" name="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into inventory.funding_source(id,code,name, org_id)
+                    values(nextval('inventory.funding_source_seq'),cast(:code as text),cast(:name as text), (case when :isCommon is true then NULL else :orgId end));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="isCommon" mapping="['isCommon']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueCode"/>
+            </validations>
+        </action>
+
+        <action id="update" form-submit-label="Изменить" name="Редактировать">
+            <invocation>
+                <sql:sql>
+                    update inventory.funding_source set
+                    name = cast(:name as text),
+                    code = cast(:code as text),
+                    org_id = (case when :isCommon is true then NULL else :orgId end)
+                    where id=:id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="isCommon" mapping="['isCommon']"/>
+                <param name="org.id" mapping="['orgId']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueCode"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from inventory.funding_source where id=:id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="refFromArrivalInvoiceExists"/>
+                <validation ref-id="refFromExpInvoiceExists"/>
+                <validation ref-id="refFromWriteOffDocExists"/>
+                <validation ref-id="refFromReturnDocExists"/>
+                <validation ref-id="refFromRequestDocExists"/>
+                <validation ref-id="refFromApplicationExists"/>
+                <validation ref-id="refFromRequestSpecExists"/>
+                <validation ref-id="refFromContractExists"/>
+                <validation ref-id="refFromProdDocExists"/>
+                <validation ref-id="refFromStoreExists"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="checkUniqueCode" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.funding_source
+                    where upper(code) = upper(cast(:code as text))
+                    and (org_id = :orgId or org_id is null)
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Источник финансирования с таким кодом уже существует</message>
+        </constraint>
+
+        <constraint id="refFromArrivalInvoiceExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Приходной накладной</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.arrival_invoice where fund_source_id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromExpInvoiceExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Расходной накладной</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.exp_invoice where fund_source_id=:id or new_fund_source_id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromWriteOffDocExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Документа на списание</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.write_off_document where fund_source_id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromReturnDocExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Возвратного документа</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.return_document where fund_source_id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromRequestDocExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Требования</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.request_doc where fund_source_id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromRequestSpecExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Спецификации требования</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.request_spec where fund_source_id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromApplicationExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Заявки</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.application_doc where fund_source_id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromContractExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Контракта</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from public.fin_contract where inv_fund_source_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromProdDocExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Документа на изготовление</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.production_doc where fund_source_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+        <constraint id="refFromStoreExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из справочника Складов</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.store where funding_source_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+
+</object>

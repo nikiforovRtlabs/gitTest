@@ -1,0 +1,129 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO monitoring.mn_journal_age
+                    (journal_id, begin_age, end_age, measure_id)
+                            VALUES
+                    (:journalId, :beginAge, :endAge, :measure);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="journalId" mapping="['journalId']"/>
+                <param name="beginAge" mapping="['beginAge']"/>
+                <param name="endAge" mapping="['endAge']"/>
+                <param name="measure.id" mapping="['measure']"/>
+            </in-parameters>
+            <validations activate="all"/>
+        </action>
+
+        <action id="update">
+            <invocation>
+                <n2o:sql>
+                    UPDATE monitoring.mn_journal_age SET
+                        begin_age = :beginAge,
+                        end_age = :endAge,
+                        measure_id = :measure
+                    WHERE id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="beginAge" mapping="['beginAge']"/>
+                <param name="endAge" mapping="['endAge']"/>
+                <param name="measure.id" mapping="['measure']"/>
+            </in-parameters>
+            <validations activate="all"/>
+        </action>
+
+        <action id="delete">
+            <invocation>
+                <n2o:sql>
+                    DELETE FROM monitoring.mn_journal_age WHERE id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="endAfterBegin" level="error">
+            <message>Начало диапазона должно быть не больше окончания!</message>
+            <expression>
+                parseInt(endAge,10) >=  parseInt(beginAge,10)
+            </expression>
+        </condition>
+        <condition id="beginOverZero" level="error">
+            <message>Начало диапазона не может быть отрицательным</message>
+            <expression>
+                beginAge >= 0
+            </expression>
+        </condition>
+        <condition id="endOverZero" level="error">
+            <message>Окончание диапазона должно быть больше нуля</message>
+            <expression>
+                endAge > 0
+            </expression>
+        </condition>
+        <constraint id="uniqueAgeRange" level="error" >
+            <message>Значения пересекаются с другим диапазоном возраста для журнала</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                     Select count(mjcv)
+                    from  monitoring.mn_journal_age mjcv
+                    JOIN monitoring.mn_age_measure mam ON mjcv.measure_id = mam.id
+                    where mjcv.journal_id = :journalId AND (mjcv.id != :id or :id is null) AND
+                    (
+                        (:beginAge is not null and :endAge is not null) AND
+                            (
+                               (
+                                numrange((monitoring.age_to_day(:beginAge, :code)), (monitoring.age_to_day(:endAge, :code))) &&
+                                numrange((monitoring.age_to_day(mjcv.begin_age, mam.code)), (monitoring.age_to_day(mjcv.end_age, mam.code)))
+                                )
+                               OR
+                               (
+                                numrange((monitoring.age_to_day(:beginAge, :code)), (monitoring.age_to_day(:endAge, :code))) -|-
+                                numrange((monitoring.age_to_day(mjcv.begin_age, mam.code)), (monitoring.age_to_day(mjcv.end_age, mam.code)))
+                                )
+                             )
+                     )
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="journalId" mapping="['journalId']"/>
+                <param name="beginAge" mapping="['beginAge']"/>
+                <param name="endAge" mapping="['endAge']"/>
+                <param name="measure.id" mapping="['measureId']"/>
+                <param name="measure.code" mapping="['code']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <condition id="beginCorrectValue" level="error">
+            <message>Некорректное значение возраста.</message>
+            <expression>
+                <![CDATA[
+                    (measure == null || (measure.id == 1 && beginAge < 13) || (measure.id == 2 && beginAge < 32) || (measure.id == 3 && beginAge < 121))
+                ]]>
+            </expression>
+        </condition>
+        <condition id="endCorrectValue" level="error">
+            <message>Некорректное значение возраста.</message>
+            <expression>
+                <![CDATA[
+                    (measure == null || (measure.id == 1 && endAge < 13) || (measure.id == 2 && endAge < 32) || (measure.id == 3 && endAge < 121))
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+
+</object>

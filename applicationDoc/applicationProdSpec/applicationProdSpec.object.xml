@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>applicationProdSpec</name>
+
+    <actions>
+        <action id="save" name="Сохранить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/application-doc/prod/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc.id" mapping="['docId']"/>
+                <param name="modif.id" mapping="['holdmodifId']"/>
+                <param name="quantity" mapping="['quantity']" domain="numeric"/>
+                <param name="dose" mapping="['dose']" domain="numeric"/>
+                <param name="note" mapping="['note']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+
+            <validations activate="all"/>
+        </action>
+
+        <action id="delete" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/inventory/application-doc/prod/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+
+            <success-text>Состав удален</success-text>
+            <confirmation-text>Вы уверены, что хотите удалить состав?</confirmation-text>
+
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="applicationProdSpecCheckUnique" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.application_prod_spec
+                    where document_id = cast(:docId as int)
+                    and hold_modif_id = :holdmodifId
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc.id" mapping="['docId']" domain="integer"/>
+                <param name="modif.id" mapping="['holdmodifId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Состав заявки с данными параметрами уже существует</message>
+        </constraint>
+
+        <condition id="checkQuantity" level="error">
+            <message>Значение некорректное или превышает максимально допустимое</message>
+            <expression on="quantity"><![CDATA[
+                var regex = new RegExp('^\\d{1,9}\\.\\d+$|^\\d{1,9}$');
+                regex.test(quantity);
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+
+</object>

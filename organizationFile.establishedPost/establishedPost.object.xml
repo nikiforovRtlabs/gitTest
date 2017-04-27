@@ -1,0 +1,279 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Штатная единица</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into pim_position(id,code,name,department_id,organization_id,
+                    role_id,speciality_id,rate,start_date, end_date, pref_prescription, payment_fond,
+                    staff_event1, staff_event2)
+                    values (nextval('pim_position_id_seq'), :code, :name, :department_id, :organization_id,
+                    :role_id, :speciality_id, :rate, :start_date, :end_date, :pref_prescription, :payment_fond,
+                    :staff_event1_id, :staff_event2_id);
+
+                    insert into pim_position_name (sex_id, name, position_id) --male
+                    values (1,:maleName,currval('pim_position_id_seq'));
+
+                    insert into pim_position_name (sex_id, name, position_id) --female
+                    values (2,:femaleName,currval('pim_position_id_seq'));
+
+                    insert into pim_position_rates (
+                      id,
+                      position_id,
+                      rate,
+                      start_date)
+                    values (
+                      nextval('pim_position_rates_seq'),
+                      currval('pim_position_id_seq'),
+                      (select round (:rate, 2)),
+                      coalesce(:start_date,current_date));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/> <!-- Only for validation -->
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="pos_name" mapping="['name']" domain="string"/>
+                <param name="dep.id" mapping="['department_id']" domain="integer"/>
+                <param name="org.id" mapping="['organization_id']" domain="integer"/>
+                <param name="role.id" mapping="['role_id']" domain="integer"/>
+                <param name="spec.id" mapping="['speciality_id']" domain="integer"/>
+                <param name="start_date" mapping="['start_date']" domain="date"/>
+                <param name="end_date" mapping="['end_date']" domain="date"/>
+                <param name="rate" mapping="['rate']" domain="numeric"/>
+                <param name="pref_prescription" mapping="['pref_prescription']" domain="boolean"/>
+                <param name="payment_fond" mapping="['payment_fond']" domain="numeric"/>
+                <param name="maleName" mapping="['maleName']" domain="string"/>
+                <param name="femaleName" mapping="['femaleName']" domain="string"/>
+                <param name="staff_event1.id" mapping="['staff_event1_id']" domain="integer"/>
+                <param name="staff_event2.id" mapping="['staff_event2_id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Штатная единица "{pos_name}" успешно сохранена в системе.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="is_position_already_exists"/>
+            </validations>
+        </action>
+
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_position set
+                      code = :code,
+                      name = :name,
+                      department_id = :department_id,
+                      organization_id = :organization_id,
+                      role_id = :role_id,
+                      speciality_id = :speciality_id,
+                      start_date = :start_date,
+                      end_date = :end_date,
+                      pref_prescription = :pref_prescription,
+                      payment_fond = :payment_fond,
+                      rate = :rate,
+                      staff_event1 = :staff_event1_id,
+                      staff_event2 = :staff_event2_id
+                    where id = :id;
+
+                    update pim_position_rates set
+                      end_date = current_date
+                    where position_id = :id and end_date isnull;
+
+                    <!-- Добавляем только если изменилась ставка -->
+                    insert into pim_position_rates (
+                      id,
+                      position_id,
+                      rate,
+                      start_date)
+                    select
+                      nextval('pim_position_rates_seq'),
+                      :id,
+                      (select round (:rate, 2)),
+                      current_date
+                    where (select round (:rate, 2)) != :prevRate;
+
+                    <!-- update maleName -->
+                    with updated as (
+                      update pim_position_name set
+                        name=:maleName
+                      where position_id=:id and sex_id = 1
+                      returning id)
+                    insert into pim_position_name (name, sex_id, position_id)
+                    select :maleName, 1, :id
+                    where not exists(select 1 from updated);
+
+                    <!-- update femaleName -->
+                    with updated as (
+                      update pim_position_name set
+                        name=:femaleName
+                      where position_id=:id and sex_id = 2
+                    returning id)
+                    insert into pim_position_name (name, sex_id, position_id)
+                    select :femaleName, 2, :id
+                    where not exists(select 1 from updated);
+
+                    <!-- upsert -->
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="pos_name" mapping="['name']" domain="string"/>
+                <param name="dep.id" mapping="['department_id']" domain="integer"/>
+                <param name="org.id" mapping="['organization_id']" domain="integer"/>
+                <param name="role.id" mapping="['role_id']" domain="integer"/>
+                <param name="spec.id" mapping="['speciality_id']" domain="integer"/>
+                <param name="start_date" mapping="['start_date']" domain="date"/>
+                <param name="end_date" mapping="['end_date']" domain="date"/>
+                <param name="rate" mapping="['rate']" domain="numeric"/>
+                <param name="prevRate" mapping="['prevRate']" domain="numeric"/>
+                <param name="pref_prescription" mapping="['pref_prescription']" domain="boolean"/>
+                <param name="payment_fond" mapping="['payment_fond']" domain="numeric"/>
+                <param name="maleName" mapping="['maleName']" domain="string"/>
+                <param name="femaleName" mapping="['femaleName']" domain="string"/>
+                <param name="staff_event1.id" mapping="['staff_event1_id']" domain="integer"/>
+                <param name="staff_event2.id" mapping="['staff_event2_id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="is_rate_value_enough"/>
+                <validation ref-id="is_position_already_exists"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_position where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="pos_name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что ставка "{pos_name}" должна быть удалена?
+            </confirmation-text>
+
+            <validations activate="whiteList">
+                <validation ref-id="position_has_dependent_employee_position"/>
+            </validations>
+
+            <success-text>
+                Штатная единица "{pos_name}" успешно удалена.
+            </success-text>
+
+        </action>
+
+    </actions>
+    
+    <validations>
+        <constraint id="is_rate_value_enough" level="warning">
+            <message>Количество сотрудников превышает количество ставок</message>
+            <invocation>
+                <n2o:sql>
+                  select :rate - coalesce(sum(coalesce(pep.rate,0)),0) >= 0
+                    from pim_employee_position pep
+                    inner join pim_employee pe on pe.id = pep.employee_id
+                    where not coalesce(pe.is_dismissed,false) and pep.position_id = :position_id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['position_id']" domain="integer"/>
+                <param name="rate" mapping="['rate']" domain="numeric"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+
+        <constraint id="is_position_already_exists" level="error">
+            <message>В заданном периоде существует штатная единица с аналогичными параметрами. Данные не будут сохранены</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                    select count(1) from pim_position
+                    where
+                        department_id = :department_id and
+                        role_id = :role_id and
+                        trim(upper(code)) = trim(upper(:code)) and
+                        trim(upper(name)) = trim(upper(:name)) and
+                        speciality_id = :speciality_id and
+                        organization_id = :organization_id and
+                        (:id isnull or id <> :id) and
+                          ( (end_date isnull and :end_date::date isnull) or (start_date isnull and :start_date::date isnull ) or
+                          ( (coalesce( start_date,       date '-infinity'),coalesce(  end_date, date       'infinity') ) OVERLAPS
+                            (coalesce(:start_date::date, date '-infinity'),coalesce( :end_date::date, date 'infinity') ) ) )
+                ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="pos_name" mapping="['name']" domain="string"/>
+                <param name="dep.id" mapping="['department_id']" domain="integer"/>
+                <param name="org.id" mapping="['organization_id']" domain="integer"/>
+                <param name="role.id" mapping="['role_id']" domain="integer"/>
+                <param name="spec.id" mapping="['speciality_id']" domain="integer"/>
+                <param name="start_date" mapping="['start_date']" domain="date"/>
+                <param name="end_date" mapping="['end_date']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+        <constraint id="position_has_dependent_employee_position" level="error">
+            <message>Невозможно завершить операцию. Существуют записи сотрудников, которые ссылаются на данную запись.</message>
+            <invocation>
+                <n2o:sql>
+                    select count(1) from pim_employee_position eps
+                    where eps.position_id = :id
+                </n2o:sql>
+             </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+    </validations>
+
+    <!--<validations>-->
+
+        <!--<constraint id="refFrom_pim_employee_position_Exists" level="error">-->
+            <!--<message>Невозможно завершить операцию. Существуют записи сотрудников, которые ссылаются на данную запись.</message>-->
+            <!--<invocation>-->
+                <!--<n2o:sql>-->
+                    <!--select count(1) from pim_employee_position eps-->
+                    <!--where eps.position_id = :id-->
+                <!--</n2o:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="id" mapping="['id']"/>-->
+            <!--</in-parameters>-->
+            <!--<result expression="[0][0][0]==0"/>-->
+        <!--</constraint>-->
+
+
+        <!--<constraint id="refFromResourceExists" level="error">-->
+            <!--<message>Невозможно завершить операцию. Существует ресурс, который ссылается на данную запись.</message>-->
+            <!--<invocation>-->
+                <!--<n2o:sql>-->
+                    <!--select count(1) from pim_employee_position_resource epr-->
+                    <!--where epr.employee_position_id =-->
+                    <!--(select id from pim_employee_position eps-->
+                    <!--where eps.position_id = :id-->
+                    <!--)-->
+                <!--</n2o:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="id" mapping="['id']"/>-->
+            <!--</in-parameters>-->
+            <!--<result expression="[0][0][0]==0"/>-->
+        <!--</constraint>-->
+    <!--</validations>-->
+
+
+
+</object>

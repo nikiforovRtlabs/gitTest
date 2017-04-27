@@ -1,0 +1,217 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>Назначение услуг</name>
+    <object-id>dAccountServiceAndDirection</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from d_accounting.treatment_plan plan
+                join d_accounting.treatment_plan_service ser on plan.id=ser.treatment_plan_id
+                join md_srv_rendered msr on msr.id=ser.srv_rendered_id
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join sr_srv_type st on st.id = s.type_id
+                join mc_case c on c.id = msr.case_id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual i on i.id = e.individual_id
+                left join md_appointment a on a.srv_rendered_id = ssr.id
+                left join md_appointment_state ast on ast.id = a.state_id
+                left join pim_department d on d.id = e.organization_id
+                where (st.is_physical is false or st.is_physical is null) and :where order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from d_accounting.treatment_plan plan
+                join d_accounting.treatment_plan_service ser on plan.id=ser.treatment_plan_id
+                join md_srv_rendered msr on msr.id=ser.srv_rendered_id
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join sr_srv_type st on st.id = s.type_id
+                join mc_case c on c.id = msr.case_id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual i on i.id = e.individual_id
+                left join md_appointment a on a.srv_rendered_id = ssr.id
+                left join md_appointment_state ast on ast.id = a.state_id
+                left join pim_department d on d.id = e.organization_id
+                where (st.is_physical is false or st.is_physical is null) and :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>msr.id</expression>
+        </field>
+
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>comment</id>
+            <name>Заключение</name>
+            <domain>string</domain>
+            <expression>ssr.comment</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <name>Диагноз</name>
+            <domain>integer</domain>
+            <expression>msr.diagnosis_id</expression>
+        </field>
+        <field>
+            <id>diagnosis.name</id>
+            <name>Диагноз</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT mdd.code||' '|| mdd.name FROM public.md_diagnosis mdd WHERE mdd.id = msr.diagnosis_id
+                LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>ssr.funding_id</expression>
+        </field>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>msr.case_id</expression>
+            <search>:expression = :case.id</search>
+        </field>
+
+        <field>
+            <id>step.id</id>
+            <domain>integer</domain>
+            <expression>msr.step_id</expression>
+        </field>
+
+        <field>
+            <id>account.case_id</id>
+            <domain>integer</domain>
+            <expression>msr.case_id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Услуга</name>
+            <expression>concat(s.code, ' ', s.name)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>plannedDate</id>
+            <domain>date</domain>
+            <name>Дата планирования</name>
+            <expression>ssr.planned_date + coalesce(ssr.planned_time, '00:00')</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>renderedDate</id>
+            <domain>date</domain>
+            <name>Дата оказания</name>
+            <expression>ssr.bdate + coalesce(ssr.begin_time, '00:00')</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>status</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>coalesce(ast.name, (case when ssr.bdate is null then 'Назначена' else 'Оказана' end))</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>doctor</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <expression> coalesce(i.surname, '') || ' '
+                || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end
+                || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for 1) || '.' end
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>clinic.name</id>
+            <domain>string</domain>
+            <name>МО</name>
+            <expression>(SELECT coalesce(cl.short_name, cl.full_name) FROM pim_organization cl WHERE cl.id = ssr.org_id LIMIT 1)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <expression>ssr.org_id</expression>
+        </field>
+
+        <field>
+            <id>isAppointed</id>
+            <domain>boolean</domain>
+            <expression>(a.id is null and ssr.bdate is null)</expression>
+        </field>
+
+        <field>
+            <id>isRendered</id>
+            <domain>boolean</domain>
+            <expression>(ssr.bdate is not null)</expression>
+        </field>
+
+        <field>
+            <id>employeePositionUser.id</id>
+            <domain>integer</domain>
+            <display value="#{emplPos.id?}" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>renderedDoctorEmployeePosition.id</id>
+            <domain>integer</domain>
+            <expression>rg.responsible_id</expression>
+        </field>
+
+        <field>
+            <id>isCancelAppointment</id>
+            <domain>integer</domain>
+            <expression>a.state_id not in (1,3,4)</expression>
+        </field>
+
+        <field>
+            <id>account.id</id>
+            <domain>integer</domain>
+            <expression>plan.account_id</expression>
+        </field>
+
+        <field>
+            <id>plan.num</id>
+            <name>Номер карты лечения</name>
+            <domain>string</domain>
+            <expression>plan.num</expression>
+            <search>lower(plan.num) like '%'||lower(:num)||'%'</search>
+        </field>
+
+        <field>
+            <id>protocolId</id>
+            <domain>integer</domain>
+            <expression>(select id from md_srv_protocol where srv_rendered_id = ssr.id)</expression>
+        </field>
+    </fields>
+</query>

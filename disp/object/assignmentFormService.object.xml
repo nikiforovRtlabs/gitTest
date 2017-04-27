@@ -1,0 +1,87 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>assignmentFormService</name>
+
+    <actions>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    select disp.servicen2oformadd(:id,:code, :form, :query);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc_service.code" mapping="['code']" domain="string"/>
+                <param name="n2o_form.formId" mapping="['form']"/>
+                <param name="code.code" domain="string"/>
+                <param name="n2o_query" domain="string" mapping="['query']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueServiceCodeForm"/>
+            </validations>
+        </action>
+
+        <action id="create" name="Создать">
+            <invocation>
+                <sp:stored-procedure name="disp.servicen2oformaddform" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="code.code" mapping="[0]" domain="string"/>
+                <param name="n2o_form.formId" mapping="[1]"/>
+                <param name="n2o_query" domain="string" mapping="[2]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['servicen2oformaddform']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueServiceCodeFormCreate"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    delete from disp.service_n2o_form where service_code=:code;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+            </in-parameters>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="checkUniqueServiceCodeFormCreate" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from disp.service_n2o_form
+                    where service_code=:code;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code.code" mapping="['code']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Для услуги уже определена форма.</message>
+        </constraint>
+        <constraint id="checkUniqueServiceCodeForm" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from disp.service_n2o_form
+                    where service_code=:code and id is not null and id!=:id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code.code" mapping="['code']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Для услуги уже определена форма.</message>
+        </constraint>
+    </validations>
+
+</object>

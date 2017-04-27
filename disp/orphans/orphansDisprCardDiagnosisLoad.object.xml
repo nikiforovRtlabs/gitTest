@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+
+    <name>orphansDisprCardDiagnosisLoad</name>
+
+    <actions>
+        <action id="add_diagnosis_from_previous_case">
+            <invocation>
+                <sql:sql>
+                    select disp.add_diagnosis_from_previous_case(:result.id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="result.id" mapping="['result.id']" domain="integer"/>
+                <param name="previous_case.name" mapping="['previous_case.name']"/>
+            </in-parameters>
+            <validations activate="all"/>
+        </action>
+    </actions>
+    <validations>
+        <condition id="previous_case_required_validation" level="error">
+            <message>Предыдущий случай не найден.</message>
+            <expression on="previous_case.name">previous_case.name != null</expression>
+        </condition>
+        <constraint id="previous_case_was_loaded" level="error">
+            <message>Диагнозы из предыдущего случая уже были загружены.</message>
+            <invocation>
+                <sql:sql>
+                    select disp.check_diagnosis_from_previous_case(:result.id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="result.id" mapping="['result.id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == false"/>
+        </constraint>
+    </validations>
+</object>

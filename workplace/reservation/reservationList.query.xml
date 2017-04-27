@@ -1,0 +1,193 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>reservation</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hsp_reservation rsv
+                join md_referral rf on rf.id = rsv.referral_id
+                join md_referral_type rt on rt.id = rf.referral_type_id
+                join pci_patient p on p.id = rf.patient_id
+                join pim_individual i on i.id = p.id
+                left join pim_department d on d.id = rsv.department_id
+                left join md_profile pr on pr.id = rsv.profile_id
+                left join pim_organization ref_org on ref_org.id = rf.ref_organization_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(rsv)
+                from hsp_reservation rsv
+                join md_referral rf on rf.id = rsv.referral_id
+                join md_referral_type rt on rt.id = rf.referral_type_id
+                join pci_patient p on p.id = rf.patient_id
+                join pim_individual i on i.id = p.id
+                left join pim_department d on d.id = rsv.department_id
+                left join md_profile pr on pr.id = rsv.profile_id
+                left join pim_organization ref_org on ref_org.id = r.ref_organization_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>rsv.id</expression>
+        </field>
+
+        <field>
+            <id>patientName</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>coalesce(i.surname, '') || coalesce(' ' || i.name, '')  || coalesce(' ' || i.patr_name, '')</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>plannedDate</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>rsv.planned_date_from</expression>
+            <sorting>:expression</sorting>
+            <search><![CDATA[
+                (:plannedDate.begin::date is null and :plannedDate.end::date is null or
+                ((:plannedDate.begin::date is null or rsv.planned_date_from >= :plannedDate.begin) and
+                 (:plannedDate.end::date is null or rsv.planned_date_from <= :plannedDate.end)
+                ))
+                ]]></search>
+        </field>
+
+        <field>
+            <id>plannedDate.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>plannedDate.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>departmentName</id>
+            <domain>string</domain>
+            <name>Отделение</name>
+            <expression>d.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>d.id</expression>
+        </field>
+
+        <field>
+            <id>profileName</id>
+            <domain>string</domain>
+            <name>Профиль</name>
+            <expression>pr.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>pr.id</expression>
+        </field>
+
+        <field>
+            <id>numberOfDays</id>
+            <domain>integer</domain>
+            <name>Длительность</name>
+            <expression>rsv.number_of_days</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>statusName</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>
+                (select rs.name || ' (' || to_char(rts.begin_dt, 'dd/MM/yyyy') || ')' from hospital.reservation__status rts
+                join hospital.reservation_status rs on rs.id = rts.status_id
+                where rts.reservation_id = rsv.id and rts.begin_dt =
+                (select max(begin_dt) from hospital.reservation__status where reservation_id = rsv.id)
+                )
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select rts.status_id from hospital.reservation__status rts
+                where rts.reservation_id = rsv.id and rts.begin_dt =
+                (select max(begin_dt) from hospital.reservation__status where reservation_id = rsv.id)
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>d.org_id</expression>
+            <search value="#{org.id?}">(:expression = :orgId or :orgId is null)</search>
+        </field>
+
+        <field>
+            <id>contact</id>
+            <domain>string</domain>
+            <name>Телефон</name>
+            <expression>
+                (select string_agg(value, ',') from (select value from pim_indiv_contact c
+                join pim_party_contact_type ct on ct.id = c.type_id
+                join pim_party_contact_category cc on cc.id = ct.category_id
+                where cc.code in ('1', '3') and c.indiv_id = i.id order by is_main)t)
+            </expression>
+        </field>
+
+        <field>
+            <id>rowColor</id>
+            <domain>string</domain>
+            <expression>
+                (select case when rts.status_id = 3 then 'success' else case when rts.status_id = 4 then 'warning' else case when  rts.status_id = 5 then 'error' end end end
+                from hospital.reservation__status rts
+                where rts.reservation_id = rsv.id and rts.begin_dt =
+                (select max(begin_dt) from hospital.reservation__status where reservation_id = rsv.id)
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>rsv.funding_id</expression>
+        </field>
+
+        <field>
+            <id>rreferral.id</id>
+            <domain>integer</domain>
+            <expression>rf.id</expression>
+        </field>
+
+    </fields>
+</query>

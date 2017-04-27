@@ -1,0 +1,229 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>storeOprJur</name>
+    <object-id>storeOprJur</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                with storeSupplyList as (
+                select ss.id as id from inventory.store_supply ss
+                left outer join inventory.batch b on b.id=ss.batch_id
+                where ss.store_id = :store.id
+                      and coalesce(b.hold_producer_id,0) = coalesce(:prodParam.id,0)
+                      and b.hold_modif_id = :modifParam.id
+                      and ss.funding_source_id= :fundSource.id)
+
+                select :select from (select
+                jur.id id,opr.name oprName, opr.opr_type_id oprTypeId,jur.quantity quantity, jur.mnei_quantity mneiQuantity, jur.date jurDate,send.name sendName, rec.name recName,
+                doctype.short_name docTypeName, doctype.id docTypeId, doc.id docId, doc.int_doc_number docNumber, recss.id recssId, sendss.id sendssId, jur.patient_id patientId, jur.case_id caseId,
+                recss.price recssPrice, sendss.price sendssPrice, sendss.funding_source_id sendssFundSourceId, recss.funding_source_id recssFundSourceId,
+                (select hold_modif_id from inventory.batch batch where batch.id=coalesce(sendss.batch_id,recss.batch_id)) holdModifId,
+                sendss.store_id sendStoreId,  recss.store_id recStoreId
+
+                from inventory.store_opr_jur jur
+                left outer join inventory.document doc on doc.id=jur.doc_id
+                left outer join inventory.document_type doctype on doctype.id=doc.int_doc_type_id
+                left outer join inventory.store rec on rec.id = jur.store_rec_id
+                left outer join inventory.store send on send.id = jur.store_send_id
+                left outer join inventory.store_opr opr on opr.id=jur.store_opr_id
+                left outer join inventory.store_supply sendss on sendss.id= jur.send_store_sup_id
+                left outer join inventory.store_supply recss on recss.id= jur.rec_store_sup_id) journal
+                where ((journal.oprTypeId = 1 and journal.recssId in (select id from storeSupplyList))
+                or (journal.oprTypeId = 2 and journal.sendssId in (select id from storeSupplyList))) and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from (select
+                jur.id id,opr.name oprName, opr.opr_type_id oprTypeId, jur.quantity quantity, jur.mnei_quantity mneiQuantity, jur.date jurDate,send.name sendName, rec.name recName,
+                doctype.short_name docTypeName,doc.int_doc_number docNumber, recss.id recssId, sendss.id sendssId,jur.patient_id patientId, jur.case_id caseId,
+                recss.price recssPrice, sendss.price sendssPrice, sendss.funding_source_id sendssFundSourceId, recss.funding_source_id recssFundSourceId,
+                (select hold_modif_id from inventory.batch batch where batch.id=coalesce(sendss.batch_id,recss.batch_id)) holdModifId
+
+                from inventory.store_opr_jur jur
+                left outer join inventory.document doc on doc.id=jur.doc_id
+                left outer join inventory.document_type doctype on doctype.id=doc.int_doc_type_id
+                left outer join inventory.store rec on rec.id = jur.store_rec_id
+                left outer join inventory.store send on send.id = jur.store_send_id
+                left outer join inventory.store_opr opr on opr.id=jur.store_opr_id
+                left outer join inventory.store_supply sendss on sendss.id= jur.send_store_sup_id
+                left outer join inventory.store_supply recss on recss.id= jur.rec_store_sup_id) journal
+                where ((journal.oprTypeId = 1 and journal.recssId = :storeSup.id)
+                or (journal.oprTypeId = 2 and journal.sendssId = :storeSup.id)) and :where
+            </n2o:count-query>
+            <n2o:alias>journal</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>modif.id</id>
+            <domain>integer</domain>
+            <expression>holdModifId</expression>
+        </field>
+        <field>
+            <id>opr.name</id>
+            <name>Операция</name>
+            <domain>string</domain>
+            <expression>oprName</expression>
+        </field>
+        <field>
+            <id>oprType.id</id>
+            <domain>integer</domain>
+            <expression>oprTypeId</expression>
+        </field>
+        <field>
+            <id>quantityInfo</id>
+            <name>Количество</name>
+            <domain>string</domain>
+            <expression>
+                (case when :isMnei=true
+                then trim(to_char(mneiQuantity, 'FM9999990.999999'), '.')||' '||(select mnemocode from cmn_measure where id=(select mnei_id from inventory.hold_modif where id= holdModifId))
+                else trim(to_char(quantity, 'FM9999990.999999'), '.')||' '||inventory.get_unit_name_by_flag_of_modif((select price_unit_flag from inventory.hold_modif where id = holdModifId), holdModifId)
+                end)
+            </expression>
+            <sorting>quantity</sorting>
+        </field>
+        <field>
+            <id>isMnei</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <name>Дата операции</name>
+            <expression>jurDate</expression>
+            <search type="between">
+                <![CDATA[(:date.begin::date is null or jurDate >= :date.begin) and
+                        (:date.end::date is null or jurDate <= :date.end) ]]></search>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>date.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>date.begin</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>store.name</id>
+            <domain>string</domain>
+            <name>Склад</name>
+            <expression>
+                case when oprTypeId=1 then recName
+                else case when oprTypeId=2 then sendName end
+                end
+            </expression>
+        </field>
+        <field>
+            <id>price</id>
+            <name>Цена</name>
+            <domain>string</domain>
+            <expression>coalesce(recssPrice, sendssPrice)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <name>Финансирование</name>
+            <domain>string</domain>
+            <expression>(select fs.name from inventory.funding_source fs where fs.id=
+                (case when oprTypeId = 1 then recssFundSourceId
+                else
+                case when oprTypeId = 2 then sendssFundSourceId end
+                end))
+            </expression>
+        </field>
+        <field>
+            <id>docNumber</id>
+            <name>Документ</name>
+            <domain>string</domain>
+            <expression>substr(doctypeName,1,4)||'.'||docNumber</expression>
+        </field>
+        <field>
+            <id>case.name</id>
+            <name>Случай</name>
+            <domain>string</domain>
+            <expression>(select uid from mc_case where id=caseId)</expression>
+        </field>
+        <field>
+            <id>patient.name</id>
+            <name>Пациент</name>
+            <domain>string</domain>
+            <expression>(select ind.surname||' '||lpad(ind.name,1)||'.'||lpad(ind.patr_name,1)||'.' from pim_individual ind where ind.id= patientId)</expression>
+        </field>
+        <field>
+            <id>whereFromStore.name</id>
+            <domain>string</domain>
+            <name>Куда/Откуда</name>
+            <expression>(select s.name from inventory.store s where s.id=
+                (case when oprTypeId = 1 then sendStoreId
+                else
+                case when oprTypeId = 2 then recStoreId end
+                end))
+            </expression>
+        </field>
+
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>modifParam.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>prodParam.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>pageName</id>
+            <domain>string</domain>
+            <expression>case when docTypeId = 1 then '#inventory.arrivalInvoiceList?arrivalInvoices:filter:id'
+                        else
+                            case when docTypeId = 2 then '#inventory.expInvoiceList?expInvoiceList:filter:id'
+                            else
+                                 case when docTypeId = 6 then '#inventory.writeOffDocList?writeOffDocList:filter:id'
+                                 else
+                                      case when docTypeId = 9 then '#inventory.returnDocumentList?returnDocList:filter:id'
+                                      end
+                                 end
+                            end
+                        end
+            </expression>
+        </field>
+        <field>
+            <id>docNumberForLink</id>
+            <name>Документ</name>
+            <domain>string</domain>
+            <expression>docId</expression>
+        </field>
+        <field>
+            <id>docType.id</id>
+            <domain>integer</domain>
+            <expression>docTypeId</expression>
+        </field>
+    </fields>
+</query>

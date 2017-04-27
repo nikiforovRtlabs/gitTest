@@ -1,0 +1,176 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<table xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+       customize="jsp,js" src="n2o/widgets/custom/table-disp">
+    <id>gibddRefence</id>
+    <name>Пациенты</name>
+    <query-id>gibddRefence</query-id>
+    <columns>
+        <column column-field-id="fio" tooltip-field-id="fio" width="200px"/>
+        <column column-field-id="passport" tooltip-field-id="passport" width="100px"/>
+        <column column-field-id="category" tooltip-field-id="category" width="100px"/>
+        <column column-field-id="status" tooltip-field-id="status" name="Статус" width="200px"/>
+        <column column-field-id="reason" tooltip-field-id="reason" width="200px"/>
+        <column column-field-id="blank_date" tooltip-field-id="blank_date" width="200px"/>
+    </columns>
+    <rows>
+        <color>
+            <switch value-field-id="statusColor">
+                <case value="2">error</case>
+                <case value="3">success</case>
+                <case value="4">warning</case>
+            </switch>
+        </color>
+    </rows>
+    <filters position="top">
+        <n2o:input-text id="fio"/>
+        <n2o:date-time id="birthday"/>
+        <n2o:radio-group id="gender" label="" control-style="width: 100px;" label-style="width: 100px;">
+            <n2o:options>
+                <n2o:option>{"id":1, "name":"Муж"}</n2o:option>
+                <n2o:option>{"id":2, "name":"Жен"}</n2o:option>
+            </n2o:options>
+        </n2o:radio-group>
+        <n2o:input-text id="seriesReference"/>
+        <n2o:input-text id="numberReference"/>
+        <n2o:classifier id="category" label="Категория ТС">
+            <n2o:query query-id="category" value-field-id="id" label-field-id="name"/>
+        </n2o:classifier>
+        <n2o:radio-group id="valid" label="" label-style="width: 100px;" control-style="width: 100px;">
+            <n2o:options>
+                <n2o:option>{"id":1, "name":"Годен"}</n2o:option>
+                <n2o:option>{"id":2, "name":"Не годен"}</n2o:option>
+            </n2o:options>
+            <n2o:dependencies>
+                <n2o:enabling-condition on="category">category.id != -1</n2o:enabling-condition>
+            </n2o:dependencies>
+        </n2o:radio-group>
+        <n2o:date-interval id="issued" format="DD.MM.YYYY" label="Дата выдачи"/>
+        <n2o:radio-group id="expDate" label="">
+            <n2o:options>
+                <n2o:option>{"id":1, "name":"Все"}</n2o:option>
+                <n2o:option>{"id":2, "name":"Действительные"}</n2o:option>
+                <n2o:option>{"id":3, "name":"Срок действия истек"}</n2o:option>
+            </n2o:options>
+        </n2o:radio-group>
+        <n2o:radio-group id="statusFilter" label="" label-style="width: 100px;" control-style="width: 100px;">
+            <n2o:options>
+                <n2o:option>{"id":2, "name":"Закрыта"}</n2o:option>
+                <n2o:option>{"id":1, "name":"В работе"}</n2o:option>
+            </n2o:options>
+        </n2o:radio-group>
+        <n2o:classifier id="reasonFilter" label="Причина закрытия">
+            <n2o:query query-id="gibddCloseReasonRefbook" label-field-id="name" value-field-id="id"/>
+            <!--<n2o:dependencies>-->
+                <!--<n2o:enabling-condition on="statusFilter">statusFilter.id == 2</n2o:enabling-condition>-->
+            <!--</n2o:dependencies>-->
+        </n2o:classifier>
+        <n2o:checkbox id="existsDuplicate" label="Дубликат" css-class="n2o-label-5 n2o-control-5" />
+    </filters>
+
+
+    <action-menu>
+        <menu-item id="addDriver" label="Добавить пациента" context="false" icon="icon-plus-sign" type="textAndIcon">
+            <show-modal page-id="addDriver" container-id="main" action-id="addDriver" master-field-id="id"
+                        detail-field-id="id" focus-after-submit="true">
+                <pre-filters>
+                    <pre-filter field-id="id" value="0"/>
+                    <pre-filter field-id="event_type_code" value="ОВ" />
+                    <pre-filter field-id="isPatient" value="true" />
+                </pre-filters>
+            </show-modal>
+        </menu-item>
+        <menu-item id="editCategory" label="Изменить категорию" context="true" icon="icon-pencil" type="textAndIcon">
+            <show-modal page-id="addDriver" container-id="main" action-id="editCategory" master-field-id="id"
+                        detail-field-id="id" page-name="Изменить категорию"/>
+            <conditions>
+                <enabling-condition>
+                    <expression>renderedService == false</expression>
+                    <tooltip>Нельзя изменять категории если оказаны услуги</tooltip>
+                </enabling-condition>
+                <enabling-condition>
+                    <expression>statusId == 1</expression>
+                    <tooltip>Нельзя изменять категории в закрытой карточке</tooltip>
+                </enabling-condition>
+            </conditions>
+        </menu-item>
+        <menu-item id="removePatient" label="Удалить пациента" context="true" icon="icon-remove-sign"
+                   type="textAndIcon">
+            <invoke-action action-id="removePatient" confirmation="true"/>
+        </menu-item>
+        <!--<menu-item id="reports" label="Отчеты">-->
+            <!--<sub-menu>-->
+                <!--<menu-item id="monitoring_gibdd" label="Мониторинг проведения медицинских осмотров водителей за период">-->
+                    <!--<show-modal-form form-id="monitoring_gibdd"/>-->
+                <!--</menu-item>-->
+                <!--<menu-item id="036_10y_10_n2o" label="036-10/у-10. Журнал регистрации выданных медицинских справок о допуске к управлению транспортными средствами">-->
+                    <!--<show-modal-form form-id="036_10y_10_n2o"/>-->
+                <!--</menu-item>-->
+
+                <!--<menu-item id="dopusk_gibdd" label="Медицинская справка о допуске к управлению транспортным средством" context="true">-->
+                    <!--<a href="/birt/run?__report=n2o/dopusk_gibdd.rptdesign&amp;case_id=:caseId:&amp;patient_id=:indivId:&amp;__format=pdf" target="newWindow"/>-->
+                <!--</menu-item>-->
+
+
+            <!--</sub-menu>-->
+        <!--</menu-item>-->
+        <group>
+            <menu-item label="Карточка" id="driverCard" context="true" icon="icon-book" type="textAndIcon"
+                       color="btn-success">
+                <open-page page-id="driverCard" container-id="generalInformation" master-field-id="id"
+                           detail-field-id="id" refresh-on-close="true"/>
+                <conditions>
+                    <visibility-condition>
+                        <expression>statusId == 1</expression>
+                    </visibility-condition>
+                </conditions>
+            </menu-item>
+            <menu-item label="Карточка" id="driverSavedCard" context="true" icon="icon-book" type="textAndIcon">
+                <open-page page-id="readDriverCard" container-id="generalInformation" master-field-id="id"
+                           detail-field-id="id"/>
+                <conditions>
+                    <visibility-condition>
+                        <expression>statusId == 2</expression>
+                    </visibility-condition>
+                </conditions>
+            </menu-item>
+            <menu-item label="Карточка" id="dcard" context="true" icon="icon-book" type="textAndIcon">
+                <open-page page-id="readDriverCard" container-id="generalInformation" master-field-id="id"
+                           detail-field-id="id"/>
+            </menu-item>
+        </group>
+        <group>
+            <menu-item id="referrals" label="Направления" context="true">
+                <open-page page-id="dispReferralList" master-field-id="caseId" detail-field-id="case_id"/>
+            </menu-item>
+            <menu-item id="notifications" label="Извещения" context="true">
+                <open-page page-id="dispNotificationList" master-field-id="caseId" detail-field-id="case_id"/>
+            </menu-item>
+            <menu-item label="ЭМК" id="emk" context="true" icon="icon-share-alt" type="textAndIcon">
+                <a href="/cases/patient/:indivId:/case/:caseId:/edit" target="newWindow" />
+            </menu-item>
+        </group>
+        <group>
+            <menu-item id="closeCard" label="Закрыть карту" context="true" icon="icon-lock"
+                       type="textAndIcon">
+                <show-modal page-id="gibddCloseReason" container-id="main" master-field-id="id"
+                            detail-field-id="cardId" width="450px" action-id="close" refresh-on-close="true">
+                </show-modal>
+                <conditions>
+                    <enabling-condition>
+                        <expression>((arm == 1) &amp;&amp; (statusId == 1) &amp;&amp; (notAllServiceRendered == true)) || ((arm == 2) &amp;&amp; (statusId == 1))</expression>
+                    </enabling-condition>
+                </conditions>
+            </menu-item>
+            <menu-item id="openCard" label="Открыть карту" context="true" icon="icon-share"
+                       type="textAndIcon">
+                <invoke-action action-id="openCard" confirmation="true"/>
+                <conditions>
+                    <enabling-condition>
+                        <expression>statusId == 2</expression>
+                    </enabling-condition>
+                </conditions>
+            </menu-item>
+        </group>
+    </action-menu>
+</table>

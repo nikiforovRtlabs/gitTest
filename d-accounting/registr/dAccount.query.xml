@@ -1,0 +1,680 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>dAccount</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from d_accounting.account d_ac
+                join public.pim_indiv_code indc ON indc.code = d_ac.patient_uid AND indc.type_id =
+                (select ctype.id from pim_code_type ctype where ctype.code = 'UID' limit 1)
+                join public.pim_individual ind ON ind.id = indc.indiv_id
+                join public.pim_organization org ON org.id = d_ac.clinic_id
+                where :where AND NOT d_ac.is_removed
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1) from d_accounting.account d_ac
+                join public.pim_indiv_code indc ON indc.code = d_ac.patient_uid AND indc.type_id =
+                (select ctype.id from pim_code_type ctype where ctype.code = 'UID' limit 1)
+                join public.pim_individual ind ON ind.id = indc.indiv_id
+                join public.pim_organization org ON org.id = d_ac.clinic_id
+                where :where AND NOT d_ac.is_removed
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>d_ac.id</expression>
+        </field>
+
+        <field>
+            <id>register.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.register_id</expression>
+        </field>
+
+        <field>
+            <id>case_id</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT a_case.case_id FROM d_accounting.account_case a_case
+                JOIN public.mc_case cs ON cs.id = a_case.case_id
+                WHERE a_case.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>num</id>
+            <name>Номер карты</name>
+            <domain>string</domain>
+            <expression>d_ac.num</expression>
+        </field>
+
+        <field>
+            <id>clinicDistrict.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.clinic_district_id</expression>
+        </field>
+
+        <field>
+            <id>diagnos.id</id>
+            <name>Диагноз</name>
+            <domain>integer</domain>
+            <expression>
+                (SELECT mc_d.diagnos_id FROM d_accounting.account_case a_cs
+                JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                JOIN public.mc_diagnosis mc_d ON mc_d.id = cs.main_diagnos_id
+                WHERE a_cs.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>mcDiagnos.id</id>
+            <name>Диагноз</name>
+            <domain>integer</domain>
+            <expression>
+                (SELECT cs.main_diagnos_id FROM d_accounting.account_case a_cs
+                JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                WHERE a_cs.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>diagnosName</id>
+            <name>Основной диагноз</name>
+            <domain>string</domain>
+            <expression>
+                (select get_diagnosis_full_name((SELECT cs.main_diagnos_id FROM d_accounting.account_case a_cs
+                JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                WHERE a_cs.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)))
+            </expression>
+        </field>
+
+        <field>
+            <id>clinicalForm.id</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT mc_d.clinical_form_id FROM d_accounting.account_case a_cs
+                JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                JOIN public.mc_diagnosis mc_d ON mc_d.id = cs.main_diagnos_id
+                WHERE a_cs.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>localization.id</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT mc_d.localization_id FROM d_accounting.account_case a_cs
+                JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                JOIN public.mc_diagnosis mc_d ON mc_d.id = cs.main_diagnos_id
+                WHERE a_cs.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>complication.id</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT mc_d.complication_id FROM d_accounting.account_case a_cs
+                JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                JOIN public.mc_diagnosis mc_d ON mc_d.id = cs.main_diagnos_id
+                WHERE a_cs.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>mo.id</id>
+            <name>МО</name>
+            <domain>integer</domain>
+            <expression>org.id</expression>
+        </field>
+
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>vrach</id>
+            <name>Врач</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT concat_ws(' ', indiv.surname, indiv.name, indiv.patr_name) FROM public.pim_individual indiv
+                    JOIN public.pim_employee emp ON emp.individual_id = indiv.id
+                    JOIN public.pim_employee_position emp_pos ON emp_pos.employee_id = emp.id
+                    JOIN public.md_employee_position md_emp_pos ON md_emp_pos.id = emp_pos.id
+                 WHERE md_emp_pos.id = d_ac.reg_doctor_id LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>reg_doctor_id</id>
+            <domain>integer</domain>
+            <expression>d_ac.reg_doctor_id</expression>
+        </field>
+        
+        <field>
+            <id>cond.id</id>
+            <name>Условия постановки на Д-учёт</name>
+            <domain>integer</domain>
+            <expression>d_ac.reg_cond_id</expression>
+        </field>
+
+        <field>
+            <id>cond.name</id>
+            <name>Условия постановки на Д-учёт</name>
+            <domain>string</domain>
+            <expression>(SELECT reg_cond.name FROM d_accounting.reg_condition reg_cond WHERE reg_cond.id = d_ac.reg_cond_id limit 1)</expression>
+        </field>
+
+        <field>
+            <id>accountStage.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.stage_id</expression>
+        </field>
+
+        <field>
+            <id>accountStage.name</id>
+            <name>Этап взятия на учёт</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT stage.name
+                FROM d_accounting.account_stage stage
+                WHERE stage.id = d_ac.stage_id
+                LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>patState.id</id>
+            <name>Состояние пациента</name>
+            <domain>integer</domain>
+            <expression>d_ac.pat_state_id</expression>
+        </field>
+
+        <field>
+            <id>patState.name</id>
+            <name>Состояние пациента</name>
+            <domain>string</domain>
+            <expression>(SELECT state.name FROM d_accounting.pat_reg_state state WHERE state.id = d_ac.pat_state_id)</expression>
+        </field>
+
+        <field>
+            <id>hiv.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.hiv_result_id</expression>
+        </field>
+
+        <field>
+            <id>hivDate</id>
+            <domain>date</domain>
+            <expression>d_ac.hiv_reg_dt</expression>
+        </field>
+
+        <field>
+            <id>epidemConclusionNumber</id>
+            <domain>string</domain>
+            <expression>d_ac.epidem_conclusion_number</expression>
+        </field>
+
+        <field>
+            <id>orderNumber</id>
+            <domain>string</domain>
+            <expression>(SELECT d.order_number FROM d_accounting.frc_care d WHERE d.account_id = d_ac.id AND d.close_dt IS NULL LIMIT 1)</expression>
+        </field>
+
+        <field>
+            <id>orderDate</id>
+            <domain>date</domain>
+            <expression>(SELECT d.order_dt FROM d_accounting.frc_care d WHERE d.account_id = d_ac.id AND d.close_dt IS NULL LIMIT 1)</expression>
+        </field>
+
+        <field>
+            <id>regDate</id>
+            <domain>date</domain>
+            <expression>d_ac.reg_dt</expression>
+            <name>Дата постановки на учет</name>
+        </field>
+
+        <field>
+            <id>unregDate</id>
+            <domain>date</domain>
+            <expression>d_ac.unreg_dt</expression>
+            <name>Дата снятия с учета</name>
+        </field>
+
+        <field>
+            <id>is_account.id</id>
+            <domain>integer</domain>
+            <expression>(case when d_ac.unreg_dt is null then 1 else 2 end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>stop_reas.id</id>
+            <name>Причина снятия с учёта</name>
+            <domain>integer</domain>
+            <expression>(SELECT pgr.stop_reas_id FROM d_accounting.pat_d_group pgr WHERE pgr.account_id = d_ac.id ORDER BY pgr.from_dt DESC LIMIT 1)</expression>
+        </field>
+        
+        <field>
+            <id>stop_reas_name</id>
+            <name>Причина снятия с учёта</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT res.name FROM d_accounting.pat_d_group pgr
+                JOIN d_accounting.unreg_reason res ON res.id = pgr.stop_reas_id
+                WHERE pgr.account_id = d_ac.id ORDER BY pgr.from_dt DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>group.id</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT pg.d_group_id FROM d_accounting.pat_d_group pg
+                WHERE pg.account_id = d_ac.id
+                ORDER BY pg.from_dt DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>group.name</id>
+            <name>Группа Д-учета</name>
+            <domain>integer</domain>
+            <expression>
+                (SELECT g.name FROM d_accounting.pat_d_group pg
+                    JOIN d_accounting.d_group g ON g.id = pg.d_group_id
+                WHERE pg.account_id = d_ac.id
+                ORDER BY pg.from_dt DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>death_reas.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.death_reas_id</expression>
+        </field>
+
+        <field>
+            <id>death_reas.name</id>
+            <name>Причина смерти</name>
+            <domain>string</domain>
+            <expression>(SELECT dres.name FROM d_accounting.death_reason dres WHERE dres.id = d_ac.death_reas_id)</expression>
+        </field>
+
+        <field>
+            <id>disability.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.disability_id</expression>
+        </field>
+
+        <field>
+            <id>disability.name</id>
+            <name>Инвалидность по общему заболеванию</name>
+            <domain>string</domain>
+            <expression>(SELECT dis.name FROM d_accounting.disability dis WHERE dis.id = d_ac.disability_id)</expression>
+        </field>
+
+        <field>
+            <id>is_war_inval</id>
+            <name>Инвалид ВОВ</name>
+            <domain>string</domain>
+            <expression>d_ac.is_war_inval</expression>
+        </field>
+
+        <field>
+            <id>is_veteran</id>
+            <name>Участник ВОВ</name>
+            <domain>boolean</domain>
+            <expression>d_ac.is_veteran</expression>
+        </field>
+
+        <field>
+            <id>is_war_inval_label</id>
+            <name>Инвалид ВОВ</name>
+            <domain>string</domain>
+            <expression>(SELECT CASE WHEN d_ac.is_war_inval
+                THEN 'Да'
+                WHEN NOT d_ac.is_war_inval
+                THEN 'Нет'
+                END)</expression>
+        </field>
+
+        <field>
+            <id>is_veteran_label</id>
+            <name>Участник ВОВ</name>
+            <domain>boolean</domain>
+            <expression>(SELECT CASE WHEN d_ac.is_veteran
+                THEN 'Да'
+                WHEN NOT d_ac.is_veteran
+                THEN 'Нет'
+                END)</expression>
+        </field>
+
+        <field>
+            <id>is_learner_label</id>
+            <name>Учащийся</name>
+            <domain>string</domain>
+            <expression>(SELECT CASE WHEN d_ac.is_learner
+                THEN 'Да'
+                WHEN NOT d_ac.is_learner
+                THEN 'Нет'
+                END)</expression>
+        </field>
+
+        <field>
+            <id>education.name</id>
+            <name>Образование</name>
+            <domain>string</domain>
+            <expression>(SELECT ed.name FROM d_accounting.education ed WHERE ed.id = d_ac.education_id)</expression>
+        </field>
+
+        <field>
+            <id>class_number</id>
+            <name>Число законченных классов</name>
+            <domain>string</domain>
+            <expression>d_ac.class_number</expression>
+        </field>
+
+        <field>
+            <id>marit_stat.name</id>
+            <name>Семейное положение</name>
+            <domain>string</domain>
+            <expression>(SELECT marit.name FROM d_accounting.marit_status marit WHERE marit.id = d_ac.marit_stat_id)</expression>
+        </field>
+
+        <field>
+            <id>livelihood.name</id>
+            <name>Источник средств существования</name>
+            <domain>string</domain>
+            <expression>(SELECT liver.name FROM d_accounting.livelihood liver WHERE liver.id = d_ac.livelihood_id)</expression>
+        </field>
+
+        <field>
+            <id>resident_num.name</id>
+            <name>Проживает</name>
+            <domain>string</domain>
+            <expression>(SELECT resid_num.name FROM d_accounting.resident_num resid_num WHERE resid_num.id = d_ac.resident_num_id)</expression>
+        </field>
+
+        <field>
+            <id>domicile.name</id>
+            <name>Условия проживания</name>
+            <domain>string</domain>
+            <expression>(SELECT domicile.name FROM d_accounting.domicile domicile WHERE domicile.id = d_ac.domicile_id)</expression>
+        </field>
+
+        <field>
+            <id>is_learner</id>
+            <domain>string</domain>
+            <expression> d_ac.is_learner</expression>
+        </field>
+
+        <field>
+            <id>education.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.education_id</expression>
+        </field>
+
+        <field>
+            <id>marit_stat.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.marit_stat_id</expression>
+        </field>
+
+        <field>
+            <id>livelihood.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.livelihood_id</expression>
+        </field>
+
+        <field>
+            <id>resident_num.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.resident_num_id</expression>
+        </field>
+
+        <field>
+            <id>domicile.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.domicile_id</expression>
+        </field>
+
+        <field>
+            <id>rmv_reason.id</id>
+            <name>Причины удаления</name>
+            <domain>integer</domain>
+            <expression>d_ac.rmv_reason_id</expression>
+        </field>
+
+        <field>
+        <id>rmv_descr</id>
+            <name>Описание причины удаления</name>
+            <domain>string</domain>
+            <expression>d_ac.rmv_descr</expression>
+        </field>
+
+        <field>
+        <id>death_info</id>
+            <name>Доп.информация о смерти</name>
+            <domain>string</domain>
+            <expression>d_ac.death_info</expression>
+        </field>
+
+        <field>
+            <id>countPlanH</id>
+            <domain>integer</domain>
+            <expression>(SELECT count(1) FROM d_accounting.observ_plan_h ph WHERE ph.account_id = d_ac.id AND ph.fact_dt = CURRENT_DATE)</expression>
+        </field>
+
+        <field>
+            <id>disease.name</id>
+            <name>Характер заболевания</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT dis_type.name FROM d_accounting.account_case a_cs
+                JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                JOIN public.mc_diagnosis mc_d ON mc_d.case_id = cs.id
+                JOIN public.mc_disease_type dis_type ON dis_type.id = mc_d.disease_type_id
+                WHERE a_cs.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>stage.name</id>
+            <name>Этап установления</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT stg_type.name FROM d_accounting.account_case a_cs
+                JOIN public.mc_case cs ON cs.id = a_cs.case_id
+                JOIN public.mc_diagnosis mc_d ON mc_d.case_id = cs.id
+                JOIN public.mc_stage stg_type ON stg_type.id = mc_d.stage_id
+                WHERE a_cs.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>is_toxic</id>
+            <name>Признак токсикомана</name>
+            <domain>boolean</domain>
+            <expression>d_ac.is_toxic</expression>
+        </field>
+
+<!--Individual-->
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>ind.id</expression>
+        </field>
+
+        <field>
+            <id>patient.fio</id>
+            <name>ФИО</name>
+            <domain>string</domain>
+            <expression>concat_ws(' ', ind.surname, ind.name, ind.patr_name,
+                (case when (select count(*) from d_accounting.signal_info sin where sin.account_id = d_ac.id) > 0 then '(!)' else '' end))</expression>
+        </field>
+
+        <field>
+            <id>patient.birth_dt</id>
+            <name>Дата рождения</name>
+            <domain>date</domain>
+            <expression>ind.birth_dt</expression>
+        </field>
+
+        <field>
+            <id>patient.death_dt</id>
+            <name>Дата смерти</name>
+            <domain>date</domain>
+            <expression>ind.death_dt</expression>
+        </field>
+
+        <field>
+            <id>patient.gender.name</id>
+            <name>Пол</name>
+            <domain>string</domain>
+            <expression>
+                (select name
+                from pim_gender g
+                where scope_id IS NOT NULL AND g.id = ind.gender_id)</expression>
+        </field>
+
+        <field>
+            <id>patient.passport</id>
+            <name>Серия и номер паспорта</name>
+            <domain>string</domain>
+            <expression>(select concat_ws(' ', passport.series, passport.number) from pim_individual_doc passport where passport.indiv_id = ind.id and passport.type_id =
+                (select dtype.id from pim_doc_type dtype where dtype.code = 'PASSPORT_RUSSIAN_FEDERATION' limit 1) limit 1)</expression>
+        </field>
+
+        <field>
+            <id>patient.passport_dt</id>
+            <name>Дата выдачи</name>
+            <domain>date</domain>
+            <expression>(select passport.issue_dt from pim_individual_doc passport where passport.indiv_id = ind.id and passport.type_id =
+                (select dtype.id from pim_doc_type dtype where dtype.code = 'PASSPORT_RUSSIAN_FEDERATION' limit 1) limit 1)</expression>
+        </field>
+
+        <field>
+            <id>patient.polic</id>
+            <name>Серия и номер полиса</name>
+            <domain>string</domain>
+            <expression>
+                (select concat(polic.series, ' ', polic.number)
+                from pim_individual_doc polic
+                where polic.indiv_id = ind.id and polic.type_id in
+                (select dtype.id from pim_doc_type dtype where dtype.code in ('MHI_UNIFORM', 'MHI_OLDER'))
+                order by polic.type_id desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.polic_dt</id>
+            <name>Дата выдачи</name>
+            <domain>date</domain>
+            <expression>
+                (select polic.issue_dt
+                from pim_individual_doc polic
+                where polic.indiv_id = ind.id and polic.type_id in
+                (select dtype.id from pim_doc_type dtype where dtype.code in ('MHI_UNIFORM', 'MHI_OLDER'))
+                order by polic.type_id desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.adr_reg</id>
+            <name>Адрес регистрации</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT adr__get_element_as_text (padr.addr_id, '(1,s,0)(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)') FROM pim_party_address padr
+                JOIN pim_party party ON party.id = padr.party_id
+                JOIN pim_address_type adr_type ON adr_type.party_type_id = party.type_id AND adr_type.code = 'REGISTER'
+                WHERE padr.party_id = ind.id limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.adr_fact</id>
+            <name>Адрес проживания</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT adr__get_element_as_text (padr.addr_id, '(1,s,0)(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)') FROM pim_party_address padr
+                JOIN pim_party party ON party.id = padr.party_id
+                JOIN pim_address_type adr_type ON adr_type.party_type_id = party.type_id AND adr_type.code = 'ACTUAL'
+                WHERE padr.party_id = ind.id limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.mo</id>
+            <domain>string</domain>
+            <display value="#{org.name?}" unavailable="true"/>
+            <name>МО</name>
+        </field>
+
+        <field>
+            <id>patient.fioVrach</id>
+            <domain>string</domain>
+            <display value="#{emplPosRes.name?}" unavailable="true"/>
+            <name>ФИО врача, поставившего на учет</name>
+        </field>
+
+        <field>
+            <id>patient.smo</id>
+            <name>СМО</name>
+            <domain>string</domain>
+            <expression>
+                (select coalesce(o.short_name, o.full_name)
+                from public.pim_individual_doc polic
+                join public.pim_organization o ON o.id = polic.issuer_id
+                where polic.indiv_id = ind.id and polic.type_id in
+                (select dtype.id from pim_doc_type dtype where dtype.code in ('MHI_UNIFORM', 'MHI_OLDER'))
+                order by polic.type_id desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>ac_stage.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.stage_id</expression>
+        </field>
+
+        <field>
+            <id>signalInfo</id>
+            <domain>boolean</domain>
+            <expression>(case when (select count(*) from d_accounting.signal_info sin where sin.account_id = d_ac.id) > 0 then 'error' else '' end)</expression>
+        </field>
+
+        <field>
+            <id>signalInfoText</id>
+            <domain>string</domain>
+            <expression>(select array_to_string(array_agg(sinr.name),',') from d_accounting.signal_info sin
+                join d_accounting.signal_info_reason sinr on sin.reason_id = sinr.id where sin.account_id = d_ac.id)</expression>
+        </field>
+
+    </fields>
+</query>

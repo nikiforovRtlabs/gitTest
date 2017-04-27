@@ -1,0 +1,713 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0"
+      xmlns="http://n2oapp.net/framework/config/schema/page-1.0">
+    <object-id>anestheticMap</object-id>
+    <name>Наркозная карта</name>
+    <layout>n2o/layout/single</layout>
+
+    <regions>
+        <region place="single" type="list">
+            <container id="main">
+                <wgt:form detail-field-id="id" master-field-id="id">
+                    <wgt:name>Основные данные</wgt:name>
+                    <wgt:query-id>basicDataAnestheticMap</wgt:query-id>
+                    <wgt:default-values-query-id>basicDataAnestheticMap_default</wgt:default-values-query-id>
+
+                    <wgt:edit after-submit="edit">
+                        <wgt:invoke-action action-id="saveBasicDateAnestheticMap"/>
+                    </wgt:edit>
+
+                    <fs:field-set field-label-location="top">
+                        <fs:row>
+                            <rc:patient readonly="true" id="patient" label="ФИО пациента" isFilter="true"
+                                        control-style="width:350px;" required="true"/>
+
+                            <ctrl:input-text readonly="true" id="age" label="Полных лет" label-style="width:100px;"
+                                             control-style="width:100px;">
+                                <ctrl:set-value-expression on-load="true" on="patient">
+                                    <![CDATA[
+                                        if(typeof patient != 'undefined' && patient != null) {
+                                            if(patient.birthDate != null){
+                                                dateString = patient.birthDate;
+                                                day =  moment(dateString, 'DD.MM.YYYY').days();
+                                                month =  moment(dateString, 'DD.MM.YYYY').months();
+                                                year = moment(dateString, 'DD.MM.YYYY').years();
+
+                                                today = new Date();
+                                                birthDate = new Date(year, month, day);
+                                                age = today.getFullYear() - birthDate.getFullYear();
+                                                m = today.getMonth() - birthDate.getMonth();
+                                                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                                                      age--;
+                                                }
+                                            }else{
+                                                age = '';
+                                            }
+                                             age;
+                                        }
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:input-text>
+
+                            <ctrl:classifier readonly="true" id="uid" label="№ Случая" required="true"
+                                             depends-on="patient" search-as-you-type="true" autoselect-alone="true"
+                                             control-style="width:200px;">
+                                <ctrl:query query-id="caseNumber" value-field-id="id" label-field-id="uid"
+                                            master-field-id="id" detail-field-id="patientId"/>
+                            </ctrl:classifier>
+
+                            <ctrl:input-text id="height" label="Рост, см" label-style="width:100px;"
+                                             control-style="width:100px;"  dependency-condition="controlSavingDone==false">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="isNumberConditionHeight" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+                            <ctrl:input-text id="height" label="Рост, см" label-style="width:100px;"
+                                             control-style="width:100px;"  dependency-condition="controlSavingDone==true" readonly="true">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="isNumberConditionHeight" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+                            <ctrl:input-text id="weight" label="Вес, кг" label-style="width:100px;"
+                                             control-style="width:100px;" dependency-condition="controlSavingDone==false">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="isNumberConditionWeight" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+                            <ctrl:input-text id="weight" label="Вес, кг" label-style="width:100px;"
+                                             control-style="width:100px;" dependency-condition="controlSavingDone==true" readonly="true">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="isNumberConditionWeight" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+
+                            <ctrl:classifier id="bloodGroup" label="Группа крови, резус фактор" required="true"
+                                             depends-on="patient" search-as-you-type="true" autoselect-alone="true"
+                                             control-style="width:250px;" label-style="width:250px;" dependency-condition="controlSavingDone==false">
+                                <ctrl:query query-id="bloodGroup" value-field-id="id" label-field-id="code"
+                                            master-field-id="id" detail-field-id="patientId"/>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="bloodGroup" label="Группа крови, резус фактор" required="true"
+                                             depends-on="patient" search-as-you-type="true" autoselect-alone="true"
+                                             control-style="width:250px;" label-style="width:250px;" dependency-condition="controlSavingDone==true" readonly="true">
+                                <ctrl:query query-id="bloodGroup" value-field-id="id" label-field-id="code"
+                                            master-field-id="id" detail-field-id="patientId"/>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier readonly="true" id="surgery" label="Операция" search-as-you-type="true"
+                                             required="true" depends-on="uid" control-style="width:400px;"
+                                             autoselect-alone="true">
+                                <ctrl:query query-id="surgeryOperation" value-field-id="id" label-field-id="name"
+                                            master-field-id="id" detail-field-id="caseId"/>
+                            </ctrl:classifier>
+
+                            <ctrl:date-time readonly="true" id="date_surgery" format="DD.MM.YYYY" label="Дата операции"
+                                            required="true" control-style="width:210px;"/>
+
+
+                            <ctrl:input-text readonly="true" id="urgency" label="Срочность" required="true"
+                                             label-style="width:140px;" control-style="width:140px;">
+                                <ctrl:set-value-expression on-load="false" on="surgery">
+                                    <![CDATA[
+                                        if(typeof surgery != 'undefined' && surgery != null) {
+                                            if(surgery.urgent != null){
+                                                if(surgery.urgent){
+                                                    u = 'срочная';
+                                                }else{
+                                                    u = 'плановая';
+                                                }
+                                            }else{
+                                                u = '';
+                                            }
+                                             u;
+                                        }
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:input-text>
+
+                            <ctrl:input-text readonly="true" id="diagnosis" label="Диагноз"
+                                             control-style="width:400px;"/>
+
+                            <ctrl:input-text id="operationJournalId" visible="false"/>
+
+                        </fs:row>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+
+            <container id="patientBeforeProcedureContainer" depends-on="main">
+                <!--<wgt:edit-form detail-field-id="basic.id" master-field-id="id">-->
+                <wgt:form detail-field-id="basicId" master-field-id="id">
+                    <wgt:name>Состояние пациента до операции</wgt:name>
+
+                    <wgt:query-id>patientBeforeProcedure</wgt:query-id>
+                    <wgt:default-values-query-id>patientBeforeProcedure_default</wgt:default-values-query-id>
+                    <!--<wgt:edit after-submit="edit">-->
+                    <!--<wgt:invoke-action action-id="saveBasicDateAnestheticMap"/>-->
+                    <!--</wgt:edit>-->
+                    <wgt:edit after-submit="edit" form-submit-label="Сохранить" model="query-or-default"
+                              refresh-after-submit="true">
+                        <wgt:create-or-update create-action-id="create" update-action-id="update"/>
+                    </wgt:edit>
+
+
+                    <fs:field-set field-label-location="top" dependency-condition="controlSavingDone==false">
+                        <fs:row>
+
+                            <ctrl:classifier id="severity" label="Состояние пациента"
+                                             control-style="min-width:220px;width:100%;max-width:450px;"
+                                             required="true">
+                                <ctrl:query query-id="severityLevelList" value-field-id="id" label-field-id="name"/>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">5</ctrl:value>
+                                    <ctrl:value field-id="name">удовлетворительное</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="consciousness" label="Сознание"
+                                             control-style="min-width:220px;width:100%;max-width:450px;"
+                                             required="true">
+
+                                <ctrl:query query-id="patientConsciousnessList" value-field-id="id"
+                                            label-field-id="name"/>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">1</ctrl:value>
+                                    <ctrl:value field-id="name">Ясное</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+
+                            <ctrl:masked-input id="highPressure" mask="?999" label="Ад, мм рт.ст."
+                                               label-style="width: 110px"
+                                               control-style="width: 110px" required="true"/>
+
+                            <ctrl:output-text id="fakePressureSlashLabel" label="HIDDEN"
+                                              label-style="width: 2px; visibility:hidden"
+                                              control-style="width: 2px">
+                                <ctrl:set-value-expression>
+                                    '/';
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+
+                            <ctrl:masked-input id="lowPressure" label="HIDDEN" mask="?999"
+                                               label-style="width: 5px; visibility:hidden"
+                                               control-style="width: 110px" required="true"/>
+                            <ctrl:masked-input id="pulseRate" label="Пульс" mask="?999" label-style="width: 110px"
+                                               control-style="width: 110px" required="true"/>
+                            <ctrl:masked-input id="breathRate" label="Частота дыхания" mask="?999"
+                                               label-style="width: 110px"
+                                               control-style="width: 110px"/>
+
+                            <ctrl:masked-input id="temperature" label="T" mask="99.9"
+                                               label-style="width: 110px" control-style="width: 110px" required="true"/>
+                        </fs:row>
+                        <fs:row>
+
+                            <ctrl:select-tree id="anesthesiaType" label="Вид анестезии" control-style="width:250px;"
+                                              required="true" ajax="false">
+
+                                <ctrl:inheritance-nodes query-id="anesthesiaTypeList"
+                                                        parent-field-id="parentId"
+                                                        value-field-id="id"
+                                                        label-field-id="name"
+                                                        can-resolved-field-id="canResolved"
+                                                        has-children-field-id="hasChildren"/>
+
+                            </ctrl:select-tree>
+
+
+                            <ctrl:date-time id="beginDate" label="Дата анестезии" format="DD.MM.YYYY"
+                                            label-style="width: 120px;" control-style="width: 120px" required="true"/>
+
+                            <ctrl:masked-input id="beginTime" label="Время" mask="99:99"
+                                               label-style="width: 90px" control-style="width: 90px" required="true"/>
+                            <ctrl:input-text id="duringOperation" label="Течение операции" visible="false"/>
+
+                            <ctrl:multi-classifier id="monitoring"
+                                                   label="Список показателей для мониторинга во время операции"
+                                                   label-style="width: 500px"
+                                                   control-style="width: 500px" required="true" readonly="true"
+                                                   dependency-condition="duringOperation==true">
+                                <ctrl:query query-id="monitoringIndexList" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="serialNumber" type="less" value="1"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:multi-classifier>
+
+                            <ctrl:multi-classifier id="monitoring"
+                                                   label="Список показателей для мониторинга во время операции"
+                                                   label-style="width: 500px"
+                                                   control-style="width: 500px" required="true"
+                                                   dependency-condition="duringOperation!= true &amp;&amp; typeof duringOperation !=
+                                                'undefined'">
+                                <ctrl:query query-id="monitoringIndexList" value-field-id="id" label-field-id="name"/>
+
+
+                            </ctrl:multi-classifier>
+
+                            <ctrl:classifier id="anesthesiaRisk" label="Риск анестезии">
+                                <ctrl:query query-id="anesthesiaRiskList" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:output-text id="id" label="ID" visible="false"/>
+                            <ctrl:classifier id="anesthetic" label="Препарат анестезии" readonly="true"
+                                             control-style="width: 600px">
+                                <ctrl:query query-id="prescription_anesthetic" value-field-id="id"
+                                            label-field-id="name"/>
+                                <ctrl:actions>
+                                    <ctrl:button label="Изменить анестетик">
+                                        <ctrl:show-modal page-id="prescription_anesthetic" model="query"
+                                                         width="960px;"
+                                                         master-field-id="anesthetic.id"
+                                                         detail-field-id="id"
+                                                         target-field-id="anesthetic"
+                                                         refresh-on-close="true"
+                                                         action-id="save"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="anesthetic">
+                                                anesthetic.id != null &amp;&amp; typeof anesthetic.id != 'undefined'
+                                            </ctrl:visibility-condition>
+                                            <ctrl:enabling-condition>controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                    <ctrl:button label="Указать анестетик">
+                                        <ctrl:show-modal page-id="prescription_anesthetic" model="default"
+                                                         width="960px;"
+                                                         master-field-id="case"
+                                                         detail-field-id="case"
+                                                         target-field-id="anesthetic"
+                                                         action-id="saveNewAnesthetic"
+                                                         refresh-on-close="true"/>
+
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="anesthetic">
+                                                anesthetic.id == null || typeof anesthetic.id == 'undefined'
+                                            </ctrl:visibility-condition>
+                                            <!--<ctrl:enabling-condition on="anesthesiaType">anesthesiaType.id != null-->
+                                            <!--</ctrl:enabling-condition>-->
+                                            <ctrl:enabling-condition>id!=null &amp;&amp; typeof id != 'undefined' &amp;&amp;
+                                                anesthesiaType.id != null &amp;&amp; controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                    <ctrl:button icon="icon-minus-sign" label="Удалить" type="textAndIcon">
+                                        <ctrl:set-value-expression>null</ctrl:set-value-expression>
+                                        <ctrl:on-click function-name="deleteAnesthetic"
+                                                       src="hospital/n2o/custom/anestheticDelete.js"/>
+                                        <!--<ctrl:show-modal page-id="prescription_anesthetic" model="query"-->
+                                        <!--width="960px;"-->
+                                        <!--master-field-id="anesthetic.id"-->
+                                        <!--detail-field-id="id"-->
+                                        <!--target-field-id="anesthetic"-->
+                                        <!--refresh-on-close="true"-->
+                                        <!--action-id="deleteAnesthetic"/>-->
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="anesthetic">
+                                                anesthetic.id != null &amp;&amp; typeof anesthetic.id != 'undefined'
+                                            </ctrl:visibility-condition>
+                                            <ctrl:enabling-condition>controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+
+
+                                </ctrl:actions>
+                            </ctrl:classifier>
+
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="premedication" label="Предоперационное лекарственное назначение"
+                                             readonly="true" control-style="width: 600px" label-style="width:600px">
+                                <ctrl:query query-id="prescriptionList" value-field-id="id" label-field-id="name"/>
+
+                                <ctrl:actions>
+                                    <!-- Создание -->
+                                    <ctrl:button label="Указать премедикацию">
+                                        <ctrl:show-modal page-id="prescription_premedication"
+                                                         width="960px;"
+                                                         master-field-id="case"
+                                                         detail-field-id="case"
+                                                         target-field-id="premedication"
+                                                         action-id="saveNewPremedication"
+                                                         model="default"
+                                                         refresh-on-close="true">
+                                        </ctrl:show-modal>
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="premedication">
+                                                premedication.id == null || typeof premedication.id == 'undefined'
+                                            </ctrl:visibility-condition>
+                                            <ctrl:enabling-condition>id!=null &amp;&amp; typeof id != 'undefined' &amp;&amp; controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                    <!-- Изменение -->
+                                    <ctrl:button label="Изменить премедикацию">
+                                        <ctrl:show-modal page-id="prescription_premedication"
+                                                         width="960px;"
+                                                         master-field-id="premedication.id"
+                                                         detail-field-id="id"
+                                                         target-field-id="premedication"
+                                                         action-id="save"
+                                                         refresh-on-close="true"
+                                                         model="query"/>
+
+                                        <!--result-container-id="main"-->
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="premedication">
+                                                premedication.id != null &amp;&amp; typeof premedication.id !=
+                                                'undefined' &amp;&amp; controlSavingDone==false
+                                            </ctrl:visibility-condition>
+                                            <ctrl:enabling-condition>controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+
+                                    <ctrl:button icon="icon-minus-sign" label="Удалить" type="textAndIcon">
+                                        <ctrl:set-value-expression>null</ctrl:set-value-expression>
+                                        <ctrl:on-click function-name="deletePremedication"
+                                                       src="hospital/n2o/custom/premedicationDelete.js"/>
+                                        <!--<ctrl:show-modal page-id="prescription_premedication_delete" model="query"-->
+                                        <!--width="960px;"-->
+                                        <!--master-field-id="premedication.id"-->
+                                        <!--detail-field-id="id"-->
+                                        <!--target-field-id="premedication"-->
+                                        <!--refresh-on-close="true"-->
+                                        <!--action-id="deletePremedication"-->
+                                        <!--page-name=" "/>-->
+
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="premedication">
+                                                premedication.id != null &amp;&amp; typeof premedication.id !=
+                                                'undefined'
+                                            </ctrl:visibility-condition>
+                                            <ctrl:enabling-condition>controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+
+                                </ctrl:actions>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+
+                            <ctrl:classifier id="anesthesiolog" label="Врач-анестезиолог" required="true">
+                                <ctrl:query query-id="anesthesiologistList" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="anesthesist" label="Анестезист" required="true">
+                                <ctrl:query query-id="anesthesiologistList" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                        </fs:row>
+
+
+                    </fs:field-set>
+
+                    <fs:field-set field-label-location="top" dependency-condition="controlSavingDone==true">
+                        <fs:row>
+
+                            <ctrl:classifier id="severity" label="Состояние пациента"
+                                             control-style="min-width:220px;width:100%;max-width:450px;"
+                                             required="true" readonly="true">
+                                <ctrl:query query-id="severityLevelList" value-field-id="id" label-field-id="name"/>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">5</ctrl:value>
+                                    <ctrl:value field-id="name">удовлетворительное</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="consciousness" label="Сознание"
+                                             control-style="min-width:220px;width:100%;max-width:450px;"
+                                             required="true" readonly="true">
+
+                                <ctrl:query query-id="patientConsciousnessList" value-field-id="id"
+                                            label-field-id="name"/>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">1</ctrl:value>
+                                    <ctrl:value field-id="name">Ясное</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+
+                            <ctrl:masked-input id="highPressure" mask="?999" label="Ад, мм рт.ст."
+                                               label-style="width: 110px"
+                                               control-style="width: 110px" required="true" readonly="true"/>
+
+                            <ctrl:output-text id="fakePressureSlashLabel" label="HIDDEN"
+                                              label-style="width: 2px; visibility:hidden"
+                                              control-style="width: 2px" readonly="true">
+                                <ctrl:set-value-expression>
+                                    '/';
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+
+                            <ctrl:masked-input id="lowPressure" label="HIDDEN" mask="?999"
+                                               label-style="width: 5px; visibility:hidden"
+                                               control-style="width: 110px" required="true" readonly="true"/>
+                            <ctrl:masked-input id="pulseRate" label="Пульс" mask="?999" label-style="width: 110px"
+                                               control-style="width: 110px" required="true" readonly="true"/>
+                            <ctrl:masked-input id="breathRate" label="Частота дыхания" mask="?999"
+                                               label-style="width: 110px"
+                                               control-style="width: 110px" readonly="true"/>
+
+                            <ctrl:masked-input id="temperature" label="T" mask="99.9"
+                                               label-style="width: 110px" control-style="width: 110px" required="true" readonly="true"/>
+                        </fs:row>
+                        <fs:row>
+
+                            <ctrl:select-tree id="anesthesiaType" label="Вид анестезии" control-style="width:250px;"
+                                              required="true" ajax="false" readonly="true">
+
+                                <ctrl:inheritance-nodes query-id="anesthesiaTypeList"
+                                                        parent-field-id="parentId"
+                                                        value-field-id="id"
+                                                        label-field-id="name"
+                                                        can-resolved-field-id="canResolved"
+                                                        has-children-field-id="hasChildren"/>
+
+                            </ctrl:select-tree>
+
+
+                            <ctrl:date-time id="beginDate" label="Дата анестезии" format="DD.MM.YYYY"
+                                            label-style="width: 120px;" control-style="width: 120px" required="true" readonly="true"/>
+
+                            <ctrl:masked-input id="beginTime" label="Время" mask="99:99"
+                                               label-style="width: 90px" control-style="width: 90px" required="true" readonly="true"/>
+                            <ctrl:input-text id="duringOperation" label="Течение операции" visible="false" readonly="true"/>
+
+                            <ctrl:multi-classifier id="monitoring"
+                                                   label="Список показателей для мониторинга во время операции"
+                                                   label-style="width: 500px"
+                                                   control-style="width: 500px" required="true" readonly="true"
+                                                   dependency-condition="duringOperation==true">
+                                <ctrl:query query-id="monitoringIndexList" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="serialNumber" type="less" value="1"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:multi-classifier>
+
+                            <!--<ctrl:multi-classifier id="monitoring"-->
+                                                   <!--label="Список показателей для мониторинга во время операции"-->
+                                                   <!--label-style="width: 500px"-->
+                                                   <!--control-style="width: 500px" required="true"-->
+                                                   <!--dependency-condition="duringOperation!= true &amp;&amp; typeof duringOperation !=-->
+                                                <!--'undefined'">-->
+                                <!--<ctrl:query query-id="monitoringIndexList" value-field-id="id" label-field-id="name"/>-->
+
+
+                            <!--</ctrl:multi-classifier>-->
+
+                            <ctrl:classifier id="anesthesiaRisk" label="Риск анестезии" readonly="true">
+                                <ctrl:query query-id="anesthesiaRiskList" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:output-text id="id" label="ID" visible="false"/>
+                            <ctrl:classifier id="anesthetic" label="Препарат анестезии" readonly="true"
+                                             control-style="width: 600px">
+                                <ctrl:query query-id="prescription_anesthetic" value-field-id="id"
+                                            label-field-id="name"/>
+                                <ctrl:actions>
+                                    <ctrl:button label="Изменить анестетик">
+                                        <ctrl:show-modal page-id="prescription_anesthetic" model="query"
+                                                         width="960px;"
+                                                         master-field-id="anesthetic.id"
+                                                         detail-field-id="id"
+                                                         target-field-id="anesthetic"
+                                                         refresh-on-close="true"
+                                                         action-id="save"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="anesthetic">
+                                                anesthetic.id != null &amp;&amp; typeof anesthetic.id != 'undefined'
+                                            </ctrl:visibility-condition>
+                                            <ctrl:enabling-condition>controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                    <ctrl:button label="Указать анестетик">
+                                        <ctrl:show-modal page-id="prescription_anesthetic" model="default"
+                                                         width="960px;"
+                                                         master-field-id="case"
+                                                         detail-field-id="case"
+                                                         target-field-id="anesthetic"
+                                                         action-id="saveNewAnesthetic"
+                                                         refresh-on-close="true"/>
+
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="anesthetic">
+                                                anesthetic.id == null || typeof anesthetic.id == 'undefined'
+                                            </ctrl:visibility-condition>
+                                            <!--<ctrl:enabling-condition on="anesthesiaType">anesthesiaType.id != null-->
+                                            <!--</ctrl:enabling-condition>-->
+                                            <ctrl:enabling-condition>id!=null &amp;&amp; typeof id != 'undefined' &amp;&amp;
+                                                anesthesiaType.id != null &amp;&amp; controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                    <ctrl:button icon="icon-minus-sign" label="Удалить" type="textAndIcon">
+                                        <ctrl:set-value-expression>null</ctrl:set-value-expression>
+                                        <ctrl:on-click function-name="deleteAnesthetic"
+                                                       src="hospital/n2o/custom/anestheticDelete.js"/>
+                                        <!--<ctrl:show-modal page-id="prescription_anesthetic" model="query"-->
+                                        <!--width="960px;"-->
+                                        <!--master-field-id="anesthetic.id"-->
+                                        <!--detail-field-id="id"-->
+                                        <!--target-field-id="anesthetic"-->
+                                        <!--refresh-on-close="true"-->
+                                        <!--action-id="deleteAnesthetic"/>-->
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="anesthetic">
+                                                anesthetic.id != null &amp;&amp; typeof anesthetic.id != 'undefined'
+                                            </ctrl:visibility-condition>
+                                            <ctrl:enabling-condition>controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+
+
+                                </ctrl:actions>
+                            </ctrl:classifier>
+
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="premedication" label="Предоперационное лекарственное назначение"
+                                             readonly="true" control-style="width: 600px" label-style="width:600px">
+                                <ctrl:query query-id="prescriptionList" value-field-id="id" label-field-id="name"/>
+
+                                <ctrl:actions>
+                                    <!-- Создание -->
+                                    <ctrl:button label="Указать премедикацию">
+                                        <ctrl:show-modal page-id="prescription_premedication"
+                                                         width="960px;"
+                                                         master-field-id="case"
+                                                         detail-field-id="case"
+                                                         target-field-id="premedication"
+                                                         action-id="saveNewPremedication"
+                                                         model="default"
+                                                         refresh-on-close="true">
+                                        </ctrl:show-modal>
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="premedication">
+                                                premedication.id == null || typeof premedication.id == 'undefined'
+                                            </ctrl:visibility-condition>
+                                            <ctrl:enabling-condition>id!=null &amp;&amp; typeof id != 'undefined' &amp;&amp; controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                    <!-- Изменение -->
+                                    <ctrl:button label="Изменить премедикацию">
+                                        <ctrl:show-modal page-id="prescription_premedication"
+                                                         width="960px;"
+                                                         master-field-id="premedication.id"
+                                                         detail-field-id="id"
+                                                         target-field-id="premedication"
+                                                         action-id="save"
+                                                         refresh-on-close="true"
+                                                         model="query"/>
+
+                                        <!--result-container-id="main"-->
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="premedication">
+                                                premedication.id != null &amp;&amp; typeof premedication.id !=
+                                                'undefined' &amp;&amp; controlSavingDone==false
+                                            </ctrl:visibility-condition>
+                                            <ctrl:enabling-condition>controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+
+                                    <ctrl:button icon="icon-minus-sign" label="Удалить" type="textAndIcon">
+                                        <ctrl:set-value-expression>null</ctrl:set-value-expression>
+                                        <ctrl:on-click function-name="deletePremedication"
+                                                       src="hospital/n2o/custom/premedicationDelete.js"/>
+                                        <!--<ctrl:show-modal page-id="prescription_premedication_delete" model="query"-->
+                                        <!--width="960px;"-->
+                                        <!--master-field-id="premedication.id"-->
+                                        <!--detail-field-id="id"-->
+                                        <!--target-field-id="premedication"-->
+                                        <!--refresh-on-close="true"-->
+                                        <!--action-id="deletePremedication"-->
+                                        <!--page-name=" "/>-->
+
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition on="premedication">
+                                                premedication.id != null &amp;&amp; typeof premedication.id !=
+                                                'undefined'
+                                            </ctrl:visibility-condition>
+                                            <ctrl:enabling-condition>controlSavingDone==false
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+
+                                </ctrl:actions>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+
+                            <ctrl:classifier id="anesthesiolog" label="Врач-анестезиолог" required="true" readonly="true">
+                                <ctrl:query query-id="anesthesiologistList" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="anesthesist" label="Анестезист" required="true" readonly="true">
+                                <ctrl:query query-id="anesthesiologistList" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                        </fs:row>
+
+                    </fs:field-set>
+                    <fs:field-set  field-label-location="top">
+                        <fs:row>
+                            <ctrl:output-text id="forCreatePlanLink" label="" control-style="width:0px">
+                                <ctrl:actions>
+                                    <ctrl:button label="План операции">
+                                        <ctrl:show-modal page-id="operationPlanList"
+                                                         master-field-id="id"
+                                                         detail-field-id="anestheticMap.id"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:enabling-condition on="id">id!=null &amp;&amp; typeof id !=
+                                                'undefined'
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                </ctrl:actions>
+                            </ctrl:output-text>
+                            <ctrl:output-text id="forOperationLink" label="" control-style="width:0px">
+                                <ctrl:actions>
+                                    <ctrl:button label="Перейти к операции">
+                                        <ctrl:open-page page-id="duringOperationPatientInfo"
+                                                        model="query"
+                                                        master-field-id="id" detail-field-id="id"
+                                                        refresh-after-submit="true"
+                                                        page-name="Течение наркоза и операции"
+                                                        container-id="main">
+
+                                        </ctrl:open-page>
+                                        <ctrl:dependencies>
+                                            <ctrl:enabling-condition on="id">id!=null &amp;&amp; typeof id !=
+                                                'undefined'
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                </ctrl:actions>
+                            </ctrl:output-text>
+                        </fs:row>
+                    </fs:field-set>
+                </wgt:form>
+
+            </container>
+
+        </region>
+    </regions>
+
+</page>

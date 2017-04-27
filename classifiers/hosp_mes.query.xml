@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select DISTINCT :select from md_mes mes
+                left outer join mc_mes_diagnos md on md.md_mes=mes.id
+                left outer join md_age_group ma on mes.age_group_id=ma.id
+                left outer join mc_mes_duration dur on dur.md_mes=mes.id
+                where :where order by mes.id
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1) from
+                (select DISTINCT on (mes.id) mes.id from md_mes mes
+                left outer join mc_mes_diagnos md on md.md_mes=mes.id
+                left outer join md_age_group ma on mes.age_group_id=ma.id
+                left outer join mc_mes_duration dur on dur.md_mes=mes.id
+                where :where) t
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>on (mes.id) mes.id</expression>
+            <search>mes.id = :id</search>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>coalesce(mes.code, '') || coalesce(' ' || mes.name, '')</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+
+        <field>
+            <id>organizationId</id>
+            <domain>integer</domain>
+            <expression>mes.clinic_id</expression>
+            <search>(:organizationId::int4 is null or :expression = :organizationId or :expression is null)</search>
+        </field>
+
+        <field>
+            <id>diagnosisId</id>
+            <domain>integer</domain>
+            <expression>md.diagnosis_id</expression>
+            <search>(:expression = :diagnosisId or :diagnosisId::int4 is null or md is null)</search>
+        </field>
+
+        <field>
+            <id>ageGroupId</id>
+            <domain>integer</domain>
+            <expression>ma.id</expression>
+            <search>(:expression = :ageGroupId or :ageGroupId::int4 is null or ma.code = '3')</search>
+        </field>
+
+        <field>
+            <id>regimenId</id>
+            <domain>integer</domain>
+            <expression>dur.care_regimen_id</expression>
+            <search>(:expression = :regimenId or :regimenId::int4 is null)</search>
+        </field>
+
+    </fields>
+
+</query>

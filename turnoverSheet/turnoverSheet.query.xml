@@ -1,0 +1,197 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>turnoverSheet</name>
+    <object-id>turnoverSheet</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select from
+                (select ss.id ssid,modif.id modifid,modif.name modifname,h.id hid, modif.mnei_id mneiId, coalesce(modif.mnei_count_in_sec_pk,1) countInSecPack,
+                store.id storeid,store.name storename, store.org_id orgId, fund.id fundid,fund.name fundname,
+                batch.series batchseries, batch.expire_dt batchexpire_dt, ss.price ssprice, cg.id cgid, cg.name cgname,
+                (select inventory.get_unit_name_by_flag_of_modif(modif.price_unit_flag, modif.id)) measure,
+                inventory.get_store_supply_quantity_at_date(ss.id,:periodDates.begin, :isMnei) beginQuantity,
+                inventory.get_income_quantity_for_store_supply_for_period(ss.id,:periodDates.begin,:periodDates.end, :isMnei) incomeQuantity,
+                inventory.get_outcome_quantity_for_store_supply_for_period(ss.id,:periodDates.begin,:periodDates.end, :isMnei) outcomeQuantity
+
+                from inventory.store_supply ss
+                left outer join inventory.batch batch on batch.id = ss.batch_id
+                left outer join inventory.hold_modif modif on modif.id = batch.hold_modif_id
+                left outer join inventory.holding h on h.id = modif.holding_id
+                left outer join inventory.commodity_group cg on cg.id = h.commodity_group_id
+                left outer join inventory.store store on store.id = ss.store_id
+                left outer join inventory.funding_source fund on fund.id = batch.funding_source_id) as turnoverSheet
+                where (beginQuantity=0 and incomeQuantity=0 and outcomeQuantity=0) is false and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(1) from
+                (select ss.id ssid,modif.id modifid,modif.name modifname,h.id hid, modif.mnei_id mneiId,coalesce(modif.mnei_count_in_sec_pk,1) countInSecPack,
+                store.id storeid,store.name storename, store.org_id orgId,fund.id fundid,fund.name fundname,
+                batch.series batchseries, batch.expire_dt batchexpire_dt, ss.price ssprice, cg.id cgid, cg.name cgname,
+                (select inventory.get_unit_name_by_flag_of_modif(modif.price_unit_flag, modif.id)) measure,
+                inventory.get_store_supply_quantity_at_date(ss.id,:periodDates.begin, :isMnei) beginQuantity,
+                inventory.get_income_quantity_for_store_supply_for_period(ss.id,:periodDates.begin,:periodDates.end, :isMnei) incomeQuantity,
+                inventory.get_outcome_quantity_for_store_supply_for_period(ss.id,:periodDates.begin,:periodDates.end,:isMnei) outcomeQuantity
+
+                from inventory.store_supply ss
+                left outer join inventory.batch batch on batch.id = ss.batch_id
+                left outer join inventory.hold_modif modif on modif.id = batch.hold_modif_id
+                left outer join inventory.holding h on h.id = modif.holding_id
+                left outer join inventory.commodity_group cg on cg.id = h.commodity_group_id
+                left outer join inventory.store store on store.id = ss.store_id
+                left outer join inventory.funding_source fund on fund.id = batch.funding_source_id) as turnoverSheet
+                where (beginQuantity=0 and incomeQuantity=0 and outcomeQuantity=0) is false and :where
+            </n2o:count-query>
+            <n2o:alias>turnoverSheet</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ssid</expression>
+        </field>
+        <field>
+            <id>measure</id>
+            <domain>string</domain>
+            <name>Ед.изм.</name>
+            <expression>(case when :isMnei=true then (select mnemocode from cmn_measure where id=mneiId) else measure end)</expression>
+        </field>
+        <field>
+            <id>modif.id</id>
+            <domain>integer</domain>
+            <expression>modifid</expression>
+            <search>:expression = :modif.id</search>
+        </field>
+        <field>
+            <id>modif.name</id>
+            <domain>string</domain>
+            <name>Наименование ЛС и ИМН</name>
+            <expression>modifname</expression>
+        </field>
+        <field>
+            <id>holding.id</id>
+            <domain>integer</domain>
+            <expression>hid</expression>
+            <search>:expression = :holding.id</search>
+        </field>
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <expression>storeid</expression>
+            <search>:expression = :store.id</search>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>orgId</expression>
+            <search value="#{org.id?}">(:expression = :org.id or :org.id is null)</search>
+        </field>
+        <field>
+            <id>stores.id*</id>
+            <domain>integer[]</domain>
+            <search>storeid in (:stores.id*)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>store.name</id>
+            <domain>string</domain>
+            <name>Склад</name>
+            <expression>storename</expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fundid</expression>
+        </field>
+        <field>
+            <id>fundSources*.id</id>
+            <domain>integer[]</domain>
+            <search>fundid in (:fundSources*.id)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <name>Финансирование</name>
+            <expression>fundname</expression>
+        </field>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <name>Серия</name>
+            <expression>batchseries</expression>
+        </field>
+        <field>
+            <id>expireDate</id>
+            <domain>date</domain>
+            <name>Срок годности</name>
+            <expression>batchexpire_dt</expression>
+        </field>
+        <field>
+            <id>priceWithVat</id>
+            <domain>string</domain>
+            <name>Цена</name>
+            <expression>ssprice</expression>
+        </field>
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>cgid</expression>
+        </field>
+        <field>
+            <id>comGroup.name</id>
+            <domain>string</domain>
+            <name>Тов. группа</name>
+            <expression>cgname</expression>
+        </field>
+        <field>
+            <id>periodDates.end</id>
+            <domain>date</domain>
+            <expression>(select :periodDates.end::date)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>periodDates.begin</id>
+            <domain>date</domain>
+            <expression>(select :periodDates.begin::date)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>isMnei</id>
+            <domain>boolean</domain>
+            <expression>(select coalesce(:isMnei, false))</expression>
+            <display unavailable="false"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>beginQuantity</id>
+            <name>Остаток на начало периода</name>
+            <domain>string</domain>
+            <expression>beginQuantity</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>incomeQuantity</id>
+            <name>Приход</name>
+            <domain>string</domain>
+            <expression>incomeQuantity</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>outcomeQuantity</id>
+            <name>Расход</name>
+            <domain>string</domain>
+            <expression>outcomeQuantity</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>endQuantity</id>
+            <name>Остаток на конец периода</name>
+            <domain>string</domain>
+            <expression>beginQuantity+incomeQuantity-outcomeQuantity</expression>
+            <search unavailable="true"/>
+        </field>
+    </fields>
+</query>

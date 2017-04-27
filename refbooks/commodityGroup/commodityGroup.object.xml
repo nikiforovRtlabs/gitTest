@@ -1,0 +1,151 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Товарные группы</name>
+
+    <actions>
+        <action id="create" name="Добавить" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    insert into inventory.commodity_group(id,name, parent_id, org_id)
+                    values(nextval('inventory.commodity_group_seq'),:name, :parentId,:orgId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="parent.id" mapping="['parentId']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUnique"/>
+            </validations>
+            <success-text>Товарная группа '{name}' добавлена</success-text>
+        </action>
+
+        <action id="update" name="Изменить" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update inventory.commodity_group
+                    set name = :name,
+                    parent_id = :parentId,
+                    org_id  = :orgId
+                    where id= :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="parent.id" mapping="['parentId']"/>
+                <param name="org.id" mapping="['orgId']"/>
+            </in-parameters>
+            <success-text>Товарная группа '{name}' отредактирована</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkUnique"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from inventory.commodity_group where id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="childGroupExists"/>
+                <validation ref-id="refFromHoldingExists"/>
+                <validation ref-id="refFromWriteOffDocExists"/>
+                <validation ref-id="refFromApplicationExists"/>
+                <validation ref-id="refFromExpDocExists"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="childGroupExists" level="warning">
+            <message>
+                Для данной товарной группы существуют подгруппы, которые будут удалены. Продолжить удаление?
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.commodity_group where parent_id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromHoldingExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из справочника "Номенклатура"</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.holding where commodity_group_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromWriteOffDocExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Документа на списание</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.write_off_document where com_group_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromApplicationExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Заявки</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.application_doc where com_group_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+        <constraint id="refFromExpDocExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Расходной накладной</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.exp_invoice where com_group_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+        <constraint id="checkUnique" level="error">
+            <message>Товарная группа '{name}' уже существует.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.commodity_group
+                    where  upper(trim(name))=upper(trim(:name))
+                           and (id != :id or :id is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+</object>

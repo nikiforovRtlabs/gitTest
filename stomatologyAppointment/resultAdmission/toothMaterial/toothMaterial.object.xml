@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-2.0">
+    <name>toothMaterial</name>
+
+    <actions>
+        <action id="createToothMaterial" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    <rest:query>
+                        ${n2o.backend.path}/stomatology/tooth-material/add
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="tooth*.id" mapping="['toothIds']" domain="integer[]"/>
+                <param name="commodityGroup.id" mapping="['commodityGroupId']" domain="integer"/>
+                <param name="holdModif.id" mapping="['holdModifId']" domain="integer"/>
+                <param name="amount" mapping="['amount']" domain="numeric"/>
+                <param name="measure.id" mapping="['cmnMeasureId']" domain="integer"/>
+                <param name="dentalFormulaId" mapping="['dentalFormulaId']" domain="integer"/>
+            </in-parameters>
+
+            <validations activate="whiteList">
+                <validation ref-id="isAmountPositive"/>
+            </validations>
+        </action>
+
+        <action id="createToothMaterialCopy" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    <rest:query>
+                        ${n2o.backend.path}/stomatology/tooth-material/add
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="tooth*.id" mapping="['toothIds']" domain="integer[]"/>
+                <param name="commodityGroup.id" mapping="['commodityGroupId']" domain="integer"/>
+                <param name="holdModif.id" mapping="['holdModifId']" domain="integer"/>
+                <param name="amount" mapping="['amount']" domain="numeric"/>
+                <param name="measure.id" mapping="['cmnMeasureId']" domain="integer"/>
+                <param name="dentalFormulaId" mapping="['dentalFormulaId']" domain="integer"/>
+            </in-parameters>
+
+            <validations activate="whiteList">
+                <validation ref-id="checkIsToothMaterialUnique"/>
+                <validation ref-id="isAmountPositive"/>
+            </validations>
+        </action>
+
+        <action id="updateToothMaterial" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="PUT">
+                    <rest:query>
+                        ${n2o.backend.path}/stomatology/tooth-material/update
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="tooth*.id" mapping="['toothIds']" domain="integer[]"/>
+                <param name="commodityGroup.id" mapping="['commodityGroupId']" domain="integer"/>
+                <param name="holdModif.id" mapping="['holdModifId']" domain="integer"/>
+                <param name="amount" mapping="['amount']" domain="numeric"/>
+                <param name="measure.id" mapping="['cmnMeasureId']" domain="integer"/>
+                <param name="dentalFormulaId" mapping="['dentalFormulaId']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="isAmountPositive"/>
+            </validations>
+        </action>
+
+        <action id="deleteToothMaterial" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    <rest:query>
+                        ${n2o.backend.path}/stomatology/tooth-material/delete/{toothMaterialId}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['toothMaterialId']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+
+
+    <validations>
+        <condition id="isAmountPositive" level="error">
+            <expression>
+                <![CDATA[
+                (amount > 0)
+                ]]>
+            </expression>
+            <message>
+                Количество должно быть больше 0!
+            </message>
+        </condition>
+        <constraint id="checkIsToothMaterialUnique" level="warning" moment="before-action">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    ,(select name from inventory.hold_modif where id = :holdModifId)
+
+                    ,(select array_to_string(
+                    array(select distinct(tnum.name) as name from stomatology.tooth_material_tooth tmt
+                    join stomatology.tooth t on t.id = tmt.tooth_id
+                    join stomatology.tooth_material tm on tm.id = tmt.tooth_material_id
+                    left join stomatology.tooth_number tnum on tnum.id = t.tooth_number_id
+                    where tm.hold_modif_id = :holdModifId and tm.dental_formula_id = :dentalFormulaId
+                    and tmt.tooth_id = ANY (string_to_array(trim(both '[]' from :toothIds),','):: int[])
+                    order by tnum.name ASC), ', '))
+
+                    from stomatology.tooth_material tm
+                    join stomatology.tooth_material_tooth tmt on tmt.tooth_material_id = tm.id
+                    join inventory.hold_modif hm on hm.id = tm.hold_modif_id
+                    where tm.hold_modif_id = :holdModifId and tm.dental_formula_id = :dentalFormulaId
+                    and tmt.tooth_id = ANY (string_to_array(trim(both '[]' from :toothIds),','):: int[])
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="tooth*.id" mapping="['toothIds']" domain="integer[]"/>
+                <param name="holdModif.id" mapping="['holdModifId']" domain="integer"/>
+                <param name="dentalFormulaId" mapping="['dentalFormulaId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Выбранный материал({holdModifName}) уже использовался для зуба(ов) {toothNumbers}. Создать новую запись?</message>
+            <out-parameters>
+                <param name="holdModifName" mapping="[0][0][1]" domain="string"/>
+                <param name="toothNumbers" mapping="[0][0][2]" domain="string"/>
+            </out-parameters>
+        </constraint>
+    </validations>
+</object>

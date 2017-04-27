@@ -1,0 +1,500 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>pregnant_map</object-id>
+    <name>Основные данные</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from motherhood.mh_pregnant_map pm
+                left join motherhood.mh_pregnant_main_data pmd on pm.id = pmd.pregnant_map_id
+                left join pim_organization org on org.id = pmd.husband_job_id
+                join pci_patient p on p.id = pm.patient_id
+                join pim_individual i on i.id = p.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(i)
+                from motherhood.mh_pregnant_map pm
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pm</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <expression>pmd.id</expression>
+            <domain>integer</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>patient_id</id>
+            <expression>i.id</expression>
+            <domain>integer</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>pregnant_map_id</id>
+            <expression>pm.id</expression>
+            <domain>integer</domain>
+            <display>pm.id</display>
+            <filters>
+                <filter type="eq" filter-field="pregnant_map_id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>maritalStatus.id</id>
+            <domain>string</domain>
+            <expression>
+                (select ims.id from pim_indiv_marital_status ims
+                where ims.individual_id = i.id and
+                current_date between coalesce(ims.from_dt, '-infinity') and coalesce(ims.to_dt, 'infinity') limit 1)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>maritalStatus.code</id>
+            <domain>string</domain>
+            <expression>
+                (select ms.code from pim_indiv_marital_status ims
+                join pim_marital_status ms on ms.id = ims.status_id
+                where ims.individual_id = i.id and
+                current_date between coalesce(ims.from_dt, '-infinity') and coalesce(ims.to_dt, 'infinity') limit 1)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>maritalStatus.name</id>
+            <domain>string</domain>
+            <expression>
+                (select ms.name from pim_indiv_marital_status ims
+                join pim_marital_status ms on ms.id = ims.status_id
+                where ims.individual_id = i.id and
+                current_date between coalesce(ims.from_dt, '-infinity') and coalesce(ims.to_dt, 'infinity') limit 1)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>bloodGroup.id</id>
+            <domain>integer</domain>
+            <name>Группа крови</name>
+            <display/>
+            <expression>p.rh_blood_group_id</expression>
+        </field>
+
+        <field>
+            <id>job.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select pj.organization_id from pci_patient_job pj
+                where pj.patient_id = i.id and
+                current_date between coalesce(pj.from_dt, '-infinity') and coalesce(pj.to_dt, 'infinity')
+                order by coalesce(pj.is_main_job, false) desc limit 1)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>job.name</id>
+            <domain>string</domain>
+            <expression>
+                (select o.short_name from pci_patient_job pj
+                join pim_organization o on o.id = pj.organization_id
+                where pj.patient_id = i.id and
+                current_date between coalesce(pj.from_dt, '-infinity') and coalesce(pj.to_dt, 'infinity')
+                order by coalesce(pj.is_main_job, false) desc limit 1)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>professionWorking.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select pj.profession_working_id from pci_patient_job pj
+                where pj.patient_id = i.id and
+                current_date between coalesce(pj.from_dt, '-infinity') and coalesce(pj.to_dt, 'infinity')
+                order by coalesce(pj.is_main_job, false) desc limit 1)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>professionWorking.name</id>
+            <domain>integer</domain>
+            <expression>
+                (select pw.name from pci_patient_job pj
+                left join pim_profession_working pw on pw.id = pj.profession_working_id
+                where pj.patient_id = i.id and
+                current_date between coalesce(pj.from_dt, '-infinity') and coalesce(pj.to_dt, 'infinity')
+                order by coalesce(pj.is_main_job, false) desc limit 1)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>husbandId</id>
+            <domain>integer</domain>
+            <expression><![CDATA[
+                (select i2.id from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i2 on prp1.party_id=i2.id
+                JOIN LATERAL ( SELECT
+                                CASE
+                                    WHEN (COALESCE(t.age_yy, 0) = 0) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) < 1) THEN tdd.day_str
+                                        ELSE tmm.month_str
+                                    END
+                                    WHEN (COALESCE(t.age_yy, 0) < 18) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) = 0) THEN tyy.year_str
+                                        ELSE concat(tyy.year_str, ' ', tmm.month_str)
+                                    END
+                                    ELSE tyy.year_str
+                                END AS age_txt,
+                            NULL::integer AS age_sort
+                           FROM (((( SELECT COALESCE((date_part('year'::text, t_1.age))::integer, i2.age_year) AS age_yy,
+                                    COALESCE((date_part('month'::text, t_1.age))::integer, i2.age_month) AS age_mm,
+                                    COALESCE((date_part('day'::text, t_1.age))::integer, i2.age_day) AS age_dd
+                                   FROM ( SELECT age((COALESCE((i2.death_dt)::date, ('now'::text)::date))::timestamp with time zone, (i2.birth_dt)::timestamp with time zone) AS age) t_1) t
+                             LEFT JOIN LATERAL ( SELECT format('%s %s.'::text, t.age_yy,
+                                        CASE
+                                            WHEN ((t.age_yy <> ALL (ARRAY[11, 12, 13, 14])) AND ((t.age_yy % 10) = ANY (ARRAY[1, 2, 3, 4]))) THEN 'г'::text
+                                            ELSE 'л'::text
+                                        END) AS year_str
+                                  WHERE (t.age_yy IS NOT NULL)
+                                 LIMIT 1) tyy ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s мес.'::text, t.age_mm) AS month_str
+                                  WHERE (t.age_mm IS NOT NULL)
+                                 LIMIT 1) tmm ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s дн.'::text, t.age_dd) AS day_str
+                                  WHERE (t.age_dd IS NOT NULL)
+                                 LIMIT 1) tdd ON (true))
+                         LIMIT 1) p_age on TRUE
+                where
+                prp1.party_id != i.id and prp2.party_id = i.id and prp1.side_id = 3 and
+                current_date between coalesce(pr1.from_dt, '-infinity') and coalesce(pr1.to_dt, 'infinity') limit 1)
+                ]]>
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>husbandSurname</id>
+            <domain>string</domain>
+            <name>Фамилия мужа</name>
+            <expression><![CDATA[
+                coalesce(pmd.husband_surname, (select i2.surname from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i2 on prp1.party_id=i2.id
+                JOIN LATERAL ( SELECT
+                                CASE
+                                    WHEN (COALESCE(t.age_yy, 0) = 0) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) < 1) THEN tdd.day_str
+                                        ELSE tmm.month_str
+                                    END
+                                    WHEN (COALESCE(t.age_yy, 0) < 18) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) = 0) THEN tyy.year_str
+                                        ELSE concat(tyy.year_str, ' ', tmm.month_str)
+                                    END
+                                    ELSE tyy.year_str
+                                END AS age_txt,
+                            NULL::integer AS age_sort
+                           FROM (((( SELECT COALESCE((date_part('year'::text, t_1.age))::integer, i2.age_year) AS age_yy,
+                                    COALESCE((date_part('month'::text, t_1.age))::integer, i2.age_month) AS age_mm,
+                                    COALESCE((date_part('day'::text, t_1.age))::integer, i2.age_day) AS age_dd
+                                   FROM ( SELECT age((COALESCE((i2.death_dt)::date, ('now'::text)::date))::timestamp with time zone, (i2.birth_dt)::timestamp with time zone) AS age) t_1) t
+                             LEFT JOIN LATERAL ( SELECT format('%s %s.'::text, t.age_yy,
+                                        CASE
+                                            WHEN ((t.age_yy <> ALL (ARRAY[11, 12, 13, 14])) AND ((t.age_yy % 10) = ANY (ARRAY[1, 2, 3, 4]))) THEN 'г'::text
+                                            ELSE 'л'::text
+                                        END) AS year_str
+                                  WHERE (t.age_yy IS NOT NULL)
+                                 LIMIT 1) tyy ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s мес.'::text, t.age_mm) AS month_str
+                                  WHERE (t.age_mm IS NOT NULL)
+                                 LIMIT 1) tmm ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s дн.'::text, t.age_dd) AS day_str
+                                  WHERE (t.age_dd IS NOT NULL)
+                                 LIMIT 1) tdd ON (true))
+                         LIMIT 1) p_age on TRUE
+                where
+                prp1.party_id != i.id and prp2.party_id = i.id and prp1.side_id = 3 and
+                current_date between coalesce(pr1.from_dt, '-infinity') and coalesce(pr1.to_dt, 'infinity') limit 1))
+                ]]>
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>husbandAge</id>
+            <domain>integer</domain>
+            <name>Возраст мужа</name>
+            <expression><![CDATA[
+                coalesce(pmd.husband_age, (select nullif((string_to_array(p_age.age_txt, ' '))[1], '')::int
+                from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i2 on prp1.party_id=i2.id
+                JOIN LATERAL ( SELECT
+                                CASE
+                                    WHEN (COALESCE(t.age_yy, 0) = 0) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) < 1) THEN tdd.day_str
+                                        ELSE tmm.month_str
+                                    END
+                                    WHEN (COALESCE(t.age_yy, 0) < 18) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) = 0) THEN tyy.year_str
+                                        ELSE concat(tyy.year_str, ' ', tmm.month_str)
+                                    END
+                                    ELSE tyy.year_str
+                                END AS age_txt,
+                            NULL::integer AS age_sort
+                           FROM (((( SELECT COALESCE((date_part('year'::text, t_1.age))::integer, i2.age_year) AS age_yy,
+                                    COALESCE((date_part('month'::text, t_1.age))::integer, i2.age_month) AS age_mm,
+                                    COALESCE((date_part('day'::text, t_1.age))::integer, i2.age_day) AS age_dd
+                                   FROM ( SELECT age((COALESCE((i2.death_dt)::date, ('now'::text)::date))::timestamp with time zone, (i2.birth_dt)::timestamp with time zone) AS age) t_1) t
+                             LEFT JOIN LATERAL ( SELECT format('%s %s.'::text, t.age_yy,
+                                        CASE
+                                            WHEN ((t.age_yy <> ALL (ARRAY[11, 12, 13, 14])) AND ((t.age_yy % 10) = ANY (ARRAY[1, 2, 3, 4]))) THEN 'г'::text
+                                            ELSE 'л'::text
+                                        END) AS year_str
+                                  WHERE (t.age_yy IS NOT NULL)
+                                 LIMIT 1) tyy ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s мес.'::text, t.age_mm) AS month_str
+                                  WHERE (t.age_mm IS NOT NULL)
+                                 LIMIT 1) tmm ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s дн.'::text, t.age_dd) AS day_str
+                                  WHERE (t.age_dd IS NOT NULL)
+                                 LIMIT 1) tdd ON (true))
+                         LIMIT 1) p_age on TRUE
+                where
+                prp1.party_id != i.id and prp2.party_id = i.id and prp1.side_id = 3 and
+                current_date between coalesce(pr1.from_dt, '-infinity') and coalesce(pr1.to_dt, 'infinity') limit 1))
+                ]]>
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>husbandBloodGroup.id</id>
+            <domain>integer</domain>
+            <name>Группа крови мужа</name>
+            <display/>
+            <expression><![CDATA[
+                coalesce(pmd.husband_blood_group_id, (select p2.rh_blood_group_id from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i2 on prp1.party_id=i2.id
+                JOIN LATERAL ( SELECT
+                                CASE
+                                    WHEN (COALESCE(t.age_yy, 0) = 0) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) < 1) THEN tdd.day_str
+                                        ELSE tmm.month_str
+                                    END
+                                    WHEN (COALESCE(t.age_yy, 0) < 18) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) = 0) THEN tyy.year_str
+                                        ELSE concat(tyy.year_str, ' ', tmm.month_str)
+                                    END
+                                    ELSE tyy.year_str
+                                END AS age_txt,
+                            NULL::integer AS age_sort
+                           FROM (((( SELECT COALESCE((date_part('year'::text, t_1.age))::integer, i2.age_year) AS age_yy,
+                                    COALESCE((date_part('month'::text, t_1.age))::integer, i2.age_month) AS age_mm,
+                                    COALESCE((date_part('day'::text, t_1.age))::integer, i2.age_day) AS age_dd
+                                   FROM ( SELECT age((COALESCE((i2.death_dt)::date, ('now'::text)::date))::timestamp with time zone, (i2.birth_dt)::timestamp with time zone) AS age) t_1) t
+                             LEFT JOIN LATERAL ( SELECT format('%s %s.'::text, t.age_yy,
+                                        CASE
+                                            WHEN ((t.age_yy <> ALL (ARRAY[11, 12, 13, 14])) AND ((t.age_yy % 10) = ANY (ARRAY[1, 2, 3, 4]))) THEN 'г'::text
+                                            ELSE 'л'::text
+                                        END) AS year_str
+                                  WHERE (t.age_yy IS NOT NULL)
+                                 LIMIT 1) tyy ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s мес.'::text, t.age_mm) AS month_str
+                                  WHERE (t.age_mm IS NOT NULL)
+                                 LIMIT 1) tmm ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s дн.'::text, t.age_dd) AS day_str
+                                  WHERE (t.age_dd IS NOT NULL)
+                                 LIMIT 1) tdd ON (true))
+                         LIMIT 1) p_age on TRUE
+                join pci_patient p2 on p2.id = i2.id
+                where
+                prp1.party_id != i.id and prp2.party_id = i.id and prp1.side_id = 3 and
+                current_date between coalesce(pr1.from_dt, '-infinity') and coalesce(pr1.to_dt, 'infinity') limit 1))
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>husbandJob.id</id>
+            <domain>integer</domain>
+            <expression><![CDATA[
+                coalesce(pmd.husband_job_id, (select pj2.organization_id from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i2 on prp1.party_id=i2.id
+                JOIN LATERAL ( SELECT
+                                CASE
+                                    WHEN (COALESCE(t.age_yy, 0) = 0) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) < 1) THEN tdd.day_str
+                                        ELSE tmm.month_str
+                                    END
+                                    WHEN (COALESCE(t.age_yy, 0) < 18) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) = 0) THEN tyy.year_str
+                                        ELSE concat(tyy.year_str, ' ', tmm.month_str)
+                                    END
+                                    ELSE tyy.year_str
+                                END AS age_txt,
+                            NULL::integer AS age_sort
+                           FROM (((( SELECT COALESCE((date_part('year'::text, t_1.age))::integer, i2.age_year) AS age_yy,
+                                    COALESCE((date_part('month'::text, t_1.age))::integer, i2.age_month) AS age_mm,
+                                    COALESCE((date_part('day'::text, t_1.age))::integer, i2.age_day) AS age_dd
+                                   FROM ( SELECT age((COALESCE((i2.death_dt)::date, ('now'::text)::date))::timestamp with time zone, (i2.birth_dt)::timestamp with time zone) AS age) t_1) t
+                             LEFT JOIN LATERAL ( SELECT format('%s %s.'::text, t.age_yy,
+                                        CASE
+                                            WHEN ((t.age_yy <> ALL (ARRAY[11, 12, 13, 14])) AND ((t.age_yy % 10) = ANY (ARRAY[1, 2, 3, 4]))) THEN 'г'::text
+                                            ELSE 'л'::text
+                                        END) AS year_str
+                                  WHERE (t.age_yy IS NOT NULL)
+                                 LIMIT 1) tyy ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s мес.'::text, t.age_mm) AS month_str
+                                  WHERE (t.age_mm IS NOT NULL)
+                                 LIMIT 1) tmm ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s дн.'::text, t.age_dd) AS day_str
+                                  WHERE (t.age_dd IS NOT NULL)
+                                 LIMIT 1) tdd ON (true))
+                         LIMIT 1) p_age on TRUE
+                left join pci_patient_job pj2 on pj2.patient_id = i2.id
+                where
+                prp1.party_id != i.id and prp2.party_id = i.id and prp1.side_id = 3 and
+                current_date between coalesce(pr1.from_dt, '-infinity') and coalesce(pr1.to_dt, 'infinity') and
+                current_date between coalesce(pj2.from_dt, '-infinity') and coalesce(pj2.to_dt, 'infinity')
+                order by coalesce(pj2.is_main_job, false) desc limit 1))
+                ]]>
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>husbandJob.name</id>
+            <domain>integer</domain>
+            <expression><![CDATA[
+                coalesce(org.short_name, (select o2.short_name from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i2 on prp1.party_id=i2.id
+                JOIN LATERAL ( SELECT
+                                CASE
+                                    WHEN (COALESCE(t.age_yy, 0) = 0) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) < 1) THEN tdd.day_str
+                                        ELSE tmm.month_str
+                                    END
+                                    WHEN (COALESCE(t.age_yy, 0) < 18) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) = 0) THEN tyy.year_str
+                                        ELSE concat(tyy.year_str, ' ', tmm.month_str)
+                                    END
+                                    ELSE tyy.year_str
+                                END AS age_txt,
+                            NULL::integer AS age_sort
+                           FROM (((( SELECT COALESCE((date_part('year'::text, t_1.age))::integer, i2.age_year) AS age_yy,
+                                    COALESCE((date_part('month'::text, t_1.age))::integer, i2.age_month) AS age_mm,
+                                    COALESCE((date_part('day'::text, t_1.age))::integer, i2.age_day) AS age_dd
+                                   FROM ( SELECT age((COALESCE((i2.death_dt)::date, ('now'::text)::date))::timestamp with time zone, (i2.birth_dt)::timestamp with time zone) AS age) t_1) t
+                             LEFT JOIN LATERAL ( SELECT format('%s %s.'::text, t.age_yy,
+                                        CASE
+                                            WHEN ((t.age_yy <> ALL (ARRAY[11, 12, 13, 14])) AND ((t.age_yy % 10) = ANY (ARRAY[1, 2, 3, 4]))) THEN 'г'::text
+                                            ELSE 'л'::text
+                                        END) AS year_str
+                                  WHERE (t.age_yy IS NOT NULL)
+                                 LIMIT 1) tyy ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s мес.'::text, t.age_mm) AS month_str
+                                  WHERE (t.age_mm IS NOT NULL)
+                                 LIMIT 1) tmm ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s дн.'::text, t.age_dd) AS day_str
+                                  WHERE (t.age_dd IS NOT NULL)
+                                 LIMIT 1) tdd ON (true))
+                         LIMIT 1) p_age on TRUE
+                left join pci_patient_job pj2 on pj2.patient_id = i2.id
+                join pim_organization o2 on o2.id = pj2.organization_id
+                where
+                prp1.party_id != i.id and prp2.party_id = i.id and prp1.side_id = 3 and
+                current_date between coalesce(pr1.from_dt, '-infinity') and coalesce(pr1.to_dt, 'infinity') and
+                current_date between coalesce(pj2.from_dt, '-infinity') and coalesce(pj2.to_dt, 'infinity') order by coalesce(pj2.is_main_job, false) desc limit 1))
+                ]]>
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>husbandPhone</id>
+            <domain>string</domain>
+            <expression><![CDATA[
+                coalesce(pmd.husband_phone, (select ic2.value from pim_party_relation pr1
+                join pim_party_relation_party prp1 on pr1.id = prp1.rel_id
+                join pim_party_relation_party prp2 on pr1.id = prp2.rel_id
+                join pim_individual i2 on prp1.party_id=i2.id
+                JOIN LATERAL ( SELECT
+                                CASE
+                                    WHEN (COALESCE(t.age_yy, 0) = 0) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) < 1) THEN tdd.day_str
+                                        ELSE tmm.month_str
+                                    END
+                                    WHEN (COALESCE(t.age_yy, 0) < 18) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) = 0) THEN tyy.year_str
+                                        ELSE concat(tyy.year_str, ' ', tmm.month_str)
+                                    END
+                                    ELSE tyy.year_str
+                                END AS age_txt,
+                            NULL::integer AS age_sort
+                           FROM (((( SELECT COALESCE((date_part('year'::text, t_1.age))::integer, i2.age_year) AS age_yy,
+                                    COALESCE((date_part('month'::text, t_1.age))::integer, i2.age_month) AS age_mm,
+                                    COALESCE((date_part('day'::text, t_1.age))::integer, i2.age_day) AS age_dd
+                                   FROM ( SELECT age((COALESCE((i2.death_dt)::date, ('now'::text)::date))::timestamp with time zone, (i2.birth_dt)::timestamp with time zone) AS age) t_1) t
+                             LEFT JOIN LATERAL ( SELECT format('%s %s.'::text, t.age_yy,
+                                        CASE
+                                            WHEN ((t.age_yy <> ALL (ARRAY[11, 12, 13, 14])) AND ((t.age_yy % 10) = ANY (ARRAY[1, 2, 3, 4]))) THEN 'г'::text
+                                            ELSE 'л'::text
+                                        END) AS year_str
+                                  WHERE (t.age_yy IS NOT NULL)
+                                 LIMIT 1) tyy ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s мес.'::text, t.age_mm) AS month_str
+                                  WHERE (t.age_mm IS NOT NULL)
+                                 LIMIT 1) tmm ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s дн.'::text, t.age_dd) AS day_str
+                                  WHERE (t.age_dd IS NOT NULL)
+                                 LIMIT 1) tdd ON (true))
+                         LIMIT 1) p_age on TRUE
+                left join pim_indiv_contact ic2 on ic2.indiv_id = i2.id
+                join pim_party_contact_type pct2 on ic2.type_id = pct2.id
+                where
+                prp1.party_id != i.id and prp2.party_id = i.id and prp1.side_id = 3 and
+                current_date between coalesce(pr1.from_dt, '-infinity') and coalesce(pr1.to_dt, 'infinity') and
+                pct2.code in ('1','3') order by ic2.is_main desc, pct2.code desc limit 1))
+                ]]>
+            </expression>
+            <display>:expression</display>
+        </field>
+    </fields>
+</query>

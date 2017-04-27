@@ -1,0 +1,264 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <!--<id>patReg_def</id>-->
+    <name>Прикрепление пациента</name>
+    <object-id>patReg</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from cmn_setting cs
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from cmn_setting cs
+                where :where
+            </n2o:count-query>
+            <n2o:alias>cs</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>reg_type.id</id>
+            <domain>integer</domain>
+            <name>Вид прикрепления</name>
+            <display/>
+            <expression>
+                (select id
+                    from md_reg_type
+                 where id = (select cast(default_value as integer)
+                    from cmn_setting
+                    where code = 'cz.atria.md.patient.setting.PatientRegistrationSettings.RegistrationTypeDefault')
+                )
+            </expression>
+        </field>
+        <field>
+            <id>reg_type.name</id>
+            <domain>string</domain>
+            <name>Вид прикрепления</name>
+            <display/>
+            <expression>
+                (select name
+                    from md_reg_type
+                 where id = (select cast(default_value as integer)
+                    from cmn_setting
+                    where code = 'cz.atria.md.patient.setting.PatientRegistrationSettings.RegistrationTypeDefault')
+                )
+            </expression>
+        </field>
+        
+        <field>
+            <id>addr_type_def</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                (select id
+                    from pim_address_type
+                 where code = (select default_value
+                    from cmn_setting
+                    where code ='cz.atria.md.patient.setting.PatientRegistrationSettings.AddressTypeRegistrationDefault')
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>address.id</id>
+            <domain>integer</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>
+                (select ppatat.id
+                    from pim_party_address ppa
+                    join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                    where ppa.party_id = :patient.id
+                          and ppatat.address_type_id = (select id
+                from pim_address_type
+                where code = (select default_value
+                from cmn_setting
+                where code ='cz.atria.md.patient.setting.PatientRegistrationSettings.AddressTypeRegistrationDefault')
+                )
+                    and (ppa.is_valid or (cast(now() as date) >= ppa.from_date and (ppa.to_date >= cast(now() as date) or ppa.to_date is null)))
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>address.realId</id>
+            <domain>integer</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>
+                (select ppa.id
+                from pim_party_address ppa
+                join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                where ppa.party_id = :patient.id
+                and ppatat.address_type_id = (select id
+                from pim_address_type
+                where code = (select default_value
+                from cmn_setting
+                where code ='cz.atria.md.patient.setting.PatientRegistrationSettings.AddressTypeRegistrationDefault')
+                )
+                and (ppa.is_valid or (cast(now() as date) >= ppa.from_date and (ppa.to_date >= cast(now() as date) or ppa.to_date is null)))
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>address.addressId</id>
+            <domain>integer</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>
+                (select ppa.addr_id
+                from pim_party_address ppa
+                join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                where ppa.party_id = :patient.id
+                and ppatat.address_type_id = (select id
+                from pim_address_type
+                where code = (select default_value
+                from cmn_setting
+                where code ='cz.atria.md.patient.setting.PatientRegistrationSettings.AddressTypeRegistrationDefault')
+                )
+                and (ppa.is_valid or (cast(now() as date) >= ppa.from_date and (ppa.to_date >= cast(now() as date) or ppa.to_date is null)))
+                )
+            </expression>
+        </field>
+        <field>
+            <id>address.name</id>
+            <domain>string</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>
+                (select case when ppa.addr_id is not null
+                            then
+                                adr__get_element_as_text(ppa.addr_id, '(4,s,0)(6,s,1)(7,s,1)(8,s,1)')
+                            else
+                                text_addr
+                            end
+                from pim_party_address ppa
+                join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                where ppa.party_id = :patient.id
+                and ppatat.address_type_id = (select id
+                from pim_address_type
+                where code = (select default_value
+                from cmn_setting
+                where code ='cz.atria.md.patient.setting.PatientRegistrationSettings.AddressTypeRegistrationDefault')
+                )
+                and (ppa.is_valid or (cast(now() as date) >= ppa.from_date and (ppa.to_date >= cast(now() as date) or ppa.to_date is null)))
+                )
+            </expression>
+        </field>
+        <field>
+            <id>address.building</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                <![CDATA[
+                    (select ae.name
+                     from address_element ae
+                     join address_element_data aed on aed.id = ae.id
+                     join address_element_level ael on ael.id = ae.level_id
+                     where (aed.path <@ (select path from address_element_data aed2 where aed2.id = (select ppa.addr_id
+                from pim_party_address ppa
+                join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                where ppa.party_id = :patient.id
+                and ppatat.address_type_id = (select id
+                from pim_address_type
+                where code = (select default_value
+                from cmn_setting
+                where code ='cz.atria.md.patient.setting.PatientRegistrationSettings.AddressTypeRegistrationDefault')
+                )
+                and (ppa.is_valid or (cast(now() as date) >= ppa.from_date and (ppa.to_date >= cast(now() as date) or ppa.to_date is null)))
+                ))
+                        or aed.path @> (select path from address_element_data aed2 where aed2.id = (select ppa.addr_id
+                from pim_party_address ppa
+                join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                where ppa.party_id = :patient.id
+                and ppatat.address_type_id = (select id
+                from pim_address_type
+                where code = (select default_value
+                from cmn_setting
+                where code ='cz.atria.md.patient.setting.PatientRegistrationSettings.AddressTypeRegistrationDefault')
+                )
+                and (ppa.is_valid or (cast(now() as date) >= ppa.from_date and (ppa.to_date >= cast(now() as date) or ppa.to_date is null)))
+                ))
+                           )
+                        and ael.id = (select level_id from address_element_type_to_level
+                                        where type_id = (select id from address_element_type
+                                                            where upper(trim(name)) = upper(trim('дом'))
+                                                         )
+                                     ) limit 1
+                    )
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>death_date</id>
+            <domain>date</domain>
+            <display/>
+            <expression>
+                (select cast(death_dt as date) from public.pim_individual
+                    where id = :patient.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>birth_dt</id>
+            <domain>date</domain>
+            <display/>
+            <expression>
+                (select cast(birth_dt as date) from public.pim_individual
+                where id = :patient.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>death_state.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                (select id from public.md_reg_state
+                    where id = 2)
+            </expression>
+        </field>
+        <field>
+            <id>death_state.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select name from public.md_reg_state
+                where id = 2)
+            </expression>
+        </field>
+
+        <field>
+            <id>death_cause.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                (select id from public.md_unreg_cause
+                where code = '4')
+                <!--and (to_dt > cast(now() as date) or to_dt is null))-->
+            </expression>
+        </field>
+        <field>
+            <id>death_cause.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select name from public.md_unreg_cause
+                where code = '4')
+                <!--and (to_dt > cast(now() as date) or to_dt is null))-->
+            </expression>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,111 @@
+﻿<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>queueAutoupd</id>-->
+    <name>Автообновление очереди</name>
+    <object-id>callqueue</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.md_ambulance_call cal
+                join pim_organization po on po.id = cal.station_id
+                left join amb.md_ambulance_route rou on cal.route_id = rou.id
+                join pim_department pd on pd.id = cal.substation_id
+                <!--join amb.md_ambcall_state_history mash on mash.id = (select id from amb.md_ambcall_state_history where call_id = cal.id order by date_time DESC, id desc limit 1)-->
+                <!--join amb.md_ambulance_call_state macs on macs.id = mash.state_id-->
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select 1
+            </n2o:count-query>
+            <n2o:alias>cal</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <!--<field>-->
+            <!--<id>id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<name>Идентификатор</name>-->
+            <!--&lt;!&ndash;<display/>&ndash;&gt;-->
+            <!--<expression>cal.id</expression>-->
+            <!--&lt;!&ndash;<filters>&ndash;&gt;-->
+                <!--&lt;!&ndash;<filter type="eq" filter-field="id"></filter>&ndash;&gt;-->
+            <!--&lt;!&ndash;</filters>&ndash;&gt;-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>ftime</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Принят</name>-->
+            <!--<expression>to_char(cal.from_time,'hh24:mi')</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>res</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>
+                case when count(cal.id) is not null and count(cal.id) >0
+                    then true
+                    else false
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>time_param</id>
+            <domain>string</domain>
+            <filters>
+                <filter type="eq" filter-field="time_param">
+                    case when cast(:time_param as timestamp) is not null
+                        then cast(to_char(cal.from_time,'dd.mm.yyyy HH24:mi:ss') as timestamp) > cast(:time_param as timestamp)
+                        else true
+                    end
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>station.orgId</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+            <filters>
+                <filter type="eq" filter-field="station.orgId" default-value="#{org.id?}">
+                    :expression = :station.orgId
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>route.id</id>
+            <domain>integer</domain>
+            <expression>rou.id</expression>
+            <!--<filters/>-->
+        </field>
+
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <expression>pd.id</expression>
+            <!--<filters/>-->
+        </field>
+
+        <field>
+            <id>is_opened</id>
+            <domain>boolean</domain>
+            <!--<expression>case when (cal.to_time is null) and (cal.brg_id is null) and (cal.emp_id is null) and ((cal.call_mark is null) or (cal.call_mark = 1)) then true else false end</expression>-->
+            <!--todo SNMP-130 подредактировать условие, с учетом рекомендации-->
+            <expression>
+                case when (cal.to_time is null) and (cal.brg_id is null) and (cal.emp_id is null) then true else false end
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="is_opened" default-value="true">
+                    :expression = true
+                </filter>
+            </filters>
+        </field>
+
+    </fields>
+</query>

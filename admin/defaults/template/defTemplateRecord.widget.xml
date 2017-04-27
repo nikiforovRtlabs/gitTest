@@ -1,0 +1,79 @@
+<form xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+    <query-id>defTemplates</query-id>
+    <modal-width>700px</modal-width>
+
+    <fs:field-set>
+        <ctrl:select-tree id="place" label="Страница" ajax="false" required="true" control-style="width:400px;" >
+            <ctrl:inheritance-nodes query-id="navigation" parent-field-id="parentId" label-field-id="name"
+                                    search-field-id="name" value-field-id="id"
+                                    has-children-field-id="hasChildren"
+                                    can-resolved-field-id="canResolved" icon-field-id="icon">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="groupId" ref="groupId"/>
+                    <ctrl:pre-filter field-id="moduleId" ref="moduleId"/>
+                    <ctrl:pre-filter field-id="spaceId" ref="spaceId"/>
+                    <ctrl:pre-filter field-id="pageId" ref="rootPageId"/>
+                    <ctrl:pre-filter field-id="resolve" type="in">
+                        <ctrl:value>PAGE</ctrl:value>
+                    </ctrl:pre-filter>
+                </ctrl:pre-filters>
+            </ctrl:inheritance-nodes>
+            <ctrl:dependencies>
+                <ctrl:enabling-condition>
+                    (typeof id == 'undefined')||(id == null)
+                </ctrl:enabling-condition>
+            </ctrl:dependencies>
+        </ctrl:select-tree>
+        <ctrl:classifier id="form" label="Форма" depends-on="place" required="true" control-style="width:400px;">
+            <ctrl:query query-id="defFormList" label-field-id="name" search-field-id="name" value-field-id="id">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="placeId" ref="place.id"/>
+                    <ctrl:pre-filter field-id="type" value="form"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+            <ctrl:dependencies>
+                <ctrl:enabling-condition>
+                    (typeof id == 'undefined')||(id == null)
+                </ctrl:enabling-condition>
+            </ctrl:dependencies>
+        </ctrl:classifier>
+        <ctrl:radio-group id="profile" label="Профиль" inline="true">
+            <ctrl:default-model>
+                <ctrl:value field-id="id">org</ctrl:value>
+            </ctrl:default-model>
+            <ctrl:options>
+                <ctrl:option>{"id":"global", "name":"Регион"}</ctrl:option>
+                <ctrl:option>{"id":"org", "name":"МО"}</ctrl:option>
+                <ctrl:option>{"id":"dep", "name":"Отделение"}</ctrl:option>
+            </ctrl:options>
+        </ctrl:radio-group>
+        <ctrl:classifier id="org" label="МО" dependency-condition="profile.id == 'org' || profile.id == 'dep'"
+                         required="true" control-style="width:400px;">
+            <ctrl:query query-id="defOrganization" value-field-id="id" label-field-id="name" search-field-id="name"/>
+            <ctrl:set-value-expression on="profile">
+                <![CDATA[
+                    if((profile.id == null)||(profile.id == 'global'))
+                            null;
+                    else defOrganization;
+                    ]]>
+            </ctrl:set-value-expression>
+        </ctrl:classifier>
+        <ctrl:classifier id="dep" label="Отделение" dependency-condition="profile.id == 'dep'"
+                         depends-on="org" required="true">
+            <ctrl:query query-id="defDepartment" value-field-id="id" label-field-id="name" search-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="orgId" ref="org.id"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+            <ctrl:set-value-expression on="profile">
+                <![CDATA[
+                    if((profile.id == null)||(profile.id != 'dep'))
+                            null;
+                    else dep;
+                    ]]>
+            </ctrl:set-value-expression>
+        </ctrl:classifier>
+    </fs:field-set>
+</form>

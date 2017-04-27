@@ -1,0 +1,123 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <id>ModelPatient</id>
+    <name>Люди</name>
+    <object-id>modelPatient</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select from
+                (select mmp.id as mmp_id, mmp.name as mmp_name, msg.name as msg_name, msg.id as msg_id, mmp.base as base,
+                  string_agg(mmpb.age, ',') as age, string_agg(pg.name, ',') as gender, mmp.org_id as org
+                from disp.md_model_patient mmp
+                left join md_soc_group msg on msg.id = mmp.soc_group_id
+                left join disp.md_model_patient_base mmpb on mmpb.model_id = mmp.id
+                left join pim_gender pg on pg.id = mmpb.gender_id
+                group by mmp.id, mmp.name, msg.name, msg.id) as a
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(a) from
+                (select mmp.id as mmp_id, mmp.name as mmp_name, msg.name as msg_name, msg.id as msg_id, mmp.base as base,
+                string_agg(mmpb.age, ',') as age, string_agg(pg.name, ',') as gender, mmp.org_id as org
+                from disp.md_model_patient mmp
+                left join md_soc_group msg on msg.id = mmp.soc_group_id
+                left join disp.md_model_patient_base mmpb on mmpb.model_id = mmp.id
+                left join pim_gender pg on pg.id = mmpb.gender_id
+                group by mmp.id, mmp.name, msg.name, msg.id) as a
+                where :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <expression>a.mmp_id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>String</domain>
+            <expression>a.mmp_name</expression>
+            <search>upper(a.mmp_name) like '%'||upper(:name)||'%'</search>
+            <name>Наименование</name>
+        </field>
+        <field>
+            <id>gender</id>
+            <name>Пол</name>
+            <domain>string</domain>
+            <!--<expression>i.roles</expression>-->
+            <display>a.gender</display>
+            <!--<search type="in">i.id in (select user_id from sec_user_role where role_id in (:roles*.id))</search>-->
+            <sorting unavailable="true"/>
+        </field>
+
+        <!--<field>-->
+            <!--<id>gender.name</id>-->
+            <!--<name>Пол</name>-->
+            <!--<domain>String</domain>-->
+            <!--<expression>pg.name</expression>-->
+            <!--<name>Пол</name>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>gender.id</id>-->
+            <!--<domain>Integer</domain>-->
+            <!--<expression>pg.id</expression>-->
+        <!--</field>-->
+        <field>
+            <id>socGroup.name</id>
+            <name>Пол</name>
+            <domain>String</domain>
+            <expression>a.msg_name</expression>
+            <name>Соц.группа</name>
+        </field>
+        <field>
+            <id>socGroup.id</id>
+            <domain>Integer</domain>
+            <expression>a.msg_id</expression>
+        </field>
+        <field>
+            <id>age</id>
+            <domain>String</domain>
+            <expression>a.age</expression>
+            <name>Возраст</name>
+            <search>((substring(a.age from '\s'||:age||'[,;]') is not null) or
+                (substring(a.age from '^'||:age||'[,;]') is not null) or
+                (substring(a.age from '\s'||:age||'$') is not null))</search>
+        </field>
+        <field>
+            <id>base_model.id</id>
+            <domain>integer</domain>
+            <name>Базовая модель</name>
+            <expression>(case a.base when true then 1 else 2 end)</expression>
+        </field>
+        <field>
+            <id>base_model_bool</id>
+            <domain>boolean</domain>
+            <name>Базовая</name>
+            <expression>a.base</expression>
+        </field>
+        <field>
+            <id>genderFilter.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>exists(select 1 from disp.md_model_patient_base pb where pb.gender_id = :genderFilter.id and pb.model_id = a.mmp_id)</search>
+        </field>
+        <field>
+            <id>model_org.id</id>
+            <domain>integer</domain>
+            <expression>a.org</expression>
+        </field>
+        <field>
+            <id>isCountPDL</id>
+            <domain>boolean</domain>
+            <expression>(case when (select count(mpl)
+                from disp.md_model_patient_licences mpl
+                where mpl.model_id = a.mmp_id) > 0 then true else null end)</expression>
+        </field>
+    </fields>
+</query>

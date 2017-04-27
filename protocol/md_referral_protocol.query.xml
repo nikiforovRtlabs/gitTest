@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicAppointment</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from md_referral mr
+                left join md_ref_ehr_protocol mrep on ( mr.id = mrep.referral_id  )
+                left join md_ehr_protocol mep on ( mrep.protocol_id = mep.id  )
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mr)
+                from md_referral mr
+                left join md_ref_ehr_protocol mrep on ( mr.id = mrep.referral_id  )
+                left join md_ehr_protocol mep on ( mrep.protocol_id = mep.id  )
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mr</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>service_id</id>
+            <domain>integer</domain>
+            <name>id услуги</name>
+            <expression>mr.referral_type_id</expression>
+        </field>
+
+        <field>
+            <id>printForm</id>
+            <domain>string</domain>
+            <expression>
+                (case when
+                (select mreo.report_path from md_referral_ehr_opt mreo where mreo.referral_type_id = mr.referral_type_id limit 1) = ''
+                then 'by_default_A5.rptdesign'
+                else coalesce((select mreo.report_path from md_referral_ehr_opt mreo where mreo.referral_type_id = mr.referral_type_id limit 1), 'by_default_A5.rptdesign')
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>protocolId</id>
+            <domain>integer</domain>
+            <expression>mrep.id</expression>
+        </field>
+
+        <field>
+            <id>clinic_from_context</id>
+            <domain>integer</domain>
+            <display value="#{org.id?}" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>user_id</id>
+            <domain>integer</domain>
+            <display value="#{user.id}" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>position_id</id>
+            <domain>integer</domain>
+            <display value="#{pos.id?}" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>templatePath</id>
+            <domain>string</domain>
+            <expression>coalesce(coalesce(mep.template_path, (select mreo.template from md_referral_ehr_opt mreo where mreo.referral_type_id = mr.referral_type_id limit 1)), 'template/default.opt')</expression>
+        </field>
+
+    </fields>
+</query>

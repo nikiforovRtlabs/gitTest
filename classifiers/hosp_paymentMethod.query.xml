@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from mc_payment_method pm
+                left join mc_payment_method_to_care_regimen pmcr on pmcr.payment_method_id = pm.id
+                left join mc_care_regimen cr on cr.id = pmcr.care_regimen_id
+                left join mc_case_type mct on mct.default_regimen_id = cr.id
+                where now() &lt; pm.to_dt or pm.to_dt is NULL and :where
+                order by pm.code::integer
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1) from mc_payment_method pm
+                left join mc_payment_method_to_care_regimen pmcr on pmcr.payment_method_id = pm.id
+                left join mc_care_regimen cr on cr.id = pmcr.care_regimen_id
+                left join mc_case_type mct on mct.default_regimen_id = cr.id
+                where now() &lt; pm.to_dt or pm.to_dt is NULL and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>pm.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>coalesce(pm.code, '') || coalesce(' ' || pm.name, '')</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>pmcr.care_regimen_id</expression>
+            <search>(select (case when care_regimen_id is not null then pmcr.care_regimen_id = care_regimen_id else
+                cr.code in (2,3,4,5) end) from mc_case where id = :caseId)</search>
+        </field>
+        <field>
+            <id>careRegimenId</id>
+            <domain>integer</domain>
+            <expression>pmcr.care_regimen_id</expression>
+            <search>:expression = :careRegimenId</search>
+        </field>
+        <field>
+            <id>caseTypeGosp</id>
+            <domain>boolean</domain>
+            <expression>:caseTypeGosp</expression>
+            <search>mct.name = 'Случай госпитализации'</search>
+        </field>
+    </fields>
+
+</query>
+

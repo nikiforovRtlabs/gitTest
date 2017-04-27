@@ -1,0 +1,98 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Номенклатура</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/holding/regionalHolding
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="latinName" mapping="['latinName']" domain="string"/>
+                <param name="inn.id" mapping="['innId']"/>
+                <param name="comGroup.id" mapping="['comGroupId']"/>
+                <param name="vital" mapping="['isVital']"/>
+                <param name="accounting" mapping="['isAccounting']"/>
+                <param name="guaranty" mapping="['isGuaranty']"/>
+                <param name="ven.id" mapping="['venId']"/>
+                <param name="atcs*.id" mapping="['atcIds']" domain="integer[]"/>
+                <param name="officialLists*.id" mapping="['officialListIds']" domain="integer[]"/>
+                <param name="pharmGroups*.id" mapping="['pharmGroupIds']" domain="integer[]"/>
+                <param name="diagnosisList*.id" mapping="['diagnosisIds']" domain="integer[]"/>
+                <param name="pharmActions*.id" mapping="['pharmActionIds']" domain="integer[]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="code" mapping="['displayedValue']"/>
+            </out-parameters>
+            <success-text>Номенклатура с кодом '{code}' сохранена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkCodeUniqueKey"/>
+                <validation ref-id="checkNameUniqueKey"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/inventory/holding/regionalHolding
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>При удалении номенклатуры так же будут удалены её ЛС и ИМН. Вы действительно хотите удалить номенклатуру?</confirmation-text>
+            <success-text>Номеклатаура удалена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkRefFromHoldingExists"/>
+            </validations>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkCodeUniqueKey" level="error">
+            <message>Номенклатура с кодом '{code}' уже зарегистрирована</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from inventory.common_holding where trim(code) = trim(:code) and (id!=:id or :id is null);
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0]==0"/>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </constraint>
+
+        <constraint id="checkNameUniqueKey" level="error">
+            <message>Номенклатура '{name}' уже зарегистрирована</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from inventory.common_holding where trim(name) = trim(:name) and (id!=:id or :id is null);
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0]==0"/>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </constraint>
+
+        <constraint id="checkRefFromHoldingExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из справочника Номенклатур МО</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.holding where common_prototype_id =:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+</object>

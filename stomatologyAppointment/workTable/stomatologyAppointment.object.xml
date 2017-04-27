@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0">
+    <name>stomatologyAppointment</name>
+    <actions>
+        <action id="updateReception" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="PUT">
+                    ${n2o.backend.path}/stomatology/stomatologyReception/{appointmentId}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="appointmentId" mapping="['appointmentId']" domain="integer"/>
+                <param name="cancelReason.id" mapping="['cancelReasonId']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="createCopyLastVisit" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/clinic/clinicReception
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="case.id" mapping="['id']" domain="integer"/>
+                <param name="clinic.id" mapping="['clinicId']" domain="integer" value="#{org.id}"/>
+                <param name="resourceGroup.id" mapping="['resourceGroupId']" domain="integer"/>
+                <param name="profile.id" mapping="['profileId']" domain="integer"/>
+                <param name="serviceRendered.id" mapping="['serviceRenderedId']" domain="integer"/>
+                <param name="serviceRendered.orgId" mapping="['serviceRenderedOrgId']" domain="integer"/>
+                <param name="serviceRendered.patientId" mapping="['serviceRenderedPatientId']" domain="integer"/>
+                <param name="serviceRendered.resGroupId" mapping="['serviceRenderedResGroupId']" domain="integer"/>
+                <param name="serviceRendered.plannedDate" mapping="['serviceRenderedPlannedDate']" domain="date"/>
+                <param name="serviceRendered.plannedTime" mapping="['serviceRenderedPlannedTime']" domain="string"/>
+                <param name="serviceRendered.resGroupIsSystem" mapping="['serviceRenderedResGroupIsSystem']" domain="boolean"/>
+                <param name="serviceRendered.serviceId" mapping="['serviceRenderedServiceId']" domain="integer"/>
+                <param name="appointmentId" mapping="['appointmentId']" domain="integer"/>
+                <param name="isCopyVisit" mapping="['isCopyVisit']" value="true"/>
+                <param name="lastVisitDate" mapping="['lastVisitDate']" />
+                <param name="lastVisitId" mapping="['lastVisitId']"/>
+                <param name="visitDate" mapping="['visitDate']" domain="date"/>
+                <param name="doctorId" mapping="['doctorId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="isState" mapping="['isState']" domain="boolean" value="true"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Будут скопированы данные предыдущего посещения, в том числе диагнозы и услуги. Подтвердить действие?</confirmation-text>
+        </action>
+
+        <action id="createNoRecordStomAppointment" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/stomatology/appointmentNoRecord
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="individual.id" mapping="['patientId']" domain="integer"/>
+                <param name="emplPos" mapping="[emplPosId]" domain="integer" value="#{emplPosRes.id}"/>
+                <param name="orgId" mapping="['orgId']" domain="integer" value="#{org.id}"/>
+                <param name="url" mapping="['url']" domain="string"/>
+                <param name="resourceGroup.id" mapping="['resourceGroupId']" domain="integer" value="#{resourceGroup.id}"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="url" mapping="['url']" domain="string"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="getPlanedState">
+            <invocation>
+                <sql:sql>
+                    UPDATE md_appointment SET queue_state_id = (select id from md_appointment_queue_state where code =
+                    'CALLED') where id = :appointmentId;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="appointmentId" mapping="['appointmentId']" domain="integer"/>
+            </in-parameters>
+            <success-text>Статус изменен</success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="getDidNotComeState">
+            <invocation>
+                <sql:sql>
+                    UPDATE md_appointment SET queue_state_id = (select id from md_appointment_queue_state where code =
+                    'NOT_RECEIVED') where id = :appointmentId;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="appointmentId" mapping="['appointmentId']" domain="integer"/>
+            </in-parameters>
+            <success-text>Статус изменен</success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="cancelVisit" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/stomatology/stomatologyReception/cancelVisit
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['srvRenderedId']" domain="integer"/>
+                <param name="appointmentId" mapping="['appointmentId']" domain="integer"/>
+                <param name="isTodayAppointment" mapping="['isTodayAppointment']" domain="boolean"/>
+                <param name="mcCaseId" mapping="['caseId']" domain="integer" required="false"/>
+                <param name="stepId" mapping="['stepId']" domain="integer" required="false"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="visitHasReferrals"/>
+                <validation ref-id="visitHasReceipts"/>
+                <validation ref-id="visitHasSickLists"/>
+            </validations>
+        </action>
+
+        <action id="cancelAppointment" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/stomatology/stomatologyReception/cancelAppointment
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="cancelReason.id" mapping="['cancelReasonId']" domain="integer"/>
+                <param name="id" mapping="['srvRenderedId']" domain="integer"/>
+                <param name="appointmentId" mapping="['appointmentId']" domain="integer"/>
+                <param name="emplPos" mapping="[emplPosId]" domain="integer" value="#{emplPosRes.id}"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    
+    <validations>
+        <constraint id="visitHasReferrals" level="warning" moment="before-action">
+            <in-parameters>
+                <param name="stepId" mapping="['stepId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="referrals" mapping="[0][0][0]" domain="string"/>
+            </out-parameters>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select case
+                               when (select count(*) from md_referral mr where mr.step_id = :stepId) is not null then
+                                 (
+                                   select string_agg(distinct coalesce(chr(10) || '№' || order_number::text || ' от ' || to_char(referral_date, 'dd.mm.yyyy hh24:mi'), chr(10) || 'от ' || to_char(referral_date, 'dd.mm.yyyy hh24:mi')), ', ')
+                                     from md_referral
+                                     where step_id = :stepId
+                                 )
+                               else null
+                           end
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0] == null"/>
+            <message>В рамках посещения созданы направления:{referrals}. Данная связь будет потеряна.</message>
+        </constraint>
+
+        <constraint id="visitHasReceipts" level="error" moment="before-action">
+            <in-parameters>
+                <param name="stepId" mapping="['stepId']" domain="integer"/>
+            </in-parameters>
+            <invocation>
+                <sql:sql>
+                    select count(*) from ehr.receipt r
+                    where r.step_id = :stepId
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0] == 0"/>
+            <message>В рамках посещения созданы рецепты. Удаление невозможно.</message>
+        </constraint>
+
+        <constraint id="visitHasSickLists" level="error" moment="before-action">
+            <in-parameters>
+                <param name="mcCaseId" mapping="['caseId']" domain="integer"/>
+            </in-parameters>
+            <invocation>
+                <sql:sql>
+                    select count(*) from md_sicklist sl
+                    where sl.case_id = :caseId
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0] == 0"/>
+            <message>В рамках посещения созданы листы нетрудоспособности. Удаление невозможно.</message>
+        </constraint>
+    </validations>
+</object>
