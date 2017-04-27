@@ -1,0 +1,178 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Значения критерия</name>
+    <actions>
+        <action id="create" name="Добавить значение">
+            <invocation>
+                <n2o:sql>
+                    insert into qos_criteria_value(
+                    id, grade, is_active, is_default, ordinal_number, value, value_description,
+                    criteria_id, type_id)
+                    values (nextval('qos_criteria_value_seq'), :grade, :isActive, :isDefault, :ordinalNumber, :valueField, :valueDescription,
+                    :criteriaId, :type_id);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="grade" mapping="['grade']" domain="numeric"/>
+                <param name="ordinalNumber" mapping="['ordinalNumber']" domain="integer"/>
+                <param name="isActive" mapping="['isActive']" domain="boolean"/>
+                <param name="isDefault" mapping="['isDefault']" domain="boolean"/>
+                <param name="valueField" mapping="['valueField']" domain="numeric"/>
+                <param name="valueDescription" mapping="['valueDescription']" domain="string"/>
+                <param name="criteriaId" mapping="['criteriaId']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="isNegativeNumber"/>
+                <validation ref-id="isNegativeGrade"/>
+                <!--<validation ref-id="isNegativeValue"/>-->
+                <validation ref-id="uniqueDefault"/>
+                <validation ref-id="isGradeOverOne"/>
+            </validations>
+        </action>
+        <action id="update" name="Редактировать значение">
+            <invocation>
+                <n2o:sql>
+                    update qos_criteria_value set
+                    grade = :grade, is_active = :isActive, is_default = :isDefault, ordinal_number = :ordinalNumber, value = :valueField,
+                    value_description = :valueDescription, criteria_id = :criteriaId, type_id = :type_id
+                    where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="grade" mapping="['grade']" domain="numeric"/>
+                <param name="ordinalNumber" mapping="['ordinalNumber']" domain="integer"/>
+                <param name="isActive" mapping="['isActive']" domain="boolean"/>
+                <param name="isDefault" mapping="['isDefault']" domain="boolean"/>
+                <param name="valueField" mapping="['valueField']" domain="numeric"/>
+                <param name="valueDescription" mapping="['valueDescription']" domain="string"/>
+                <param name="criteriaId" mapping="['criteriaId']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="isNegativeNumber"/>
+                <validation ref-id="isNegativeGrade"/>
+                <!--<validation ref-id="isNegativeValue"/>-->
+                <validation ref-id="uniqueDefault"/>
+                <validation ref-id="isGradeOverOne"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить значение">
+            <invocation>
+                <n2o:sql>
+                    delete from qos_criteria_value where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkCardCriteriaValue"/>
+            </validations>
+        </action>
+    </actions>
+    <validations>
+        <condition id="isGradeOverOne" level="error">
+            <message>Грейд (оценка) не может быть больше единицы!</message>
+            <expression>1 >= grade</expression>
+        </condition>
+        <condition id="isNegativeNumber" level="error">
+            <expression>ordinalNumber >= 0</expression>
+            <message>
+                Порядковый номер не может быть отрицательным!
+            </message>
+        </condition>
+        <condition id="isNegativeGrade" level="error">
+            <expression>grade >= 0</expression>
+            <message>
+                Грейд (оценка) не может быть отрицательным!
+            </message>
+        </condition>
+        <condition id="isNegativeValue" level="error">
+            <expression>valueField >= 0</expression>
+            <message>
+                Значение не может быть отрицательным!
+            </message>
+        </condition>
+        <constraint id="uniqueDefault" level="error">
+            <message>Значение по умолчанию в рамках критерия уже существует</message>
+            <invocation>
+                <n2o:sql>
+                    select count(*) from qos_criteria_value where :isDefault = true
+                    and is_default = true and criteria_id = :criteriaId and (id != :id or :id is null);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="isDefault" mapping="['isDefault']" domain="boolean"/>
+                <param name="criteriaId" mapping="['criteriaId']" domain="integer"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="uniqueNumber" level="error">
+            <message>Порядковый номер в рамках критерия уже существует</message>
+            <invocation>
+                <n2o:sql>
+                    select count(*) from qos_criteria_value where ordinal_number = :ordinalNumber
+                    and criteria_id = :criteriaId and (id != :id or :id is null);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="criteriaId" mapping="['criteriaId']" domain="integer"/>
+                <param name="ordinalNumber" mapping="['ordinalNumber']" domain="integer"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="uniqueGrade" level="error">
+            <message>Грейд в рамках критерия уже существует</message>
+            <invocation>
+                <n2o:sql>
+                    select count(*) from qos_criteria_value where grade = :grade
+                    and criteria_id = :criteriaId and (id != :id or :id is null);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="criteriaId" mapping="['criteriaId']" domain="integer"/>
+                <param name="grade" mapping="['grade']" domain="numeric"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="uniqueValue" level="error">
+            <message>Значение в рамках критерия уже существует</message>
+            <invocation>
+                <n2o:sql>
+                    select count(*) from qos_criteria_value where
+                    value = :valueField and criteria_id = :criteriaId and (id != :id or :id is null);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="criteriaId" mapping="['criteriaId']" domain="integer"/>
+                <param name="valueField" mapping="['valueField']" domain="numeric"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="checkCardCriteriaValue" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*) from public.qos_exam_card_criteria_value
+                    where criteria_value_id = :criteria_value_id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['criteria_value_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Невозможно удалить значение критерия. Существует ссылка на экспертную карту</message>
+        </constraint>
+    </validations>
+</object>

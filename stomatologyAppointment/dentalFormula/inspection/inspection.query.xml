@@ -1,0 +1,133 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>inspection</object-id>
+    <name>inspection</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                FROM stomatology.tooth_disease_tooth tdt
+                LEFT JOIN stomatology.tooth t ON tdt.tooth_id = t.id
+                LEFT JOIN stomatology.tooth_mobility_log tml ON (tml.id = tdt.mobility_log_id)
+                LEFT JOIN stomatology.tooth_mobility tm ON tml.mobility_id = tm.id
+                LEFT JOIN stomatology.tooth_number tn ON t.tooth_number_id = tn.id
+                WHERE :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(tdt)
+                FROM stomatology.tooth_disease_tooth tdt
+                LEFT JOIN stomatology.tooth t ON tdt.tooth_id = t.id
+                WHERE :where
+            </n2o:count-query>
+            <n2o:alias>tdt</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <!--<field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>tdt.id</expression>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>-->
+
+        <field>
+            <id>groupId</id>
+            <domain>integer</domain>
+            <expression>tdt.group_id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>tooth.id</id>
+            <domain>integer</domain>
+            <expression>t.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>tooth.name</id>
+            <name>Номер зуба</name>
+            <domain>string</domain>
+            <display/>
+            <expression>tn.name</expression>
+        </field>
+
+        <field>
+            <id>tooth.toothNumberId</id>
+            <domain>integer</domain>
+            <expression>tn.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>whenCreate</id>
+            <domain>date</domain>
+            <name>Дата создания</name>
+            <display/>
+            <expression>(select MAX(aud_when_create) from stomatology.tooth_disease_tooth where id = tdt.id)</expression>
+            <sorting>:expression DESC</sorting>
+        </field>
+
+        <field>
+            <id>tml.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>tml.id</expression>
+        </field>
+
+        <field>
+            <id>surface</id>
+            <domain>object[]</domain>
+            <expression>
+                (select array_to_json(array_agg(distinct(r))) from (
+                select tdt2.surface_id as id, s.name as name from stomatology.tooth_disease_tooth tdt2
+                join public.md_tooth_surface s on tdt2.surface_id = s.id
+                WHERE tdt2.group_id = tdt.group_id
+                ) r)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>disease</id>
+            <domain>object[]</domain>
+            <expression>
+                (select array_to_json(array_agg(distinct(r))) from (
+                select td.id as id, tdn.name as name
+                from stomatology.tooth_disease td
+                left join stomatology.tooth_disease_name tdn ON td.name_id = tdn.id
+                left join stomatology.tooth_disease_tooth tdt3 ON tdt3.tooth_disease_id = td.id
+                WHERE tdt3.group_id = tdt.group_id) r)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>dentalFormulaId</id>
+            <domain>integer</domain>
+            <expression>tdt.dental_formula_id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>mobility.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>tm.id</expression>
+        </field>
+
+        <field>
+            <id>mobility.name</id>
+            <domain>string</domain>
+            <name>Подвижность</name>
+            <display/>
+            <expression>tm.name</expression>
+        </field>
+
+    </fields>
+</query>

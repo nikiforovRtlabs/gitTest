@@ -1,0 +1,60 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>finContract</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from public.fin_contract fc
+                left join fin_contract_type ct on ct.id=fc.type_id
+                left join inventory.funding_source fund on fund.id= fc.inv_fund_source_id
+                where :where
+            </n2o:items-query>
+            <n2o:count-query>select 1
+            </n2o:count-query>
+            <n2o:alias>fc</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>contractor.name</id>
+            <domain>string</domain>
+            <name>Поставщик</name>
+            <expression>(select org.short_name from fin_contractor cont
+                inner join pim_organization org on org.id=cont.organization_id  where cont.role_id=2 and cont.contract_id=fc.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>contract.name</id>
+            <domain>string</domain>
+            <name>Государственный контракт</name>
+            <expression>(case when ct.code='DRUG_SUPPLY' then 'Контр.'||fc.number||coalesce(', '||fc.name,'')
+                else 'Дог.'||fc.number||coalesce(', '||fc.name,'') end)
+            </expression>
+        </field>
+        <field>
+            <id>deliverySchedule</id>
+            <domain>string</domain>
+            <name>Сроки поставки</name>
+            <expression>
+                'c '||to_char(fc.beginning_date,'dd.mm.yyyy')||' по ' ||to_char(fc.period,'dd.mm.yyyy')
+            </expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <name>Финансирование</name>
+            <domain>string</domain>
+            <expression>fund.name</expression>
+        </field>
+        <field>
+            <id>contractSum</id>
+            <name>Сумма по контракту</name>
+            <domain>string</domain>
+            <expression>coalesce(fc.sum, 0)||' руб.'</expression>
+        </field>
+    </fields>
+</query>

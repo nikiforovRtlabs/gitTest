@@ -1,0 +1,170 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>dAccountCommissionIssue</object-id>
+    <name>Решение врачебной комиссии</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from d_accounting.commission_issue m
+                join md_referral r on m.referral_id = r.id
+                left join public.mc_care_level cl on cl.id = m.care_level_id
+                left join public.pim_department d on d.id = m.department_id
+                left join d_accounting.chemo_regimen cr on cr.id = m.chemo_regimen_id
+                where :where
+                order by m.create_dt, m.id
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from d_accounting.commission_issue m
+                join md_referral r on m.referral_id = r.id
+                left join public.mc_care_level cl on cl.id = m.care_level_id
+                left join public.pim_department d on d.id = m.department_id
+                left join d_accounting.chemo_regimen cr on cr.id = m.chemo_regimen_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>m</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>m.id</expression>
+        </field>
+
+        <field>
+            <id>commission.id</id>
+            <domain>integer</domain>
+            <expression>m.commission_id</expression>
+        </field>
+
+        <field>
+            <id>create_dt</id>
+            <name>Дата протокола</name>
+            <domain>date</domain>
+            <expression>m.create_dt</expression>
+        </field>
+        
+        <field>
+            <id>is_in_absentia</id>
+            <domain>boolean</domain>
+            <expression>m.is_in_absentia</expression>
+        </field>
+
+        <field>
+            <id>mainDiagnosisName</id>
+            <name>Основной диагноз</name>
+            <domain>string</domain>
+            <expression>(select get_commission_issue_diagnosis_full_name(m.id))</expression>
+        </field>
+
+        <field>
+            <id>main_diagnos.id</id>
+            <domain>integer</domain>
+            <expression>m.diagnosis_id</expression>
+        </field>
+
+        <field>
+            <id>conv_reas.id</id>
+            <domain>integer</domain>
+            <expression>convening_reason_id</expression>
+        </field>
+
+        <field>
+            <id>conv_reas.name</id>
+            <name>Цель</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT r.name FROM convening_reason r WHERE r.id = m.convening_reason_id LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>conv_reas.is_unreg_req</id>
+            <domain>boolean</domain>
+            <expression>(SELECT r.is_unreg_req FROM convening_reason r WHERE r.id = m.convening_reason_id)</expression>
+        </field>
+
+        <field>
+            <id>reason.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select ur.id from d_accounting.pat_d_group g
+                            inner join d_accounting.unreg_reason ur on ur.id = g.stop_reas_id
+                            inner join d_accounting.account_case ac on ac.account_id = g.account_id
+                            inner join mc_step s on s.case_id = ac.case_id
+                            inner join md_referral rf on rf.step_id = s.id
+                where rf.id = r.id
+                order by g.from_dt desc, g.id desc limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>reason.name</id>
+            <domain>string</domain>
+            <expression>
+                (select ur.name from d_accounting.pat_d_group g
+                            inner join d_accounting.unreg_reason ur on ur.id = g.stop_reas_id
+                            inner join d_accounting.account_case ac on ac.account_id = g.account_id
+                            inner join mc_step s on s.case_id = ac.case_id
+                            inner join md_referral rf on rf.step_id = s.id
+                where rf.id = r.id
+                order by g.from_dt desc, g.id desc limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>referral.id</id>
+            <domain>integer</domain>
+            <expression>m.referral_id</expression>
+        </field>
+        
+        <field>
+            <id>care_level.id</id>
+            <domain>integer</domain>
+            <expression>m.care_level_id</expression>
+        </field>
+        <field>
+            <id>care_level.name</id>
+            <name>Вид помощи</name>
+            <domain>string</domain>
+            <expression>cl.name</expression>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>m.department_id</expression>
+        </field>
+        <field>
+            <id>department.name</id>
+            <name>Направлен</name>
+            <domain>string</domain>
+            <expression>d.name</expression>
+        </field>
+
+        <field>
+            <id>chemo_regimen.id</id>
+            <domain>integer</domain>
+            <expression>m.chemo_regimen_id</expression>
+        </field>
+        <field>
+            <id>chemo_regimen.name</id>
+            <domain>string</domain>
+            <expression>cr.name</expression>
+        </field>
+
+        <field>
+            <id>recommendation</id>
+            <name>Рекомендации</name>
+            <domain>string</domain>
+            <expression>concat_ws('; ', cr.name, m.prescriptions)</expression>
+        </field>
+
+    </fields>
+</query>

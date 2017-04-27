@@ -1,0 +1,218 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <!--<id>patAddressHistory</id>-->
+    <name>Адреса пациента</name>
+    <object-id>patAddress</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from pim_party_address ppa
+                left join pim_register_type prt on prt.id = ppa.register_type_id
+                left join address_element ae on ae.id = ppa.addr_id
+                join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                join pim_address_type padt on padt.id = ppatat.address_type_id and padt.party_type_id = 1      <!--Классификатор типов контрагентов PIM_PARTY_TYPE-->
+                and upper(trim(padt.code)) in ('ACTUAL','REGISTER')
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from pim_party_address ppa
+                join pim_register_type prt on prt.id = ppa.register_type_id
+                left join address_element ae on ae.id = ppa.addr_id                <!--(address_element_data)-->
+                join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                join pim_address_type padt on padt.id = ppatat.address_type_id and padt.party_type_id = 1      <!--Классификатор типов контрагентов PIM_PARTY_TYPE-->
+                and upper(trim(padt.code)) in ('ACTUAL','REGISTER')
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ppa</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>ppa.id</expression>
+            <filters>
+                <filter type="eq" filter-field="id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>full_name</id>
+            <domain>string</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression><![CDATA[
+                concat(case when upper(trim(padt.code)) = 'ACTUAL' then 'Фактический адрес' else 'Адрес регистрации' end,
+                        ': ',
+                        coalesce(adr__get_element_as_text(ppa.addr_id, '(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)'), ppa.text_addr),
+                        case when ppa.from_date is not null then ' с ' || to_char(ppa.from_date, 'dd.mm.yyyy') end,
+                        case when ppa.to_date is not null then ' по ' || to_char(ppa.to_date, 'dd.mm.yyyy') end)
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>
+                case when ppa.addr_id is not null
+                    then adr__get_element_as_text(ppa.addr_id, '(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)')
+                    else ppa.text_addr
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>ppa.party_id</expression>
+            <filters>
+                <filter type="eq" filter-field="patient.id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>address.id</id>
+            <domain>integer</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>ppa.addr_id</expression>
+        </field>
+        <field>
+            <id>address.name</id>
+            <domain>string</domain>
+            <!--Вывод адреса, согласно заданному формату вывода для региона-->
+            <!--<expression>-->
+                <!--case when ppa.addr_id is not null-->
+                    <!--then-->
+                        <!--adr__get_element_as_text(ppa.addr_id, '(4,s,0)(6,s,1)(7,s,1)(8,s,1)')-->
+                    <!--else-->
+                        <!--ppa.text_addr-->
+                <!--end;-->
+                <!--concat-->
+            <!--</expression>-->
+        </field>
+
+        <field>
+            <id>addr_type*.id</id>
+            <domain>integer[]</domain>
+            <name>Тип адреса</name>
+            <!--<display/>-->
+            <expression>
+                <!--(select address_type_id from pim_party_addr_to_addr_type ppatat-->
+                (select array_to_string(array_agg(address_type_id),',')
+                from pim_party_addr_to_addr_type ppatat
+                join pim_address_type pat on pat.id = ppatat.address_type_id
+                    where ppatat.party_address_id = ppa.id and upper(trim(pat.code)) in ('ACTUAL','REGISTER'))
+            </expression>
+        </field>
+        <field>
+            <id>addr_type*.name</id>
+            <domain>string[]</domain>
+            <name>Тип адреса</name>
+            <!--<display/>-->
+            <expression>
+                (select pat.name
+                from pim_party_addr_to_addr_type ppatat
+                join pim_address_type pat on pat.id = ppatat.address_type_id
+                where ppatat.party_address_id = ppa.id and upper(trim(pat.code)) in ('ACTUAL','REGISTER'))
+            </expression>
+        </field>
+        <field>
+            <id>addr_type.all_name</id>
+            <domain>string</domain>
+            <name>Тип адреса</name>
+            <display/>
+            <expression>
+                (select array_to_string(array_agg(
+                    case when trim(upper(pat.code)) = 'ACTUAL'
+                            then 'Фактический'
+                        when trim(upper(pat.code)) = 'REGISTER'
+                            then 'Регистрации'
+                        else padt.name
+                        end),',')
+                from pim_party_addr_to_addr_type ppatat
+                join pim_address_type pat on pat.id = ppatat.address_type_id
+                where ppatat.party_address_id = ppa.id and upper(trim(pat.code)) in ('ACTUAL','REGISTER')
+                )
+            </expression>
+        </field>
+        
+        <field>
+            <id>register_type.id</id>
+            <domain>integer</domain>
+            <name>Вид регистрации</name>
+            <display/>
+            <expression>prt.id</expression>
+        </field>
+        <field>
+            <id>register_type.name</id>
+            <domain>string</domain>
+            <name>Регистрация</name>
+            <display/>
+            <expression>prt.name</expression>
+        </field>
+        
+        <field>
+            <id>is_valid</id>
+            <domain>boolean</domain>
+            <name>Действительный адрес</name>
+            <display/>
+            <expression>
+                case when ppa.is_valid is not null
+                    then ppa.is_valid
+                    else case when cast(now() as date) >= ppa.from_date and (ppa.to_date >= cast(now() as date) or ppa.to_date is null)
+                            then true
+                            else false
+                         end
+                end
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="is_valid"/>
+            </filters>
+        </field>
+        <field>
+            <id>from_date</id>
+            <domain>date</domain>
+            <name>Дата начала</name>
+            <display/>
+            <expression>ppa.from_date</expression>
+        </field>
+        <field>
+            <id>to_date</id>
+            <domain>date</domain>
+            <name>Дата окончания</name>
+            <display/>
+            <expression>ppa.to_date</expression>
+        </field>
+        <field>
+            <id>text_addr</id>
+            <domain>string</domain>
+            <name>Адрес не по справочнику</name>
+            <display/>
+            <expression>ppa.text_addr</expression>
+        </field>
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <name>Примечание</name>
+            <display/>
+            <expression>ppa.note</expression>
+        </field>
+
+        <field>
+            <id>upd</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+            <display/>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>journalDiagnosis</object-id>
+    <name>journalDiagnosis</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select
+                FROM monitoring.mn_journal_diagnosis mjd
+                JOIN md_diagnosis AS mdb ON mjd.diagnosis_id = mdb.id
+                WHERE :where
+                ORDER BY :order
+            </n2o:items-query>
+            <n2o:count-query>
+                SELECT count(mjd)
+                FROM monitoring.mn_journal_diagnosis mjd
+                JOIN md_diagnosis AS mdb ON mjd.diagnosis_id = mdb.id
+                WHERE :where
+            </n2o:count-query>
+            <n2o:alias>mjd</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>journalId</id>
+            <domain>integer</domain>
+            <expression>journal_id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <name>Идентификатор диагноза</name>
+            <domain>integer</domain>
+            <expression>mdb.id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.name</id>
+            <domain>string</domain>
+            <name>Наименование диагноза / группы диагнозов</name>
+            <expression>concat(mdb.code||' ',mdb.name)</expression>
+        </field>
+        <field>
+            <id>main</id>
+            <domain>boolean</domain>
+            <name>Основной диагноз</name>
+            <expression>mjd.main_diagnos</expression>
+        </field>
+        <field>
+            <id>diagnosis_stage</id>
+            <domain>object[]</domain>
+            <name>Этап диагноза</name>
+            <expression>
+                (select array_to_json(array_agg(r)) from (
+                select
+                ms.id as id,
+                ms.name as name
+                from monitoring.mn_journal_diagnosis_stage mjds
+                JOIN mc_stage ms ON ms.id = mjds.stage_id
+                WHERE mjds.diagnos_range_id = mjd.id) as r)
+            </expression>
+        </field>
+        <field>
+            <id>stage_text</id>
+            <domain>string</domain>
+            <name>Этап диагноза</name>
+            <expression>
+                array_to_string(array(select ms.name from monitoring.mn_journal_diagnosis_stage stage
+                JOIN mc_stage ms ON stage.stage_id = ms.id
+                where stage.diagnos_range_id = mjd.id), '; ')
+            </expression>
+        </field>
+    </fields>
+</query>

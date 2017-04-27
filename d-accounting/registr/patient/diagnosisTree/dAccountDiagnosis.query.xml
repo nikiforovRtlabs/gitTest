@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>dAccountDiagnosis</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.md_diagnosis d
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1) from public.md_diagnosis d
+                where :where
+            </n2o:count-query>
+            <n2o:alias>d</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>d.code || ' ' || d.name</expression>
+            <search>
+                (upper(d.code || ' ' || d.name) like '%' || upper(:name) || '%'
+                or upper(d.code) like upper(:name || '%')
+                or upper(d.name) like upper('%' || :name || '%')
+                or upper(d.code) like translate(upper(:name), 'ЙЦУКЕНГШЩЗФЫВАПРОЛДЯЧСМИТЬ', 'QWERTYUIOPASDFGHJKLZXCVBNM')||'%'
+                or upper(d.name) like '%' || translate(upper(:name), 'QWERTYUIOP[]ASDFGHJKL;''ZXCVBNM,.','ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ') || '%')
+            </search>
+        </field>
+
+        <field>
+            <id>parent_id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>hasChildren</id>
+            <name>Есть дети?</name>
+            <display>(select true from md_diagnosis where d.id = parent_id limit 1) as hasChildren</display>
+            <search>(select true from md_diagnosis where d.id = parent_id limit 1) = :hasChildren</search>
+            <sorting>(select true from md_diagnosis where d.id = parent_id limit 1)</sorting>
+        </field>
+
+        <field>
+            <id>count_attr</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT count(1) FROM public.md_attr_pos apos WHERE apos.diagnosis_id = d.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>attr</id>
+            <domain>integer[]</domain>
+            <expression>
+                (SELECT array_to_json(array_agg(row_to_json(ROW(apos.diag_attr_id)))) FROM public.md_attr_pos apos WHERE apos.diagnosis_id = d.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>diagnosis_is_toxic</id>
+            <domain>boolean</domain>
+            <expression>
+                (SELECT CASE
+                WHEN d.code LIKE 'F1'||'%' THEN true
+                ELSE false
+                END)
+            </expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,411 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Койка</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into md_bed(
+                      id,
+                      room_id,
+                      profile_id,
+                      from_dt,
+                      to_dt,
+                      number,
+                      bed_profile_id,
+                      bed_profile_pass_id,
+                      regimen_id,
+                      additional_bed,
+                      gender_id,
+                      age_group_id)
+                    values(
+                      nextval('md_bed_seq'),
+                      :room_id,
+                      :profile_dep_id,
+                      :from_dt,
+                      :to_dt,
+                      :number,
+                      :bed_profile_id,
+                      :bed_profile_pass_id,
+                      :care_reg_id,
+                      :additional_bed,
+                      :gender_id,
+                      :age_group_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="room.id" mapping="['room_id']" domain="integer"/>
+                <param name="profile_dep.id" mapping="['profile_dep_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="bed_profile.id" mapping="['bed_profile_id']" domain="integer"/>
+                <param name="bed_profile_pass.id" mapping="['bed_profile_pass_id']" domain="integer"/>
+                <param name="care_reg.id" mapping="['care_reg_id']" domain="integer"/>
+                <param name="additional_bed" mapping="['additional_bed']" domain="boolean"/>
+                <param name="gender.id" mapping="['gender_id']" domain="integer"/>
+                <param name="age.id" mapping="['age_group_id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Койка успешно сохранена в системе.
+            </success-text>
+        </action>
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update md_bed set
+                      room_id = :room_id,
+                      profile_id = :profile_dep_id,
+                      from_dt = :from_dt,
+                      to_dt = :to_dt,
+                      number = :number,
+                      bed_profile_id = :bed_id,
+                      regimen_id = :care_reg_id,
+                      additional_bed = :additional_bed,
+                      gender_id = :gender_id,
+                      age_group_id = :age_group_id
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="bed_id" mapping="['id']" domain="integer"/>
+                <param name="room.id" mapping="['room_id']" domain="integer"/>
+                <param name="profile_dep.id" mapping="['profile_dep_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="bed.id" mapping="['bed_id']" domain="integer"/>
+                <param name="care_reg.id" mapping="['care_reg_id']" domain="integer"/>
+                <param name="additional_bed" mapping="['additional_bed']" domain="boolean"/>
+                <param name="gender.id" mapping="['gender_id']" domain="integer"/>
+                <param name="age.id" mapping="['age_group_id']" domain="integer"/>
+            </in-parameters>
+            <!--
+            <success-text>
+                Штатная единица "{pos_name}" успешно изменена.
+            </success-text>
+            -->
+
+        </action>
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.md_bed where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="bed_id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что койка должна быть удалена?
+            </confirmation-text>
+            <success-text>
+                Койка успешно удалена.
+            </success-text>
+            <validations activate="blackList">
+                <validation ref-id="is_no_record_md_room"/>
+            </validations>
+        </action>
+
+        <action id="createProfile" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql><![CDATA[
+                    insert into md_bed_profile_detail(id, profile_id, bed_id, from_dt, to_dt, bed_profile_pass_id)
+                    values (nextval('md_bed_profile_detail_seq'), :profile_id, :bed_id, :from_dt, :to_dt, :profile_pass_id);
+
+                    update md_bed set
+                      bed_profile_pass_id = :profile_pass_id,
+                      bed_profile_id = :profile_id
+                    where id = :bed_id;
+
+                    update md_bed_profile_detail set
+                      to_dt = (:from_dt::date - interval '1' day)::date
+                    where
+                      id != currval('md_bed_profile_detail_seq') and
+                      bed_id = :bed_id and
+                      (to_dt isnull or to_dt >= :from_dt  )
+                ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="profile.id" mapping="['profile_id']" domain="integer"/>
+                <param name="profile_pass.id" mapping="['profile_pass_id']" domain="integer"/>
+                <param name="bed_id" mapping="['bed_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Профиль койки успешно сохранен в системе.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="spaceForm_bed_profile" />
+            </validations>
+        </action>
+        <action id="updateProfile" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update md_bed set
+                      bed_profile_pass_id = :profile_pass_id,
+                      bed_profile_id = :profile_id
+                    where id = :bed_id;
+
+                    update md_bed_profile_detail set
+                      profile_id = :profile_id,
+                      bed_id = :bed_id,
+                      from_dt = :from_dt,
+                      to_dt = :to_dt,
+                      bed_profile_pass_id = :profile_pass_id
+                    where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="profile.id" mapping="['profile_id']" domain="integer"/>
+                <param name="profile_pass.id" mapping="['profile_pass_id']" domain="integer"/>
+                <param name="bed_id" mapping="['bed_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <success-text>
+                Профиль койки успешно изменен.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="spaceForm_bed_profile" />
+            </validations>
+        </action>
+        <action id="deleteProfile" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.md_bed_profile_detail where id = :id;
+
+                    --Возвращаем предыдущее актуальное значение
+                    with last_valid as (
+                      select id, profile_id, bed_profile_pass_id
+                      from md_bed_profile_detail where bed_id = :bed_id
+                      order by to_dt desc limit 1
+                    )
+                    update md_bed set
+                      bed_profile_id = (select profile_id from last_valid),
+                      bed_profile_pass_id = (select bed_profile_pass_id from last_valid)
+                    where id = :bed_id and exists (select 1 from last_valid);
+
+                    --Актуализируем дату
+                    with last_valid as (
+                      select id, profile_id
+                      from md_bed_profile_detail where bed_id = :bed_id
+                      order by to_dt desc limit 1
+                    )
+                    update md_bed_profile_detail set to_dt = null where id = (select id from last_valid);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="bed_id" mapping="['bed_id']" domain="integer"/>
+                <param name="pos_name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что профиль койки должен быть удален?
+            </confirmation-text>
+            <success-text>
+                Профиль койки успешно удален.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="is_last_record" />
+                <validation ref-id="is_closed_record" />
+            </validations>
+        </action>
+
+        <action id="createStatus" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into md_bed_state(id,bed_id,state_id,from_dt)
+                    values (nextval('md_bed_state_seq'), :bed_id, :state_id, :from_dt);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="bed_id" mapping="['bed_id']" domain="integer"/>
+                <param name="status.id" mapping="['state_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Статус успешно сохранен в системе.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="bed_status_interval_exists"/>
+            </validations>
+        </action>
+        <action id="updateStatus" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update md_bed_state set
+                    from_dt = :from_dt,
+                    bed_id = :bed_id,
+                    state_id = :status_id
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="bed_id" mapping="['bed_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="status.id" mapping="['status_id']" domain="integer"/>
+            </in-parameters>
+            <success-text>
+                Статус успешно изменен.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="bed_status_interval_exists"/>
+            </validations>
+        </action>
+        <action id="deleteStatus" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.md_bed_state where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что статус должен быть удален?
+            </confirmation-text>
+            <success-text>
+                Статус успешно удален.
+            </success-text>
+            <validations activate="blackList">
+                <validation ref-id="is_no_record_md_room"/>
+            </validations>
+        </action>
+        <action id="deleteBedResource" form-submit-label="Удалить ресурс" name="Удалить ресурс">
+            <invocation>
+                <n2o:sql>
+                    delete from public.md_bed_resource where id = :resource_id;
+                    delete from public.sr_resource where id = :resource_id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="resource_id" mapping="['resource_id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что ресурс должен быть удален?
+            </confirmation-text>
+            <success-text>
+                Ресурс успешно удален.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="is_last_record" level="error">
+            <message>Невозможно удалить последнюю запись о профиле</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*) from md_bed_profile_detail
+                          where bed_id = :bed_id
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="bed_id" mapping="['bed_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] != 1"/>
+        </constraint>
+        <constraint id="is_closed_record" level="error">
+            <message>Нельзя удалить запись с закрытым периодом. Сначала необходимо закрыть запись с открытым периодом</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*) from md_bed_profile_detail
+                          where id = :id and to_dt notnull and to_dt < current_date
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="spaceForm_bed_profile" level="error">
+            <message>В одно и то же время у койки не может быть разных профилей</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*) from md_bed_profile_detail
+                          where bed_id = :bed_id
+                          and
+                          (( :from_dt::date <= to_dt ) and (:id isnull or id != :id))
+                          and
+                          (( :to_dt::date >= from_dt ) and (:id isnull or id != :id))
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="bed_id" mapping="['bed_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="checkBadProfileValidDateInterval" level="error">
+            <expression>
+                <![CDATA[
+                    ( (to_dt == null) || ( moment(from_dt, 'DD.MM.YYYY').valueOf() <= moment(to_dt,'DD.MM.YYYY' ).valueOf() )  )
+                ]]>
+            </expression>
+            <message>Дата окончания не должна быть раньше даты начала</message>
+        </condition>
+
+        <constraint id="bed_status_interval_exists" level="error">
+            <message>В указанном интервале времени уже существует статус койки</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*) from md_bed_state
+                          where bed_id = :bed_id
+                          and
+                          (( :from_dt::date <= to_dt ) and (:id isnull or id != :id))
+                          and
+                          (( :to_dt::date >= from_dt ) and (:id isnull or id != :id))
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="bed_id" mapping="['bed_id']" domain="integer"/>
+                <param name="status.id" mapping="['state_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="is_no_record_md_room" level="error">
+            <message>Необходимо пересохранить значение основной информации по помещению</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*) from md_room where id = :room_id
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="room.id" mapping="['room_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 1"/>
+        </constraint>
+    </validations>
+</object>

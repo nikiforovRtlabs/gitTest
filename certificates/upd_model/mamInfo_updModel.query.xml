@@ -1,0 +1,217 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>mamInfo_updModel</id>-->
+    <name>Получение данных матери</name>
+    <object-id>birth_certificate</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.pim_individual pi
+                left join public.pim_party_address ppa on ppa.party_id = pi.id
+                    and (ppa.to_date is null or ppa.to_date > now()) and is_valid is true
+                left join public.pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                left join public.pim_address_type padt on padt.id = ppatat.address_type_id and padt.party_type_id = 1
+                    and upper(trim(padt.code)) in ('REGISTER')
+                left join public.address_element ae on ae.id = ppa.addr_id
+
+                left join public.pim_indiv_marital_status pims on pims.individual_id = pi.id
+                    and (pims.to_dt is null or pims.to_dt > now())
+                left join public.pim_marital_status ms on ms.id = pims.status_id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from public.pim_individual pi
+                left join public.pim_party_address ppa on ppa.party_id = pi.id
+                and (ppa.to_date is null or ppa.to_date > now()) and is_valid is true
+                left join public.pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                left join public.pim_address_type padt on padt.id = ppatat.address_type_id and padt.party_type_id = 1
+                and upper(trim(padt.code)) in ('REGISTER')
+                left join public.address_element ae on ae.id = ppa.addr_id
+
+                left join public.pim_indiv_marital_status pims on pims.individual_id = pi.id
+                and (pims.to_dt is null or pims.to_dt > now())
+                left join public.pim_marital_status ms on ms.id = pims.status_id
+
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ae</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>ind.id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <display/>
+            <expression>pi.id</expression>
+            <filters>
+                <filter type="eq" filter-field="ind.id">
+                    :expression = :ind.id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>fio</id>
+            <domain>string</domain>
+            <display/>
+            <expression>pi.surname||' '||pi.name||' '||pi.patr_name</expression>
+        </field>
+        <field>
+            <id>mathers_bdt</id>
+            <domain>date</domain>
+            <display/>
+            <expression>pi.birth_dt</expression>
+        </field>
+        <!--todo уточнить адрес-->
+        <field>
+            <id>maddress.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>case when ae.id is not null then ae.id end</expression>
+            <filters>
+                <!--<filter type="eq" filter-field=""/>-->
+            </filters>
+        </field>
+        <field>
+            <id>maddress.displayName</id>
+            <domain>string</domain>
+            <display/>
+            <expression>case when ae.id is not null then (select search_name from public.address_element_data where id = ae.id) end</expression>
+            <filters>
+                <!--<filter type="eq" filter-field=""/>-->
+            </filters>
+        </field>
+
+        <!--<field>-->
+            <!--<id>bcitiship.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<name>Признак города</name>-->
+            <!--<display/>-->
+            <!--<expression>-->
+                <!--case when ae.is_city is true-->
+                    <!--then (select id from certificates.citizenship_type where e_code = '1')-->
+                    <!--else (select id from certificates.citizenship_type where e_code = '2')-->
+                <!--end-->
+            <!--</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>bcitiship.name</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<name>Признак города</name>-->
+            <!--<display/>-->
+            <!--<expression>-->
+                <!--case when ae.is_city is true-->
+                    <!--then (select name from certificates.citizenship_type where e_code = '1')-->
+                    <!--else (select name from certificates.citizenship_type where e_code = '2')-->
+                <!--end-->
+            <!--</expression>-->
+        <!--</field>-->
+        <field>
+            <id>marital_status.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                <![CDATA[
+                case
+                    when ms.id is not null and trim(ms.code) = '2'
+                        then 1
+                    when ms.id is not null and trim(ms.code) <> '2'
+                        then 2
+                else 3
+                end
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>marital_status.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                <![CDATA[
+                case
+                    when ms.id is not null and trim(ms.code) = '2'
+                        then 'состоит в зарегистрированном браке'
+                    when ms.id is not null and trim(ms.code) <> '2'
+                        then 'не состоит в зарегистрированном браке'
+                else 'неизвестно'
+                end
+                ]]>
+            </expression>
+        </field>
+        <!--не делаю, так как только к сотрудникам есть информация -->
+        <!--<field>-->
+            <!--<id>education.id</id>-->
+            <!--<domain>string</domain>-->
+            <!--<display/>-->
+            <!--<expression>-->
+                <!--<![CDATA[-->
+                <!--case-->
+                    <!--when ms.id is not null and trim(ms.code) = '2'-->
+                        <!--then 'состоит в зарегистрированном браке'-->
+                    <!--when ms.id is not null and trim(ms.code) <> '2'-->
+                        <!--then 'не состоит в зарегистрированном браке'-->
+                <!--else 'неизвестно'-->
+                <!--end-->
+                <!--]]>-->
+            <!--</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>busynessюшв</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display/>-->
+            <!--<expression>-->
+
+            <!--</expression>-->
+        <!--</field>-->
+        <!--отложила родственников-->
+        <!--<field>-->
+            <!--<id>recipients</id>-->
+            <!--<domain></domain>-->
+            <!--<expression>-->
+                <!--select pr1.id, prp1.party_id,-->
+                <!--concat(i.surname, ' ', i.name, ' ', i.patr_name, ', ', prsn.name, ' c ', to_char(pr1.from_dt,'dd.mm.yyyy'))-->
+                <!--, concat(i.surname, ' ', i.name, ' ', i.patr_name, ', ', to_char(i.birth_dt,'dd.mm.yyyy')), i.id, prsn.id, prsn.name, pr1.from_dt, pr1.to_dt, pr1.note,-->
+                <!--case when current_date between coalesce(pr1.from_dt, current_date) and coalesce(pr1.to_dt, current_date)-->
+                <!--then true-->
+                <!--else false-->
+                <!--end-->
+                <!--, prp2.party_id-->
+                <!--from pim_party_relation pr1-->
+                <!--join pim_party_relation_party prp1 on pr1.id = prp1.rel_id-->
+                <!--join pim_party_relation_party prp2 on pr1.id = prp2.rel_id-->
+                <!--join pim_individual i on prp1.party_id=i.id-->
+                <!--left join pim_gender g on g.id = i.gender_id-->
+                <!--join pim_party_relation_type_side prts on prts.id = prp1.side_id-->
+                <!--join pim_party_relation_type prt on prt.id = prts.rel_type_id-->
+                <!--left join pim_party_relation_side_name prsn on prsn.side_id = prts.id and prsn.scope_id = g.scope_id-->
+                <!--where pr1.is_active is true and prt.category_id = 1 and-->
+                <!--prp1.party_id != 1 and prp2.party_id = 1-->
+                <!--and-->
+                <!--case when current_date between coalesce(pr1.from_dt, current_date) and coalesce(pr1.to_dt, current_date)-->
+                <!--then true-->
+                <!--else false-->
+                <!--end-->
+                <!--=true-->
+            <!--</expression>-->
+        <!--</field>-->
+        <!--подготовка для получателя-->
+        <!--<field>-->
+            <!--<id>recepient.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display/>-->
+            <!--<expression>pi.id</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>recepient.displayName</id>-->
+            <!--<domain>string</domain>-->
+            <!--<display/>-->
+            <!--<expression>pi.surname||' '||pi.name||' '||pi.patr_name||' ('||to_char(pi.birth_dt,'dd.mm.yyyy')||')'</expression>-->
+        <!--</field>-->
+    </fields>
+</query>

@@ -1,0 +1,96 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+
+    <object-id>dAccountCase</object-id>
+    <modal-width>900px</modal-width>
+    <name>Закрыть случай</name>
+    <layout>n2o/layout/single</layout>
+
+    <containers>
+        <container id="c1" place="single">
+            <wgt:form>
+                <wgt:object-id>dAccountCase</wgt:object-id>
+                <wgt:query-id>dAccountCaseClose</wgt:query-id>
+
+                <fs:field-set>
+                    <ctrl:classifier id="result" label="Результат обращения" required="true">
+                        <ctrl:query query-id="hosp_closedResult" label-field-id="name" value-field-id="id">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="regimenId" ref="careRegimenId"/>
+                            </ctrl:pre-filters>
+                        </ctrl:query>
+                    </ctrl:classifier>
+
+                    <ctrl:classifier id="resultReason" label="Причина" depends-on="result">
+                        <ctrl:query query-id="dAccountStepResultReason" label-field-id="name" value-field-id="id"
+                                    master-field-id="id" detail-field-id="stepResultId">
+                        </ctrl:query>
+                    </ctrl:classifier>
+
+                    <ctrl:classifier id="outcome" label="Исход заболевания" depends-on="result">
+                        <ctrl:query query-id="dAccountStepCareResult" label-field-id="name" value-field-id="id"
+                                    master-field-id="id" detail-field-id="stepResultId">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="caseCareRegimenId" ref="careRegimenId"/>
+                            </ctrl:pre-filters>
+                        </ctrl:query>
+                    </ctrl:classifier>
+
+                    <ctrl:date-time id="outcomeDate" label="Дата закрытия случая" readonly="true"/>
+
+                    <ctrl:classifier id="deviationReason" label="Причина отклонения от стандарта">
+                        <ctrl:query query-id="hosp_deviationReason" label-field-id="name" value-field-id="id"/>
+                    </ctrl:classifier>
+
+                    <ctrl:classifier id="csg" label="КСГ">
+                        <ctrl:query query-id="hosp_csg" value-field-id="id" label-field-id="name">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                            </ctrl:pre-filters>
+                        </ctrl:query>
+                    </ctrl:classifier>
+                </fs:field-set>
+                <fs:field-set label="Диагноз" header="line">
+                    <rc:diagnosis label="Диагноз" id="diagnos" required="true" control-style="width:480px;"/>
+
+                    <ctrl:checkbox id="main" label="Основной диагноз"/>
+
+                    <ctrl:classifier id="diagnosisType" label="Вид" search-are-you-type="true"
+                                     dependency-condition="typeof main == 'undefined' || main == null || main == false">
+                        <ctrl:query query-id="hosp_diagnosisType" value-field-id="id" label-field-id="name"/>
+                    </ctrl:classifier>
+
+                    <ctrl:classifier id="diseaseType" label="Характер заболевания">
+                        <ctrl:query query-id="dAccountDiseaseType" value-field-id="id" label-field-id="name"/>
+                        <!--todo https://jira.i-novus.ru/browse/NNOREQ-134-->
+                        <ctrl:set-value if="diseaseType.id == null">
+                            <ctrl:then>
+                                <ctrl:value field-id="id"/>
+                                <ctrl:value field-id="name"/>
+                            </ctrl:then>
+                        </ctrl:set-value>
+                    </ctrl:classifier>
+
+                    <ctrl:date-time id="establishmentDate" label="Дата установления" required="true"/>
+
+                    <ctrl:checkbox id="pathologic" default-value="false" label="Указать патологоанатомический диагноз"
+                                   dependency-condition="result.is_death == true"/>
+
+                    <ctrl:classifier id="pathologicDiagnosisType" label="Вид" search-are-you-type="true"
+                                     dependency-condition="result.is_death == true &amp;&amp; pathologic == true">
+                        <ctrl:query query-id="hosp_diagnosisType" value-field-id="id" label-field-id="name"/>
+                    </ctrl:classifier>
+
+                    <rc:diagnosis label="Диагноз" id="pathologicDiagnos" required="true" control-style="width:480px;"
+                                  dependency-condition="result.is_death == true &amp;&amp; pathologic == true"/>
+                    <ctrl:text-area rows="4" id="pathologicNote" label="Дополнение" control-style="min-width:480px;"
+                                    dependency-condition="result.is_death == true &amp;&amp; pathologic == true"/>
+                </fs:field-set>
+            </wgt:form>
+        </container>
+    </containers>
+</page>

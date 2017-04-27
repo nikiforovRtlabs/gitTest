@@ -1,0 +1,508 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>roomInfo</object-id>
+    <name>Помещения</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from pim_room room
+                left join md_room mr on ( mr.id = room.id )
+                left join md_room_kind mrc on ( mrc.id = mr.kind_id)
+                left join pha_room pr on ( pr.id = room.id )
+                left join pha_room_category prc on (prc.id = pr.danger_category_id)
+                left join pim_building bld on bld.id = room.building_id
+                left join pim_building_floor flr on flr.id = room.floor_id
+                left join pim_room_type rtype on rtype.id = room.type_id
+                left join md_comfort_level clv on clv.id = mr.comfort_level_id
+                left join md_post post on post.id = mr.post_id
+                left join pim_gender pg on (pg.id = room.gender_id)
+                left join md_age_group mag on (mag.id = room.age_group_id)
+                left join pim_org_unit unit on unit.id = room.unit_id
+                left join mc_care_regimen regimen on regimen.id = mr.regimen_id
+                left join pim_department dep on dep.id = room.department_id
+                left join pim_room parent on parent.id = room.parent_room_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(1)
+                from pim_room room
+                left join pim_building bld on bld.id = room.building_id
+                left join pim_building_floor flr on flr.id = room.floor_id
+                left join pim_room_type rtype on rtype.id = room.type_id
+                left join md_comfort_level clv on clv.id = room.comfort_level_id
+                left join md_post post on post.id = room.post_id
+                left join pim_org_unit unit on unit.id = room.unit_id
+                left join mc_care_regimen regimen on regimen.id = room.regimen_id
+                left join pim_department dep on dep.id = room.department_id
+                left join pim_room parent on parent.id = room.parent_room_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>room_list</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>room.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>bld.org_id</expression>
+            <filters>
+                <filter type="eq" filter-field="org.id" default-value="#{stocks.orgId}">
+                    :expression = :org.id
+                </filter>
+            </filters>
+            <display/>
+        </field>
+        <field>
+            <id>room.parent_room_id</id>
+            <domain>integer</domain>
+            <expression>room.parent_room_id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>unit.id</id>
+            <domain>integer</domain>
+            <expression>unit.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>room.gender_id</id>
+            <domain>integer</domain>
+            <expression>room.gender_id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>id_name</id>
+            <domain>string</domain>
+            <expression>
+                room.id || '~' || format('%s %s', rtype.name, room.name)
+            </expression>
+            <display/>
+        </field>
+        <field>
+            <id>bid_flr</id>
+            <domain>string</domain>
+            <expression>
+                json_build_object('bld', json_build_object('id', bld.id, 'name', bld.name), 'flr', json_build_object('id', flr.id, 'name', flr.name))::text
+            </expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+
+        <!-- Основная информация -->
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>1=1</expression>
+            <filters>
+                <filter type="eq" filter-field="profile.id">
+                    exists (
+                      select * from
+                        md_room_profile
+                        where room_id = room.id and profile_id = :profile.id
+                    )
+                </filter>
+            </filters>
+            <display/>
+        </field>
+
+        <field>
+            <id>activity.id</id>
+            <domain>integer</domain>
+            <expression>1=1</expression>
+            <filters auto-generate="true">
+                <filter type="eq" filter-field="activity.id"><![CDATA[
+                    (case
+                      when :activity.id = 1 then (room.to_dt isnull or room.to_dt >= current_date)
+                      when :activity.id = 2 then (room.to_dt notnull and room.to_dt < current_date)
+                      when :activity.id = 3 then true
+                     end)
+                    ]]>
+                </filter>
+            </filters>
+            <display/>
+        </field>
+
+        <!-- Основные данные -->
+        <field>
+            <id>room_type.id</id>
+            <domain>integer</domain>
+            <expression>rtype.id</expression>
+            <filters>
+                <filter type="eq" filter-field="room_type.id">
+                    :expression = :room_type.id
+                </filter>
+            </filters>
+            <display/>
+        </field>
+        <field>
+            <id>room_type.name</id>
+            <domain>string</domain>
+            <expression>rtype.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <expression>room.code</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>room.name</expression>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    upper(:expression) like upper('%' || :name || '%')
+                </filter>
+            </filters>
+            <display/>
+        </field>
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>dep.id</expression>
+            <filters>
+                <filter type="eq" filter-field="department.id">
+                    :expression = :department.id
+                </filter>
+            </filters>
+            <display/>
+        </field>
+        <field>
+            <id>department.name</id>
+            <domain>string</domain>
+            <expression>dep.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>building.id</id>
+            <domain>integer</domain>
+            <expression>bld.id</expression>
+            <filters>
+                <filter type="eq" filter-field="building.id">
+                    :expression = :building.id
+                </filter>
+            </filters>
+            <display/>
+        </field>
+        <field>
+            <id>building.name</id>
+            <domain>integer</domain>
+            <expression>bld.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>floor.id</id>
+            <domain>integer</domain>
+            <expression>flr.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>floor.name</id>
+            <domain>string</domain>
+            <expression>flr.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>post.id</id>
+            <domain>integer</domain>
+            <expression>post.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>post.name</id>
+            <domain>string</domain>
+            <expression>post.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>parent_room.id</id>
+            <domain>integer</domain>
+            <expression>parent.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>parent_room.name</id>
+            <domain>string</domain>
+            <expression>parent.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <expression>room.from_dt</expression>
+            <display/>
+        </field>
+        <field>
+            <id>to_dt</id>
+            <domain>date</domain>
+            <expression>room.to_dt</expression>
+            <display/>
+        </field>
+        <field>
+            <id>stock_unit_state.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select sus.id
+                from pim_room_state rs, pim_stock_unit_state sus
+                where rs.room_id = room.id and rs.state_id = sus.id
+                order by rs.from_dt desc limit 1)
+            </expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>stock_unit_state.name</id>
+            <domain>integer</domain>
+            <expression>
+                (select sus.name
+                from pim_room_state rs, pim_stock_unit_state sus
+                where rs.room_id = room.id and rs.state_id = sus.id
+                order by rs.from_dt desc limit 1)
+            </expression>
+            <display/>
+        </field>
+
+        <!-- Технические параметры -->
+        <field>
+            <id>danger_category.id</id>
+            <domain>integer</domain>
+            <expression>prc.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>danger_category.name</id>
+            <domain>string</domain>
+            <expression>prc.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>floor_area</id>
+            <domain>numeric</domain>
+            <expression>room.floor_area</expression>
+            <display/>
+        </field>
+        <field>
+            <id>wall_area</id>
+            <domain>numeric</domain>
+            <expression>pr.wall_area</expression>
+            <display/>
+        </field>
+        <field>
+            <id>ceiling_area</id>
+            <domain>numeric</domain>
+            <expression>pr.ceiling_area</expression>
+            <display/>
+        </field>
+        <field>
+            <id>furniture_area</id>
+            <domain>numeric</domain>
+            <expression>pr.furniture_area</expression>
+            <display/>
+        </field>
+        <field>
+            <id>equipment_area</id>
+            <domain>numeric</domain>
+            <expression>pr.equipment_area</expression>
+            <display/>
+        </field>
+        <field>
+            <id>toilet_sink_quantity</id>
+            <domain>integer</domain>
+            <expression>pr.toilet_sink_quantity</expression>
+            <display/>
+        </field>
+        <field>
+            <id>bathroom_quantity</id>
+            <domain>integer</domain>
+            <expression>pr.bathroom_quantity</expression>
+            <display/>
+        </field>
+        <field>
+            <id>shower_quantity</id>
+            <domain>integer</domain>
+            <expression>pr.shower_quantity</expression>
+            <display/>
+        </field>
+        <field>
+            <id>sink_quantity</id>
+            <domain>integer</domain>
+            <expression>pr.sink_quantity</expression>
+            <display/>
+        </field>
+        <field>
+            <id>balcony_quantity</id>
+            <domain>integer</domain>
+            <expression>pr.balcony_quantity</expression>
+            <display/>
+        </field>
+        <field>
+            <id>kitchen_quantity</id>
+            <domain>integer</domain>
+            <expression>pr.kitchen_quantity</expression>
+            <display/>
+        </field>
+        <field>
+            <id>room_quantity</id>
+            <domain>integer</domain>
+            <expression>pr.room_quantity</expression>
+            <display/>
+        </field>
+        <field>
+            <id>window_view</id>
+            <domain>string</domain>
+            <expression>pr.window_view</expression>
+            <display/>
+        </field>
+        <!-- Палата -->
+        <field>
+            <id>regimen.id</id>
+            <domain>integer</domain>
+            <expression>regimen.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>regimen.name</id>
+            <domain>string</domain>
+            <expression>regimen.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>comfort_level.id</id>
+            <domain>integer</domain>
+            <expression>clv.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>comfort_level.name</id>
+            <domain>string</domain>
+            <expression>clv.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>kind.id</id>
+            <domain>integer</domain>
+            <expression>mrc.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>kind.name</id>
+            <domain>string</domain>
+            <expression>mrc.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>gender.id</id>
+            <domain>integer</domain>
+            <expression>pg.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>gender.name</id>
+            <domain>string</domain>
+            <expression>pg.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>age_group.id</id>
+            <domain>integer</domain>
+            <expression>mag.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>age_group.name</id>
+            <domain>string</domain>
+            <expression>mag.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>pit</id>
+            <domain>boolean</domain>
+            <expression>mr.pit</expression>
+            <display/>
+        </field>
+        <field>
+            <id>cell_count</id>
+            <domain>integer</domain>
+            <expression>mr.cell_count</expression>
+            <display/>
+        </field>
+        <field>
+            <id>cell_count_extra</id>
+            <domain>integer</domain>
+            <expression>mr.cell_count_extra</expression>
+            <display/>
+        </field>
+        <field>
+            <id>cell_count_fact</id>
+            <domain>integer</domain>
+            <expression>
+                (select count(mb.room_id)
+                    from md_bed mb where mb.room_id = room.id and
+                    (mb.from_dt is null or CURRENT_DATE >= mb.from_dt) and
+                    (mb.to_dt is null or mb.to_dt >= CURRENT_DATE) and
+                    not COALESCE(mb.additional_bed, false) )
+            </expression>
+            <display/>
+        </field>
+        <field>
+            <id>cell_count_extra_fact</id>
+            <domain>integer</domain>
+            <expression>
+                (select count(mb.room_id)
+                from md_bed mb where mb.room_id = room.id and
+                (mb.from_dt is null or CURRENT_DATE >= mb.from_dt) and
+                (mb.to_dt is null or mb.to_dt >= CURRENT_DATE) and
+                COALESCE(mb.additional_bed, false) )
+            </expression>
+            <display/>
+        </field>
+        <field>
+            <id>area_per_cell</id>
+            <domain>numeric</domain>
+            <expression>0</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>resource_id</id>
+            <domain>integer</domain>
+            <expression>(select id from pim_room_resource where room_id = room.id limit 1)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>is_resource</id>
+            <domain>integer</domain>
+            <expression>exists(select id from pim_room_resource where room_id = room.id limit 1)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>has_group_resource</id>
+            <domain>integer</domain>
+            <expression>
+                exists(
+                  select srgr.id
+                  from sr_res_group_relationship srgr
+                  where srgr.resource_id = (select id from pim_room_resource where room_id = room.id limit 1) )
+            </expression>
+            <display/>
+        </field>
+
+    </fields>
+</query>

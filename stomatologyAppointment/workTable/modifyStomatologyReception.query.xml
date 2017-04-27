@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>stomatologyAppointment</object-id>
+    <name>modifyReception</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from sr_srv_rendered ssr
+                left join md_appointment ma ON ( ssr.id = ma.srv_rendered_id  )
+                join pim_individual pi on ( ssr.customer_id = pi.id  )
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ssr)
+                from sr_srv_rendered ssr
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ssr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>serviceRendered.resGroupId</id>
+            <domain>integer</domain>
+            <expression>ssr.res_group_id</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>pi.id</expression>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>ФИО</name>
+            <expression>(coalesce(pi.surname, '') || ' ' || coalesce(pi.name, '') || ' ' || coalesce(pi.patr_name, ''))</expression>
+        </field>
+
+        <field>
+            <id>patient.orgId</id>
+            <domain>integer</domain>
+            <expression>ssr.org_id</expression>
+        </field>
+
+        <field>
+            <id>appointmentId</id>
+            <domain>integer</domain>
+            <expression>ma.id</expression>
+        </field>
+
+        <field>
+            <id>serviceId</id>
+            <domain>integer</domain>
+            <expression>ma.service_id</expression>
+        </field>
+
+        <field>
+            <id>resourceGroupId</id>
+            <domain>string</domain>
+            <expression>(case when ma.executor_id is null then 'employeeId='||(select pe1.id from pim_employee pe1
+                join pim_employee_position pep on ( pe1.id = pep.employee_id )
+                join sr_res_group srg on ( pep.id = srg.responsible_id ) where srg.id = ssr.res_group_id)
+                else 'appointment.resourceGroupId='||ma.executor_id end)</expression>
+        </field>
+    </fields>
+</query>

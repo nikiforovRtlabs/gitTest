@@ -1,0 +1,107 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Региональный справочник модификаций</name>
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/holding/regionalModif
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="latinName" mapping="['latinName']" domain="string"/>
+                <param name="holding.id" mapping="['holdId']"/>
+                <param name="form.id" mapping="['formTypeId']"/>
+                <param name="org.id" mapping="['orgOwnerId']"/>
+                <param name="mnei.id" mapping="['mneiId']"/>
+                <param name="extraPackUnit.id" mapping="['extraPackUnitId']"/>
+                <param name="secPackUnit.id" mapping="['secPackUnitId']"/>
+                <param name="mneiCountInExtraPk" mapping="['mneiCountInExtraPk']"/>
+                <param name="mneiCountInSecPk" mapping="['mneiCountInSecPk']"/>
+                <param name="actVal" mapping="['actVal']"/>
+                <param name="actUnit.id" mapping="['actUnitId']"/>
+                <param name="concentrVal" mapping="['concentrVal']"/>
+                <param name="concentrUnit.id" mapping="['concentrUnitId']"/>
+                <param name="dosageVal" mapping="['dosageVal']"/>
+                <param name="dosageUnit.id" mapping="['dosageUnitId']"/>
+                <param name="volumeVal" mapping="['volumeVal']"/>
+                <param name="volumeUnit.id" mapping="['volumeUnitId']"/>
+                <param name="massVal" mapping="['massVal']"/>
+                <param name="massUnit.id" mapping="['massUnitId']"/>
+                <param name="priceUnitFlag.id" mapping="['priceUnitFlag']"/>
+                <param name="storageCond.id" mapping="['storageCondId']"/>
+                <param name="writeOffUnitFlag.id" mapping="['writeOffUnitFlag']"/>
+                <param name="isExtemporal" mapping="['isExtemporal']"/>
+                <param name="angroFlag" mapping="['angroFlag']"/>
+                <param name="medPurposeFlag" mapping="['medPurposeFlag']"/>
+                <param name="dloFlag" mapping="['dloFlag']"/>
+                <param name="codeTfoms" mapping="['codeTfoms']" domain="string"/>
+                <param name="commonPrototype.id" mapping="['commonPrototypeId']"/>
+                <param name="inn.id" mapping="['innId']"/>
+                <param name="numberOfDoses" mapping="['numberOfDoses']"/>
+                <param name="maxSingleDoseVal" mapping="['maxSingleDoseVal']"/>
+                <param name="maxDailyDoseVal" mapping="['maxDailyDoseVal']"/>
+                <param name="codeOkdp" mapping="['codeOkdp']"/>
+            </in-parameters>
+
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="code" mapping="['displayedValue']"/>
+            </out-parameters>
+            <success-text>Модификация с кодом '{code}' сохранена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueKey"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/inventory/holding/regionalModif
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы действительно хотите удалить модификацию?</confirmation-text>
+            <success-text>Запись удалена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="modifRefExists"/>
+            </validations>
+            <fail-text>Операция не может быть выполнена. Есть связанные данные.</fail-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="checkUniqueKey" level="error">
+            <message>Модификация с кодом '{code}' уже зарегистрирована</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from inventory.common_hold_modif where trim(code) = trim(:code) and (id!=:id or :id is null);
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0]==0"/>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </constraint>
+
+        <constraint id="modifRefExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из справочника Модификаций МО</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.hold_modif where common_prototype_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

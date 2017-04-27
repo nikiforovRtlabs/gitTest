@@ -1,0 +1,248 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>paymentList</name>
+
+    <object-id>payment</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from public.fin_payment pm
+                left join public.pim_individual ind on ind.id = pm.payer_individual_id
+                left join public.pim_organization ur on ur.id = pm.payer_organization_id
+                left join public.pim_organization rcpt on rcpt.id = pm.recipient_id
+                left join public.fin_payment_method mtd on mtd.id = pm.method_id
+                left join public.fin_payment_transaction_type typ on typ.id = pm.transaction_type_id
+                left join public.fin_contract con on con.id = pm.contract_id
+                left join public.fin_funding_source_type fst on fst.id = pm.funding_source_type_id
+                where fst.code in ('CONTRACT', 'CITIZEN')
+                and pm.recipient_id in (select distinct ua.org_id from sec.access_key ua
+                                        left join public.pim_organization o on o.id = ua.org_id where ua.user_id = :userId)
+                and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(pm)
+                from public.fin_payment pm
+                left join public.pim_individual ind on ind.id = pm.payer_individual_id
+                left join public.pim_organization ur on ur.id = pm.payer_organization_id
+                left join public.pim_organization rcpt on rcpt.id = pm.recipient_id
+                left join public.fin_payment_method mtd on mtd.id = pm.method_id
+                left join public.fin_payment_transaction_type typ on typ.id = pm.transaction_type_id
+                left join public.fin_contract con on con.id = pm.contract_id
+                left join public.fin_funding_source_type fst on fst.id = pm.funding_source_type_id
+                where fst.code in ('CONTRACT', 'CITIZEN')
+                and pm.recipient_id in (select distinct ua.org_id from sec.access_key ua
+                                        left join public.pim_organization o on o.id = ua.org_id where ua.user_id = :userId) and :where
+            </n2o:count-query>
+            <n2o:alias>pm</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>userId</id>
+            <domain>integer</domain>
+            <expression>:userId</expression>
+        </field>
+        <field>
+            <id>countOrg</id>
+            <domain>integer</domain>
+            <expression>:countOrg</expression>
+        </field>
+
+
+        <field>
+            <id>amount</id>
+            <domain>numeric</domain>
+            <name>Сумма</name>
+            <expression>pm.amount</expression>
+        </field>
+
+        <field>
+            <id>number</id>
+            <domain>string</domain>
+            <name>Номер платежа</name>
+            <expression>pm.number</expression>
+            <search>:expression = :number</search>
+        </field>
+
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>to_char(pm.date,'DD.MM.YYYY')</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>datePeriod.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[(pm.date >=  :datePeriod.begin)]]></search>
+        </field>
+
+        <field>
+            <id>datePeriod.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[(pm.date <= :datePeriod.end)]]></search>
+        </field>
+
+        <field>
+            <id>recipient.id</id>
+            <domain>integer</domain>
+            <name>Получатель</name>
+            <expression>pm.recipient_id</expression>
+            <search>:expression = :recipient.id</search>
+        </field>
+
+        <field>
+            <id>recipient.name</id>
+            <domain>string</domain>
+            <name>Получатель</name>
+            <expression>rcpt.short_name</expression>
+        </field>
+
+        <field>
+            <id>contract.id</id>
+            <domain>integer</domain>
+            <name>Договор</name>
+            <expression>
+                pm.contract_id
+            </expression>
+        </field>
+
+        <field>
+            <id>contract.title</id>
+            <domain>string</domain>
+            <name>Договор</name>
+            <expression>
+                con.number || ' от ' || to_char(con.date, 'DD.MM.YYYY')
+            </expression>
+        </field>
+
+        <field>
+            <id>method.id</id>
+            <domain>integer</domain>
+            <name>Способ платежа</name>
+            <expression>
+                pm.method_id
+            </expression>
+        </field>
+
+        <field>
+            <id>method.name</id>
+            <domain>string</domain>
+            <name>Способ платежа</name>
+            <expression>
+                mtd.name
+            </expression>
+        </field>
+
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <name>Тип операции</name>
+            <expression>
+                typ.id
+            </expression>
+        </field>
+
+        <field>
+            <id>type.name</id>
+            <domain>string</domain>
+            <name>Тип операции</name>
+            <expression>
+                typ.name
+            </expression>
+        </field>
+
+        <field>
+            <id>payerType.id</id>
+            <domain>integer</domain>
+            <name>Тип плательщика</name>
+            <expression>
+                case when pm.payer_individual_id is not null then 1
+                else 2
+                end
+            </expression>
+            <search>(:expression = :payerType.id)</search>
+        </field>
+
+        <field>
+            <id>payerType.name</id>
+            <domain>string</domain>
+            <name>Тип плательщика</name>
+            <expression>
+                case when pm.payer_individual_id is not null then 'Физическое лицо'
+                else 'Юридическое лицо'
+                end
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>payer.name</id>
+            <domain>string</domain>
+            <name>Плательщик</name>
+            <expression>
+                case when pm.payer_individual_id is not null then concat(ind.surname, ' ' || ind.name, ' ' || ind.patr_name)
+                else ur.short_name
+                end
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>payer.id</id>
+            <domain>integer</domain>
+            <name>Плательщик</name>
+            <display unavailable="true"/>
+            <search>((:payerType.id = 1 and pm.payer_individual_id = :payer.id) or (:payerType.id = 2 and pm.payer_organization_id = :payer.id))</search>
+        </field>
+
+        <field>
+            <id>payerId</id>
+            <domain>integer</domain>
+            <name>Плательщик</name>
+            <display>:payer.id</display>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>funding.name</id>
+            <domain>string</domain>
+            <name>Вид финансирования</name>
+            <expression>fst.name</expression>
+        </field>
+
+        <field>
+            <id>registreted</id>
+            <domain>boolean</domain>
+            <name>Проведен</name>
+            <expression>pm.registreted</expression>
+            <search>(pm.registreted = :registreted or :notRegistreted)</search>
+        </field>
+
+        <field>
+            <id>notRegistreted</id>
+            <domain>boolean</domain>
+            <name>Не проведен</name>
+            <expression>pm.registreted</expression>
+            <search>(pm.registreted = not :notRegistreted or :registreted)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>billExists</id>
+            <domain>boolean</domain>
+            <expression>(select case when exists (select * from fin_payment_share where payment_id = pm.id and bill_id is not null) then true else false end)</expression>
+            <search unavailable="true"/>
+        </field>
+    </fields>
+</query>

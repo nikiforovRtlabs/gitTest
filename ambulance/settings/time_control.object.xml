@@ -1,0 +1,106 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>time_control</id>-->
+    <name>Настройка контрольного времени</name>
+    <actions>
+        <action id="create" name="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into amb.md_ambulance_call_time_control (id,scope_type_id,clinic_id,route_id,department_id,job_status_id,call_state_id,control_time)
+                    values (nextval('amb.md_ambulance_call_time_control_id_seq'),:scope,(case when upper(trim(:scopeCode)) = 'GLOBAL' then null else :clinic end)::int,
+                    :route,(case when upper(trim(:scopeCode)) = 'DEPARTMENT' then :depart else null end)::int,:job_stat,:call_state,cast(:time as time));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="scope.id" mapping="['scope']" domain="integer"/>
+                <param name="scope.code" mapping="['scopeCode']" domain="string"/>
+                <param name="station.id" mapping="['clinic']" domain="integer"/>
+                <param name="route.id" mapping="['route']" domain="integer"/>
+                <param name="substation.id" mapping="['depart']" domain="integer"/>
+                <param name="job_status.id" mapping="['job_stat']" domain="integer"/>
+                <param name="call_state.id" mapping="['call_state']" domain="integer"/>
+                <param name="control_time" mapping="['time']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <!--<validations activate="whiteList">-->
+                <!--<validation ref-id="checkStatusState"/>-->
+            <!--</validations>-->
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    update amb.md_ambulance_call_time_control set scope_type_id=:scope,clinic_id = (case when upper(trim(:scopeCode)) = 'GLOBAL' then null else :clinic end)::int,
+                    route_id=:route,department_id = (case when upper(trim(:scopeCode)) = 'DEPARTMENT' then :depart else null end)::int,
+                    job_status_id=:job_stat,call_state_id=:call_state,control_time = cast(:time as time) where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="scope.id" mapping="['scope']" domain="integer"/>
+                <param name="scope.code" mapping="['scopeCode']" domain="string"/>
+                <param name="station.id" mapping="['clinic']" domain="integer"/>
+                <param name="route.id" mapping="['route']" domain="integer"/>
+                <param name="substation.id" mapping="['depart']" domain="integer"/>
+                <param name="job_status.id" mapping="['job_stat']" domain="integer"/>
+                <param name="call_state.id" mapping="['call_state']" domain="integer"/>
+                <param name="control_time" mapping="['time']" domain="string"/>
+            </in-parameters>
+            <!--<validations activate="whiteList">-->
+                <!--<validation ref-id="checkStatusState"/>-->
+            <!--</validations>-->
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from amb.md_ambulance_call_time_control where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <condition id="checkStatusStateAll" level="error">
+            <expression>((typeof job_status == 'undefined') || (job_status == null) || (job_status.id == null)) ||((typeof call_state == 'undefined') || (call_state == null)|| (call_state.id == null)) </expression>
+            <message>Одновременное заполнение полей 'Статус бригады' и 'Состояние вызова' недопустимо!</message>
+        </condition>
+        <condition id="checkStatusState" level="error">
+            <expression>((typeof job_status != 'undefined') &amp;&amp; (job_status != null) &amp;&amp; (job_status.id != null)) ||((typeof call_state != 'undefined') &amp;&amp; (call_state != null)&amp;&amp; (call_state.id != null)) </expression>
+            <!--<expression on="job_status,call_state">(job_status.id != null)||(call_state.id != null) </expression>-->
+            <message>Одно из полей 'Статус бригады'/'Состояние вызова' обязательно должно быть заполнено</message>
+        </condition>
+        <constraint id="checkUniqueTimecontrol" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*) from amb.md_ambulance_call_time_control
+                    where clinic_id = :clinic
+                    <!--and route_id=:route-->
+                    <!--and department_id=:depart-->
+                    and (job_status_id = :job_stat or call_state_id = :call_state)
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="station.id" mapping="['clinic']" domain="integer"/>
+                <param name="route.id" mapping="['route']" domain="integer"/>
+                <param name="substation.id" mapping="['depart']" domain="integer"/>
+                <param name="job_status.id" mapping="['job_stat']" domain="integer"/>
+                <param name="call_state.id" mapping="['call_state']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Такая настройка уже существует в системе</message>
+        </constraint>
+        <condition id="checkTimecontrolRoute" level="error">
+            <expression>
+                (typeof scope != 'undefined') &amp;&amp; (scope.id != null) &amp;&amp; (scope.code != 'Route')
+            </expression>
+            <message>Настройка по уровню 'Направление' не доступна, используйте уровень подстанции.</message>
+        </condition>
+    </validations>
+</object>

@@ -1,0 +1,131 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>period</object-id>
+    <name>Период</name>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sickdoc.period p
+                join sickdoc.sickdoc s on s.id = p.sickdoc_id
+                join md_sicklist_state state on state.id = s.state_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from sickdoc.period p
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+        <field>
+            <id>curClinicId</id>
+            <domain>integer</domain>
+            <display value="#{org.id?}" unavailable="true"/>
+            <search value="#{org.id?}">1=1</search>
+        </field>
+        <field>
+            <id>sickdocId</id>
+            <domain>integer</domain>
+            <expression>p.sickdoc_id</expression>
+            <search>:expression = :sickdocId</search>
+        </field>
+        <field>
+            <id>isOtherClinicForPeriod</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[p.clinic_id <> :curClinicId]]>
+            </expression>
+        </field>
+        <field>
+            <id>issuedEmployee.id</id>
+            <domain>integer</domain>
+            <expression>p.issued_employee_id</expression>
+        </field>
+        <field>
+            <id>issuedEmployee.name</id>
+            <domain>string</domain>
+            <name>Выписал</name>
+            <expression>
+                (select sickdoc.employee_position_displayname(p.issued_employee_id))
+            </expression>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>issuedEmployeePosition</id>
+            <domain>string</domain>
+            <name>Должность</name>
+            <expression>p.issued_employee_position</expression>
+        </field>
+        <field>
+            <id>period.begin</id>
+            <domain>date</domain>
+            <name>С</name>
+            <expression>p.from_dt</expression>
+        </field>
+        <field>
+            <id>period.end</id>
+            <domain>date</domain>
+            <name>По</name>
+            <expression>p.to_dt</expression>
+        </field>
+        <field>
+            <id>witnessEmployee.id</id>
+            <domain>integer</domain>
+            <expression>p.witness_employee_id</expression>
+        </field>
+        <field>
+            <id>otherClinicForPeriod.id</id>
+            <domain>integer</domain>
+            <expression>case when p.clinic_id = :curClinicId then null else p.clinic_id end</expression>
+        </field>
+        <field>
+            <id>witnessEmployee.name</id>
+            <domain>string</domain>
+            <name>Заверил</name>
+            <expression>
+                (select sickdoc.employee_position_displayname(p.witness_employee_id))
+            </expression>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>witnessEmployeePosition</id>
+            <domain>string</domain>
+            <name>Должность</name>
+            <expression>p.witness_employee_position</expression>
+        </field>
+        <field>
+            <id>isVisibleOtherMOSuggest</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+        </field>
+        <field>
+            <id>isClosed</id>
+            <domain>boolean</domain>
+            <expression>(state.code = '3')</expression>
+        </field>
+        <field>
+            <id>isAnnuled</id>
+            <domain>boolean</domain>
+            <expression>(state.code = '5')</expression>
+        </field>
+        <field>
+            <id>isOnlyOne</id>
+            <domain>boolean</domain>
+            <expression>( (select count(*) from sickdoc.period where sickdoc_id = :sickdocId ) = 1)</expression>
+        </field>
+    </fields>
+</query>

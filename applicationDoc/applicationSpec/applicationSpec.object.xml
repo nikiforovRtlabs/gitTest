@@ -1,0 +1,97 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>applicationSpec</name>
+    <actions>
+        <action id="save" name="Сохранить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/application-doc/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc.id" mapping="['docId']"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="amount" mapping="['amount']"/>
+                <param name="price" mapping="['price']"/>
+                <param name="quantity" mapping="['quantity']"/>
+                <param name="mneiQuantity" mapping="['mneiQuantity']"/>
+                <param name="note" mapping="['note']"/>
+                <param name="isImport" mapping="['isImport']"/>
+                <param name="producer.id" mapping="['producerId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="all"/>
+        </action>
+
+        <action id="delete" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/inventory/application-doc/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="existsReferenceFromAppSpec"/>
+            </validations>
+            <success-text>Спецификация удалена</success-text>
+            <confirmation-text>Вы уверены, что хотите удалить спецификацию?</confirmation-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="applicationSpecCheckUnique" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.application_spec
+                    where document_id = cast(:docId as int)
+                    and modif_id = :modifId
+                    and (producer_id = :producerId or (producer_id is null and :producerId is null))
+                    and (price =  cast(:price as numeric) or (price is null and :price is null))
+                    and (is_import =  :isImport or (is_import is null and :isImport is null))
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc.id" mapping="['docId']" domain="integer"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="producer.id" mapping="['producerId']"/>
+                <param name="price" mapping="['price']"/>
+                <param name="isImport" mapping="['isImport']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Спецификация заявки с данными параметрами уже существует</message>
+        </constraint>
+
+        <constraint id="existsReferenceFromAppSpec" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.application_spec
+                    where sum_app_spec_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Операция не может быть выполнена. Существует ссылка из спецификации заявки</message>
+        </constraint>
+
+        <condition id="checkQuantity" level="error">
+            <message>Значение некорректное или превышает максимально допустимое</message>
+            <expression on="quantity,mneiQuantity"><![CDATA[
+                var regex = new RegExp('^\\d{1,9}\\.\\d+$|^\\d{1,9}$');
+                regex.test(quantity);
+                regex.test(mneiQuantity)
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

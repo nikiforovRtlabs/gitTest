@@ -1,0 +1,173 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>arrSpecification</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.arrival_spec s
+                     left outer join inventory.hold_modif m on m.id=s.hold_modif_id
+                     left join  inventory.document i on i.id=s.doc_id
+                     inner join inventory.arrival_invoice ai on ai.id=i.id
+                     left outer join inventory.fin_contract_spec  contr_spec on  contr_spec.id= s.contract_spec_id
+                     left outer join inventory.holding_producer hp on hp.id= s.producer_id
+                     left outer join pim_organization org on org.id=hp.org_id
+                     left outer join pim_organization producer on producer.id = hp.org_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(s)
+                from inventory.arrival_spec s
+                    left outer join inventory.hold_modif m on m.id=s.hold_modif_id
+                    left join  inventory.document i on i.id=s.doc_id
+                    inner join inventory.arrival_invoice ai on ai.id=i.id
+                    left outer join inventory.fin_contract_spec  contr_spec on  contr_spec.id= s.contract_spec_id
+                    left outer join inventory.holding_producer hp on hp.id= s.producer_id
+                    left outer join pim_organization org on org.id=hp.org_id
+                    left outer join pim_organization producer on producer.id = hp.org_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>s</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+        <field>
+            <id>doc.id</id>
+            <domain>integer</domain>
+            <expression>s.doc_id</expression>
+            <search>:expression = :doc.id</search>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>s.status_id</expression>
+        </field>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <name>Серия партии</name>
+            <expression>s.series</expression>
+        </field>
+        <field>
+            <id>modif.id</id>
+            <domain>integer</domain>
+            <expression>m.id</expression>
+            <search>:expression=:modif.id</search>
+        </field>
+        <field>
+            <id>modif.name</id>
+            <domain>string</domain>
+            <name>Наименование ЛС и ИМН</name>
+            <expression>m.name</expression>
+        </field>
+        <field>
+            <id>expireDate</id>
+            <domain>date</domain>
+            <name>Срок годности</name>
+            <expression>s.expire_dt</expression>
+        </field>
+        <!--Исправить-->
+        <field>
+            <id>measure</id>
+            <domain>string</domain>
+            <name>Ед.изм.</name>
+            <expression>(select inventory.get_unit_name_by_flag_of_modif(m.price_unit_flag, m.id))</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>integer</domain>
+            <name>Количество</name>
+            <expression>s.quantity</expression>
+        </field>        
+        <field>
+            <id>priceVat</id>
+            <domain>string</domain>
+            <name>Цена</name>
+            <expression>s.price_vat</expression>
+        </field>
+        <field>
+            <id>amountVat</id>
+            <domain>string</domain>
+            <name>Сумма</name>
+            <expression>s.amount_vat</expression>
+        </field>
+        <field>
+            <id>isExecutedCheck</id>
+            <domain>boolean</domain>
+            <expression>s.status_id=2</expression>
+        </field>
+        <field>
+            <id>isExecutedSimbol</id>
+            <domain>boolean</domain>
+            <name> </name>
+            <expression>(case when s.status_id=1 then '&#10008;' else '&#10004;' end)</expression>
+        </field>
+        <field>
+            <id>statusDate</id>
+            <domain>date</domain>
+            <name>Проводка</name>
+            <expression>s.status_dt</expression>
+        </field>
+        <field>
+            <id>storeSup.id</id>
+            <domain>integer</domain>
+            <expression>s.store_sup_id</expression>
+        </field>
+        <field>
+            <id>docType.name</id>
+            <domain>string</domain>
+            <expression>'ARR_INVOICE'</expression>
+        </field>
+        <field>
+            <id>contract.id</id>
+            <domain>integer</domain>
+            <expression>ai.base_doc_id</expression>
+        </field>
+        <field>
+            <id>priceFromContract</id>
+            <name>Цена контракта</name>
+            <domain>string</domain>
+            <expression>contr_spec.price</expression>
+        </field>
+        <field>
+            <id>priceFromContractIsEqual</id>
+            <domain>boolean</domain>
+            <expression>case when s.price_vat=contr_spec.price then true else false end</expression>
+        </field>
+        <field>
+            <id>colorOfText</id>
+            <domain>string</domain>
+            <expression>case when s.price_vat!=contr_spec.price then 'text-error' end</expression>
+        </field>
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <expression>ai.recipient_store_id</expression>
+        </field>
+        <field>
+            <id>producer.name</id>
+            <name>Производитель</name>
+            <domain>string</domain>
+            <expression>coalesce(org.short_name, org.full_name)</expression>
+        </field>
+        <field>
+            <id>specCount</id>
+            <domain>integer</domain>
+            <expression>(select count(s)  from inventory.arrival_spec s where s.doc_id= :doc.id)
+            </expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>statusTooltip</id>
+            <domain>string</domain>
+            <display>
+                case when s.status_id=1 then 'не проведен' else 'проведен' end
+            </display>
+            <search unavailable="true"/>
+        </field>
+    </fields>
+</query>

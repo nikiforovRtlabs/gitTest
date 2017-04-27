@@ -1,0 +1,168 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Спецификация</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/fin-contract/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="contract.id" mapping="['docId']"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="series" mapping="['series']" domain="string"/>
+                <param name="expireDate" mapping="['expireDate']"/>
+                <param name="producer.id" mapping="['producerId']"/>
+                <param name="prodDate" mapping="['prodDate']"/>
+                <param name="certificate" mapping="['cert']" domain="string"/>
+                <param name="amount" mapping="['amountWithVat']" domain="string"/>
+                <param name="price" mapping="['priceWithVat']" domain="string"/>
+                <param name="country.id" mapping="['countryId']"/>
+                <param name="quantity" mapping="['quantity']" domain="string"/>
+                <param name="status.id" mapping="['docStatusId']"/>
+                <param name="executeDt" mapping="['executeDt']"/>
+                <param name="specDeliveryDate" mapping="['specDeliveryList']" domain="object[]"/>
+            </in-parameters>
+        </action>
+
+        <action id="accept" name="Подтвердить">
+            <invocation>
+                <sql:sql>
+                    update inventory.fin_contract_spec set
+                    status_id=(select id from fin_contract_status_type where code='ACCEPTED'),
+                    status_dt=current_date
+                    where id= :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Изменить статус спецификации на "Подтверждён"?</confirmation-text>
+            <success-text>Статус спецификации изменён на "Подтверждён"</success-text>
+        </action>
+
+        <action id="revertAccept" name="Снять подтверждение">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/inventory/fin-contract/spec/revertAccept
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['specId']"/>
+            </in-parameters>
+            <confirmation-text>Изменить статус спецификации на "Черновик"?</confirmation-text>
+            <success-text>Статус спецификации изменён на "Черновик"</success-text>
+        </action>
+
+        <action id="delete" name="Удалить ">
+            <invocation>
+                <sql:sql>
+                    delete from inventory.fin_contract_spec where id= :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить спецификацию?</confirmation-text>
+            <success-text>Спецификация успешно удалена</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="checkUnique" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.fin_contract_spec
+                    where doc_id = cast(:docId as int)
+                    and hold_modif_id = :modifId
+                    and funding_source_id = :fundSourceId
+                    and series = cast(:series as text)
+                    and expire_dt = to_date(:expireDate, 'dd.MM.yyyy')
+                    and producer_id = :producerId
+                    and certificate = cast(:cert as text)
+                    and amount = cast(:amountWithVat as numeric)
+                    and price = cast(:priceWithVat as numeric)
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="contract.id" mapping="['docId']" domain="integer"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="fundingSource.id" mapping="['fundSourceId']"/>
+                <param name="series" mapping="['series']" domain="string"/>
+                <param name="expireDate" mapping="['expireDate']" domain="date"/>
+                <param name="producer.id" mapping="['producerId']"/>
+                <param name="certificate" mapping="['cert']" domain="string"/>
+                <param name="amount" mapping="['amount']" domain="string"/>
+                <param name="price" mapping="['price']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Спецификация с данными параметрами уже существует</message>
+        </constraint>
+
+        <condition id="checkQuantity" level="error">
+            <message>Поле Количество. Значение некорректное или превышает максимально допустимое</message>
+            <expression on="quantity"><![CDATA[
+                var regex= new RegExp('^\\d{1,9}\\.\\d+$|^\\d{1,9}$');
+                regex.test(quantity);
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkMneiQuantity" level="error">
+            <message>Значение некорректное или превышает максимально допустимое</message>
+            <expression on="mneiQuantity"><![CDATA[
+                var regex= new RegExp('^\\d{1,9}\\.\\d+$|^\\d{1,9}$');
+                regex.test(mneiQuantity);
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkAmount" level="error">
+            <message>Значение некорректное или превышает максимально допустимое</message>
+            <expression on="amount"><![CDATA[
+                var regex = new RegExp('^\\d{1,12}\\.\\d+$|^\\d{1,12}$');
+                regex.test(amount);
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkPrice" level="error">
+            <message>Значение некорректное или превышает максимально допустимое</message>
+            <expression on="price"><![CDATA[
+                var regex = new RegExp('^\\d{1,12}\\.\\d+$|^\\d{1,12}$');
+                regex.test(price);
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="compare_prices_and_amounts" level="error">
+            <message>Сумма по спецификациям не может превышать сумму контракта</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*)
+                        from fin_contract c
+                        where id = :contract.id and
+                        (((:amount)::REAL)+(
+                            select case when count(*)!=0 then sum(fcs.amount) else 0 end
+                                from inventory.fin_contract_spec fcs
+                                left join fin_contract fc on fcs.doc_id = fc.id
+                                where fc.id = :contract.id and (fcs.id != (:id) or :id is null))
+                                )> sum
+
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="contract.id" mapping="['contract.id']"/>
+                <param name="amount" mapping="['amount']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

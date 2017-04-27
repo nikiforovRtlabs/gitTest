@@ -1,0 +1,171 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>patAddress</id>-->
+    <name>Адреса пациента</name>
+    <actions>
+        <action id="create" name="Создать">
+        <invocation>
+            <rest:rest method="POST" >
+                ${n2o.backend.path}/patients/{patientId}/addresses
+            </rest:rest>
+        </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="register_type.id" mapping="['registerTypeId']" domain="integer"/>
+                <param name="address.id" mapping="['addressId']" domain="integer"/>
+                <param name="from_date" mapping="['fromDate']" domain="date"/>
+                <param name="to_date" mapping="['toDate']" domain="date"/>
+                <param name="is_valid" mapping="['valid']" domain="boolean"/>
+                <param name="text_addr" mapping="['addressText']" domain="string"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="addr_type*.id" mapping="['addressTypes']"/>
+                <param name="realId" mapping="['id']" domain="integer"/>
+                <param name="address.level.id" mapping="['levelId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Адрес сохранен в системе.
+            </success-text>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <rest:rest method="PUT">
+                    ${n2o.backend.path}/patients/{patientId}/addresses/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="realId" mapping="['id']" domain="integer"/>
+                <!--<param name="id" mapping="['id']" domain="integer"/>-->
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="register_type.id" mapping="['registerTypeId']" domain="integer"/>
+                <param name="address.id" mapping="['addressId']" domain="integer"/>
+                <param name="from_date" mapping="['fromDate']" domain="date"/>
+                <param name="to_date" mapping="['toDate']" domain="date"/>
+                <param name="is_valid" mapping="['valid']" domain="boolean"/>
+                <param name="text_addr" mapping="['addressText']" domain="string"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="addr_type*.id" mapping="['addressTypes']"/>
+                <param name="address.level.id" mapping="['levelId']" domain="integer"/>
+            </in-parameters>
+            <success-text>
+                Измененный адрес сохранен в системе.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueAddr"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/patients/{patientId}/addresses/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="address.id" mapping="['addressId']" domain="integer"/>
+                <param name="full_name" mapping="['full_name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что {full_name} должен быть удален?
+            </confirmation-text>
+            <success-text>
+                {full_name} успешно удален.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <condition id="checkAddr" level="error">
+            <expression>((typeof address != 'undefined') &amp;&amp; (address != null) &amp;&amp; (address.id != null)) ||((typeof text_addr != 'undefined') &amp;&amp; (text_addr != null)) </expression>
+            <message>Одно из полей 'Адрес'/'Адрес не по справочнику' обязательно должно быть заполнено</message>
+        </condition>
+
+        <constraint id="checkUniqueAddr" level="error">
+            <message>Даты действия пересекаются с имеющимися записями.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*)
+                        from pim_party_address ppa
+                        join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                        where ppa.party_id = :pat
+                            and ppatat.address_type_id = ANY(cast(string_to_array(trim(both '[]' from :type),',') as integer[]) :: int[])
+                            and not ( ppa.from_date > :to_date and cast(:to_date as date) is not null
+                            and ppa.from_date is not null
+                            or ppa.to_date < :from_date and ppa.to_date is not null)
+                            and not (ppa.to_date is null and ppa.from_date < :from_date and :id is null)
+                            and (:id is null or ppa.id != :id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="realId" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['pat']" domain="integer"/>
+                <param name="from_date" mapping="['from_date']" domain="date"/>
+                <param name="to_date" mapping="['to_date']" domain="date"/>
+                <param name="addr_type*.id" mapping="['type']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="addrmess" level="warning" moment="before-action">
+            <message>Действующие записи будут закрыты датой {date}.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*), to_char(cast(cast(:from_date as date) - cast('1 day' as interval) as date),'dd.mm.yyyy')
+                        from pim_party_address ppa
+                        join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                        where ppa.party_id = :pat
+                            and ppatat.address_type_id = ANY(cast(string_to_array(trim(both '[]' from :type),',') as integer[]) :: int[])
+                            and :id is null
+                            and ppa.from_date < :from_date
+                            and ppa.to_date is null
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="realId" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['pat']" domain="integer"/>
+                <param name="from_date" mapping="['from_date']" domain="date"/>
+                <param name="to_date" mapping="['to_date']" domain="date"/>
+                <param name="addr_type*.id" mapping="['type']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="date" mapping="[0][0][1]" domain="date"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkRegAddr" level="warning" moment="before-action">
+            <message>Адрес используется в одном из прикреплений. При удалении адреса он также будет удален из прикрепления.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        SELECT COUNT(*)
+                        FROM pci_patient_reg
+                        WHERE address_id = :id
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="checkDate" level="error" moment="before-action">
+            <message>Дата окончания должна быть позже даты начала.</message>
+            <expression on="to_date">
+                <![CDATA[
+                ((to_date == null) || (moment(to_date, 'DD.MM.YYYY') >= moment(from_date, 'DD.MM.YYYY')))
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

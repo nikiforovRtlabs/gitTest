@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>modifFromContractSpec</name>
+    <object-id>inventory_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select from (select s.id id, s.price price,
+                s.prod_date prodDate,s.hold_modif_id modifId, m.name modifName,
+                s.quantity quantity,coalesce(m.mnei_count_in_sec_pk,1) countInSecPack,
+                (select mnemocode from cmn_measure where id= m.mnei_id) mneiUnit,
+                (case when m.price_unit_flag=2
+                      then (select c.name from cmn_measure c where c.id=m.sec_pack_unit_id)
+                      else
+                          case when m.price_unit_flag=1
+                          then (select c.name from cmn_measure c where c.id=m.extra_pack_unit_id)
+                          else (select c.name from cmn_measure c where c.id=m.mnei_id)
+                          end
+                      end) unitName,
+                (select coalesce(sum(arr.quantity),0) from inventory.arrival_spec arr
+                where arr.status_id=2 and arr.contract_spec_id = s.id)  deliveredQuantity
+                from inventory.fin_contract_spec s
+                left outer join inventory.hold_modif m on m.id=s.hold_modif_id
+                where :where) as contrSpec
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select 1</n2o:count-query>
+            <n2o:alias>s</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>priceFromContract</id>
+            <domain>string</domain>
+            <expression>price</expression>
+        </field>
+        <field>
+            <id>deliveredQuantity</id>
+            <domain>string</domain>
+            <expression>'Поставлено: '||trim(to_char(deliveredQuantity, 'FM9999990.999999'), '.')||' '||unitName
+            </expression>
+        </field>
+        <field>
+            <id>restQuantityStr</id>
+            <domain>string</domain>
+            <expression>
+                <![CDATA[
+                        case when quantity - deliveredQuantity < 0
+                        then 'Остаток: 0'||' '||unitName
+                        else
+                         'Остаток: '||trim(to_char(quantity - deliveredQuantity, 'FM9999990.999999'), '.')||' '||unitName
+                        end
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>restQuantity</id>
+            <domain>string</domain>
+            <expression>
+                <![CDATA[
+                        case when quantity - deliveredQuantity < 0
+                        then 0
+                        else
+                          quantity - deliveredQuantity
+                        end
+                ]]>
+            </expression>
+        </field>
+        <field>
+            <id>deliveredMoreThenNeed</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[quantity - deliveredQuantity < 0]]>
+            </expression>
+        </field>
+    </fields>
+</query>

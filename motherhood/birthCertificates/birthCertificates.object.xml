@@ -1,0 +1,188 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>birth_certificates</name>
+    <actions>
+        <action id="save">
+            <invocation>
+                <sql:sql>
+                    select motherhood.save_birth_certificate(
+                    :id,
+                    :pregrantCartId,
+                    :series, :number,
+                    :issueDate,
+                    :clinicId,
+                    :employeeId)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="pregrantCart.id" mapping="['pregrantCartId']" domain="integer"/>
+                <param name="series" mapping="['series']" domain="string"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="issueDate" mapping="['issueDate']" domain="date"/>
+                <param name="clinic.id" mapping="['clinicId']" domain="integer"/>
+                <param name="employee.id" mapping="['employeeId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+            <validations activate="blackList">
+                <validation ref-id="assertDateBeforeCurrent"/>
+                <validation ref-id="assertDateAfterRegDate"/>
+            </validations>
+        </action>
+        <action id="create">
+            <invocation>
+                <sql:sql>
+                    select motherhood.save_birth_certificate(
+                    :id,
+                    :pregrantCartId,
+                    :series, :number,
+                    :issueDate,
+                    :clinicId,
+                    :employeeId)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pregrantCart.id" mapping="['pregrantCartId']" domain="integer"/>
+                <param name="series" mapping="['series']" domain="string"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="issueDate" mapping="['issueDate']" domain="date"/>
+                <param name="clinic.id" mapping="['clinicId']" domain="integer"/>
+                <param name="employee.id" mapping="['employeeId']" domain="integer"/>
+            </in-parameters>
+            <validations activate="blackList">
+                <validation ref-id="assertDateBeforeCurrent"/>
+                <validation ref-id="assertDateAfterRegDate"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удаление сертификата">
+            <invocation>
+                <sql:sql>
+                    delete from motherhood.mh_birth_certificate where id = :certId;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['certId']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить родовой сертификат?</confirmation-text>
+            <validations activate="blackList">
+                <validation ref-id="assertDateBeforeCurrent"/>
+                <validation ref-id="assertDateAfterRegDate"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="oneCertificate" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*) from motherhood.mh_birth_certificate mbc
+                    inner join motherhood.mh_pregnant_map  mpm   ON mbc.pregnant_map_id = mpm.id
+                    where mpm.id = :cartId and (mbc.id != :id or :id is  null);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id"  mapping="['id']" domain="integer"/>
+                <param name="pregrantCart.id" mapping="['cartId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>У данной карты уже есть родовые сертификаты</message>
+        </constraint>
+        <constraint id="UniqueSerialAndNumber" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*) from motherhood.mh_birth_certificate mbc
+                    where concat(series,number) = concat(:series,:number)
+                    and (mbc.id != :id or :id is  null);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="series"  mapping="['series']" domain="string"/>
+                <param name="number" mapping="['number']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Такие серия и номер сертификата уже существуют!</message>
+        </constraint>
+        <constraint id="dateValid" level="error">
+            <message>Срок беременности меньше 28 недель</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select
+                    28 <=(date_part('day', (:issueDate)::timestamp  - reg_dt::timestamp)/7 + pregnant_age)
+                    from motherhood.mh_pregnant_map where id = :pregrantCartId and :pregrantCartId is not null
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pregrantCart.id" mapping="['pregrantCartId']" domain="integer"/>
+                <param name="issueDate" mapping="['issueDate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+        </constraint>
+        <condition id="simbolSeries" level="error">
+            <message>Только буквы</message>
+            <expression>
+                <![CDATA[
+                var regex = new RegExp('\^[a-zA-Zа-яА-Я]+\$');
+                var b = true;
+                if(typeof series != 'undefined' && series != null && series != '')
+                    b = regex.test(series);
+                b;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="numberInteger" level="error">
+            <message>Введенное значение должно быть числом!</message>
+            <expression><![CDATA[
+                var regex = new RegExp('\^[0-9]+\$');
+                var b = true;
+                if(typeof number != 'undefined' && number != null && number != '')
+                    b = regex.test(number);
+                b;
+                ]]>
+            </expression>
+        </condition>
+        <condition id="leghtNumber" level="error">
+            <message>Номер должен состоять из 7 цифр</message>
+            <expression>
+                <![CDATA[
+                var x = number;
+                var b = true;
+                if(typeof number != 'undefined' && number != null && number != '')
+                    b =  x.length == 7;
+                b;
+                ]]>
+            </expression>
+        </condition>
+        <condition id="assertDateBeforeCurrent" level="error">
+            <message>Дата выдачи не может быть раньше текущей даты.</message>
+            <expression on="issueDate">
+                <![CDATA[
+                    issueDate == null ||
+                    moment(issueDate, 'DD.MM.YYYY').isBefore(new Date(), 'DD.MM.YYYY') ||
+                    moment(issueDate, 'DD.MM.YYYY').isSame(new Date(), 'DD.MM.YYYY')
+                ]]>
+            </expression>
+        </condition>
+        <constraint id="assertDateAfterRegDate" level="error">
+            <message>Дата выдачи не может быть раньше даты постановки беременной на учёт.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select :issueDate >= reg_dt from motherhood.mh_pregnant_map where id = :pregrantCartId
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pregrantCart.id" mapping="['pregrantCartId']" domain="integer"/>
+                <param name="issueDate" mapping="['issueDate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+        </constraint>
+    </validations>
+</object>

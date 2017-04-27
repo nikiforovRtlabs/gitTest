@@ -1,0 +1,128 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs2="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+
+    <object-id>mdHistoryForm_diagnosisForm</object-id>
+    <layout>n2o/layout/single</layout>
+    <regions>
+        <region place="single" type="none">
+            <container id="diagnosisForm">
+                <wgt:form detail-field-id="id" master-field-id="id">
+                    <wgt:query-id>mdHistoryForm_diagnosisForm</wgt:query-id>
+                    <wgt:default-values-query-id>mdHistoryForm_diagnosisForm_default</wgt:default-values-query-id>
+
+                    <wgt:name>Диагноз</wgt:name>
+
+
+                    <fs2:field-set field-label-location="left">
+                        <!--<ctrl:output-text id="step.id"/>-->
+                        <!--<ctrl:output-text id="step.case.id"/>-->
+                        <ctrl:hidden id="case.patient.id"/>
+
+                        <ctrl:classifier id="stage"
+                                         label="Этап"
+                                         search-as-you-type="true"
+                                         required="true"
+                                         control-style="width:350px;">
+                            <ctrl:query query-id="hosp_stage" value-field-id="id" label-field-id="name"/>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">3</ctrl:value>
+                                <ctrl:value field-id="name">Клинический</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+
+                        <ctrl:checkbox id="main" default-value="true" label="Основной диагноз"/>
+
+                        <ctrl:classifier id="diagnosisType"
+                                         label="Вид"
+                                         search-as-you-type="true"
+                                         control-style="width:350px;">
+                            <ctrl:query query-id="hosp_diagnosisType" value-field-id="id" label-field-id="name"/>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="main">typeof main == 'undefined' || main == null || main ==
+                                    false
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                            <ctrl:set-value-expression on="main">if (main == true) null; else diagnosisType
+                            </ctrl:set-value-expression>
+                        </ctrl:classifier>
+
+                        <!--<rc:diagnosis label="Диагноз" id="diagnosis" required="true" control-style="width:350px;"/>-->
+
+                        <ctrl:classifier id="diagnosis" label="Диагноз" search-as-you-type="true"
+                                         control-style="width:350px" required="true">
+                            <ctrl:query query-id="hosp_diagnosisWithCodeNameSearch" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="diseaseType"
+                                         label="Характер заболевания"
+                                         search-as-you-type="true"
+                                         control-style="width:350px;">
+                            <ctrl:query query-id="dAccountDiseaseType" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="diagnosisInjuryReason" label="Причина травмы" search-as-you-type="true"
+                                         control-style="width:350px" depends-on="diagnosis"
+                                         dependency-condition="diagnosis.isInjury == true" required="true">
+                            <ctrl:query query-id="hosp_injuryDiagnosis" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="standard" label="Стандарт" control-style="width:350px;">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="main">main == true</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                            <ctrl:query query-id="hosp_standard" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="careRegimenId" value="2"/>
+                                    <ctrl:pre-filter field-id="diagnosisId" ref="diagnosis.id"/>
+                                    <ctrl:pre-filter field-id="patientId" ref="case.patient.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="mes" label="МЭС" search-as-you-type="true" control-style="width:350px;"
+                                         dependency-condition="typeof setMesByDiagnosis != 'undefined' &amp;&amp; setMesByDiagnosis == true ">
+                            <ctrl:query query-id="hosp_mes" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                                    <ctrl:pre-filter field-id="diagnosisId" ref="diagnosis.id"/>
+                                    <ctrl:pre-filter field-id="regimenId" ref="regimenId"/>
+                                    <ctrl:pre-filter field-id="ageGroupId" ref="ageGroupId"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="csg" label="КСГ" control-style="width:350px;">
+                            <ctrl:query query-id="hosp_csg" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="diagnosisId" ref="diagnosis.id"/>
+                                    <!--<ctrl:pre-filter field-id="stepId" ref="case.step.id"/>-->
+                                    <ctrl:pre-filter field-id="diagnosisTypeId" ref="diagnosisType.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:text-area rows="2" id="note" label="Дополнение" control-style="width:350px;"/>
+
+                        <ctrl:date-time id="establishmentDate" label="Дата">
+                            <ctrl:set-value-expression on="stage,establishmentDateHidden">
+                                if(stage.id == 4){
+                                    today();
+                                } else if(stage.id == 3){
+                                    establishmentDateHidden;
+                                }
+                            </ctrl:set-value-expression>
+                        </ctrl:date-time>
+
+                        <ctrl:hidden id="establishmentDateHidden"/>
+                    </fs2:field-set>
+                </wgt:form>
+            </container>
+        </region>
+    </regions>
+
+</page>
+

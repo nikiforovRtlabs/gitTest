@@ -1,0 +1,95 @@
+<form xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      customize="js" src="vaccine/n2o/layout/add_patient_to_form_model">
+    <name>Отвод</name>
+    <object-id>inoculation_deny</object-id>
+    <query-id>inoculation_deny</query-id>
+    <fs:field-set header="line" field-label-location="top">
+        <ctrl:hidden id="forMantuDto"/>
+        <fs:row>
+            <ctrl:classifier id="clinic" required="true" label="МО" search-are-you-type="true">
+                <ctrl:query query-id="clinic_control" value-field-id="id" label-field-id="name"/>
+                <ctrl:default-model>
+                    <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+                    <ctrl:value field-id="name">#{org.name?}</ctrl:value>
+                </ctrl:default-model>
+            </ctrl:classifier>
+            <ctrl:classifier id="emplPosRes" label="Мед. работник" required="true" search-are-you-type="true" label-style="width: 200px;">
+                <ctrl:query query-id="employee_control" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="organizationId" ref="clinic.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:default-model>
+                    <ctrl:value field-id="id">#{emplPosRes.id?}</ctrl:value>
+                    <ctrl:value field-id="posId">#{emplPos.id?}</ctrl:value>
+                    <ctrl:value field-id="name">#{emplPosRes.name?}</ctrl:value>
+                </ctrl:default-model>
+            </ctrl:classifier>
+        </fs:row>
+        <fs:row>
+            <ctrl:classifier id="reason" required="true" search-are-you-type="true" label="                           Причина         ">
+                <ctrl:query query-id="reason_control" label-field-id="label" value-field-id="id"/>
+            </ctrl:classifier>
+            <ctrl:checkbox id="isPermanentDeny" label="           Постоянный          "/>
+        </fs:row>
+        <fs:row>
+            <ctrl:date-time id="date" label="Дата отвода" format="DD.MM.YYYY" default-value="today()" required="true"/>
+            <ctrl:classifier id="diagnosis" autoselect="true" search-are-you-type="true" label="                 Диагноз         ">
+                <ctrl:query query-id="diagnosis_control" label-field-id="name" value-field-id="id"/>
+            </ctrl:classifier>
+        </fs:row>
+        <fs:row>
+            <ctrl:input-text id="denyNumber" label="Сроком на" control-style="width:42px;" label-style="width:70px;" length="3">
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        typeof isPermanentDeny === 'undefined' || !isPermanentDeny
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+                <ctrl:validations>
+                    <ctrl:validation ref-id="correctDenyNumber"/>
+                </ctrl:validations>
+            </ctrl:input-text>
+            <ctrl:select id="denyPeriodType" control-style="width:90px;" label="Тип времени" label-style="visibility:hidden;width:100px;">
+                <ctrl:options>
+                    <ctrl:option>{"id": 1, "name": "День"}</ctrl:option>
+                    <ctrl:option>{"id": 2, "name": "Неделя"}</ctrl:option>
+                    <ctrl:option>{"id": 3, "name": "Месяц"}</ctrl:option>
+                    <ctrl:option>{"id": 4, "name": "Год"}</ctrl:option>
+                </ctrl:options>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        typeof isPermanentDeny === 'undefined' || !isPermanentDeny
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:select>
+            <ctrl:date-time id="tillDate" label="До даты" format="DD.MM.YYYY" >
+                <ctrl:set-value-expression on="date,denyNumber,denyPeriodType" on-load="false"><![CDATA[
+                if ('undefined' !== typeof date && typeof denyNumber !== 'undefined' && typeof denyPeriodType !== 'undefined' && denyNumber >= 0 && denyNumber != null && date != null) {
+                    moment(date, 'DD.MM.YYYY HH:mm')
+                        .add(denyNumber, [undefined, 'd', 'w', 'M', 'y'][denyPeriodType.id])
+                        .format('DD.MM.YYYY HH:mm');
+                }
+                ]]></ctrl:set-value-expression>
+                <ctrl:dependencies>
+                    <ctrl:required-condition>
+                        typeof isPermanentDeny === 'undefined' || !isPermanentDeny
+                    </ctrl:required-condition>
+                    <ctrl:enabling-condition>
+                        typeof isPermanentDeny === 'undefined' || !isPermanentDeny
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+                <ctrl:validations>
+                    <ctrl:validation ref-id="todate_gt_denydate" side="client"/>
+                    <ctrl:validation ref-id="tillDateDoneInoculation" side="client"/>
+                </ctrl:validations>
+            </ctrl:date-time>
+            <ctrl:date-time id="inoculationDate" format="DD.MM.YYYY" visible="false"/>
+            <ctrl:input-text id="inoculationStatusId" visible="false"/>
+        </fs:row>
+        <fs:row>
+            <ctrl:text-area id="note" label="Примечание" rows="3" />
+        </fs:row>
+    </fs:field-set>
+</form>

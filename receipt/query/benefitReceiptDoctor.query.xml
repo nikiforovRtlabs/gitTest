@@ -1,0 +1,114 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>receipt</object-id>
+    <name>benefitReceiptDoctor</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from pim_employee_position pep
+                join pim_employee pe on ( pep.employee_id = pe.id )
+                join pim_individual pi on ( pe.individual_id = pi.id )
+                left join pim_position pp on ( pep.position_id = pp.id )
+                left join pim_speciality ps on ( pp.speciality_id = ps.id )
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(pi)
+                from pim_employee_position pep
+                join pim_employee pe on ( pep.employee_id = pe.id )
+                join pim_individual pi on ( pe.individual_id = pi.id )
+                left join pim_position pp on ( pep.position_id = pp.id )
+                left join pim_speciality ps on ( pp.speciality_id = ps.id )
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pi</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>pep.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression><![CDATA[
+            concat(pi.surname,
+                   ' ' || left(initcap(pi.name),1) || '.',
+                   ' ' || left(initcap(pi.patr_name),1)|| '.',
+                   ', ' || pp.name)
+            ]]>
+            </expression>
+            <search>
+                (upper(pi.surname ||' '||pi.name||' '||pi.patr_name) like '%' || upper(:name) || '%'
+                or upper(pi.surname) like upper(:name || '%')
+                or upper(pi.name) like upper('%' || :name || '%')
+                or upper(pi.patr_name) like upper('%' || :name || '%')
+                or upper(left(initcap(pi.surname),1)||left(initcap(pi.name),1)||left(initcap(pi.patr_name),1)) like
+                upper('%' || :name || '%'))
+            </search>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>pe.organization_id</expression>
+            <display>:expression</display>
+            <search>:expression = :orgId</search>
+        </field>
+
+        <field>
+            <id>employeePositionId</id>
+            <domain>integer</domain>
+            <expression>pep.id</expression>
+            <display/>
+            <search>:expression = :employeePositionId</search>
+        </field>
+
+        <field>
+            <id>specialityId</id>
+            <domain>integer</domain>
+            <expression>pp.speciality_id</expression>
+        </field>
+
+        <field>
+            <id>receiptDate</id>
+            <domain>date</domain>
+            <expression>null</expression>
+            <search>(:receiptDate::date is null or (pp.start_date is null or :receiptDate::date >= pp.start_date) and (pp.end_date is null or pp.end_date >= :receiptDate::date))</search>
+        </field>
+
+        <field>
+            <id>canCreateBenefitReceipt</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+            <search><![CDATA[
+                        (
+                         (select count(*)
+                            from pim_empl_posit_to_prefer_recipe peptpr
+                           where peptpr.employee_position_id = pep.id
+                             and :receiptDate::date >= peptpr.begin_date
+                             and (
+                                   peptpr.end_date is null
+                                or peptpr.end_date >= :receiptDate::date
+                                 )
+                         ) > 0
+                        )
+            ]]></search>
+
+        </field>
+
+        <field>
+            <id>isResource</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+            <search>(exists(select employee_position_id from pim_employee_position_resource where employee_position_id = pep.id))</search>
+        </field>
+
+    </fields>
+</query>

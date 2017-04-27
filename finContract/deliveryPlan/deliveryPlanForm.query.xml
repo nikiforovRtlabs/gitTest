@@ -1,0 +1,156 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>finContract</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.arrival_invoice ai
+                inner join inventory.document doc on doc.id=ai.id
+                inner join public.fin_contract fc on fc.id= ai.base_doc_id
+                left join fin_contract_type ct on ct.id=fc.type_id
+                inner join public.pim_organization prov on prov.id=ai.contractor_id
+                inner join inventory.funding_source fund on fund.id= ai.fund_source_id
+                left outer join inventory.procurement_method pm on pm.id=ai.procurement_method_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ai)
+                from inventory.arrival_invoice ai
+                inner join inventory.document doc on doc.id=ai.id
+                inner join public.fin_contract fc on fc.id= ai.base_doc_id
+                left join fin_contract_type ct on ct.id=fc.type_id
+                inner join public.pim_organization prov on prov.id=ai.contractor_id
+                inner join inventory.funding_source fund on fund.id= ai.fund_source_id
+                left outer join inventory.procurement_method pm on pm.id=ai.procurement_method_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ai</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>arrivalInvoiceNumber</id>
+            <domain>string</domain>
+            <name>Накладная №</name>
+            <expression>doc.int_doc_number</expression>
+            <search>(:expression like '%'||'-'||:docNumber or :expression=:docNumber)</search>
+        </field>
+
+        <field>
+            <id>arrivalInvoiceDate</id>
+            <domain>date</domain>
+            <name>Дата накладной</name>
+            <expression>to_char(doc.int_doc_dt, 'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>statusDate</id>
+            <domain>date</domain>
+            <name>Проводка</name>
+            <expression>doc.execute_dt</expression>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>doc.doc_status_id</expression>
+        </field>
+        <field>
+            <id>contractor.id</id>
+            <domain>integer</domain>
+            <expression>prov.id</expression>
+        </field>
+        <field>
+            <id>contractor.name</id>
+            <domain>string</domain>
+            <name>Поставщик</name>
+            <expression>coalesce(prov.short_name,prov.full_name)</expression>
+        </field>
+        <field>
+            <id>arrivalInvoiceAmountFact</id>
+            <domain>string</domain>
+            <name>Сумма</name>
+            <expression>ai.amount_fact</expression>
+        </field>
+        <field>
+            <id>arrivalInvoiceExtDocNumber</id>
+            <domain>string</domain>
+            <name>Тов. накладная №</name>
+            <expression>ai.ext_doc_number</expression>
+        </field>
+        <field>
+            <id>arrivalInvoiceExtDocDate</id>
+            <domain>date</domain>
+            <name>Дата тов. накладной</name>
+            <expression>ai.ext_doc_dt</expression>
+        </field>
+        <field>
+            <id>contract.id</id>
+            <domain>integer</domain>
+            <expression>fc.id</expression>
+        </field>
+
+        <field>
+            <id>contract.name</id>
+            <domain>string</domain>
+            <name>Договор/контракт</name>
+            <expression>(case when ct.code='DRUG_SUPPLY' then 'Контр.'||fc.number||', '||coalesce(fc.name,'')
+                else 'Дог.'||fc.number||', '||coalesce(fc.name,'') end)
+            </expression>
+        </field>
+        <field>
+            <id>deliverySchedule</id>
+            <domain>string</domain>
+            <name>Сроки поставки</name>
+            <expression>
+                'c '||to_char(fc.date,'dd.mm.yyyy')||' по ' ||to_char(fc.termination_date,'dd.mm.yyyy')
+            </expression>
+        </field>
+        <field>
+            <id>arrivalInvoiceCountOfSpec</id>
+            <domain>integer</domain>
+            <name>Кол-во позиций</name>
+            <expression>
+                (select count(*) from inventory.arrival_spec s where s.doc_id=doc.id)
+            </expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>ai.fund_source_id</expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <name>Финансирование</name>
+            <domain>string</domain>
+            <expression>fund.name</expression>
+        </field>
+        <field>
+            <id>procurementMethod.name</id>
+            <domain>string</domain>
+            <name>Способ закупки</name>
+            <expression>pm.name</expression>
+        </field>
+        <field>
+            <id>contractSum</id>
+            <name>Сумма по контракту</name>
+            <domain>string</domain>
+            <expression>fc.sum</expression>
+        </field>
+        <field>
+            <id>isExecutedSimbol</id>
+            <name>Проводка</name>
+            <domain>boolean</domain>
+            <name> </name>
+            <expression>(case when doc.doc_status_id=1 then '&#10008;' else '&#10004;' end)</expression>
+        </field>
+        <field>
+            <id>countOfArrivalInvoices</id>
+            <domain>integer</domain>
+            <expression>(select count(1) from inventory.arrival_invoice i where
+                i.base_doc_id=fc.id) </expression>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,271 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>arrivalInvoice</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.arrival_invoice ai
+                     inner join inventory.document inv on inv.id=ai.id
+                     left join inventory.store rec  on rec.id=ai.recipient_store_id
+                     left join pim_organization contr on contr.id=ai.contractor_id
+                     left join fin_contract fc on fc.id=ai.base_doc_id
+                     left join inventory.funding_source fs on fs.id=ai.fund_source_id
+                     left join fin_contract_type ct on ct.id=fc.type_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ai)
+                from inventory.arrival_invoice ai
+                     inner join inventory.document inv on inv.id=ai.id
+                     left join inventory.store rec  on rec.id=ai.recipient_store_id
+                     left join pim_organization contr on contr.id=ai.contractor_id
+                     left join fin_contract fc on fc.id=ai.base_doc_id
+                     left join inventory.funding_source fs on fs.id=ai.fund_source_id
+                     left join fin_contract_type ct on ct.id=fc.type_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ai</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>docNumber</id>
+            <domain>string</domain>
+            <name>№</name>
+            <expression>inv.int_doc_number</expression>
+            <search>(:expression like '%'||'-'||:docNumber or :expression=:docNumber)</search>
+        </field>
+        <field>
+            <id>docDate</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>inv.int_doc_dt</expression>
+            <search type="between">
+                <![CDATA[(:docDate.begin::date is null or inv.int_doc_dt >= :docDate.begin) and
+                        (:docDate.end::date is null or inv.int_doc_dt <= :docDate.end) ]]></search>
+        </field>
+        <field>
+            <id>docDateString</id>
+            <domain>date</domain>
+            <expression>to_char(inv.int_doc_dt, 'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>docDate.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>docDate.begin</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>statusDate</id>
+            <domain>date</domain>
+            <name>Проводка</name>
+            <expression>inv.execute_dt</expression>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>inv.doc_status_id</expression>
+            <search> :expression = :status.id</search>
+        </field>
+        <field>
+            <id>statusTooltip</id>
+            <domain>string</domain>
+            <display>
+                case when inv.doc_status_id=1 then 'не проведен' else 'проведен' end
+            </display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+           <id>isExecutedCheck</id>
+           <domain>boolean</domain>
+           <name>Проведён</name>
+           <expression>(case when inv.doc_status_id=1 then false else true end)</expression>
+        </field>
+        <field>
+            <id>isExecutedSimbol</id>
+            <domain>boolean</domain>
+            <name> </name>
+            <expression>(case when inv.doc_status_id=1 then '&#10008;' else '&#10004;' end)</expression>
+        </field>
+        <field>
+            <id>recipient.id</id>
+            <domain>integer</domain>
+            <expression>rec.id</expression>
+            <search>:expression = :recipient.id</search>
+        </field>
+        <field>
+            <id>recipient.name</id>
+            <domain>string</domain>
+            <name>Получатель</name>
+            <expression>rec.name</expression>
+        </field>
+        <field>
+            <id>recipient.storeTypeId</id>
+            <domain>integer</domain>
+            <expression>rec.store_type_id</expression>
+        </field>
+        <field>
+            <id>recipientRespPerson.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select employee_pos_id from inventory.resp_person where store_id=rec.id and (select count(1) from inventory.resp_person where store_id=rec.id)=1)
+            </expression>
+        </field>
+        <field>
+            <id>recipientRespPerson.name</id>
+            <domain>integer</domain>
+            <expression>
+                (select ind.surname||' '||lpad(ind.name,1,'.')||'.'||lpad(ind.patr_name,1,'.')||'.'||', '||p.name
+                from pim_employee_position emp
+                inner join pim_position p on p.id=emp.position_id
+                inner join pim_employee e on e.id=emp.employee_id
+                inner join pim_individual ind on ind.id=e.individual_id
+                where emp.id= (select employee_pos_id from inventory.resp_person where store_id=rec.id)
+                      and (select count(1) from inventory.resp_person where store_id=rec.id)=1)
+            </expression>
+        </field>
+        <field>
+            <id>contract.id</id>
+            <domain>integer</domain>
+            <expression>fc.id</expression>
+        </field>
+        <field>
+            <id>contractor.id</id>
+            <domain>integer</domain>
+            <expression>contr.id</expression>
+            <search>:expression = :contractor.id</search>
+        </field>
+        <field>
+            <id>contractor.name</id>
+            <domain>string</domain>
+            <name>Поставщик</name>
+            <expression>coalesce(contr.short_name,contr.full_name)</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>rec.org_id</expression>
+            <search value="#{org.id?}">(:expression = :org.id or :org.id is null)</search>
+        </field>
+        <field>
+            <id>recipients*.id</id>
+            <domain>integer[]</domain>
+            <search>rec.id in (:recipients*.id)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>contractors*.id</id>
+            <domain>integer[]</domain>
+            <search>contr.id in (:contractors*.id)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>amountPlan</id>
+            <domain>string</domain>
+            <name>Плановая</name>
+            <expression>ai.amount_plan</expression>
+        </field>
+        <field>
+            <id>amountFact</id>
+            <domain>string</domain>
+            <name>Фактическая</name>
+            <expression>ai.amount_fact</expression>
+        </field>
+        <field>
+            <id>extDocNumber</id>
+            <domain>string</domain>
+            <name>Тов. накл.</name>
+            <expression>ai.ext_doc_number</expression>
+        </field>
+        <field>
+            <id>extDocDate</id>
+            <domain>date</domain>
+            <name>Дата тов. накл.</name>
+            <expression>ai.ext_doc_dt</expression>
+        </field>
+        <field>
+            <id>extDocString</id>
+            <domain>string</domain>
+            <name>Тов. накл.</name>
+            <expression>'Тов.'||ai.ext_doc_number||', '||ai.ext_doc_dt</expression>
+        </field>
+        <field>
+            <id>baseDocNumber</id>
+            <domain>string</domain>
+            <name>Контракт/Договор</name>
+            <expression>fc.number</expression>
+        </field>
+        <field>
+            <id>baseDoc.id</id>
+            <domain>integer</domain>
+            <expression>fc.id</expression>
+        </field>
+        <field>
+            <id>baseDocDate</id>
+            <domain>date</domain>
+            <name>Дата контракта</name>
+            <expression>fc.date</expression>
+        </field>
+        <field>
+            <id>baseDocString</id>
+            <domain>string</domain>
+            <name>Договор/контракт</name>
+            <expression>(case when ct.code='DRUG_SUPPLY' then 'Контр.'||fc.number||', '||coalesce(to_char(fc.date,'dd.mm.yyyy'),'')
+                        else 'Дог.'||fc.number||', '||coalesce(to_char(fc.date,'dd.mm.yyyy'),'') end)
+            </expression>
+        </field>
+        <field>
+            <id>canBeRemoved</id>
+            <domain>boolean</domain>
+            <expression>case when inv.doc_status_id=2 or
+                         exists(select 1 from inventory.arrival_spec sp where sp.doc_id = ai.id and sp.status_id=2)
+                         then false else true end
+            </expression>
+        </field>
+        <field>
+            <id>executedSpecExists</id>
+            <domain>boolean</domain>
+            <expression>(select exists(select 1 from inventory.arrival_spec where doc_id=ai.id and status_id=2))</expression>
+        </field>
+        <field>
+            <id>countOfSpec</id>
+            <domain>integer</domain>
+            <expression>
+                (select count(*) from inventory.arrival_spec s where s.doc_id=inv.id)
+            </expression>
+        </field>
+        <field>
+            <id>docType.name</id>
+            <domain>string</domain>
+            <expression>'ARR_INVOICE'</expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>ai.fund_source_id</expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <name>Финансирование</name>
+            <domain>string</domain>
+            <expression>fs.name</expression>
+        </field>
+        <field>
+            <id>user.id</id>
+            <domain>integer</domain>
+            <search unavailable="true"/>
+            <display value="#{user.id}" unavailable="true"/>
+        </field>
+    </fields>
+</query>

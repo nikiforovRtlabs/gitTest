@@ -1,0 +1,522 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+        <object-id>employeeInfo</object-id>
+        <execution>
+            <n2o:sql>
+                <n2o:items-query>
+                    <![CDATA[
+                    select :select
+                    from pim_employee emp
+                    left join pim_individual ind on ind.id = emp.individual_id
+                    left join pim_organization org on org.id = emp.organization_id
+                    left join pim_employee_callup pec on pec.id = emp.callup_subject_id
+                    left join ( select *
+                        from ( select row_number() over (partition by employee_id order by start_date desc) as r, t.*
+                               from pim_employee_position t) x
+                               where x.r <= 1 ) as pep on pep.employee_id = emp.id
+                    left join (
+                        select
+                            array_agg( pp2.department_id ) as deps_ids,
+                            array_to_string(array_agg(d.name), '; ') as dep_names,
+                            pep2.employee_id
+                        from pim_employee_position pep2, pim_position pp2
+                        left join pim_department d on d.id=pp2.department_id
+                        where pep2.position_id = pp2.id
+                        group by pep2.employee_id) pep_departments on pep_departments.employee_id = emp.id
+
+                    left join (
+                        select
+                            array_agg(trim(upper(pp1.name))) as role_names,
+                            array_agg(pp1.id) as role_ids,
+                            pep1.employee_id
+                        from
+                        pim_employee_position pep1
+                        join pim_position pp1 on pep1.position_id = pp1.id
+                        where pep1.start_date <= CURRENT_DATE
+                            and COALESCE(pep1.end_date, CURRENT_DATE) >= CURRENT_DATE
+                        group by pep1.employee_id
+                        ) pp_list on pp_list.employee_id = emp.id
+
+
+                    left join pim_position pp on pp.id = pep.position_id
+                    left join pim_position_type pos_type on pos_type.id = pep.position_type_id
+                    left join md_employee_position mep on mep.id = pep.id
+                    left join mc_care_level mcl on mcl.id = mep.care_level_id
+                    left join mc_care_regimen mcr on mcr.id = mep.care_regimen_id
+                    left join pim_position_role role on pp.role_id = role.id
+                    left join pim_position_category poscat on role.category_id = poscat.id
+                    left join pim_speciality ems on ems.id = pp.speciality_id
+                    left join ( select e.id, count(*) as count
+                                from pim_employee_position_resource epr
+                                inner join pim_employee_position p on p.id=epr.employee_position_id
+                                inner join pim_employee e on e.id=p.employee_id
+                                where e.organization_id=:org.id or (:org.id is null)
+                                group by e.id ) res on res.id=emp.id
+                    where :where
+                    order by :order
+                    ]]>
+                </n2o:items-query>
+                <n2o:count-query>
+                    <![CDATA[
+                    select count(emp)
+                    from pim_employee emp
+                    left join pim_individual ind on ind.id = emp.individual_id
+                    left join pim_organization org on org.id = emp.organization_id
+                    left join pim_employee_callup pec on pec.id = emp.callup_subject_id
+                    left join ( select *
+                        from ( select row_number() over (partition by employee_id order by start_date desc) as r, t.*
+                               from pim_employee_position t) x
+                               where x.r <= 1 ) as pep on pep.employee_id = emp.id
+                    left join (
+                        select
+                            array_agg( pp2.department_id ) as deps_ids,
+                            array_to_string(array_agg(d.name), '; ') as dep_names,
+                            pep2.employee_id
+                        from pim_employee_position pep2, pim_position pp2
+                        left join pim_department d on d.id=pp2.department_id
+                        where pep2.position_id = pp2.id
+                        group by pep2.employee_id) pep_departments on pep_departments.employee_id = emp.id
+                    left join pim_position pp on pp.id = pep.position_id
+                    left join pim_position_role role on pp.role_id = role.id
+                    left join pim_position_category poscat on role.category_id = poscat.id
+                    left join pim_speciality ems on ems.id = pp.speciality_id
+                    left join ( select e.id, count(*) as count
+                                from pim_employee_position_resource epr
+                                inner join pim_employee_position p on p.id=epr.employee_position_id
+                                inner join pim_employee e on e.id=p.employee_id
+                                where e.organization_id=:org.id
+                                group by e.id ) res on res.id=emp.id
+                    where :where
+                    ]]>
+                </n2o:count-query>
+                <n2o:alias>emp</n2o:alias>
+            </n2o:sql>
+        </execution>
+
+        <fields>
+
+            <field>
+                <id>id</id>
+                <domain>integer</domain>
+                <expression>emp.id</expression>
+                <filters auto-generate="true"/>
+                <display/>
+            </field>
+
+            <field>
+                <id>emp.id</id>
+                <domain>integer</domain>
+                <expression>emp.id</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>emp_id</id>
+                <domain>integer</domain>
+                <expression>emp.id</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>emp_surname</id>
+                <domain>string</domain>
+                <expression>ind.surname</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>emp_name</id>
+                <domain>string</domain>
+                <expression>ind.name</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>emp_patr_name</id>
+                <domain>string</domain>
+                <expression>ind.patr_name</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>emp_birth</id>
+                <domain>date</domain>
+                <expression>ind.birth_dt</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>emp_gender.id</id>
+                <domain>integer</domain>
+                <expression>ind.gender_id</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>emp_id_fio</id>
+                <domain>string</domain>
+                <expression>emp.id::text|| '~' ||trim(format('%s %s %s', ind.surname, ind.name, ind.patr_name))</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>organization_id</id>
+                <domain>integer</domain>
+                <expression>emp.organization_id</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>individual_id</id>
+                <domain>integer</domain>
+                <expression>emp.individual_id</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>pec.id</id>
+                <domain>integer</domain>
+                <expression>pec.id</expression>
+                <!--
+                <filters auto-generate="true"/>
+                -->
+                <display/>
+            </field>
+
+            <field>
+                <id>pec.name</id>
+                <domain>integer</domain>
+                <expression>pec.name</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>note</id>
+                <domain>String</domain>
+                <expression>emp.note</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>number1</id>
+                <domain>String</domain>
+                <expression>emp.number</expression>
+                <filters>
+                    <filter type="eq" filter-field="number1">trim(upper(emp.number)) like trim(upper('%'||:number1||'%'))</filter>
+                </filters>
+                <sorting/>
+                <filters auto-generate="true"/>
+                <display/>
+            </field>
+
+            <field>
+                <id>is_dismissed</id>
+                <domain>boolean</domain>
+                <expression>emp.is_dismissed</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>employment_dt</id>
+                <domain>date</domain>
+                <display/>
+            </field>
+
+            <field>
+                <id>dismissal_dt</id>
+                <domain>date</domain>
+                <display/>
+            </field>
+
+            <field>
+                <id>ind.surname</id>
+                <domain>String</domain>
+                <expression>ind.surname</expression>
+                <display/>
+            </field>
+
+            <!--<search>i.surname like '%'||:surname||'%'</search>-->
+            <!--<filters>-->
+                <!--<filter type="eq" filter-field="userId" default-value="#{user.id}">s_u_o.user_id = :userId</filter>-->
+            <!--</filters>-->
+
+
+            <field>
+                <id>fio</id>
+                <domain>String</domain>
+                <expression>ind.surname||' '||ind.name||' '||ind.patr_name</expression>
+                <sorting/>
+                <filters auto-generate="true"/>
+                <display/>
+            </field>
+
+
+            <field>
+                <id>pp.id</id>
+                <domain>integer</domain>
+                <expression>pp.id</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>pos_name</id>
+                <domain>string</domain>
+                <expression>pp_list.role_names</expression>
+                <filters>
+                  <filter type="eq" filter-field="pos_name">trim(upper(:pos_name)) IN (SELECT unnest(pp_list.role_names))</filter>
+                </filters>
+                <display/>
+            </field>
+
+            <field>
+                <id>roleEstablishedPost.id</id>
+                <domain>integer</domain>
+                <expression>pp_list.role_ids</expression>
+                <filters>
+                    <filter type="eq" filter-field="roleEstablishedPost.id">:roleEstablishedPost.id IN (SELECT unnest(pp_list.role_ids))</filter>
+                </filters>
+                <display/>
+            </field>
+
+            <field>
+                <id>position_name</id>
+                <domain>string</domain>
+                <name>Должность</name>
+                <expression>pp.name</expression>
+                <filters auto-generate="true">
+                    <filter type="eq" filter-field="position_name">trim(upper(pp.name)) like trim(upper('%'||:pos_name||'%'))</filter>
+                </filters>
+                <sorting/>
+                <display/>
+            </field>
+
+
+            <field>
+                <id>surname</id>
+                <domain>String</domain>
+                <expression>ind.surname</expression>
+                <filters>
+                    <filter type="eq" filter-field="surname">trim(upper(ind.surname)) like trim(upper('%'||:surname||'%'))</filter>
+                </filters>
+                <display/>
+            </field>
+
+            <field>
+                <id>first_name</id>
+                <domain>String</domain>
+                <expression>ind.name</expression>
+                <filters>
+                    <filter type="eq" filter-field="first_name">trim(upper(ind.name)) like trim(upper('%'||:first_name||'%'))</filter>
+                </filters>
+                <display/>
+            </field>
+
+            <field>
+                <id>patr_name</id>
+                <domain>String</domain>
+                <expression>ind.patr_name</expression>
+                <filters>
+                    <filter type="eq" filter-field="patr_name">trim(upper(ind.patr_name)) like trim(upper('%'||:patr_name||'%'))</filter>
+                </filters>
+                <display/>
+            </field>
+
+            <field>
+                <id>ind.id</id>
+                <domain>integer</domain>
+                <expression>ind.id</expression>
+                <display/>
+            </field>
+
+
+            <field>
+                <id>org.name</id>
+                <domain>String</domain>
+                <expression>org.short_name</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>org.id</id>
+                <domain>integer</domain>
+                <expression>org.id</expression>
+                <filters>
+                    <filter type="eq" default-value="#{stocks.orgId}" filter-field="org.id">
+                        org.id = :org.id
+                    </filter>
+                </filters>
+                <display/>
+            </field>
+
+
+            <field>
+                <id>role.id</id>
+                <domain>integer</domain>
+                <expression>role.id</expression>
+                <filters>
+                    <filter type="eq" filter-field="role.id">role.id = :role.id</filter>
+                </filters>
+                <display/>
+            </field>
+
+            <field>
+                <id>role.name</id>
+                <domain>string</domain>
+                <expression>role.name</expression>
+                <!--<filters auto-generate="true">-->
+                    <!--<filter type="eq" filter-field="role.name">trim(upper(role.name)) like trim(upper('%'||:pos_name||'%'))</filter>-->
+                <!--</filters>-->
+                <display/>
+            </field>
+
+            <field>
+                <id>poscat.id</id>
+                <domain>integer</domain>
+                <expression>poscat.id</expression>
+                <filters>
+                    <filter type="eq" filter-field="poscat.id">poscat.id = :poscat.id</filter>
+                </filters>
+                <display/>
+            </field>
+
+            <field>
+                <id>poscat.name</id>
+                <domain>string</domain>
+                <expression>poscat.name</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>ems.id</id>
+                <domain>integer</domain>
+                <expression>ems.id</expression>
+                <filters>
+                    <filter type="eq" filter-field="ems.id">ems.id = :ems.id</filter>
+                </filters>
+                <display/>
+            </field>
+
+            <field>
+                <id>ems.name</id>
+                <domain>string</domain>
+                <expression>ems.name</expression>
+                <display/>
+            </field>
+
+            <field>
+                <id>deps_ids</id>
+                <domain>integer</domain>
+                <display/>
+                <expression>pep_departments.deps_ids</expression>
+                <filters auto-generate="true">
+                    <filter type="eq" filter-field="dep.id">
+                        :dep.id = any (deps_ids)
+                    </filter>
+                </filters>
+            </field>
+
+            <field>
+                <id>dep_names</id>
+                <domain>integer</domain>
+                <display/>
+                <expression>pep_departments.dep_names</expression>
+                <filters auto-generate="true" />
+            </field>
+
+            <!--
+            <field>
+                <id>emp.end_date</id>
+                <domain>String</domain>
+                <expression>emp.end_date</expression>
+                <display/>
+            </field>
+            -->
+
+            <field>
+                <id>is_resource</id>
+                <domain>boolean</domain>
+                <expression>(res.count > 0)</expression>
+                <display/>
+                <sorting/>
+                <filters auto-generate="true"/>
+            </field>
+
+            <field>
+                <id>pos_type.id</id>
+                <domain>integer</domain>
+                <expression>pos_type.id</expression>
+                <display/>
+                <filters auto-generate="true"/>
+            </field>
+
+            <field>
+                <id>care_level.id</id>
+                <domain>integer</domain>
+                <expression>mcl.id</expression>
+                <display/>
+                <filters auto-generate="true"/>
+            </field>
+
+            <field>
+                <id>care_regimen.id</id>
+                <domain>integer</domain>
+                <expression>mcr.id</expression>
+                <display/>
+                <filters auto-generate="true"/>
+            </field>
+
+            <field>
+                <id>pref_prescription</id>
+                <domain>boolean</domain>
+                <expression>
+                    <![CDATA[
+                exists(select 1 from md_clinic drug_mc
+                  inner join pim_position drug_pp ON drug_mc.id=drug_pp.organization_id
+                  inner join pim_employee_position drug_pep ON drug_pp.id=drug_pep.position_id
+                  where drug_pep.id=pep.id and drug_mc.is_in_ads) and
+                exists(select 1 from pim_empl_posit_to_prefer_recipe pR
+                   where pR.employee_position_id in (select id from pim_employee_position where employee_id = emp.id) and
+                   (pR.begin_date <= CURRENT_DATE or pr.begin_date is null) and
+                   (pr.end_date >= CURRENT_DATE or pr.end_date is null))
+                ]]>
+                </expression>
+                <display/>
+                <filters auto-generate="true">
+                    <filter type="eq" filter-field="pref_prescription">
+                        :expression = :pref_prescription
+                    </filter>
+                </filters>
+            </field>
+
+            <field>
+                <id>employee_status.id</id>
+                <domain>integer</domain>
+                <expression>1=1</expression>
+                <display/>
+                <filters auto-generate="true">
+                    <filter type="eq" filter-field="employee_status.id">
+                        (case
+                          when :employee_status.id=1 then emp.is_dismissed ISNULL or emp.is_dismissed=false
+                          when :employee_status.id=2 then emp.is_dismissed=true
+                          else true
+                        end)
+                    </filter>
+                </filters>
+            </field>
+
+            <field>
+                <id>employment_type.id</id>
+                <domain>integer</domain>
+                <expression>1=1</expression>
+                <display/>
+                <filters auto-generate="true">
+                    <filter type="eq" filter-field="employment_type.id">
+                        exists(select 1 from pim_employee_position where employee_id = emp.id and employment_type_id=:employment_type.id )
+                    </filter>
+                </filters>
+            </field>
+
+        </fields>
+
+    </query>

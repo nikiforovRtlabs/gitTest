@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>vaccine_control</object-id>
+    <name>vaccine_control</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from vac_vaccine v
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(v)
+                from vac_vaccine v
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>v.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>numberId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+            ARRAY(SELECT number_id FROM vac_vaccine_number WHERE vaccine_id = v.id) @> ARRAY(SELECT :numberId)
+            ]]>
+            </search>
+        </field>
+        <field>
+            <id>label</id>
+            <domain>string</domain>
+            <expression>(select v.label || ' [' || (select d.label from vac_disease d where d.id = v.disease_id) || ']')</expression>
+            <search>(trim(upper(v.label)) like '%' || trim(upper(:label)) || '%' )</search>
+        </field>
+        <field>
+            <id>diseaseId</id>
+            <domain>integer</domain>
+            <expression>v.disease_id</expression>
+            <search><![CDATA[
+      v.disease_id IN (
+        SELECT :diseaseId
+        UNION DISTINCT
+        SELECT child
+        FROM vac_disease2disease
+        WHERE self = :diseaseId) OR
+      (CASE WHEN (SELECT count(*)
+                  FROM vac_disease2disease
+                  WHERE self = v.disease_id) > 0
+            THEN
+                  ARRAY(SELECT child
+                        FROM vac_disease2disease
+                        WHERE self = v.disease_id) <@ ARRAY(SELECT child
+                                                            FROM vac_disease2disease
+                                                            WHERE self = :diseaseId)
+      END)
+            ]]>
+            </search>
+        </field>
+        <field>
+            <id>forMantu</id>
+            <domain>boolean</domain>
+            <expression>for_mantu</expression>
+        </field>
+    </fields>
+</query>

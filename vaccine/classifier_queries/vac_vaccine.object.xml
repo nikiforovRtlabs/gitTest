@@ -1,0 +1,115 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>vac_vaccine</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    insert into public.vac_vaccine (id, code, label, vaccine_type_id, disease_id, full_name, def_producer, for_mantu, e_code)
+                    values(nextval('public.vac_vaccine_id_seq'), :code, :label, :type, :disease, :full_name, :producer, (case when :for_mantu is null then false else :for_mantu end), :e_code)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="label" mapping="['label']" domain="string"/>
+                <param name="type.id" mapping="['type']" domain="integer"/>
+                <param name="disease.id" mapping="['disease']" domain="integer"/>
+                <param name="full_name" mapping="['full_name']" domain="string" value=""/>
+                <param name="def_producer.id" mapping="['producer']" domain="integer"/>
+                <param name="for_mantu" mapping="['for_mantu']" domain="boolean"/>
+                <param name="e_code" mapping="['e_code']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <success-text>Данные сохранены. Укажите дозировку, тип введения и этапы вакцинации</success-text>
+        </action>
+
+        <action id="update" name="Редактировать">
+            <invocation>
+                <sql:sql>
+                    update public.vac_vaccine set code = :code, label = :label, vaccine_type_id = :type, disease_id = :disease, full_name = :full_name, def_producer = :producer,
+                                                    for_mantu = (case when :for_mantu is null then false else :for_mantu end), e_code = :e_code where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="label" mapping="['label']" domain="string"/>
+                <param name="type.id" mapping="['type']" domain="integer"/>
+                <param name="disease.id" mapping="['disease']" domain="integer"/>
+                <param name="full_name" mapping="['full_name']" domain="string" value=""/>
+                <param name="def_producer.id" mapping="['producer']" domain="integer"/>
+                <param name="for_mantu" mapping="['for_mantu']" domain="boolean"/>
+                <param name="e_code" mapping="['e_code']" domain="string"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="vaccineIsUsed"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from vac_vaccine_dose where vaccine_id = :id;
+                    delete from vac_vaccine_inp_type where vaccine_id = :id;
+                    delete from vac_vaccine_number where vaccine_id = :id;
+                    delete from public.vac_vaccine where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="uniqueLabel" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from public.vac_vaccine
+                    where trim(upper(label)) = trim(upper(:label)) and (id != :id or :id is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="label" mapping="['label']" domain="string"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Вакцина с таким наименованием уже существует</message>
+        </constraint>
+
+        <constraint id="uniqueCode" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from public.vac_vaccine
+                    where trim(upper(code)) = trim(upper(:code)) and (id != :id or :id is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Вакцина с таким кодом уже существует</message>
+        </constraint>
+        
+        <constraint id="vaccineIsUsed" level="warning">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from vac_inoculation where vaccine_id = :vaccine;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['vaccine']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Вакцина используется в прививках. Вы уверены, что хотите изменить ее?</message>
+        </constraint>
+    </validations>
+</object>

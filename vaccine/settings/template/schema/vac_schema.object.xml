@@ -1,0 +1,124 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Схема вакцинации</name>
+    <actions>
+        <action id="create" name="Создать схему вакцинации">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/vaccine/schemas/
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="isGroupOfRisk" mapping="['isGroupOfRisk']" domain="boolean"/>
+                <param name="description" mapping="['description']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="nonEmptyName"/>
+            </validations>
+        </action>
+        <action id="update" name="Редактировать схему вакцинации">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/vaccine/schemas/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="isGroupOfRisk" mapping="['isGroupOfRisk']" domain="boolean"/>
+                <param name="description" mapping="['description']" domain="string"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="nonEmptyName"/>
+                <validation ref-id="warningBeforeUpdateIfUsedInCalendars"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить схему вакцинации">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/vaccine/schemas/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="warningBeforeDeleteIfUsedInCalendars"/>
+            </validations>
+        </action>
+        <!--<action id="attachToCalendar">-->
+            <!--<invocation>-->
+                <!--<rest:rest method="POST">-->
+                    <!--${n2o.backend.path}/vaccine/schemas/attachToCalendar-->
+                <!--</rest:rest>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="id" mapping="['schemaId']" domain="integer"/>-->
+                <!--<param name="id" mapping="['id']" domain="integer"/>-->
+            <!--</in-parameters>-->
+        <!--</action>-->
+    </actions>
+    <validations>
+        <constraint id="nonEmptyName" level="error">
+            <invocation>
+                <sql:sql>
+                    select char_length(trim(:name));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] != 0"/>
+            <message>Недопустимо пустое наименование для схемы</message>
+        </constraint>
+        <constraint id="uniqueName" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1)
+                    from vac.schema
+                    where trim(lower(name)) = trim(lower(:name)) and (id != :id or :id is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Схема с таким наименованием уже существует</message>
+        </constraint>
+        <constraint id="warningBeforeDeleteIfUsedInCalendars" level="warning" moment="before-action">
+            <message>Схема применяется в шаблонах национального календаря. Вы уверены, что хотите удалить схему?</message>
+            <invocation>
+                <sql:sql>
+                    select count(1)
+                    from vac.national_calendar__schema
+                    where schema_id = :schemaId
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['schemaId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="warningBeforeUpdateIfUsedInCalendars" level="warning" moment="before-action">
+            <message>Схема применяется в шаблонах национального календаря. Вы уверены, что хотите изменить схему?</message>
+            <invocation>
+                <sql:sql>
+                    select count(1)
+                    from vac.national_calendar__schema
+                    where schema_id = :schemaId
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['schemaId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

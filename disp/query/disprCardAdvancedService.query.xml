@@ -1,0 +1,147 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <object-id>disprCardAdvancedService</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                left join (select ssr.id, msr.case_id, ssr.service_id, ssr.res_group_id, ssr.bdate from MD_SRV_RENDERED msr
+                left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep.case_id and ssr.service_id = mes.service_id
+                inner join md_prescription mp on mp.service_id = ssr.id
+                left join sr_service ss on ss.id = mp.service_type_id
+                left join PIM_ORGANIZATION po on po.id = ss.org_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mep)
+                from disp.md_event_patient mep
+                left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                left join (select ssr.id, msr.case_id, ssr.service_id, ssr.res_group_id, ssr.bdate from MD_SRV_RENDERED msr
+                left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep.case_id and ssr.service_id = mes.service_id
+                inner join md_prescription mp on mp.service_id = ssr.id
+                left join sr_service ss on ss.id = mp.service_type_id
+                left join PIM_ORGANIZATION po on po.id = ss.org_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mp.id</display>
+            <search>mp.id = :id</search>
+        </field>
+        <field>
+            <id>mainId</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+            <search>mep.id = :mainId and mnds.code = 'Д1.18'</search>
+        </field>
+        <field>
+            <id>service_code</id>
+            <domain>string</domain>
+            <expression>mnds.code</expression>
+            <display>mnds.code</display>
+            <search>mnds.code = :service_code</search>
+        </field>
+        <field>
+            <id>service.id</id>
+            <domain>Integer</domain>
+            <expression>ss.id</expression>
+            <display>ss.id</display>
+            <search>ss.id = :service.id</search>
+        </field>
+        <field>
+            <id>service.name</id>
+            <name>Услуга</name>
+            <domain>String</domain>
+            <display>ss.name</display>
+            <search>ss.name = :service.name</search>
+            <sorting>ssp.name</sorting>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>Integer</domain>
+            <expression>po.id</expression>
+            <display>po.id</display>
+            <search>po.id = :org.id</search>
+            <sorting>po.id</sorting>
+        </field>
+        <field>
+            <id>org.short_name</id>
+            <name>Организация</name>
+            <domain>String</domain>
+            <expression>po.short_name</expression>
+            <display>po.short_name</display>
+            <search>po.short_name = :org.short_name</search>
+            <sorting>po.short_name</sorting>
+        </field>
+
+        <field>
+            <id>resource.name</id>
+            <name>Ресурс</name>
+            <domain>String</domain>
+            <expression>
+                (select srg.name
+                from MD_SRV_RENDERED amsr
+                inner join SR_SRV_RENDERED assr on assr.id = amsr.id
+                left join SR_RES_GROUP srg on srg.id = assr.res_group_id
+                where amsr.patient_prescription_id = mp.id limit 1)
+            </expression>
+            <display>
+                (select srg.name
+                from MD_SRV_RENDERED amsr
+                inner join SR_SRV_RENDERED assr on assr.id = amsr.id
+                left join SR_RES_GROUP srg on srg.id = assr.res_group_id
+                where amsr.patient_prescription_id = mp.id limit 1)
+            </display>
+        </field>
+        <field>
+            <id>status.name</id>
+            <name>Статус</name>
+            <domain>String</domain>
+            <display>
+                CASE (select count(id) from MD_SRV_RENDERED where patient_prescription_id = mp.id) WHEN 0 THEN 'Назначена'
+                ELSE 'Оказана'
+                END
+            </display>
+        </field>
+        <field>
+            <id>date_render</id>
+            <domain>date</domain>
+            <name>Дата оказания</name>
+            <expression>
+                (select ssr.bdate
+                    from MD_SRV_RENDERED dmsr
+                    inner join SR_SRV_RENDERED dssr on dssr.id = dmsr.id
+                    where dmsr.patient_prescription_id = mp.id limit 1)
+            </expression>
+            <display>
+                (select ssr.bdate
+                from MD_SRV_RENDERED dmsr
+                inner join SR_SRV_RENDERED dssr on dssr.id = dmsr.id
+                where dmsr.patient_prescription_id = mp.id limit 1)
+            </display>
+        </field>
+
+    </fields>
+</query>

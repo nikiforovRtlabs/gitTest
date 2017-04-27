@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>in_cityservice</id>-->
+    <name>Передача вызова в службы города</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    select amb.add_amb_call_cityservice(:call,true,:reason,:descr,:reg,:mess,:serv,:clinic,:emp,:accepted);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="call_id" mapping="['call']" domain="integer"/>
+                <!--<param name ="call_note.type" mapping = "['type']" domain="boolean"/>-->
+                <param name="note_reason.nrId" mapping="['reason']" domain="integer"/>
+                <param name="call_note.descr" mapping="['descr']" domain="string"/>
+                <param name="employee.id" mapping="['reg']" domain="integer" value="#{emplPos.id?}"/>
+                <param name="message" mapping="['mess']" domain="string"/>
+                <param name="city_service.id" mapping="['serv']" domain="integer"/>
+                <param name="org.id" mapping="['clinic']" domain="integer"/>
+                <param name="employee_med.id" mapping="['emp']" domain="integer"/>
+                <param name="accepted" mapping="['accepted']" domain="string"/>
+            </in-parameters>
+            <!--<out-parameters>-->
+                <!--<param name="id" mapping="[0][0][0]" domain="integer"/>-->
+            <!--</out-parameters>-->
+        </action>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    <!--update amb.md_ambulance_call_in_cityservice set message_number = trim(:mess), service_id = :serv,accepted = trim(:accepted) where id = :id;-->
+                    <!--update amb.md_ambulance_call_in_clinic set message_number =  trim(:mess),clinic_id = :clinic, employee_id = :emp,accepted = :accepted where call_note_id = id;-->
+                    select amb.update_amb_call_cityservice (:cnote,:reason,:descr,:mess,:serv,:clinic,:emp,:accepted);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name ="call_note.id" mapping = "['cnote']" domain="integer"/>
+                <param name="note_reason.nrId" mapping="['reason']" domain="integer"/>
+                <param name="call_note.descr" mapping="['descr']" domain="string"/>
+                <param name="message" mapping="['mess']" domain="string"/>
+                <param name="city_service.id" mapping="['serv']" domain="integer"/>
+                <param name="org.id" mapping="['clinic']" domain="integer"/>
+                <param name="employee_med.id" mapping="['emp']" domain="integer"/>
+                <param name="accepted" mapping="['accepted']" domain="string"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    <!--select amb.add_amb_call_cityservice (6,false,null,null,3553,null,NULL,null);-->
+                    select amb.add_amb_call_cityservice(:call,false,:reason,:descr,:reg,:mess,:serv,:clinic,:emp,:accepted);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="call_id" mapping="['call']" domain="integer"/>
+                <!--<param name ="call_note.type" mapping = "['type']"/>-->
+                <param name="note_reason.nrId" mapping="['reason']" domain="integer"/>
+                <param name="call_note.descr" mapping="['descr']" domain="string"/>
+                <param name="employee.id" mapping="['reg']" domain="integer" value="#{emplPos.id?}"/>
+                <param name="message" mapping="['mess']" domain="string"/>
+                <param name="city_service.id" mapping="['serv']" domain="integer"/>
+                <param name="org.id" mapping="['clinic']" domain="integer"/>
+                <param name="employee_med.id" mapping="['emp']" domain="integer"/>
+                <param name="accepted" mapping="['accepted']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="serviceUnique" level="error">
+            <!--<message summary ="Отметка о передаче в службу '%city_service.name%' уже существует ->
+                Отметка о передаче в указанную службу уже существует!
+            </message>-->
+            <message>Отметка о передаче в службу '{serv}' уже существует ->
+                Отметка о передаче в указанную службу уже существует!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.md_ambulance_call_in_cityservice ics
+                    left join amb.md_ambulance_call_note cn on ics.call_note_id = cn.id
+                    where ics.service_id = :serv
+                    and cn.call_id = :call
+                    and cn.note_active is true
+                    and (:id is null or ics.id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="call_id" mapping="['call']" domain="integer"/>
+                <param name="city_service.id" mapping="['serv']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

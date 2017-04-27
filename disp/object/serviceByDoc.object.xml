@@ -1,0 +1,204 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>serviceByDoc</name>
+
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sp:stored-procedure name="disp.servicebydocinsert" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="service.id" mapping="[0]"/>
+                <param name="doc.id" mapping="[1]"/>
+                <param name="doc_service.id" mapping="[2]"/>
+                <param name="owner_org.id" mapping="[3]"/>
+            </in-parameters>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sp:stored-procedure name="disp.servicebydocupdate" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]"/>
+                <param name="service.id" mapping="[1]"/>
+                <param name="doc.id" mapping="[2]"/>
+                <param name="doc_service.id" mapping="[3]"/>
+                <param name="owner_org.id" mapping="[4]"/>
+            </in-parameters>
+        </action>
+
+        <action id="updateForm" name="Изменить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    select disp.servicen2oformadd(:id,:code, :form, :query);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc_service.code" mapping="['code']" domain="string"/>
+                <param name="n2o_form.formId" mapping="['form']"/>
+                <param name="code.code" domain="string"/>
+                <param name="n2o_query" domain="string" mapping="['query']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueServiceCodeForm"/>
+            </validations>
+        </action>
+
+        <action id="createForm" name="Создать">
+            <invocation>
+                <sp:stored-procedure name="disp.servicen2oformaddform" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="code.code" mapping="[0]" domain="string"/>
+                <param name="n2o_form.formId" mapping="[1]"/>
+                <param name="n2o_query" domain="string" mapping="[2]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['servicen2oformaddform']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueServiceCodeFormCreate"/>
+            </validations>
+        </action>
+
+        <action id="removeForm" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    delete from disp.service_n2o_form where service_code=:code;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+            </in-parameters>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    update disp.sr_srv_service_document set owner_org_id = NULL, is_archive = TRUE
+                        where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>
+        <action id="force_from_archive" name="Восстановить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    update disp.sr_srv_service_document set owner_org_id = :org, is_archive = FALSE
+                        where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="org.id" mapping="['org']"/>
+            </in-parameters>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="checkUniqueServiceCodeFormCreate" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from disp.service_n2o_form
+                    where service_code=:code;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code.code" mapping="['code']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Для услуги уже определена форма.</message>
+        </constraint>
+
+
+        <constraint id="checkUniqueServiceCodeForm" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from disp.service_n2o_form
+                    where service_code=:code and id is not null and id!=:id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code.code" mapping="['code']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Для услуги уже определена форма.</message>
+        </constraint>
+
+        <constraint id="checkUniqueOwner" level="warning">
+            <invocation>
+                <sql:sql>
+                    select count(1) from disp.sr_srv_service_document
+                    where document_id = :did and document_service_id = :dsid and owner_org_id = :org;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="doc.id" mapping="['did']"/>
+                <param name="doc_service.id" mapping="['dsid']"/>
+                <param name="owner_org.id" mapping="['org']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>К этому владельцу уже прикреплена выбранная услуга по приказу.</message>
+        </constraint>
+
+        <constraint id="checkUniqServiceTypeAdd" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from disp.sr_srv_service_document sssd
+                    left join disp.md_standard_prescription_extended mspe on mspe.norm_doc_service_id = sssd.document_service_id
+                    where service_id = :service and :id is NULL and is_archive = FALSE and document_id = :doc and owner_org_id = :owner_org and mspe.stage_number = (select stage_number from disp.md_standard_prescription_extended where norm_doc_service_id = :doc_service limit 1);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="service.id" mapping="['service']"/>
+                <param name="doc.id" mapping="['doc']"/>
+                <param name="doc_service.id" mapping="['doc_service']"/>
+                <param name="owner_org.id" mapping="['owner_org']"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Этот вид услуги уже привязан к этому приказу и этапу</message>
+        </constraint>
+        <constraint id="checkUniqServiceTypeEdit" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from disp.sr_srv_service_document sssd
+                    left join disp.md_standard_prescription_extended mspe on mspe.norm_doc_service_id = sssd.document_service_id
+                    where service_id = :service and :id IS NOT NULL and document_id = :doc and owner_org_id = :owner_org and mspe.stage_number = (select stage_number from disp.md_standard_prescription_extended where norm_doc_service_id = :doc_service limit 1);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="service.id" mapping="['service']"/>
+                <param name="doc.id" mapping="['doc']"/>
+                <param name="doc_service.id" mapping="['doc_service']"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Этот вид услуги уже привязан к этому приказу и этапу</message>
+        </constraint>
+        <constraint id="checkServiceTypeInArchive" level="warning">
+            <invocation>
+                <sql:sql>
+                    select count(1) from disp.sr_srv_service_document
+                    where service_id = :service and :id is NULL and is_archive = TRUE;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="service.id" mapping="['service']"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Эта услуг хранится в архиве, сохранив эту форму, услуга будет перемещена из архива.</message>
+        </constraint>
+
+    </validations>
+
+</object>

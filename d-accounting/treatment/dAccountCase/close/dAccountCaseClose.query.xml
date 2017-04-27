@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>dAccountCase</object-id>
+    <name>dAccountCaseClose</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.mc_case c
+                left join public.mc_diagnosis mcd on mcd.id=c.main_diagnos_id
+                left join public.md_diagnosis dd on dd.id=mcd.diagnos_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(c)
+                from public.mc_case c
+                left join public.mc_diagnosis mcd on mcd.id=c.main_diagnos_id
+                left join public.md_diagnosis dd on dd.id=mcd.diagnos_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+            <search>c.id = :id</search>
+        </field>
+        <field>
+            <id>outcomeDate</id>
+            <name>Дата закрытия</name>
+            <domain>date</domain>
+            <expression>(select coalesce(outcome_date, admission_date) from mc_step where case_id = c.id order by admission_date desc limit 1)</expression>
+        </field>
+        <field>
+            <id>careRegimenId</id>
+            <domain>integer</domain>
+            <expression>c.care_regimen_id</expression>
+        </field>
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+        <field>
+            <id>diagnos</id>
+            <domain>object</domain>
+            <expression>(select get_diagnosis_init(mcd.diagnos_id, (select array_agg(attr_value_id) from mc_diag_attr where diagnosis_id = c.main_diagnos_id)))</expression>
+        </field>
+    </fields>
+</query>

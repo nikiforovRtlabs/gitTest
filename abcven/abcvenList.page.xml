@@ -1,0 +1,144 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:avw="http://n2oapp.net/framework/config/schema/abcven-grid-widget-1.0"
+      xmlns:mst="http://n2oapp.net/framework/config/schema/rmis-control-multiselect-tree-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+
+    <object-id>abcven</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>ABC/VEN анализ</name>
+
+    <regions>
+        <region place="single">
+
+            <container id="main" place="single">
+
+                <avw:abcven-widget>
+                    <avw:query-id>abcvenList</avw:query-id>
+                    <avw:size>10</avw:size>
+                    <avw:filters>
+                        <ctrl:output-text control-style="width:0px;" label-style="width:800px;color:red;" id="message" label="
+                        Внимание, МНН может быть указано не у всех лекарственных средств, в этом случае в анализ попадет торговое наименование.
+                        Цена по МНН будет указана усредненная, следовательно произведение средней цены на количество может быть не равно итоговой стоимости МНН.
+                         Стоимость высчитывается суммарно по стоимости номенклатур с данным МНН" readonly="true" dependency-condition="price_type.id == 2"/>
+                        <n2o:hidden id="userId" default-value="#{user.id}" />
+
+                        <n2o:date-interval id="abcDate" label="Период" required="true"
+                                           css-class="abcven-filter"
+                                           control-style="width:360px;">
+                            <n2o:default-model begin="beginQuarter()" end="today()"/>
+                        </n2o:date-interval>
+
+                        <ctrl:multi-classifier id="mo" label="МО"
+                                               css-class="abcven-filter"
+                                               control-style="width:460px;" search-as-you-type="true" required="true">
+                            <ctrl:query query-id="abc_mo" value-field-id="id" label-field-id="full_name"/>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id}</ctrl:value>
+                                <ctrl:value field-id="full_name">#{org.name}</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:multi-classifier>
+
+                        <ctrl:classifier id="stock_type" label="Тип склада"
+                                        css-class="abcven-filter" required="true"
+                                        control-style="width:460px;" search-as-you-type="true">
+                            <ctrl:query query-id="abc_stock" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <n2o:output-text id="orgIdString" visible="false">
+                            <ctrl:set-value-expression on="mo" on-load="true"> mo.map(function(it) { return it.id; }).join(','); </ctrl:set-value-expression>
+                        </n2o:output-text>
+
+                        <ctrl:multi-classifier id="stock" label="Склад"
+                                               css-class="abcven-filter"
+                                               required="true" control-style="width:460px;" depends-on="stock_type"
+                                               search-as-you-type="true">
+                            <ctrl:query query-id="abc_stocks" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="stockId" ref="stock_type.id"/>
+                                    <ctrl:pre-filter field-id="orgIds" ref="orgIdString"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:multi-classifier>
+
+                        <ctrl:input-text id="a_percent" label="A%" control-style="width: 90px" required="true"
+                                         domain="numeric" label-style="width: 90px; text-align: left"
+                                         css-class="abcven-filter">
+                            <ctrl:set-value-expression on-load="true" on-non-empty="false">70</ctrl:set-value-expression>
+                        </ctrl:input-text>
+                        <ctrl:input-text id="b_percent" label="B%" control-style="width: 90px" required="true"
+                                         domain="numeric" label-style="width: 90px; text-align: left"
+                                         css-class="abcven-filter">
+                            <ctrl:set-value-expression on-load="true" on-non-empty="false">20</ctrl:set-value-expression>
+                        </ctrl:input-text>
+                        <ctrl:input-text id="c_percent" label="C%" control-style="width: 90px" required="true"
+                                         domain="numeric" label-style="width: 90px; text-align: left"
+                                         css-class="abcven-filter">
+                            <ctrl:set-value-expression on-load="true" on-non-empty="false">10</ctrl:set-value-expression>
+                        </ctrl:input-text>
+
+                        <ctrl:checkbox id="is_fractional" label="Допустимы дробные значения %" default-value="true" css-class="abcven-filter"/>
+
+                        <mst:multiselect-tree id="product_group" ajax="false" label="Товарная группа" search="true"
+                                              css-class="abcven-filter" control-style="width:385px;"
+                                              required="true">
+                            <mst:inheritance-nodes query-id="inv_abc_commodity_group" parent-field-id="parentId"
+                                                   has-children-field-id="hasChildren" search-field-id="name"
+                                                   label-field-id="name" icon-field-id="iconId"
+                                                   can-resolved-field-id="canResolved">
+                            </mst:inheritance-nodes>
+                        </mst:multiselect-tree>
+
+                        <mst:multiselect-tree id="farm_group" ajax="false" label="Фармакологическая группа" search="true"
+                                              css-class="abcven-filter" control-style="width:385px;">
+                            <mst:inheritance-nodes query-id="inv_abc_pharm_group" parent-field-id="parentId"
+                                                   has-children-field-id="hasChildren" search-field-id="name"
+                                                   label-field-id="name" icon-field-id="iconId"
+                                                   can-resolved-field-id="canResolved">
+                            </mst:inheritance-nodes>
+                        </mst:multiselect-tree>
+
+                        <n2o:classifier id="stock_ops_type" label="Тип складской операции" control-style="width:385px;"
+                                        css-class="abcven-filter" required="true">
+                            <n2o:query query-id="stockOperationType" value-field-id="id" label-field-id="name"/>
+                        </n2o:classifier>
+                        <ctrl:radio-group id="method" label="" css-class="abcven-filter">
+                            <ctrl:options>
+                                <ctrl:option>{"id" : 1, "name" : "Метод VEN анализа"}</ctrl:option>
+                                <ctrl:option>{"id" : 2, "name" : "Метод VN анализа"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:set-value-expression on-load="true" on-non-empty="false">
+                                var o = new Object();
+                                o.id = 1;
+                                o.name = 'Метод VEN анализа';
+                                o;
+                            </ctrl:set-value-expression>
+                        </ctrl:radio-group>
+                        <ctrl:radio-group id="price_type" label="" css-class="abcven-filter">
+                            <ctrl:options>
+                                <ctrl:option>{"id" : 1, "name" : "По стоимости ТН"}</ctrl:option>
+                                <ctrl:option>{"id" : 2, "name" : "По стоимости МНН"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:set-value-expression on-load="true" on-non-empty="false">
+                                var o = new Object();
+                                o.id = 1;
+                                o.name = 'По стоимости ТН';
+                                o;
+                            </ctrl:set-value-expression>
+                        </ctrl:radio-group>
+                    </avw:filters>
+
+                    <avw:action-menu>
+
+                    </avw:action-menu>
+                </avw:abcven-widget>
+            </container>
+        </region>
+    </regions>
+
+</page>
+
+

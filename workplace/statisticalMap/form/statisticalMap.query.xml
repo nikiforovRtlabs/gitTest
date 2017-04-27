@@ -1,0 +1,611 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>statisticalMap</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from mc_case c
+                inner join pci_patient pat on pat.id = c.patient_id
+                left outer join md_soc_group sg on sg.id = pat.social_group_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+                left outer join pim_gender pat_gender on pat_gender.id = pat_ind.gender_id
+                left outer join fin_funding_source_type fund on fund.id = c.funding_id
+                left outer join md_referral r on r.id = c.referral_id
+                left outer join pim_organization ref_org on ref_org.id = r.ref_organization_id
+                left outer join md_diagnosis ref_diag on ref_diag.id = r.diagnosis_id
+                left outer join md_referral_type ref_type on r.referral_type_id = ref_type.id
+                left outer join mc_admission_reason admission_reason on admission_reason.id = c.admission_reason_id
+                left outer join mc_time_gone time_gone on time_gone.id = c.time_gone_id
+                left outer join mc_repeat_count repeat_count on repeat_count.id = c.repeat_count_id
+                left outer join md_care_providing_form on md_care_providing_form.id = c.care_providing_form_id
+                left outer join mc_drunkenness_type drunkenness_type on drunkenness_type.id = c.drunkenness_type_id
+                left outer join mc_case_init_goal on mc_case_init_goal.id = c.init_goal_id
+                left outer join mc_med_case_result case_result on case_result.id = c.result_id
+                left outer join mc_prehospital_stage_defect psd on psd.id =  case_result.prehospital_stage_defect_id
+                left outer join mc_hsp_canal hc on hc.id = c.hsp_canal_id
+                left outer join md_sicklist sl on sl.case_id = c.id and sl.workplace_type_id = 1 and sl.state_id = 3 and sl.type_id = 1
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(c)
+                from mc_case c
+                inner join pci_patient pat on pat.id = c.patient_id
+                left outer join md_soc_group sg on sg.id = pat.social_group_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+                left outer join pim_gender pat_gender on pat_gender.id = pat_ind.gender_id
+                left outer join fin_funding_source_type fund on fund.id = c.funding_id
+                left outer join md_referral r on r.id = c.referral_id
+                left outer join pim_organization ref_org on ref_org.id = r.ref_organization_id
+                left outer join md_diagnosis ref_diag on ref_diag.id = r.diagnosis_id
+                left outer join md_referral_type ref_type on r.referral_type_id = ref_type.id
+                left outer join mc_admission_reason admission_reason on admission_reason.id = c.admission_reason_id
+                left outer join mc_time_gone time_gone on time_gone.id = c.time_gone_id
+                left outer join mc_repeat_count repeat_count on repeat_count.id = c.repeat_count_id
+                left outer join md_care_providing_form on md_care_providing_form.id = c.care_providing_form_id
+                left outer join mc_drunkenness_type drunkenness_type on drunkenness_type.id = c.drunkenness_type_id
+                left outer join mc_case_init_goal on mc_case_init_goal.id = c.init_goal_id
+                left outer join mc_med_case_result case_result on case_result.id = c.result_id
+                left outer join mc_prehospital_stage_defect psd on psd.id =  case_result.prehospital_stage_defect_id
+                left outer join mc_hsp_canal hc on hc.id = c.hsp_canal_id
+                left outer join md_sicklist sl on sl.case_id = c.id and sl.workplace_type_id = 1 and sl.state_id = 3 and sl.type_id = 1
+                where :where
+            </n2o:count-query>
+
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <!--Patient-->
+        <field>
+            <id>birthDate</id>
+            <domain>date</domain>
+            <expression>to_char(pat_ind.birth_dt, 'DD.MM.YYYY') || ' (' || extract(year from AGE(NOW(), pat_ind.birth_dt)) || ')' </expression>
+        </field>
+
+        <field>
+            <id>gender</id>
+            <domain>string</domain>
+            <expression>pat_gender.name</expression>
+        </field>
+
+        <field>
+            <id>document</id>
+            <domain>string</domain>
+            <expression>
+                (select dt.name || coalesce(', Серия: ' || doc.series, '') || ', Номер: ' || doc."number"
+                from pim_individual_doc doc
+                inner join pim_doc_type dt on doc.indiv_id = pat_ind.id and dt.id = doc.type_id
+                inner join pim_doc_type_category dtc on dtc.category_id = 1 and dtc.type_id = dt.id
+                where doc.is_active is true
+                order by dt.priority limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>insurancePolicy</id>
+            <domain>string</domain>
+            <expression>
+                (select coalesce('Серия: ' || doc.series, '') || ', Номер: ' || doc."number" || coalesce(', Кем выдан: ' || issuer.short_name)
+                from pim_individual_doc doc
+                inner join pim_doc_type dt on doc.indiv_id = pat_ind.id and dt.id = doc.type_id
+                inner join pim_doc_type_category dtc on dtc.category_id = 2 and dtc.type_id = dt.id
+                left outer join pim_organization issuer on issuer.id= doc.issuer_id
+                where doc.is_active is true
+                order by dt.priority limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>socialStatus</id>
+            <domain>string</domain>
+            <expression>sg.name</expression>
+        </field>
+
+        <field>
+            <id>benefitCategory</id>
+            <domain>string</domain>
+            <expression>
+                (select string_agg(bt.name, ', ') from pci_benefit b
+                inner join pci_benefit_type bt on b.patient_id = c.patient_id and bt.id = b.benefit_type_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>registrationAddress</id>
+            <domain>string</domain>
+            <expression>
+                (select adr__get_element_as_text(
+                (select pa.addr_id from pim_party_address pa
+                inner join pim_party_addr_to_addr_type patat on pa.party_id = pat_ind.id and patat.party_address_id = pa.id and patat.address_type_id = 4
+                limit 1), '(1,n,1)(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)'))
+            </expression>
+        </field>
+
+        <field>
+            <id>address</id>
+            <domain>string</domain>
+            <expression>
+                (select adr__get_element_as_text(
+                (select pa.addr_id from pim_party_address pa
+                inner join pim_party_addr_to_addr_type patat on pa.party_id = pat_ind.id and patat.party_address_id = pa.id and patat.address_type_id = 3
+                limit 1),'(1,n,1)(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)'))
+            </expression>
+        </field>
+
+        <!--MedicalCase-->
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>pat_ind.id</expression>
+        </field>
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <expression>c.uid</expression>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>c.funding_id</expression>
+        </field>
+
+        <field>
+            <id>initialFinancialType</id>
+            <domain>integer</domain>
+            <expression>(select row_to_json(r) from (select id as id, name as name from fin_funding_source_type where id = c.funding_id) as r)</expression>
+        </field>
+
+        <!--referral-->
+        <field>
+            <id>referral.id</id>
+            <domain>integer</domain>
+            <expression>r.id</expression>
+        </field>
+
+        <field>
+            <id>referralOrganization.id</id>
+            <domain>integer</domain>
+            <expression>ref_org.id</expression>
+        </field>
+
+        <field>
+            <id>referralOrganization.name</id>
+            <domain>string</domain>
+            <expression>coalesce(ref_org.short_name, ref_org.full_name)</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosis.id</id>
+            <domain>integer</domain>
+            <expression>ref_diag.id</expression>
+        </field>
+
+        <field>
+            <id>referralDiagnosis.name</id>
+            <domain>string</domain>
+            <expression>ref_diag.code || ' ' || ref_diag.name</expression>
+        </field>
+
+        <field>
+            <id>referralNumber</id>
+            <domain>string</domain>
+            <expression>r.order_number</expression>
+        </field>
+
+        <field>
+            <id>referralDate</id>
+            <domain>date</domain>
+            <expression>r.referral_date</expression>
+        </field>
+
+        <!--MedicalCase-->
+        <field>
+            <id>careProvidingForm.id</id>
+            <domain>integer</domain>
+            <expression>md_care_providing_form.id</expression>
+        </field>
+
+        <field>
+            <id>careProvidingForm.name</id>
+            <domain>string</domain>
+            <expression>md_care_providing_form.name</expression>
+        </field>
+
+        <field>
+            <id>drunkennessType.id</id>
+            <domain>integer</domain>
+            <expression>drunkenness_type.id</expression>
+        </field>
+
+        <field>
+            <id>drunkennessType.name</id>
+            <domain>string</domain>
+            <expression>drunkenness_type.name</expression>
+        </field>
+
+        <field>
+            <id>admissionReason.id</id>
+            <domain>integer</domain>
+            <expression>admission_reason.id</expression>
+        </field>
+
+        <field>
+            <id>admissionReason.name</id>
+            <domain>string</domain>
+            <expression>admission_reason.name</expression>
+        </field>
+
+        <field>
+            <id>whoDeliveredCode</id>
+            <domain>string</domain>
+            <expression>c.who_delivered_code</expression>
+        </field>
+
+        <field>
+            <id>whoDeliveredTeamNumber</id>
+            <domain>string</domain>
+            <expression>c.who_delivered_team_number</expression>
+        </field>
+
+        <field>
+            <id>timeGone.id</id>
+            <domain>integer</domain>
+            <expression>time_gone.id</expression>
+        </field>
+
+        <field>
+            <id>timeGone.name</id>
+            <domain>string</domain>
+            <expression>time_gone.name</expression>
+        </field>
+
+        <field>
+            <id>initGoal.id</id>
+            <domain>integer</domain>
+            <expression>mc_case_init_goal.id</expression>
+        </field>
+
+        <field>
+            <id>initGoal.name</id>
+            <domain>string</domain>
+            <expression>mc_case_init_goal.name</expression>
+        </field>
+
+        <field>
+            <id>repeatCount.id</id>
+            <domain>integer</domain>
+            <expression>repeat_count.id</expression>
+        </field>
+
+        <field>
+            <id>repeatCount.name</id>
+            <domain>string</domain>
+            <expression>repeat_count.name</expression>
+        </field>
+
+        <field>
+            <id>hspCanal.id</id>
+            <domain>integer</domain>
+            <expression>hc.id</expression>
+        </field>
+
+        <field>
+            <id>hspCanal.name</id>
+            <domain>string</domain>
+            <expression>hc.name</expression>
+        </field>
+
+        <!--first step-->
+
+        <field>
+            <id>firstStepId</id>
+            <domain>integer</domain>
+            <expression>
+                (select r.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+
+        <field>
+            <id>admissionDepartment.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select d.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join pim_department d on d.id = r.department_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>admissionDepartment.name</id>
+            <domain>string</domain>
+            <expression>
+                (select d.name from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join pim_department d on d.id = r.department_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>admissionDate</id>
+            <domain>date</domain>
+            <expression>
+                (select s.admission_date + coalesce(s.admission_time, '00:00')
+                from hsp_record r
+                inner join mc_step s on s.id = r.id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+
+        <field>
+            <id>admissionCaseDiagnosisId</id>
+            <domain>integer</domain>
+            <expression>
+                (select mcd.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_diagnosis mcd on mcd.id = s.main_diagnosis_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>admissionDiagnosis</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(r) from (
+                select
+                mdd.id as id,
+                (mdd.code|| ' ' || mdd.name) as name,
+                mdd.is_injury as "isInjury"
+                from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_diagnosis mcd on mcd.id = s.main_diagnosis_id
+                inner join md_diagnosis mdd on mdd.id = mcd.diagnos_id
+                where s.case_id = c.id and r.previous_id is null
+                ) as r)
+            </expression>
+        </field>
+
+        <field>
+            <id>injuryReason</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(r) from (
+                select
+                mdd.id as id,
+                (mdd.code|| ' ' || mdd.name) as name
+                from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_diagnosis mcd on mcd.id = s.main_diagnosis_id
+                inner join md_diagnosis mdd on mdd.id = mcd.injury_reason_id
+                where s.case_id = c.id and r.previous_id is null
+                ) as r)
+            </expression>
+        </field>
+
+        <field>
+            <id>resGroupId</id>
+            <domain>integer</domain>
+            <expression>
+                (select rg.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join sr_res_group rg on rg.id = s.res_group_id
+                where s.case_id = c.id and r.previous_id is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select epr.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join sr_res_group rg on rg.id = s.res_group_id
+                inner join pim_employee_position_resource epr on epr.employee_position_id = rg.responsible_id
+                where s.case_id = c.id and r.previous_id is null limit 1)
+            </expression>
+        </field>
+
+        <!--sicklist-->
+        <field>
+            <id>sickListId</id>
+            <domain>integer</domain>
+            <expression>sl.id</expression>
+        </field>
+
+        <field>
+            <id>beginSickListPeriodId</id>
+            <domain>integer</domain>
+            <expression>
+                (select slp.id from md_sicklist_period slp
+                where slp.sicklist_id = sl.id
+                order by slp.from_dt asc limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>sickListPeriod.begin</id>
+            <domain>date</domain>
+            <expression>
+                (select min(slp.from_dt) from md_sicklist_period slp
+                where slp.sicklist_id = sl.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>endSickListPeriodId</id>
+            <domain>integer</domain>
+            <expression>
+                (select slp.id from md_sicklist_period slp
+                where slp.sicklist_id = sl.id
+                order by slp.to_dt desc nulls first limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>sickListPeriod.end</id>
+            <domain>date</domain>
+            <expression>
+                (select slp.to_dt from md_sicklist_period slp
+                where slp.sicklist_id = sl.id
+                order by slp.to_dt desc nulls first limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>nursingCare</id>
+            <domain>boolean</domain>
+            <expression>(select case when disability_reason_id = 9 then true else false end from md_sicklist where id = sl.id)</expression>
+        </field>
+
+        <field>
+            <id>attendant.id</id>
+            <domain>integer</domain>
+            <expression>(select patient_id from md_sicklist where id = sl.id)</expression>
+        </field>
+
+        <!--MedicalCaseResult-->
+        <field>
+            <id>caseResultId</id>
+            <domain>integer</domain>
+            <expression>case_result.id</expression>
+        </field>
+
+        <field>
+            <id>prehospitalStageDefect.id</id>
+            <domain>integer</domain>
+            <expression>psd.id</expression>
+        </field>
+
+        <!--Last HospitalRecord-->
+        <field>
+            <id>lastHospitalRecordId</id>
+            <domain>integer</domain>
+            <expression>c.closing_step_id</expression>
+        </field>
+
+        <field>
+            <id>outcomeDate</id>
+            <domain>date</domain>
+            <expression>(select s.outcome_date from mc_step s where s.id = c.closing_step_id)</expression>
+        </field>
+
+        <field>
+            <id>bedDayAmount</id>
+            <domain>integer</domain>
+            <expression>(select get_bed_day_amount_n2o(c.id))</expression>
+        </field>
+
+        <field>
+            <id>outcome</id>
+            <domain>string</domain>
+            <expression>
+                (select scr.name from mc_step s
+                inner join mc_step_care_result scr on s.id = c.closing_step_id and scr.id = s.outcome_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>result</id>
+            <domain>string</domain>
+            <expression>
+                (select sr.name from mc_step s
+                inner join mc_step_result sr on s.id = c.closing_step_id and sr.id = s.result_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>transportingType.id</id>
+            <domain>integer</domain>
+            <expression>c.transporting_type_id</expression>
+        </field>
+
+        <field>
+            <id>careLevel.id</id>
+            <domain>integer</domain>
+            <expression>c.care_level_id</expression>
+        </field>
+
+        <field>
+            <id>paymentMethod.id</id>
+            <domain>integer</domain>
+            <expression>c.payment_method_id</expression>
+        </field>
+
+        <field>
+            <id>careRegimenId</id>
+            <domain>integer</domain>
+            <expression>c.care_regimen_id</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>secondStepId</id>
+            <domain>integer</domain>
+            <expression>
+                (select r.id from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_step s2 on s2.case_id = c.id
+                inner join hsp_record r2 on r2.id = s2.id and r2.previous_id is null and r.previous_id = r2.id)
+            </expression>
+        </field>
+
+        <!-- rankinAdmission -->
+        <field>
+            <id>rankinAdmission.id</id>
+            <domain>integer</domain>
+            <expression>c.rankin_scale_for_admission_id</expression>
+        </field>
+        <!--RankinDisposal-->
+        <field>
+            <id>rankinDisposal.id</id>
+            <domain>integer</domain>
+            <expression>c.rankin_scale_on_disposal_id</expression>
+        </field>
+
+        <field>
+            <id>isFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>c.is_finance_type_control</expression>
+        </field>
+
+        <field>
+            <id>initialIsFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>c.is_finance_type_control</expression>
+        </field>
+
+
+    </fields>
+</query>

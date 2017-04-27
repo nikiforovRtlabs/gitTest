@@ -1,0 +1,137 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>dAccountPlanObserv</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from d_accounting.observ_plan_h ph
+                join d_accounting.account d_ac on d_ac.id = ph.account_id
+                where :where
+                order by ph.plan_dt
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from d_accounting.observ_plan_h ph
+                join d_accounting.account d_ac on d_ac.id = ph.account_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ph</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>account_id</id>
+            <domain>integer</domain>
+            <expression>ph.account_id</expression>
+        </field>
+
+        <field>
+            <id>obs_plan_id</id>
+            <domain>integer</domain>
+            <expression>ph.obs_plan_id</expression>
+        </field>
+
+        <field>
+            <id>plan_dt</id>
+            <domain>date</domain>
+            <name>Дата назначения</name>
+            <expression>ph.plan_dt</expression>
+        </field>
+
+        <field>
+            <id>fact_dt</id>
+            <name>Дата посещения</name>
+            <domain>date</domain>
+            <expression>ph.fact_dt</expression>
+        </field>
+
+        <field>
+            <id>info</id>
+            <name>Сигнальная информация</name>
+            <domain>string</domain>
+            <expression>ph.info</expression>
+        </field>
+
+        <field>
+            <id>color</id>
+            <domain>string</domain>
+            <expression>
+                (CASE
+                WHEN CURRENT_DATE > plan_dt AND fact_dt IS NULL THEN 'notAppear'
+                WHEN CURRENT_DATE > plan_dt AND obs_plan_id IS NULL THEN 'isUnscheduled'
+                WHEN CURRENT_DATE > plan_dt AND obs_plan_id IS NOT NULL THEN 'isScheduled'
+                END)
+            </expression>
+        </field>
+
+        <field>
+            <id>step_id</id>
+            <domain>integer</domain>
+            <expression>
+                (SElECT st.id FROM mc_step st
+                JOIN d_accounting.account_case cs ON cs.case_id = st.case_id
+                AND st.admission_date = ph.fact_dt
+                AND cs.account_id = ph.account_id
+                LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>case_id</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT a_case.case_id FROM d_accounting.account_case a_case
+                JOIN public.mc_case cs ON cs.id = a_case.case_id
+                WHERE a_case.account_id = d_ac.id
+                ORDER BY cs.create_date DESC LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT indc.indiv_id
+                FROM public.pim_indiv_code indc
+                WHERE indc.code = d_ac.patient_uid AND indc.type_id = 8 LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>plan.id</id>
+            <domain>integer</domain>
+            <expression>ph.obs_plan_id</expression>
+        </field>
+
+<!--        <field>
+            <id>res.id</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{emplPos.id?}"/>
+            <search value="#{emplPos.id?}">1=1</search>
+        </field>
+
+        <field>
+            <id>res.name</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{emplPos.name?}"/>
+            <search value="#{emplPos.name?}">1=1</search>
+        </field>-->
+    </fields>
+</query>

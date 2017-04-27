@@ -1,0 +1,133 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Критерии</name>
+    <actions>
+        <action id="create" name="Добавить критерий">
+            <invocation>
+                <n2o:sql>
+                    insert into qos_criteria(id, info_query, is_active, is_info_query, is_manual_edit_permitted,
+                    is_result_query, name, result_query, group_id, code, from_dt, to_dt)
+                    values (nextval('qos_criteria_seq'), :infoQuery, :isActive, :isInfoQuery, :isManualEditPermitted,
+                    :isResultQuery, :name, :resultQuery, :criteriaGroupId, :code, :fromDate, :toDate);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="isActive" mapping="['isActive']" domain="boolean"/>
+                <param name="isInfoQuery" mapping="['isInfoQuery']" domain="boolean"/>
+                <param name="isManualEditPermitted" mapping="['isManualEditPermitted']" domain="boolean"/>
+                <param name="isResultQuery" mapping="['isResultQuery']" domain="boolean"/>
+                <param name="infoQuery" mapping="['infoQuery']" domain="string"/>
+                <param name="resultQuery" mapping="['resultQuery']" domain="string"/>
+                <param name="fromDate" mapping="['fromDate']" domain="date"/>
+                <param name="toDate" mapping="['toDate']" domain="date"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="criteriaGroupId" mapping="['criteriaGroupId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList"/>
+        </action>
+        <action id="update" name="Редактировать критерий">
+            <invocation>
+                <n2o:sql>
+                    update qos_criteria set
+                    info_query=:infoQuery, is_active=:isActive, is_info_query=:isInfoQuery, is_manual_edit_permitted=:isManualEditPermitted,
+                    is_result_query=:isResultQuery, name=:name, result_query=:resultQuery, group_id=:criteriaGroupId, code=:code, from_dt=:fromDate,
+                    to_dt=:toDate
+                    where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="isActive" mapping="['isActive']" domain="boolean"/>
+                <param name="isInfoQuery" mapping="['isInfoQuery']" domain="boolean"/>
+                <param name="isManualEditPermitted" mapping="['isManualEditPermitted']" domain="boolean"/>
+                <param name="isResultQuery" mapping="['isResultQuery']" domain="boolean"/>
+                <param name="infoQuery" mapping="['infoQuery']" domain="string"/>
+                <param name="resultQuery" mapping="['resultQuery']" domain="string"/>
+                <param name="fromDate" mapping="['fromDate']" domain="date"/>
+                <param name="toDate" mapping="['toDate']" domain="date"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="criteriaGroupId" mapping="['criteriaGroupId']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkFromDate"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить критерий">
+            <invocation>
+                <n2o:sql>
+                    delete from qos_criteria where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkCriteriaValue"/>
+            </validations>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="uniqueName" level="error">
+            <message>Критерий с таким названием в рамках группы уже существует</message>
+            <invocation>
+                <n2o:sql>
+                    select count(*) from qos_criteria where upper(trim(name)) = upper(trim(:name))
+                    and group_id = :criteriaGroupId and (id != :id or :id is null);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="criteriaGroupId" mapping="['criteriaGroupId']" domain="integer"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="checkCriteriaValue" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*) from public.qos_criteria_value
+                    where criteria_id = :criteria_id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['criteria_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Невозможно удалить критерий. Существует ссылка из Значений критерия</message>
+        </constraint>
+        <constraint id="checkFromDate" level="error">
+            <invocation>
+                <sql:sql>
+                    select :fromDate >= (select case when from_dt is not null
+                    then from_dt
+                    else :fromDate
+                    end from qos_criteria_group b where b.id = :criteriaGroupId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="criteriaGroupId" mapping="['criteriaGroupId']" domain="integer"/>
+                <param name="fromDate" mapping="['fromDate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Дата начала Критерия не может быть раньше даты начала Группы критериев</message>
+        </constraint>
+        <condition id="checkToDate" level="error">
+            <message>Дата начала не может быть позже даты окончания</message>
+            <expression><![CDATA[
+                    (fromDate != null && toDate != null &&
+                    (!moment(fromDate, 'DD.MM.YYYY').isAfter(moment(toDate, 'DD.MM.YYYY'))))
+                    ||fromDate == null||toDate == null || toDate == '' ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

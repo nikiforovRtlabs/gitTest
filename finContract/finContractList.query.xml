@@ -1,0 +1,210 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>finContractList</name>
+    <object-id>finContract</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select from( select
+                c.id contractId, c.name as cName, c.number number, c.date contractDate,c.beginning_date beginningDate,c.period period,
+                c.inv_fund_source_id fundSourceId , f.name fundSourceName,
+                t.is_drug_supply isDrugSupply,c.sum contractSum, c.status_id statusId,t.code typeCode,
+                (select count(1) from inventory.fin_contract_spec where doc_id=c.id) countOfSpec,
+
+                exists(select 1 from inventory.fin_contract_delivery del where del.fin_contract_id=c.id and (c.status_id=2 or c.status_id=3) )
+                and
+                exists(select i.ext_doc_dt from inventory.arrival_invoice i where i.base_doc_id=c.id and (c.status_id=2 or c.status_id=3) )
+                and
+                not exists (select 1 from inventory.arrival_invoice i
+                inner join public.fin_contract fc on fc.id=i.base_doc_id
+                inner join inventory.fin_contract_delivery del on del.fin_contract_id=fc.id
+                where  fc.id=c.id and (c.status_id=2 or c.status_id=3) and del.delivery_date in
+                (select i.ext_doc_dt
+                from inventory.arrival_invoice i
+                inner join public.fin_contract fc on fc.id=i.base_doc_id
+                where fc.id=c.id and (c.status_id=2 or c.status_id=3) )) isExceed
+
+                from fin_contract c
+                left outer join inventory.funding_source f on f.id=c.inv_fund_source_id
+                left outer join fin_contract_type t on t.id=c.type_id
+                where  t.is_drug_supply is true and :where) list
+
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(c)
+                from fin_contract c
+                left outer join inventory.funding_source f on f.id=c.inv_fund_source_id
+                left outer join fin_contract_type t on t.id=c.type_id
+                where t.is_drug_supply is true and :where
+            </n2o:count-query>
+            <n2o:alias>c</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>contractId</expression>
+            <search>c.id = :id</search>
+        </field>
+        <field>
+            <id>name</id>
+            <name>Наименование</name>
+            <domain>string</domain>
+            <expression>cName</expression>
+            <search>upper(c.name) = upper(:name)</search>
+        </field>
+        <field>
+            <id>documentNumber</id>
+            <name>Номер</name>
+            <domain>string</domain>
+            <expression>(case when typeCode='DRUG_SUPPLY' then 'Контр. '||number else 'Дог. '||number end)</expression>
+            <search>upper(c.number) like '%'||upper(:number)||'%'</search>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>string</domain>
+            <expression>number</expression>
+            <search>upper(c.number) like '%'||upper(:number)||'%'</search>
+        </field>
+        <field>
+            <id>docDate</id>
+            <name>Дата</name>
+            <domain>date</domain>
+            <expression>contractDate</expression>
+            <search type="between">
+                <![CDATA[(:docDate.begin::date is null or c.date >= :docDate.begin) and
+                        (:docDate.end::date is null or c.date <= :docDate.end) ]]></search>
+        </field>
+        <field>
+            <id>docDateString</id>
+            <domain>string</domain>
+            <expression>to_char(contractDate, 'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>docDate.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>docDate.begin</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>beginDate</id>
+            <name>Начало</name>
+            <domain>date</domain>
+            <expression>beginningDate</expression>
+        </field>
+        <field>
+            <id>endDate</id>
+            <name>Окончание</name>
+            <domain>date</domain>
+            <expression>period</expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fundSourceId</expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <name>Финансирование</name>
+            <domain>string</domain>
+            <expression>fundSourceName</expression>
+        </field>
+        <field>
+            <id>fundSourceList*.id</id>
+            <domain>integer[]</domain>
+            <search>c.inv_fund_source_id in (:fundSourceList*.id)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>provider.id</id>
+            <domain>integer</domain>
+            <expression>(select organization_id from fin_contractor where role_id=2 and contract_id=contractId and isDrugSupply is true)</expression>
+        </field>
+        <field>
+            <id>provider.name</id>
+            <name>Поставщик</name>
+            <domain>string</domain>
+            <expression>(select org.short_name from fin_contractor fc
+                        inner join pim_organization org on org.id=fc.organization_id  where fc.role_id=2 and fc.contract_id=contractId)
+            </expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>providerList*.id</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search>(select organization_id from fin_contractor where role_id=2 and contract_id=c.id and  t.is_drug_supply is true) in (:providerList*.id)</search>
+        </field>
+        <field>
+            <id>customer.id</id>
+            <domain>integer</domain>
+            <expression>(select organization_id from fin_contractor fc where fc.role_id=1 and fc.contract_id=contractId and  isDrugSupply is true)</expression>
+            <search value="#{org.id?}">(select organization_id from fin_contractor fc where fc.role_id=1 and fc.contract_id=c.id and  t.is_drug_supply is true) = :customer.id</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>sum</id>
+            <domain>string</domain>
+            <name>Сумма</name>
+            <expression>contractSum</expression>
+        </field>
+        <field>
+            <id>docStatus.id</id>
+            <domain>integer</domain>
+            <expression>statusId</expression>
+            <search>c.status_id = :docStatus.id</search>
+        </field>
+        <field>
+            <id>docStatus.name</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>(select name from fin_contract_status_type s where s.id=statusId)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>refFromArrInvoiceExists</id>
+            <domain>boolean</domain>
+            <expression>exists(select 1 from inventory.arrival_invoice where base_doc_id = contractId)</expression>
+        </field>
+        <field>
+            <id>specForContractExists</id>
+            <domain>boolean</domain>
+            <expression>countOfSpec!=0</expression>
+        </field>
+        <field>
+            <id>countOfSpec</id>
+            <domain>integer</domain>
+            <expression>countOfSpec</expression>
+        </field>
+        <!--Поля оповещения просрочки контракта по графику поставок-->
+        <field>
+            <id>isExceedSimbol</id>
+            <domain>boolean</domain>
+            <name> </name>
+            <expression>(case when isExceed then '!' end)</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>exceedStatus</id>
+            <domain>boolean</domain>
+            <expression>(case when isExceed then 0 else 1 end)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>isExceedTooltip</id>
+            <domain>boolean</domain>
+            <expression>(case when isExceed then 'просрочен' end)</expression>
+            <search unavailable="true"/>
+        </field>
+
+    </fields>
+</query>

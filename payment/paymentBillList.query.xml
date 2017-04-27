@@ -1,0 +1,122 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>payment</object-id>
+    <name>paymentBillList</name>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select
+                FROM public.fin_bill_main AS b
+                INNER JOIN public.fin_bill AS base_bill ON b.id = base_bill.id
+                INNER JOIN public.pim_organization AS org ON org.id = b.clinic_id
+                WHERE  :where
+                ORDER by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                SELECT COUNT(b)
+                FROM public.fin_bill_main AS b
+                INNER JOIN public.fin_bill AS base_bill ON b.id = base_bill.id
+                INNER JOIN public.pim_organization AS org ON org.id = b.clinic_id
+                WHERE  :where
+            </n2o:count-query>
+            <n2o:alias>b</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <name>МО</name>
+            <expression>org.id</expression>
+        </field>
+        <field>
+            <id>org.name</id>
+            <domain>string</domain>
+            <name>МО</name>
+            <expression>org.short_name</expression>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>string</domain>
+            <expression>base_bill.number</expression>
+            <name>Номер счета</name>
+        </field>
+        <field>
+            <id>billDate</id>
+            <domain>date</domain>
+            <expression>base_bill.date</expression>
+            <name>Дата счета</name>
+        </field>
+        <field>
+            <id>amount</id>
+            <domain>numeric</domain>
+            <expression>
+                (SELECT sp.amount
+                FROM fin_bill_spec sp
+                WHERE NOT sp.is_correct AND sp.bill_id = base_bill.id)
+            </expression>
+            <name>Сумма счета, руб</name>
+        </field>
+        <field>
+            <id>amountDiscount</id>
+            <domain>numeric</domain>
+            <expression>
+                (select( (SELECT sp.amount
+                FROM fin_bill_spec sp
+                WHERE NOT sp.is_correct AND sp.bill_id = base_bill.id) - (SELECT sum(item.price)
+                FROM fin_bill_spec_item item
+                WHERE item.bill_id = base_bill.id)))
+            </expression>
+            <name>Скидка/Наценка руб</name>
+        </field>
+        <field>
+            <id>amountAfterDiscount</id>
+            <domain>numeric</domain>
+            <expression>
+                (SELECT sum(item.price)
+                FROM fin_bill_spec_item item
+                WHERE item.bill_id = base_bill.id)
+            </expression>
+            <name>Сумма счета с учетом скидки/наценки, руб</name>
+        </field>
+        <field>
+            <id>amountPaid</id>
+            <domain>numeric</domain>
+            <expression>
+                (SELECT sum(p.amount)
+                FROM fin_bill_spec_item item
+                INNER JOIN sr_srv_rendered service ON service.id = item.service_id
+                INNER JOIN fin_payment_share p ON p.service_id = service.id
+                WHERE item.bill_id = base_bill.id)
+            </expression>
+            <name>Оплаченная сумма, руб</name>
+        </field>
+
+        <field>
+            <id>payment.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>exists(SELECT 1
+                FROM fin_bill_spec_item item
+                INNER JOIN sr_srv_rendered service ON service.id = item.service_id
+                INNER JOIN fin_payment_share p ON p.service_id = service.id
+                WHERE item.bill_id = base_bill.id and p.payment_id = :payment.id)</search>
+        </field>
+
+        <field>
+            <id>paymentId</id>
+            <domain>integer</domain>
+            <display>:payment.id</display>
+            <search unavailable="true"/>
+        </field>
+
+    </fields>
+</query>

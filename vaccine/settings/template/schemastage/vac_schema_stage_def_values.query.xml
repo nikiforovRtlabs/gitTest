@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>vac_schema_stage</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select</n2o:items-query>
+            <n2o:count-query>select 1</n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>schemaId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>isFirstStage</id>
+            <domain>boolean</domain>
+            <display>not exists(select 1 from vac.schema_stage ss where ss.schema_id = :schemaId)</display>
+        </field>
+        <field>
+            <id>prevStage.number.id</id>
+            <domain>integer</domain>
+            <display><![CDATA[
+(SELECT s.id
+FROM vac.schema_stage s
+WHERE s.schema_id = :schemaId AND
+      s.id = (
+        CASE
+        WHEN (SELECT count(1)
+              FROM vac.schema_stage s2
+              WHERE s2.schema_id = :schemaId) = 1
+          THEN (SELECT s3.id
+                FROM vac.schema_stage s3
+                WHERE s3.schema_id = :schemaId
+                LIMIT 1)
+        ELSE (SELECT s4.id
+              FROM vac.schema_stage s4
+              WHERE s4.schema_id = :schemaId AND s4.id NOT IN
+                                                 (SELECT s5.prev_stage_id
+                                                  FROM vac.schema_stage s5
+                                                  WHERE s5.schema_id = :schemaId AND s5.prev_stage_id NOTNULL)
+              LIMIT 1) END))
+                ]]>
+            </display>
+        </field>
+        <field>
+            <id>prevStage.number.label</id>
+            <domain>integer</domain>
+            <display><![CDATA[
+(SELECT n.label
+FROM vac.schema_stage s
+  JOIN vac_number n on s.number_id = n.id
+WHERE s.schema_id = :schemaId AND
+      s.id = (
+        CASE
+        WHEN (SELECT count(1)
+              FROM vac.schema_stage s2
+              WHERE s2.schema_id = :schemaId) = 1
+          THEN (SELECT s3.id
+                FROM vac.schema_stage s3
+                WHERE s3.schema_id = :schemaId
+                LIMIT 1)
+        ELSE (SELECT s4.id
+              FROM vac.schema_stage s4
+              WHERE s4.schema_id = :schemaId AND s4.id NOT IN
+                                                 (SELECT s5.prev_stage_id
+                                                  FROM vac.schema_stage s5
+                                                  WHERE s5.schema_id = :schemaId AND s5.prev_stage_id NOTNULL)
+              LIMIT 1) END))
+                ]]>
+            </display>
+        </field>
+    </fields>
+</query>

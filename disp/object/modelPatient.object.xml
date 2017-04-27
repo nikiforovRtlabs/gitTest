@@ -1,0 +1,147 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>modelPatient</id>
+    <name>modelPatient</name>
+
+    <actions>
+        <action id="add">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/dispensary/model/create
+                </rest:rest>
+
+            </invocation>
+
+            <in-parameters>
+
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="gender" mapping="['gender']"/>
+                <param name="age" mapping="['age']"/>
+                <param name="socGroup.id" mapping="['socGroupId']"/>
+                <param name="district.id" mapping="['districtId']"/>
+                <param name="address.id" mapping="['addressId']"/>
+                <param name="base_model.id" mapping="['baseModel']"/>
+                <param name="model_org.id" mapping="['orgId']"/>
+                <param name="licence" mapping="['driverLicence']" domain="object[]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <success-text>Данные успешно сохранены для модели "{name}"</success-text>
+            <validations activate="whiteList" >
+                <validation ref-id="ageCorrect" />
+                    </validations>
+
+        </action>
+
+        <action id="update">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/dispensary/model/update
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="socGroup.id" mapping="['socGroupId']"/>
+                <param name="base_model.id" mapping="['baseModel']"/>
+                <param name="model_org.id" mapping="['orgId']"/>
+            </in-parameters>
+        </action>
+
+        <!--<action id="create" name="Создать">-->
+            <!--<invocation>-->
+                <!--<sp:stored-procedure name="disp.createmodelpatient" data-source="jdbc/lsd" />-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="name" mapping="[0]"/>-->
+                <!--<param name="gender" mapping="[1]" domain="object[]"/>-->
+                <!--<param name="age" mapping="[2]"/>-->
+                <!--<param name="socGroup.id" mapping="[3]"/>-->
+                <!--<param name="district.id" mapping="[4]"/>-->
+                <!--<param name="address.id" mapping="[5]"/>-->
+            <!--</in-parameters>-->
+        <!--</action>-->
+        <!--<action id="update" name="Изменить">-->
+            <!--<invocation>-->
+                <!--<sql:sql data-source="jdbc/lsd">-->
+                    <!--update disp.md_model_patient set name=:name,-->
+                    <!--gender=(select string_agg(trim(foo.name::text, '"'), ',') from (select json_array_elements(:gender)->'name' as name) as foo,-->
+                    <!--age=:age, soc_group_id=:socGroupId-->
+                    <!--where id=:id;-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="id" mapping="['id']"/>-->
+                <!--<param name="name" mapping="['name']"/>-->
+                <!--<param name="gender" mapping="['gender']" domain="object[]"/>-->
+                <!--<param name="age" mapping="['age']"/>-->
+                <!--<param name="socGroup.id" mapping="['socGroupId']"/>-->
+            <!--</in-parameters>-->
+        <!--</action>-->
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    delete from disp.md_model_patient where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="base_model.id" mapping="['baseModel']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="canNotRemoveModel"/>
+            </validations>
+        </action>
+        <action id="copy" name="Копировать">
+            <invocation>
+                <sp:stored-procedure name="disp.copymodelpatient" data-source="jdbc/lsd" />
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]"/>
+                <param name="base_model.id" mapping="[1]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['copymodelpatient']" domain="integer"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="ageCorrect" level="error">
+            <message>Поле "Исполняется в год мероприятия" содержит недопустимое значение : "{value}"</message>
+            <invocation>
+                <sql:sql>
+                    select disp.validateModelAge(:age::text);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="age" mapping="['age']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="value" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0]=='true'"/>
+        </constraint>
+        <constraint id="canNotRemoveModel" level="error" moment="before-action">
+            <message>
+                Удалить модель пациента нельзя, т.к. модель прикреплена к услуге из стандарта лечения.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(mspe.id) from  disp.md_standard_prescription_extended mspe
+                    where mspe.model_patient_id=:id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

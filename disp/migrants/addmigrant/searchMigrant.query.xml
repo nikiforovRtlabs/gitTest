@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>searchMigrant</name>
+    <object-id>searchMigrant</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from pim_individual i
+                left join disp.md_event_patient ep on ep.indiv_id = i.id and ep.event_id = :eventId
+                left join migr.md_migr_card mc on ep.id = mc.id
+                left join migr.md_migr_status ms on ms.id = mc.status_id
+                where :where
+                order by mc.id
+            </n2o:items-query>
+            <n2o:count-query>select count(1)
+                from pim_individual i
+                left join disp.md_event_patient ep on ep.indiv_id = i.id and ep.event_id = :eventId
+                left join migr.md_migr_card mc on ep.id = mc.id
+                left join migr.md_migr_status ms on ms.id = mc.status_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>i</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display>coalesce(mc.id, i.id)</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>integer</domain>
+            <display>:eventId</display>
+            <search>(ep.event_id is null or ep.event_id = :eventId)</search>
+        </field>
+        <field>
+            <id>cardId</id>
+            <domain>integer</domain>
+            <display>mc.id</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display>i.id</display>
+            <search>i.id = :patient.id</search>
+        </field>
+        <field>
+            <id>patient.name</id>
+            <name>ФИО</name>
+            <domain>string</domain>
+            <display>concat_ws(' ', i.surname, i.name, i.patr_name)</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>birthday</id>
+            <domain>Date</domain>
+            <display>i.birth_dt</display>
+            <search unavailable="true"/>
+            <name>Дата рождения</name>
+        </field>
+        <field>
+            <id>status</id>
+            <domain>string</domain>
+            <display>ms.name</display>
+            <name>Статус</name>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>statusId</id>
+            <domain>string</domain>
+            <display>ms.id</display>
+            <name>Статус</name>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>hasActive</id>
+            <domain>string</domain>
+            <name>Наличие карты</name>
+            <display>(case when mc.id is null then 'Карта отсутствует' else 'Карта присутствует' end)</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>hasActiveN</id>
+            <domain>integer</domain>
+            <display>(case when mc.id is null then 0 else 1 end)</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>hasActiveBool</id>
+            <domain>boolean</domain>
+            <display>(exists(select 1 from disp.md_event_patient ep
+                left join migr.md_migr_card mc on ep.id = mc.id where ep.indiv_id = :patient.id and ep.event_id = :eventId and mc.status_id = 1))</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>notAllServiceRendered</id>
+            <domain>boolean</domain>
+            <display>(exists(select 1 from  disp.md_event_service_patient esp
+                where esp.event_patient_id = ep.id
+                and esp.status = 1) or not exists(select 1 from disp.md_event_service_patient esp
+                where esp.event_patient_id = ep.id))</display>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,218 @@
+﻿<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>Журнал диспетчера</name>
+    <object-id>dispjournal</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query><![CDATA[
+                select :select
+                from amb.md_ambulance_call cal
+                join amb.md_ambulance_call_kind ck on ck.id = cal.call_kind_id
+                left join amb.md_ambulance_caller_reason cr on cr.id = cal.caller_reason_id
+                left join md_diagnosis dia on dia.id = cal.reason_diag
+                left join address_element ael on ael.id = cal.address_id
+                left join address_element_type aet on aet.id = ael.type_id
+                join pim_individual pip on pip.id = patient_id
+                JOIN LATERAL (SELECT
+                                CASE
+                                    WHEN (COALESCE(t.age_yy, 0) = 0) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) < 1) THEN tdd.day_str
+                                        ELSE tmm.month_str
+                                    END
+                                    WHEN (COALESCE(t.age_yy, 0) < 3) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) = 0) THEN tyy.year_str
+                                        ELSE concat(tyy.year_str, ' ', tmm.month_str)
+                                    END
+                                    ELSE tyy.year_str
+                                END AS age_txt,
+                            NULL::integer AS age_sort
+                           FROM ((((SELECT COALESCE((date_part('year'::text, t_1.age))::integer, pip.age_year) AS age_yy,
+                                    COALESCE((date_part('month'::text, t_1.age))::integer, pip.age_month) AS age_mm,
+                                    COALESCE((date_part('day'::text, t_1.age))::integer, pip.age_day) AS age_dd
+                                   FROM (SELECT age((COALESCE((pip.death_dt)::date, ('now'::text)::date))::timestamp with time zone, (pip.birth_dt)::timestamp with time zone) AS age) t_1) t
+                             LEFT JOIN LATERAL (SELECT format('%s %s.'::text, t.age_yy,
+                                        CASE
+                                            WHEN ((t.age_yy <> ALL (ARRAY[11, 12, 13, 14])) AND ((t.age_yy % 10) = ANY (ARRAY[1, 2, 3, 4]))) THEN 'г'::text
+                                            ELSE 'л'::text
+                                        END) AS year_str
+                                  WHERE (t.age_yy IS NOT NULL)
+                                 LIMIT 1) tyy ON (true))
+                             LEFT JOIN LATERAL (SELECT format('%s мес.'::text, t.age_mm) AS month_str
+                                  WHERE (t.age_mm IS NOT NULL)
+                                 LIMIT 1) tmm ON (true))
+                             LEFT JOIN LATERAL (SELECT format('%s дн.'::text, t.age_dd) AS day_str
+                                  WHERE (t.age_dd IS NOT NULL)
+                                 LIMIT 1) tdd ON (true))
+                         LIMIT 1) p_age on TRUE
+
+                left join pim_gender pg on pg.id = pip.gender_id
+                left join amb.md_ambulance_priority ap on ap.id = cal.priority_id
+                join amb.md_ambcall_state_history macsh on macsh.call_id = cal.id and macsh.state_id =  5
+                where :where
+                order by :order
+            ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from amb.md_ambulance_call cal
+                join amb.md_ambulance_call_kind ck on ck.id = cal.call_kind_id
+                left join amb.md_ambulance_caller_reason cr on cr.id = cal.caller_reason_id
+                left join md_diagnosis dia on dia.id = cal.reason_diag
+                left join address_element ael on ael.id = cal.address_id
+                left join address_element_type aet on aet.id = ael.type_id
+                join pim_individual pip on pip.id = patient_id
+                left join pim_gender pg on pg.id = pip.gender_id
+                left join amb.md_ambulance_priority ap on ap.id = cal.priority_id
+                join amb.md_ambcall_state_history macsh on macsh.call_id = cal.id and macsh.state_id =  5
+                where :where
+            </n2o:count-query>
+            <n2o:alias>cal</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>cal.id</expression>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>integer</domain>
+            <name>№</name>
+            <expression>cal.call_number</expression>
+        </field>
+        <field>
+            <id>call_kind.id</id>
+            <domain>integer</domain>
+            <expression>ck.id</expression>
+        </field>
+        <field>
+            <id>call_kind.code</id>
+            <domain>string</domain>
+            <name>Вид</name>
+            <expression>ck.code</expression>
+        </field>
+        <field>
+            <id>from_time</id>
+            <domain>time</domain>
+            <name>Время приема вызова</name>
+            <expression>cal.from_time</expression>
+        </field>
+        <field>
+            <id>caller_reason.id</id>
+            <domain>integer</domain>
+            <expression>cr.id</expression>
+        </field>
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>dia.id</expression>
+        </field>
+        <field>
+            <id>reason</id>
+            <domain>string</domain>
+            <name>Повод</name>
+            <expression>coalesce(dia.name,cr.name)</expression>
+        </field>
+        <field>
+            <id>reason_note</id>
+            <domain>string</domain>
+            <name>Дополнительный повод</name>
+            <expression>cal.reason_note</expression>
+        </field>
+
+        <field>
+            <id>address</id>
+            <domain>string</domain>
+            <name>Адрес вызова</name>
+            <expression>
+                case when ael.name is not null then aet.short_name||'. '||ael.name else '' end|| case when cal.house is not null then ' д.'||cal.house else '' end|| case when cal.apartment is not null then ' кв.'||cal.apartment else '' end||case when cal.description is not null then ' /'||cal.description else '' end
+            </expression>
+        </field>
+
+        <field>
+            <id>individual.id</id>
+            <domain>integer</domain>
+            <expression>pip.id</expression>
+        </field>
+        <field>
+            <id>patFIO</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>pip.surname||' '||pip.name||' '||pip.patr_name||case when pip.birth_dt is not null then ' '||to_char(pip.birth_dt,'dd.mm.yyyy') else '' end</expression>
+        </field>
+        <field>
+            <id>gender.id</id>
+            <domain>integer</domain>
+            <expression>pg.id</expression>
+        </field>
+        <field>
+            <id>gender.name</id>
+            <domain>string</domain>
+            <name>Пол</name>
+            <expression>pg.name</expression>
+        </field>
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <name>Возраст</name>
+            <expression>p_age.age_txt</expression>
+            <search type="eq" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>priority.id</id>
+            <domain>integer</domain>
+            <expression>ap.id</expression>
+        </field>
+        <field>
+            <id>priority.color</id>
+            <domain>string</domain>
+            <expression>ap.color</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <expression>cal.station_id</expression>
+        </field>
+
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <expression>cal.substation_id</expression>
+        </field>
+        <field>
+            <id>brg.id</id>
+            <domain>integer</domain>
+            <expression>coalesce(cal.brg_id,cal.emp_id)</expression>
+            <search>coalesce(cal.brg_id,cal.emp_id) = :brg.id</search>
+            <!--<search>cal.brg_id = :brg.id or cal.emp_id = :brg.id </search>-->
+        </field>
+        <!--<field>-->
+            <!--<id>brg.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Бригада</name>-->
+            <!--<expression>srg.name</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+
+        <field>
+            <id>notes</id>
+            <domain>string</domain>
+            <name>Отм</name>
+            <expression>amb.search_call_note(cal.id)</expression>
+        </field>
+
+        <field>
+            <id>date_sort</id>
+            <domain>date</domain>
+            <expression>macsh.date_time</expression>
+        </field>
+    </fields>
+</query>

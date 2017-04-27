@@ -1,0 +1,205 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>medicalServiceRendered</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_srv_rendered msr
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join sr_srv_type st on st.id = s.type_id
+
+                left join hsp_record hr on hr.id = msr.step_id
+                join mc_case c on c.id = msr.case_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+
+                left join hospital.prescription pr on msr.prescription_id = pr.id
+                left join hospital.prescription_service ps on ps.prescription_id = pr.id
+                left join sr_srv_duration_unit du on du.id = ps.duration_measure_unit_id
+                left join cmn_measure ms on ms.id = du.measure_id
+                left join md_visit_term vt on vt.id = pr.visit_term_id
+                where st.is_physical is not true and st.is_surgery is not true and :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from md_srv_rendered msr
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join sr_srv_type st on st.id = s.type_id
+
+                left join hsp_record hr on hr.id = msr.step_id
+                join mc_case c on c.id = msr.case_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+
+                left join hospital.prescription pr on msr.prescription_id = pr.id
+                left join hospital.prescription_service ps on ps.prescription_id = pr.id
+                left join sr_srv_duration_unit du on du.id = ps.duration_measure_unit_id
+                left join cmn_measure ms on ms.id = du.measure_id
+                left join md_visit_term vt on vt.id = pr.visit_term_id
+                where st.is_physical is not true and st.is_surgery is not true and :where
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>msr.id</expression>
+        </field>
+
+        <field>
+            <id>statusIcon</id>
+            <name/>
+            <expression>(case when ssr.is_refused is true then '3' else case when ssr.is_rendered is true and ssr.bdate is not null then '2' else '1' end end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>statusIconTooltip</id>
+            <name>statusIconTooltip</name>
+            <expression>(case when ssr.is_refused is true then 'Отменено' else case when ssr.is_rendered is true and ssr.bdate is not null then 'Выполнено' else 'Запланировано' end end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>dt</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>coalesce(ssr.bdate + coalesce(ssr.begin_time, '00:00'), ssr.planned_date + coalesce(planned_time, '00:00'))</expression>
+        </field>
+
+        <field>
+            <id>period</id>
+            <display unavailable="true"/>
+            <expression>coalesce(ssr.bdate + coalesce(ssr.begin_time, '00:00'), ssr.planned_date + coalesce(planned_time, '00:00'))</expression>
+            <search><![CDATA[
+                (
+                (:period.begin::date is null or coalesce(ssr.bdate, ssr.planned_date) >= :period.begin) and
+                (:period.end::date is null or coalesce(ssr.bdate, ssr.planned_date) <= :period.end)
+                )
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>period.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>period.begin</id>
+            <domain>date</domain>
+            <search  unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>serviceName</id>
+            <domain>string</domain>
+            <name>Услуга</name>
+            <expression>s.name</expression>
+        </field>
+
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>duration</id>
+            <name/>
+            <domain>string</domain>
+            <expression>ps.duration || ' ' || coalesce(ms.mnemocode, '')</expression>
+        </field>
+
+        <field>
+            <id>visitTerm</id>
+            <domain>string</domain>
+            <name>Условия</name>
+            <expression>vt.name</expression>
+        </field>
+
+        <field>
+            <id>patientName</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>coalesce(i.surname, '') || ' '
+                || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end
+                || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for 1) || '.' end</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>srSrvRenderedComment</id>
+            <domain>string</domain>
+            <name>Причина отмены</name>
+            <expression>ssr.comment</expression>
+        </field>
+
+        <field>
+            <id>prescriptionComment</id>
+            <domain>string</domain>
+            <name>Коментарий</name>
+            <expression>pr.note</expression>
+        </field>
+
+
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(:status.id = 1 and ssr.bdate is null and ssr.is_rendered is not true and ssr.is_refused is not true or
+                :status.id = 2 and ssr.bdate is not null and ssr.is_rendered is true or
+                :status.id = 3 and ssr.is_refused is true)
+            </search>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>hr.department_id = :department.id</search>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>ssr.org_id</expression>
+            <search value="#{org.id?}">(:orgId is null or :expression = :orgId)</search>
+        </field>
+
+        <field>
+            <id>protocolId</id>
+            <domain>integer</domain>
+            <expression>(select id from md_srv_protocol where srv_rendered_id = ssr.id)</expression>
+        </field>
+
+        <field>
+            <id>serviceType.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>s.type_id = :serviceType.id</search>
+        </field>
+
+
+    </fields>
+</query>

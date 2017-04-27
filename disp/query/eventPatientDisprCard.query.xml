@@ -1,0 +1,279 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+        >
+    <id>eventPatientDisprCard</id>
+    <name>eventPatientDisprCard</name>
+    <object-id>eventPatients</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                left join disp.md_event me on me.id = mep.event_id
+                left join pim_individual i on i.id = mep.indiv_id
+                left join pci_patient pci on pci.id = i.id
+                left join (select pid.indiv_id,pid.series, pid.number, pic.code as pic_code from pim_individual_doc pid
+                left join pim_doc_type pd on pd.id = pid.type_id
+                left join pim_indiv_code pic on pic.id = pid.code_id
+                where  (pd.code = 'MHI_OLDER' or pd.code = 'MHI_UNIFORM' or pic.code IS NOT NULL  )) as pd on pd.indiv_id = i.id
+                left join pci_patient_reg ppr on ppr.patient_id = i.id and ppr.type_id = 1 and ppr.clinic_id = me.org_id and ppr.unreg_dt IS NULL and ppr.state_id = 1
+                left join pim_organization po on po.id = ppr.clinic_id
+                left join md_clinic_district mcd on mcd.id = ppr.district_id or mcd.id = ppr.district_by_addr_id
+                left join (
+                select ppa.party_id, ae.id from pim_party_address ppa
+                left join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                left join PIM_ADDRESS_TYPE pat on pat.id = ppatat.address_type_id
+                left join address_element ae on ae.id = ppa.addr_id
+                where pat.code = 'ACTUAL') as ae on ae.party_id = i.id
+                left join pim_gender g on g.id = i.gender_id
+                left join md_ethnic_group eg on eg.id = pci.ethnic_group_id
+                left join md_soc_group sg on sg.id = pci.social_group_id
+                left join pim_nationality n on n.id = i.nationality_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select 1
+            </n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+            <search>mep.id = :id</search>
+        </field>
+        <field>
+            <id>character</id>
+            <domain>Integer</domain>
+            <display>(select id from mc_disease_type where code='40' limit 1)</display>
+            <expression>(select id from mc_disease_type where code='40' limit 1)</expression>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>Integer</domain>
+            <display>mep.event_id</display>
+            <search>mep.event_id = :eventId</search>
+        </field>
+        <field>
+            <id>indivId</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indivId</search>
+        </field>
+        <field>
+            <id>caseId</id>
+            <domain>Integer</domain>
+            <display>mep.case_id</display>
+            <search>mep.case_id = :caseId</search>
+        </field>
+        <field>
+            <id>indiv.event.id</id>
+            <domain>Integer</domain>
+            <display>mep.event_id</display>
+            <search>mep.event_id = :eventId</search>
+        </field>
+        <field>
+            <id>indiv.id</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indivId</search>
+        </field>
+        <field>
+            <id>indiv.case.id</id>
+            <domain>Integer</domain>
+            <display>mep.case_id</display>
+            <search>mep.case_id = :caseId</search>
+        </field>
+        <field>
+            <id>indiv.org.id</id>
+            <domain>Integer</domain>
+            <display>me.org_id</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>fio</id>
+            <domain>String</domain>
+            <expression>CONCAT(i.surname,' ',i.name,' ',i.patr_name)</expression>
+            <display>CONCAT(i.surname,' ',i.name,' ',i.patr_name)</display>
+            <name>ФИО</name>
+        </field>
+        <field>
+            <id>surname</id>
+            <domain>String</domain>
+            <expression>i.surname</expression>
+            <display>i.surname</display>
+            <search>upper(i.surname) like '%'||upper(:surname)||'%'</search>
+            <name>Фамилия</name>
+            <sorting>i.surname</sorting>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>String</domain>
+            <expression>i.name</expression>
+            <display>i.name</display>
+            <search>upper(i.name) like '%'||upper(:name)||'%'</search>
+            <name>Имя</name>
+            <sorting>i.name</sorting>
+        </field>
+        <field>
+            <id>patrName</id>
+            <domain>String</domain>
+            <expression>i.patr_name</expression>
+            <display>i.patr_name</display>
+            <search>upper(i.patr_name) like '%'||upper(:patrName)||'%'</search>
+            <name>Отчество</name>
+            <sorting>i.patr_name</sorting>
+        </field>
+        <field>
+            <id>birthday</id>
+            <domain>string</domain>
+            <display>to_char(i.birth_dt, 'DD.MM.YYYY')</display>
+            <search>i.birth_dt = :birthday</search>
+            <name>Дата рождения</name>
+            <sorting>i.birth_dt</sorting>
+        </field>
+        <field>
+            <id>gender.name</id>
+            <name>Пол</name>
+            <domain>String</domain>
+            <expression>g.name</expression>
+        </field>
+        <field>
+            <id>gender.id</id>
+            <domain>Integer</domain>
+            <expression>g.id</expression>
+        </field>
+        <field>
+            <id>vip</id>
+            <name>VIP</name>
+            <domain>Boolean</domain>
+            <expression>pci.vip</expression>
+        </field>
+        <field>
+            <id>ethnicGroupName</id>
+            <name>Этническая группа</name>
+            <domain>String</domain>
+            <expression>eg.name</expression>
+        </field>
+        <field>
+            <id>socialGroupName</id>
+            <name>Социальная группа</name>
+            <domain>String</domain>
+            <expression>sg.name</expression>
+        </field>
+        <field>
+            <id>nationality.name</id>
+            <name>Национальность</name>
+            <domain>String</domain>
+            <expression>n.name</expression>
+        </field>
+        <field>
+            <id>nationality.id</id>
+            <domain>Integer</domain>
+            <expression>n.id</expression>
+        </field>
+        <field>
+            <id>age</id>
+            <domain>Integer</domain>
+            <expression>extract(year from current_timestamp) - extract(year from i.birth_dt)</expression>
+        </field>
+        <field>
+            <id>oms</id>
+            <domain>String</domain>
+            <expression>COALESCE(pd.pic_code, CONCAT(pd.series,' ',pd.number), NULL)</expression>
+            <display>COALESCE(pd.pic_code, CONCAT(pd.series,' ',pd.number), NULL)</display>
+            <name>ОМС</name>
+        </field>
+        <field>
+            <id>medOrg</id>
+            <domain>String</domain>
+            <expression>po.short_name</expression>
+            <display>po.short_name</display>
+            <name>МО</name>
+        </field>
+        <field>
+            <id>medOrgId</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+            <display>po.id</display>
+        </field>
+        <field>
+            <id>district</id>
+            <domain>String</domain>
+            <expression>mcd.name</expression>
+            <display>mcd.name</display>
+            <name>Участок</name>
+        </field>
+        <field>
+            <id>ambCard</id>
+            <domain>String</domain>
+            <expression>ppr.number_attach</expression>
+            <display>ppr.number_attach</display>
+            <name>Амб.карта</name>
+        </field>
+        <field>
+            <id>actualAddress_id</id>
+            <domain>integer</domain>
+            <expression>ae.id</expression>
+            <display>ae.id</display>
+        </field>
+        <field>
+            <id>actualAddress</id>
+            <domain>String</domain>
+            <expression>adr__get_search_name(ae.id)</expression>
+            <display>adr__get_element_as_text(ae.id, '(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)')</display>
+            <name>Адрес фактического проживания</name>
+        </field>
+        <field>
+            <id>registerAddress</id>
+            <domain>String</domain>
+            <expression>
+                adr__get_search_name((select distinct(ae2.id)
+                from disp.md_event_patient mep
+                left join pim_individual i2 on i2.id = mep.indiv_id
+                left join pci_patient pci2 on pci2.id = i2.id
+                left join pim_party_address ppa2 on ppa2.party_id = i2.id
+                left join pim_party_addr_to_addr_type ppatat2 on ppatat2.party_address_id = ppa2.id
+                left join PIM_ADDRESS_TYPE pat2 on pat2.id = ppatat2.address_type_id
+                inner join address_element ae2 on ae2.id = ppa.addr_id and pat2.code = 'REGISTER'
+                where i2.id = i2.id limit 1
+                ))
+            </expression>
+            <display>
+                adr__get_element_as_text((select distinct(ae2.id)
+                from disp.md_event_patient mep
+                left join pim_individual i2 on i2.id = mep.indiv_id
+                left join pci_patient pci2 on pci2.id = i2.id
+                left join pim_party_address ppa2 on ppa2.party_id = i2.id
+                left join pim_party_addr_to_addr_type ppatat2 on ppatat2.party_address_id = ppa2.id
+                left join PIM_ADDRESS_TYPE pat2 on pat2.id = ppatat2.address_type_id
+                inner join address_element ae2 on ae2.id = ppa2.addr_id and pat2.code = 'REGISTER'
+                where i2.id = i.id limit 1
+                ), '(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)')
+            </display>
+            <name>Адрес регистрации</name>
+        </field>
+        <field>
+            <id>check_thera</id>
+            <domain>boolean</domain>
+            <display>
+                (select CASE WHEN ssr.is_rendered THEN TRUE ELSE FALSE END
+                from disp.md_event_patient mep1
+                left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep1.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep1.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                left join (select ssr.id, msr.case_id, ssr.service_id, ssr.res_group_id, ssr.bdate, ssr.is_rendered from MD_SRV_RENDERED msr
+                left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep1.case_id and ssr.service_id = mes.service_id
+                where mep1.id = mep.id and mnds.code = 'Д1.18' limit 1) as check_thera
+            </display>
+        </field>
+    </fields>
+</query>

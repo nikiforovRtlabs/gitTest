@@ -1,0 +1,173 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Спецификация расходного документа</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/exp-invoice/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc.id" mapping="['docId']"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+                <param name="newFundSource.id" mapping="['newFundSourceId']"/>
+                <param name="amountWithVat" mapping="['amountVat']"/>
+                <param name="priceWithVat" mapping="['priceWithVat']"/>
+                <param name="batch.id" mapping="['batchId']"/>
+                <param name="quantity" mapping="['quantity']"/>
+                <param name="mneiQuantity" mapping="['mneiQuantity']"/>
+                <param name="requestSpec.id" mapping="['requestSpecId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Спецификация сохранена</success-text>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/inventory/exp-invoice/spec/delete
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить спецификацию?</confirmation-text>
+            <success-text>Спецификация удалена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="specificationIsAccepted"/>
+                <validation ref-id="specificationIsExecuted"/>
+            </validations>
+        </action>
+
+        <action id="execute" form-submit-label="Провести" name="Провести">
+            <invocation>
+                <rest:rest method="GET" >
+                    ${n2o.backend.path}/inventory/execute/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['specId']"/>
+                <param name="executeDate.id" mapping="['executeDate']" domain="string"/>
+                <param name="docType.name" mapping="['docType']"/>
+                <param name="empPos.id" mapping="['empPosId']"/>
+                <param name="sendStore.id" mapping="['storeId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Спецификация проведена</success-text>
+            <validations activate="whiteList">
+                <!--<validation ref-id="specificationIsExecuted"/>-->
+                <validation ref-id="emplPosIsEmpty"/>
+            </validations>
+        </action>
+
+        <action id="cancel" name="Отменить проводку">
+            <invocation>
+                <rest:rest method="GET" >
+                    ${n2o.backend.path}/inventory/execute/cancel/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['specId']"/>
+                <param name="docType.name" mapping="['docType']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <confirmation-text>Вы действительно хотите отменить проводку спецификации?</confirmation-text>
+            <success-text>Проводка спецификация отменена</success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="accept" form-submit-label="Принять" name="Принять">
+            <invocation>
+                <rest:rest method="GET" >
+                    ${n2o.backend.path}/inventory/execute/accept/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['specId']"/>
+                <param name="executeDate.id" mapping="['acceptDt']" domain="string"/>
+                <param name="recStore.id" mapping="['storeId']"/>
+                <param name="empPos.id" mapping="['empPosId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Спецификация принята</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="emplPosIsEmpty"/>
+            </validations>
+        </action>
+
+        <action id="revert_accept" form-submit-label="Отменить приём" name="Отменить приём">
+            <invocation>
+                <rest:rest method="GET" >
+                    ${n2o.backend.path}/inventory/execute/revert_accept/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['specId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <confirmation-text>Вы действительно хотите отменить приём спецификации?</confirmation-text>
+            <success-text>Статус спецификации изменён на "не принята"</success-text>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="quantityValidation" level="error">
+            <expression>
+                <![CDATA[ quantity == null || (quantity!=null && actualBalanceArr!=null && Number(quantity) <= Number(actualBalanceArr))]]></expression>
+            <message>Значение не может превышать "Фактический остаток"</message>
+        </condition>
+        <condition id="mneiQuantityValidation" level="error">
+            <expression>
+                <![CDATA[ mneiQuantity == null || (mneiQuantity!=null && actualBalanceMnei!=null && Number(mneiQuantity) <= Number(actualBalanceMnei))]]></expression>
+            <message>Значение не может превышать "Фактический остаток в МНЕИ"</message>
+        </condition>
+
+        <constraint id="specificationIsExecuted" level="error">
+            <message>Спецификация проведена.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.exp_spec where status_exp_id=2 and id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="specificationIsAccepted" level="error">
+            <message>Спецификация принята.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.exp_spec where status_arr_id=4 and id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="emplPosIsEmpty" level="error">
+            <message>Операция не может быть завершена. Не указана должность в контексте пользователя</message>
+            <expression>typeof empPos!='undefined' &amp;&amp; empPos!=null &amp;&amp; empPos.id!=null</expression>
+        </condition>
+    </validations>
+
+</object>

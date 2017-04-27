@@ -1,0 +1,173 @@
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+
+    <!--Страница выдачи справок-->
+    <object-id>servicesCostCertificate</object-id>
+    <name>Список случаев</name>
+    <layout>n2o/layout/top-bottom(left-right)</layout>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="cases">
+                <wgt:table>
+                    <wgt:query-id>issuanceCaseList</wgt:query-id>
+                    <wgt:size>15</wgt:size>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createCert" label="Выдать справку" context="true">
+                            <wgt:show-modal page-name="Справка о стоимости услуг"
+                                            action-id="createCert"
+                                            page-id="certByCaseAdd"
+                                            container-id="main"
+                                            master-field-id="id"
+                                            detail-field-id="mcase.id"
+                                            refresh-on-close="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="createRefusal" label="Зарегистрировать отказ" context="true">
+                            <wgt:show-modal page-name="Отказ от справки от стоимости услуг"
+                                            action-id="createRefusal"
+                                            page-id="certByCaseAdd"
+                                            container-id="main"
+                                            master-field-id="id"
+                                            detail-field-id="mcase.id"
+                                            refresh-on-close="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="uid"/>
+                        <wgt:column column-field-id="patient.name"/>
+                        <wgt:column column-field-id="patient.birthDt"/>
+                        <wgt:column column-field-id="caseType.name"/>
+                        <wgt:column column-field-id="careRegimen.name"/>
+                        <wgt:column column-field-id="initGoal.name"/>
+                        <wgt:column column-field-id="openDate"/>
+                        <wgt:column column-field-id="closedDate"/>
+                        <wgt:column column-field-id="resultName"/>
+                        <wgt:column column-field-id="doctor.name"/>
+                        <wgt:column column-field-id="certIssued">
+                            <wgt:icon>
+                                <wgt:switch>
+                                    <wgt:case value="true">icon-ok</wgt:case>
+                                </wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+                        <wgt:column column-field-id="refusalRegistered">
+                            <wgt:icon>
+                                <wgt:switch>
+                                    <wgt:case value="true">icon-remove</wgt:case>
+                                </wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+                    </wgt:columns>
+                    <wgt:filters position="top">
+                        <ctrl:radio-group id="mode" label="Режим">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Закрытые случаи"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Все случаи"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:radio-group>
+                        <ctrl:input-text id="uid"/>
+                        <rc:patient id="patient" label="Пациент" isFilter="true" control-style="width:350px;"/>
+                        <ctrl:classifier id="caseType" label="Вид случая" search-are-you-type="true">
+                            <ctrl:query query-id="cert_caseType" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="careRegimen" label="Условия оказания" search-are-you-type="true">
+                            <ctrl:query query-id="cert_caseCareRegimen" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="initGoal" label="Цель обращения" search-are-you-type="true">
+                            <ctrl:query query-id="cert_caseInitGoal" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:date-interval id="openDate" format="DD.MM.YYYY" popup-placement="down,right"/>
+                        <ctrl:date-interval id="closedDate" format="DD.MM.YYYY" popup-placement="down,right">
+                            <ctrl:default-model begin="beginWeek()" end="endWeek()"/>
+                        </ctrl:date-interval>
+                        <ctrl:classifier id="doctor" label="Врач, закрывший случай" search-are-you-type="true" control-style="width:330px;">
+                            <ctrl:query query-id="cert_employeePos" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:checkbox-group id="issuedAndRefusedFilter" label=" " >
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Выдана справка"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Зарегистрирован отказ"}</ctrl:option>
+                            </ctrl:options>
+                        </ctrl:checkbox-group>
+                    </wgt:filters>
+                </wgt:table>
+            </container>
+        </region>
+
+        <region place="left" type="list">
+            <container id="certIssuedList" depends-on="cases">
+                <wgt:table master-field-id="id" detail-field-id="caseId">
+                    <wgt:name>Выданные справки</wgt:name>
+                    <wgt:query-id>certIssuedAndRefusedList</wgt:query-id>
+                    <wgt:size>10</wgt:size>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Печать" id="print" context="true">
+                            <wgt:a href="/birt/run?__report=;__format=pdf" target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>1=2</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="number" name="Номер справки"/>
+                        <wgt:column column-field-id="creationDate"/>
+                        <wgt:column column-field-id="totalCost"/>
+                        <wgt:column column-field-id="issuedEmployee"/>
+                        <wgt:column column-field-id="receiver"/>
+                    </wgt:columns>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="annuled" value="false"/>
+                    <pre-filter field-id="refused" value="false"/>
+                </pre-filters>
+            </container>
+        </region>
+
+        <region place="right" type="list">
+            <container id="certRefusedList" depends-on="cases">
+                <wgt:table master-field-id="id" detail-field-id="caseId">
+                    <wgt:name>Отказы от получения справки</wgt:name>
+                    <wgt:query-id>certIssuedAndRefusedList</wgt:query-id>
+                    <wgt:size>10</wgt:size>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Печать" id="print" context="true">
+                            <wgt:a href="/birt/run?__report=;__format=pdf" target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>1=2</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="number" name="Номер отказа"/>
+                        <wgt:column column-field-id="creationDate"/>
+                        <wgt:column column-field-id="issuedEmployee"/>
+                        <wgt:column column-field-id="receiver"/>
+                    </wgt:columns>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="annuled" value="false"/>
+                    <pre-filter field-id="refused" value="true"/>
+                </pre-filters>
+            </container>
+        </region>
+    </regions>
+</page>

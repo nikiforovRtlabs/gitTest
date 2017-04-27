@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>journal_settings</object-id>
+    <name>journal_settings</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from monitoring.mn_journal j
+                left join monitoring.mn_journal_type jt on j.type_id = jt.id
+                left join monitoring.mn_journal_kind jk on j.kind_id = jk.id
+                where  (:orgId is null or (with RECURSIVE
+                        orgAccess as (
+                            SELECT id, parent_id from pim_organization WHERE id = :orgId
+                          UNION ALL
+                            SELECT po.id, po.parent_id from pim_organization po
+                            join orgAccess  o ON po.parent_id = o.id
+                        )
+                        select exists(select 1 from orgAccess oA
+                        JOIN monitoring.mn_journal_access acces ON acces.clinic_id = oA.id AND journal_id = j.id) limit 1
+                    )) and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(a)
+                from monitoring.mn_journal j
+                left join monitoring.mn_journal_type jt on j.type_id = jt.id
+                left join monitoring.mn_journal_kind jk on j.kind_id = jk.id
+                where (:orgId is null or (with RECURSIVE
+                        orgAccess as (
+                            SELECT id, parent_id from pim_organization WHERE id = :orgId
+                          UNION ALL
+                            SELECT po.id, po.parent_id from pim_organization po
+                            join orgAccess  o ON po.parent_id = o.id
+                        )
+                        select exists(select 1 from orgAccess oA
+                        JOIN monitoring.mn_journal_access acces ON acces.clinic_id = oA.id AND journal_id = j.id) limit 1
+                    )) and :where
+            </n2o:count-query>
+            <n2o:alias>j</n2o:alias>
+        </n2o:sql>
+    </execution>local
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>j.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>j.name</expression>
+            <search filter-field="name">upper(:expression) like upper(:name) || '%'</search>
+        </field>
+
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <expression>j.type_id</expression>
+        </field>
+
+        <field>
+            <id>type.name</id>
+            <domain>string</domain>
+            <name>Тип журнала</name>
+            <expression>jt.name</expression>
+        </field>
+
+        <field>
+            <id>kind.id</id>
+            <domain>integer</domain>
+            <expression>j.kind_id</expression>
+        </field>
+
+        <field>
+            <id>kind.name</id>
+            <domain>string</domain>
+            <expression>jk.name</expression>
+            <name>Вид журнала</name>
+        </field>
+
+        <field>
+            <id>is_active</id>
+            <domain>boolean</domain>
+            <expression>j.is_active</expression>
+            <name>Действующий</name>
+        </field>
+        <field>
+            <id>case_type.id</id>
+            <domain>integer</domain>
+            <expression>:case_type.id</expression>
+            <search>(select count(mjct) > 0
+                from monitoring.mn_journal_cases_types mjct
+                where  mjct.journal_id = j.id AND mjct.case_type_id = :case_type.id )
+            </search>
+        </field>
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>:diagnosis.id</expression>
+            <display unavailable="true"/>
+            <search>exists(select 1
+                from monitoring.mn_journal_diagnosis
+                where journal_id = j.id and (diagnosis_id = :diagnosis.id or monitoring.check_interval_diagnosis(:diagnosis.id, diagnosis_id)))
+            </search>
+        </field>
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <name>Организация</name>
+            <expression>
+                (select mja.clinic_id from monitoring.mn_journal_access mja where mja.journal_id = j.id limit 1)
+            </expression>
+            <search>
+                exists(select 1 from monitoring.mn_journal_org mjo where mjo.journal_id = j.id and mjo.clinic_id = :clinic.id limit 1)
+            </search>
+        </field>
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <expression>:age</expression>
+            <search>
+                exists(select 1 from monitoring.mn_journal_age mja
+                WHERE :age between mja.begin_age and mja.end_age
+                and mja.measure_id = :ageType.id and mja.journal_id = j.id)
+            </search>
+        </field>
+        <field>
+            <id>blockCreate</id>
+            <domain>boolean</domain>
+            <expression>j.type_id = 1</expression>
+
+        </field>
+        <field>
+            <id>ageType.id</id>
+            <domain>integer</domain>
+            <expression>:ageType.id</expression>
+            <search unavailable="true"/>
+
+        </field>
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+            <display value="#{org.id?}"/>
+            <search value="#{org.id?}"> 1=1</search>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,119 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>messageLog</object-id>
+    <name>inboundMessages</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from messenger.message_log ml
+                join messenger.message m on m.id=ml.msg_id
+                join messenger.severity_level l on l.id=m.severity_level_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ml)
+                from messenger.message_log ml
+                join messenger.message m on m.id=ml.msg_id
+                join messenger.severity_level l on l.id=m.severity_level_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ml</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ml.id</expression>
+        </field>
+        <field>
+            <id>user.id</id>
+            <domain>integer</domain>
+            <expression>ml.user_id</expression>
+            <search value="#{user.id}"/>
+        </field>
+
+        <field>
+            <id>sendDate.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>sendDate.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>sendDate</id>
+            <name>Дата</name>
+            <expression>
+                ml.send_date
+            </expression>
+            <search><![CDATA[
+                (
+                :sendDate.begin::date is null and :sendDate.end::date is null or
+                (:sendDate.begin::date is null or ml.send_date >= :sendDate.begin) and
+                (:sendDate.end::date is null or ml.send_date <= :sendDate.end)
+                )
+                ]]>
+            </search>
+        </field>
+        <field>
+            <id>readDate</id>
+            <name>Дата прочтения</name>
+            <domain>date</domain>
+            <expression>ml.read_date</expression>
+        </field>
+        <field>
+            <id>level.id</id>
+            <domain>integer</domain>
+            <expression>l.id</expression>
+        </field>
+        <field>
+            <id>level.name</id>
+            <name>Уровень важности</name>
+            <domain>string</domain>
+            <expression>l.name</expression>
+        </field>
+        <field>
+            <id>caption</id>
+            <name>Заголовок</name>
+            <domain>string</domain>
+            <expression>m.caption</expression>
+            <search>upper(:expression) like '%'||upper(:caption)||'%'</search>
+        </field>
+        <field>
+            <id>text</id>
+            <name>Оповещение</name>
+            <domain>string</domain>
+            <expression>ml.text</expression>
+            <search>upper(:expression) like '%'||upper(:text)||'%'</search>
+        </field>
+        <field>
+            <id>marked</id>
+            <domain>boolean</domain>
+            <expression>ml.is_marked</expression>
+            <search>:expression = :marked</search>
+        </field>
+        <field>
+            <id>color</id>
+            <domain>string</domain>
+            <expression>
+                case when (ml.read_date is null) then 'text' else 'muted' end
+            </expression>
+        </field>
+        <field>
+            <id>unread</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>ml.read_date is null</search>
+        </field>
+
+    </fields>
+</query>

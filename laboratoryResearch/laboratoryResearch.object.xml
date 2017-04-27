@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <!--<id>laboratoryResearch</id>-->
+    <name>Направление на лабораторное исследование</name>
+    <actions>
+        <!--<action id="read">-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--select 1-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+        <!--</action>-->
+
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/hospital/labresearchreferral
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="stepId" mapping="['stepId']" domain="integer"/>
+                <param name="referral_date" mapping="['referralDate']" domain="date"/>
+                <param name="order_number" mapping="['orderNumber']" domain="string"/>
+                <param name="diagnosis.id" mapping="['diagnosisId']" domain="integer"/>
+                <param name="CITO" mapping="['cito']" domain="boolean"/>
+                <param name="ref_org.id" mapping="['refOrgId']" domain="integer"/>
+                <param name="ref_dep.id" mapping="['refDepId']" domain="integer"/>
+                <param name="ref_doc.employeePositionId" mapping="['refDocId']" domain="integer"/>
+                <param name="recv_org.id" mapping="['recvOrgId']" domain="integer"/>
+                <param name="recv_dep.id" mapping="['recvDepId']" domain="integer"/>
+                <param name="ref_service.id" mapping="['refServId']" domain="integer"/>
+                <param name="researchChild*.id" mapping="['researchIds']" domain="integer[]"/>
+                <param name="complexResearch.id" mapping="['complexId']" domain="integer"/>
+                <param name="serviceIdList*.id" mapping="['serviceIdList']" domain="integer[]"/>
+                <param name="biomaterial.id" mapping="['biomaterialId']" domain="integer"/>
+                <param name="pat_param.id" mapping="['patParamId']" domain="integer"/>
+                <param name="phase.id" mapping="['phaseId']" domain="integer"/>
+                <param name="gestational_age" mapping="['gestationalAge']" domain="integer"/>
+                <param name="comment" mapping="['comment']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить">
+            <invocation>
+                <!--todo будет дописано, когда будем реализовывать множествееные исследования-->
+                <!--<rest:rest method="DELETE">-->
+                    <!--${n2o.backend.path}/hospital/labresearchreferral-->
+                <!--</rest:rest>-->
+                <sql:sql>
+                    delete from public.md_referral_service where referral_id = :id;
+                    delete from public.md_patient_parameters_for_research where referral_id = :id;
+                    delete from public.md_referral where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить направление?</confirmation-text>
+        </action>
+        <!--<action id="removeHospitalRecord" form-submit-label="Отменить направление">-->
+            <!--<invocation>-->
+                <!--<rest:rest method="DELETE"><![CDATA[${n2o.backend.path}/hospital/hospital-case/record?recordId={recordId}&caseId={caseId}]]></rest:rest>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="secondStepId" mapping="['recordId']" domain="integer"/>-->
+                <!--<param name="id" mapping="['caseId']" domain="integer"/>-->
+            <!--</in-parameters>-->
+            <!--<validations activate="nothing"/>-->
+            <!--<confirmation-text>Вы уверены, что хотите отменить направление ?</confirmation-text>-->
+        <!--</action>-->
+    </actions>
+
+    <validations>
+        <condition id="areRequiredResearchSelected" level="error">
+            <expression on="complexResearch,researchChild,isComplex">
+                <![CDATA[
+                        var flag = false;
+                        if (isComplex == true){
+                            if (typeof researchChild != 'undefined' && typeof complexResearch != 'undefined' && typeof complexResearch.requiredFieldsIds != 'undefined') {
+                                var requiredCount = 0;
+                                for (var i = 0 ; i < researchChild.length; i++) {
+                                    if (complexResearch.requiredFieldsIds.indexOf(researchChild[i].id) > -1) {
+                                        requiredCount++;
+                                    }
+                                }
+                                flag = !!(requiredCount == complexResearch.requiredFieldsIds.length);
+                            }
+                            else {flag = true;}
+                        }
+                        else
+                        {flag = true;}
+                        flag;
+
+                    ]]>
+            </expression>
+            <message>Не выбраны обязательные для выполнения услуги. (Помечены как [!])</message>
+        </condition>
+    </validations>
+
+    <!--<validations>-->
+        <!--<constraint id="checkAdmissionDatesInFirstAndSecondRecord" level="error">-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--<![CDATA[-->
+                    <!--select s.admission_time is not null and s.admission_date + s.admission_time >= :admissionDate-->
+                    <!--or s.admission_time is null and s.admission_date >= :admissionDate-->
+                    <!--from mc_step where s.id = :secondStepId;-->
+                    <!--]]>-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="admissionDate" mapping="['admissionDate']"/>-->
+                <!--<param name="secondStepId" mapping="['secondStepId']"/>-->
+            <!--</in-parameters>-->
+            <!--<result expression="[0].length == 0 or [0][0][0] == true"/>-->
+            <!--<message>Дата/время поступления в приемное отделение не может быть больше даты/времени поступления в отделение</message>-->
+        <!--</constraint>-->
+
+        <!--<constraint id="checkAdmissionAndOutcomeDateInFirstRecord" level="error">-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--<![CDATA[-->
+                    <!--select s.outcome_date is null or s.outcome_time is not null and s.outcome_date + s.outcome_time >= :admissionDate or-->
+                    <!--s.outcome_time is null and s.outcome_date >= :admissionDate-->
+                    <!--from mc_step s where s.id = :firstStepId-->
+                    <!--]]>-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="admissionDate" mapping="['admissionDate']"/>-->
+                <!--<param name="firstStepId" mapping="['firstStepId']"/>-->
+            <!--</in-parameters>-->
+            <!--<result expression="[0].length == 0 or [0][0][0] == true"/>-->
+            <!--<message>Дата/время поступления в приемное отделение не может быть больше даты/времени выбытия</message>-->
+        <!--</constraint>-->
+
+        <!--<constraint id="hasPatientOpenCase" level="error">-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--<![CDATA[-->
+                    <!--select (select uid-->
+                    <!--from mc_case c-->
+                    <!--where c.closing_step_id is null and c.patient_id = :patientId and :id is null and c.case_type_id = 2 and c.clinic_id = :clinicId limit 1);-->
+                    <!--]]>-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="patient.id" mapping="['patientId']"/>-->
+                <!--<param name="id" mapping="['id']"/>-->
+                <!--<param name="clinicId" mapping="['clinicId']"/>-->
+            <!--</in-parameters>-->
+            <!--<out-parameters>-->
+                <!--<param name="uid" mapping="[0][0][0]" domain="string"/>-->
+            <!--</out-parameters>-->
+            <!--<result expression="[0][0][0] == null"/>-->
+            <!--<message>У пациента уже имеются открытые случаи. Номер случая {uid}</message>-->
+        <!--</constraint>-->
+
+        <!--<constraint id="hasBill" level="error">-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--<![CDATA[-->
+                    <!--select count(bsi.id) > 0 from fin_bill_spec_item bsi-->
+                    <!--join fin_bill b on b.id = bsi.bill_id-->
+                    <!--join md_srv_rendered msr on msr.id = bsi.service_id-->
+                    <!--where b.status_id <> 0 and msr.case_id = :id-->
+                    <!--]]>-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="id" mapping="['id']"/>-->
+            <!--</in-parameters>-->
+            <!--<result expression="[0][0][0] == false"/>-->
+            <!--<message>Удаление недоступно, так как случай попал в счет</message>-->
+        <!--</constraint>-->
+
+    <!--</validations>-->
+
+</object>

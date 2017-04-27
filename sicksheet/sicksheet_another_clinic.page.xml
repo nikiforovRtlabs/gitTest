@@ -1,0 +1,286 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+
+    <object-id>sickdoc</object-id>
+    <layout>n2o/layout/top-bottom</layout>
+    <name>Лист нетрудоспособности</name>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="main" place="top" refresh-dependent-container="true">
+                <wgt:form  src="sickdoc/n2o/custom/sickdoc" css-class="sickdoc-common sicksheet-form" customize="css">
+                    <wgt:edit after-submit="closeModal" create-more="false">
+                        <wgt:redirect action-id="createOrUpdateSickSheet" href-field-id="url" target="self"/>
+                    </wgt:edit>
+                    <wgt:query-id>sicksheet</wgt:query-id>
+                    <wgt:default-values-query-id>sicksheet_def_values</wgt:default-values-query-id>
+                    <fs:field-set css-class="header-fieldset" header="none" >
+                        <ctrl:hidden id="id"/>
+                        <ctrl:hidden id="parentId"/>
+                        <ctrl:hidden id="workplaceTypeId"/>
+                        <ctrl:hidden id="hasMaxCountOfPeriods"/>
+                        <ctrl:hidden id="curClinicId" default-value="null">
+                            <ctrl:set-value-expression on="issuedClinic.id">
+                                <![CDATA[issuedClinic.id]]>
+                            </ctrl:set-value-expression>
+                        </ctrl:hidden>
+
+                        <ctrl:hidden id="transferFromOtherClinic">
+                            <ctrl:set-value-expression><![CDATA[true]]></ctrl:set-value-expression>
+                        </ctrl:hidden>
+
+                        <rc:patient id="individual" label="Получатель" required="true"  control-style="width:390px;"  dependency-condition="id == null &amp;&amp; parentId == null"/>
+                        <rc:patient id="individual" readonly="true" label="Получатель" required="true"  control-style="width:390px;" dependency-condition="!(id == null &amp;&amp; parentId == null)"/>
+
+                        <ctrl:masked-input required="true" id="sicksheet_number" label="№" mask="999999999999" css-class="number"/>
+                        <ctrl:classifier required="true" id="issuedClinic" label="МО" search-are-you-type="true" readonly="false" dependency-condition="id == null">
+                            <ctrl:query query-id="sd_org" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="roleCode" value="CLINIC_ORGANIZATION"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier required="true" id="issuedClinic" label="МО" search-are-you-type="true" readonly="true" dependency-condition="id != null">
+                            <ctrl:query query-id="sd_org" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="roleCode" value="CLINIC_ORGANIZATION"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                    </fs:field-set>
+
+                    <fs:field-set field-label-location="left" header="line" label="Место работы">
+                        <ctrl:checkbox id="onPlacementService" label="Стоит на учете в службе занятости" css-class="on-placement-service" label-style="font-style:italic;"
+                                       default-value="false"/>
+                        <fs:row>
+                            <ctrl:classifier id="workplace" label="Организация" search-are-you-type="true"
+                                             dependency-condition="typeof onPlacementService == 'undefined' || onPlacementService == null || onPlacementService == false">
+                                <ctrl:query query-id="sd_org" value-field-id="id" label-field-id="name"/>
+                                <!--
+                                <ctrl:set-value-expression on="individual.mainJobOrgId">
+                                    var o = new Object();
+                                    o.id = workplace.id; o.name = null;
+                                    if ((typeof individual != 'undefined') &amp;&amp; (individual != null) &amp;&amp; (typeof individual.mainJobOrgId != 'undefined')
+                                    &amp;&amp;
+                                    (individual.mainJobOrgId != null)) {
+                                    o.id = individual.mainJobOrgId;
+                                    o.name = individual.mainJobOrgName;
+                                    }
+                                    o;
+                                </ctrl:set-value-expression>
+                                -->
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition on="workplacePrint">
+                                        typeof workplacePrint == 'undefined' || workplacePrint == null || workplacePrint.trim().length == 0
+                                    </ctrl:required-condition>
+                                    <ctrl:enabling-condition on="workplacePrint">
+                                        typeof workplacePrint == 'undefined' || workplacePrint == null || (workplacePrint.trim().length == 0)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="workplacePrint" label="Ручной ввод" css-class="workplace-print" length="29"
+                                             dependency-condition="typeof onPlacementService == 'undefined' || onPlacementService == null || onPlacementService == false">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition on="workplace">
+                                        typeof workplace == 'undefined' || workplace == null || workplace.id == null
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set field-label-location="left" header="line" label="Причина" style="margin-top:10px;">
+                        <fs:row>
+                            <ctrl:classifier id="disabilityReason" label="Причина" search-are-you-type="true" autoselect="true" required="true"
+                                             css-class="disability-reason-control">
+                                <ctrl:query query-id="sd_disability_reason" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="disabilityReasonExt" label="Доп. код" search-are-you-type="true"
+                                             css-class="disability-reason-control disability-reason-label">
+                                <ctrl:query query-id="sd_disability_reason_ext" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="disabilityReasonEdited" label="Код изм." search-are-you-type="true"
+                                             css-class="disability-reason-control disability-reason-label">
+                                <ctrl:query query-id="sd_disability_reason" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+
+                    <fs:field-set ref-id="period_another_clinic" field-label-location="left" header="line" label="Освобождение от работы"
+                                  dependency-condition="typeof id == 'undefined' || id == null"/>
+                    <fs:field-set field-label-location="left" header="line" label="Нетрудоспособность" style="margin-top:10px">
+                        <fs:row>
+                            <rc:patient isFilter="true" id="careForPatient1" label="По уходу за" control-style="width:320px;"
+                                        dependency-condition="typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; (disabilityReason.code =='09' || disabilityReason.code =='03')">
+                                <rc:dependencies>
+                                    <rc:required-condition>
+                                        ( typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; disabilityReason.code =='09' )
+                                    </rc:required-condition>
+                                </rc:dependencies>
+                            </rc:patient>
+                            <!--
+                            <ctrl:classifier id="careForPatient1" label="По уходу за" search-are-you-type="true" control-style="width:360px;"
+                                             dependency-condition="typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; (disabilityReason.code =='09' || disabilityReason.code =='03')">
+                                <ctrl:query query-id="sd_individual" value-field-id="id" label-field-id="name"/>
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        ( typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; disabilityReason.code =='09' )
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                            -->
+                            <ctrl:output-text id="patientAge1" label=" " css-class="age"
+                                              dependency-condition="typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; (disabilityReason.code =='09' || disabilityReason.code =='03') &amp;&amp;
+                                              typeof careForPatient1 != 'undefined' &amp;&amp; careForPatient1.birthDate != null" control-style="width:80px;">
+                                <ctrl:set-value-expression on="careForPatient1.birthDate">
+                                    <![CDATA[
+                                    var date1 = moment(careForPatient1.birthDate, 'DD.MM.YYYY');
+                                    if (moment().diff(date1, 'months') == 0) {
+                                        moment().diff(date1,   'days') + ' дней';
+                                    } else if (moment().diff(date1, 'years')==0) {
+                                        moment().diff(date1, 'months') + ' мес';
+                                    } else if (moment().diff(date1, 'years') < 3) {
+                                        var years = moment().diff(date1, 'years');
+                                        var months = moment().diff(date1, 'months') - years * 12;
+                                        years + ' лет ' + (months == 0 ? '' : months + ' мес' );
+                                    } else {
+                                        moment().diff(date1, 'years') + ' лет';
+                                    }
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                            <ctrl:classifier id="familyRelation1" label="Родство" css-class="family-relation" dependency-condition=
+                                    "typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; (disabilityReason.code =='09' || disabilityReason.code =='03')">
+                                <ctrl:query query-id="sd_family_relation" value-field-id="id" label-field-id="name"/>
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        ( typeof careForPatient1.id != 'undefined' &amp;&amp; careForPatient1.id != null )
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <rc:patient isFilter="true" id="careForPatient2" label="По уходу за" depends-on="careForPatient1" control-style="width:320px;"
+                                        dependency-condition="typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; (disabilityReason.code =='09' || disabilityReason.code =='03' )"/>
+
+                            <!--
+                            <ctrl:classifier id="careForPatient2" label="По уходу за" depends-on="careForPatient1" search-are-you-type="true" control-style="width:360px;"
+                                             dependency-condition="typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; (disabilityReason.code =='09' || disabilityReason.code =='03')">
+                                <ctrl:query query-id="sd_individual" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            -->
+                            <ctrl:output-text id="patientAge2" label=" " depends-on="careForPatient2" css-class="age"
+                                              dependency-condition="typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; (disabilityReason.code =='09' || disabilityReason.code =='03') &amp;&amp;
+                                              typeof careForPatient2 != 'undefined' &amp;&amp; careForPatient2.birthDate != null" control-style="width:80px;">
+                                <ctrl:set-value-expression on="careForPatient2.birthDate">
+                                    <![CDATA[
+                                    var date1 = moment(careForPatient2.birthDate, 'DD.MM.YYYY');
+                                    if (moment().diff(date1, 'months') == 0) {
+                                        moment().diff(date1,   'days') + ' дней';
+                                    } else if (moment().diff(date1, 'years')==0) {
+                                        moment().diff(date1, 'months') + ' мес';
+                                    } else if (moment().diff(date1, 'years') < 3) {
+                                        var years = moment().diff(date1, 'years');
+                                        var months = moment().diff(date1, 'months') - years * 12;
+                                        years + ' лет ' + (months == 0 ? '' : months + ' мес' );
+                                    } else {
+                                        moment().diff(date1, 'years') + ' лет';
+                                    }
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                            <ctrl:classifier id="familyRelation2" label="Родство" depends-on="careForPatient1" css-class="family-relation" dependency-condition=
+                                    "typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; (disabilityReason.code =='09' || disabilityReason.code =='03')">
+                                <ctrl:query query-id="sd_family_relation" value-field-id="id" label-field-id="name"/>
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        typeof careForPatient2.id != 'undefined' &amp;&amp; careForPatient2.id != null
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <ctrl:checkbox id="isEarlyPregnancyRegister" label="Поставлена на учет в ранние сроки беременности" default-value="false"
+                                       css-class="early-pregnancy-register" dependency-condition=
+                                               "(typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; disabilityReason.code == '05')"/>
+                        <fs:row>
+                            <ctrl:classifier id="sanatorium" label="Санаторий" css-class="sanatorium" search-are-you-type="true" dependency-condition=
+                                    "(typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; disabilityReason.code == '08')||
+                                    (typeof disabilityReasonEdited != 'undefined' &amp;&amp; disabilityReasonEdited != null &amp;&amp; disabilityReasonEdited.code == '08')">
+                                <ctrl:query query-id="sd_org" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="roleCode" type="in">
+                                            <ctrl:value>SANATORIUMS</ctrl:value>
+                                            <ctrl:value>CLINIC_ORGANIZATION</ctrl:value>
+                                        </ctrl:pre-filter>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="sanatoriumOGRN" label="ОГРН" length="15" css-class="sanatorium-ogrn" dependency-condition=
+                                    "(typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; disabilityReason.code == '08')||
+                                    (typeof disabilityReasonEdited != 'undefined' &amp;&amp; disabilityReasonEdited != null &amp;&amp; disabilityReasonEdited.code == '08')">
+                                <ctrl:set-value-expression on="sanatorium">
+                                    sanatorium.ogrnCode
+                                </ctrl:set-value-expression>
+                            </ctrl:input-text>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:date-interval id="disabilityPeriod" label="Период" css-class="disability-period" dependency-condition=
+                                    "((typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null) &amp;&amp; (disabilityReason.code == '05' || disabilityReason.code == '08'))||
+                                    (typeof disabilityReasonEdited != 'undefined' &amp;&amp; disabilityReasonEdited.code != null)">
+                                <ctrl:default-model/>
+                            </ctrl:date-interval>
+                            <ctrl:input-text id="voucherCode" label="Номер путевки" length="7"  css-class="voucher-code" dependency-condition=
+                                    "(typeof disabilityReason != 'undefined' &amp;&amp; disabilityReason != null &amp;&amp; disabilityReason.code == '08')||
+                                    (typeof disabilityReasonEdited != 'undefined' &amp;&amp; disabilityReasonEdited.code == '08')"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:checkbox id="isRegimenViolation" label="Нарушение режима" default-value="false" css-class="is-regimen-violation"/>
+                            <ctrl:classifier id="regimenViolation" label=" " css-class="regimen-violation" dependency-condition="isRegimenViolation == true">
+                                <ctrl:query query-id="sd_regimen_violation" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            <ctrl:date-time id="regimenViolationDt" label=" " format="DD.MM.YYYY" css-class="datepicker regimen-violation-dt"
+                                            dependency-condition="isRegimenViolation == true"/>
+                            <ctrl:classifier id="regimenViolationDoctor" label="Врач" search-are-you-type="true" css-class="regimen-violation-doctor"
+                                             dependency-condition="isRegimenViolation == true">
+                                <ctrl:query query-id="sd_employee" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:checkbox id="wasInHospital" label="Находился в стационаре" css-class="was-in-hospital" default-value="false"/>
+                            <ctrl:date-interval id="hospitalDt" label="" css-class="hospital-dt" dependency-condition="wasInHospital"/>
+                        </fs:row>
+                        <ctrl:checkbox id="isMse" label="МСЭ" default-value="false" css-class="is-mse"/>
+                        <fs:row>
+                            <ctrl:date-time format="DD.MM.YYYY" id="mseReferralDt" label="Дата направления в бюро МСЭ" css-class="datepicker mse-referral-dt"
+                                            dependency-condition="isMse == true"/>
+                            <ctrl:date-time format="DD.MM.YYYY" id="mseExaminationDt" label="Дата освидетельствования в бюро МСЭ"
+                                            css-class="datepicker mse-examination-dt" dependency-condition="isMse == true"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:date-time format="DD.MM.YYYY" id="mseRegisterDt" label="Дата регистрации документов в бюро МСЭ" css-class="datepicker mse-register-dt"
+                                            dependency-condition="isMse == true"/>
+                            <ctrl:checkbox id="isDisabilityGroupChanged" label="Установлена/изменена группа инвалидности" default-value="false"
+                                           dependency-condition="isMse == true"/>
+                        </fs:row>
+                        <ctrl:output-text id="registratorOfTransfered.name" label="Оформлен" css-class="inf-issued"/>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+
+            <container id="periods" place="bottom" depends-on="main" refresh-dependent-container="true"
+                       dependency-condition="typeof(main.id)!== undefined &amp;&amp; main.id !== null">
+                <pre-filters>
+                    <pre-filter field-id="hasMaxCountOfPeriods" ref="hasMaxCountOfPeriods"/>
+                    <pre-filter field-id="isSickdocClosed" ref="isClosed"/>
+                    <pre-filter field-id="isSickdocAnnuled" ref="isAnnuled"/>
+                </pre-filters>
+                <wgt:table master-field-id="id" detail-field-id="sickdocId" ref-id="period"/>
+            </container>
+
+        </region>
+    </regions>
+</page>

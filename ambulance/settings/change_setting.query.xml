@@ -1,0 +1,171 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>change_setting</id>-->
+    <name>Настройка смены</name>
+    <object-id>change_setting</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.md_ambulance_change_setting cs
+                join cmn_scope_type st on cs.scope_type_id=st.id
+                left join pim_organization po on cs.clinic_id = po.id
+                left join amb.md_ambulance_route ar on cs.route_id = ar.id
+                left join pim_department pd on cs.department_id = pd.id
+                where (:where) or lower(st.code) = 'global'
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from amb.md_ambulance_change_setting cs
+                join cmn_scope_type st on cs.scope_type_id=st.id
+                left join pim_organization po on cs.clinic_id = po.id
+                left join amb.md_ambulance_route ar on cs.route_id = ar.id
+                left join pim_department pd on cs.department_id = pd.id
+                where (:where) or lower(st.code) = 'global'
+            </n2o:count-query>
+            <n2o:alias>cs</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <!--<display>cs.id</display>-->
+            <name>Идентификатор</name>
+            <expression>cs.id</expression>
+        </field>
+        <field>
+            <id>scope.name</id>
+            <domain>string</domain>
+            <name>Уровень</name>
+            <expression>st.name</expression>
+        </field>
+        <field>
+            <id>scope.code</id>
+            <domain>string</domain>
+            <expression>st.code</expression>
+        </field>
+        <field>
+            <id>scope.id</id>
+            <domain>integer</domain>
+            <expression>st.id</expression>
+        </field>
+        <field>
+            <id>station.name</id>
+            <domain>String</domain>
+            <!--<expression>po.full_name</expression>-->
+            <name>Станция</name>
+            <expression>coalesce(po.short_name,po.full_name)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <name>Станция</name>
+            <expression>po.id</expression>
+        </field>
+        <field>
+            <id>station.orgId</id>
+            <domain>integer</domain>
+            <name>Станция</name>
+            <expression>po.id</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>route.name</id>
+            <domain>string</domain>
+            <expression>ar.name</expression>
+            <name>Направление</name>
+        </field>
+        <field>
+            <id>route.id</id>
+            <domain>integer</domain>
+            <expression>ar.id</expression>
+        </field>
+        <field>
+            <id>substation.name</id>
+            <domain>string</domain>
+            <name>Подстанция</name>
+            <expression>pd.name</expression>
+        </field>
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <expression>pd.id</expression>
+        </field>
+        <field>
+            <id>change_begin</id>
+            <domain>time</domain>
+            <name>Начало</name>
+            <!--<display>cs.change_begin</display>-->
+            <expression>cs.change_begin</expression>
+            <!--<search>cs.change_begin</search>            -->
+        </field>
+        <field>
+            <id>change_period</id>
+            <domain>string</domain>
+            <name>Длительность</name>
+            <expression>to_char(cs.change_period,'hh24')||' hour'</expression>
+            <!--<display>to_char(cs.change_period,'hh24')</display>-->
+            <!--<search>cs.change_period</search>-->
+        </field>
+        <field>
+            <id>change_per</id>
+            <domain>string</domain>
+            <name>Длительность</name>
+            <expression>to_char(cs.change_period,'hh24')||' час(а/ов)'</expression>
+            <!--<display>to_char(cs.change_period,'hh24')</display>-->
+            <!--<search>cs.change_period</search>-->
+        </field>
+        
+        <field>
+            <id>need_forcedOpen</id>
+            <domain>boolean</domain>
+            <expression>
+                case when not exists (select * from amb.md_ambulance_change where setting_id = cs.id)
+                        <!--or not exists (select * from amb.md_ambulance_numbers where setting_id = cs.id) -->
+                    then true
+                    else false
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>has_numb_setting</id>
+            <domain>boolean</domain>
+            <expression>
+                case when exists (select * from amb.md_ambulance_numb_setting where clinic_id = po.id)
+                then true
+                else false
+                end
+            </expression>
+        </field>
+        <field>
+            <id>id_using_in_call</id>
+            <domain>boolean</domain>
+            <expression>
+                case when exists (select * from amb.md_ambulance_call ca
+                                  right join amb.md_ambulance_change ch on ca.call_dt = ch.id
+                                  where ch.setting_id=cs.id)
+                then true
+                else false
+                end
+            </expression>
+        </field>
+        <field>
+            <id>id_using_in sr</id>
+            <domain>boolean</domain>
+            <expression>
+                case when exists (select * from amb.sr_res_team_job sr
+                                  right join amb.md_ambulance_change ch on sr.change_id = ch.id
+                                  where ch.setting_id=cs.id)
+                then true
+                else false
+                end
+            </expression>
+        </field>
+        
+    </fields>
+</query>

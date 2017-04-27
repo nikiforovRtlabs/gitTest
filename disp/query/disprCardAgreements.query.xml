@@ -1,0 +1,105 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <name>Согласие</name>
+    <object-id>disprCardAgreement</object-id>
+    <execution>
+
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                left join disp.md_event me on me.id=mep.event_id
+                left join disp.md_event_agreement mea on mea.event_patient_id = mep.id
+                left join (select mespa.agree_date, mespa.id as agree_id, mesp.event_patient_id, mesp.id as service_id
+                    from  disp.md_event_service_patient  mesp
+                    left join disp.md_event_service_patient_agreement mespa on mespa.service_id=mesp.id
+                    left join disp.md_event_service mes on mes.id = mesp.service_id
+                    left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                    where mnds.code = 'Д1.02') s on s.event_patient_id=mep.id
+                left join pim_individual i on i.id=mep.indiv_id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select 1</n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>birthDate</id>
+            <domain>Date</domain>
+            <display>i.birth_dt</display>
+        </field>
+        <field>
+            <id>agreeId</id>
+            <domain>Integer</domain>
+            <display>s.agree_id</display>
+            <search>mespa.id = :agreeId</search>
+        </field>
+
+        <field>
+            <id>serviceId</id>
+            <domain>Integer</domain>
+            <display>s.service_id</display>
+        </field>
+
+        <field>
+            <id>generalDate</id>
+            <domain>date</domain>
+            <display>mea.adate</display>
+        </field>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display>mea.id</display>
+        </field>
+        <field>
+            <id>startDate</id>
+            <domain>string</domain>
+            <display>to_char(me.start_date,'dd.mm.yyyy')</display>
+        </field>
+        <field>
+            <id>endDate</id>
+            <domain>string</domain>
+            <display>to_char(me.end_date,'dd.mm.yyyy')</display>
+        </field>
+        <field>
+            <id>start</id>
+            <domain>date</domain>
+            <display>me.start_date</display>
+        </field>
+        <field>
+            <id>end</id>
+            <domain>date</domain>
+            <display>me.end_date</display>
+        </field>
+        <field>
+            <id>mainId</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+            <search>mep.id = :mainId</search>
+        </field>
+
+        <field>
+            <id>services</id>
+            <domain>string</domain>
+            <display>(select array_to_json(array_agg(row_to_json(serv)))
+                from (select mesp.id from disp.md_event_service_patient  mesp where mesp.event_patient_id = mep.id) as serv)</display>
+        </field>
+
+        <field>
+            <id>check_pres_group</id>
+            <domain>string</domain>
+            <name>Назначено?</name>
+            <display>
+                (select array_to_json(array_agg(row_to_json(serv)))
+                from (select unnest(disp.select_service_for_all_patient(mep.id,(mep.event_age))) as id ) as serv)
+            </display>
+        </field>
+    </fields>
+</query>

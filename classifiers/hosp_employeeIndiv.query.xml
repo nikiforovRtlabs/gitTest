@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                <![CDATA[
+                select distinct :select from md_employee_position mep
+                join pim_employee_position ep on mep.id = ep.id
+                join pim_employee e on e.id = ep.employee_id
+                join pim_individual i on i.id = e.individual_id
+                join pim_position pos on pos.id = ep.position_id
+                where e.is_dismissed is not true and ep.start_date <= current_date and
+                (ep.end_date > current_date or ep.end_date is null) and :where
+                 ]]>
+            </n2o:items-query>
+
+            <n2o:count-query>
+                <![CDATA[
+                select count(i.id) from md_employee_position mep
+                join pim_employee_position ep on mep.id = ep.id
+                join pim_employee e on e.id = ep.employee_id
+                join pim_individual i on i.id = e.individual_id
+                join pim_position pos on pos.id = ep.position_id
+                where e.is_dismissed is not true and ep.start_date <= current_date and
+                (ep.end_date > current_date or ep.end_date is null) and :where
+                 ]]>
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>i.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>
+                coalesce(i.surname, '') || ' ' || case coalesce(substring(i.name for 1), '') when '' then '' else
+                substring(i.name for 1) || '.' end || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then ''
+                else substring(i.patr_name for 1) || '.' end
+            </expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>departmentId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>pos.department_id = :departmentId</search>
+        </field>
+
+        <field>
+            <id>positionId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>pos.id = :positionId</search>
+        </field>
+
+        <field>
+            <id>positionName</id>
+            <domain>string</domain>
+            <expression>pos.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>organizationId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>e.organization_id = :organizationId</search>
+        </field>
+
+    </fields>
+</query>

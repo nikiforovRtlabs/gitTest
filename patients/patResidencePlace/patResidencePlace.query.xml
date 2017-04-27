@@ -1,0 +1,145 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <!--<id>patResidencePlace</id>-->
+    <name>Места пребывания пациента</name>
+    <object-id>patResidencePlace</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from pci_patient_place_of_residence pppof
+                join md_place_of_residence mpor on mpor.id = pppof.place_of_residence_id
+                left join pim_organization po on po.id = pppof.org_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from pci_patient_place_of_residence pppof
+                join md_place_of_residence mpor on mpor.id = pppof.place_of_residence_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pppof</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pppof.id</expression>
+            <filters>
+                <filter type="eq" filter-field="id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pppof.patient_id</expression>
+            <filters>
+                <filter type="eq" filter-field="patient.id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>residence_place.id</id>
+            <domain>integer</domain>
+            <name>Место пребывания</name>
+            <display/>
+            <expression>mpor.id</expression>
+        </field>
+        <field>
+            <id>residence_place.name</id>
+            <domain>string</domain>
+            <name>Место пребывания</name>
+            <display/>
+            <expression>mpor.name</expression>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <name>Организация</name>
+            <display/>
+            <expression>po.id</expression>
+        </field>
+        <field>
+            <id>org.name</id>
+            <domain>string</domain>
+            <name>Организация</name>
+            <display/>
+            <expression>coalesce(po.short_name, po.full_name)</expression>
+        </field>
+        
+        <field>
+            <id>is_valid</id>
+            <domain>boolean</domain>
+            <name>Действительное место пребывания</name>
+            <display/>
+            <expression>
+                case when cast(now() as date) >= pppof.from_dt and (pppof.to_dt >= cast(now() as date) or pppof.to_dt is null)
+                    then true
+                    else false
+                end
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="is_valid"/>
+            </filters>
+        </field>
+        <field>
+            <id>from_date</id>
+            <domain>date</domain>
+            <name>Дата начала</name>
+            <display/>
+            <expression>pppof.from_dt</expression>
+        </field>
+        <field>
+            <id>to_date</id>
+            <domain>date</domain>
+            <name>Дата окончания</name>
+            <display/>
+            <expression>pppof.to_dt</expression>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <name>Примечание</name>
+            <display/>
+            <expression>pppof.note</expression>
+        </field>
+
+        <field>
+            <id>upd</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>full_name</id>
+            <domain>string</domain>
+            <name>Адрес</name>
+            <display/>
+            <expression>
+                <![CDATA[
+                    concat(mpor.name, ': ', coalesce(po.short_name,po.full_name),
+                        case when pppof.from_dt is not null then ' c ' || to_char(pppof.from_dt, 'DD.MM.YYYY') end,
+                        case when pppof.to_dt is not null then ' по ' || to_char(pppof.to_dt, 'DD.MM.YYYY') end)
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>party_role_id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                (select id from public.pim_party_role where upper(trim(code)) = 'INTERNAT')
+            </expression>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,256 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>Приходная накладная</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+
+            <invocation>
+                <rest:rest method="POST" >
+                     ${n2o.backend.path}/inventory/arrival-invoice
+                </rest:rest>
+            </invocation>
+
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="extDocType.id" mapping="['extDocTypeId']"/>
+                <param name="extDocNumber" mapping="['extDocNumber']" domain="string"/>
+                <param name="extDocDate" mapping="['extDocDate']"/>
+                <param name="contractor.id" mapping="['contractorId']"/>
+                <param name="shipper.id" mapping="['shipperId']"/>
+                <param name="recipient.id" mapping="['recStoreId']"/>
+                <param name="baseDoc.id" mapping="['baseDocId']"/>
+                <param name="baseDocNumber" mapping="['baseDocNumber']" domain="string"/>
+                <param name="baseDocDate" mapping="['baseDocDate']"/>
+                <param name="docType.id" mapping="['docTypeId']"/>
+                <param name="docNumber" mapping="['docNumber']" domain="string"/>
+                <param name="docDate" mapping="['docDate']"/>
+                <param name="note" mapping="['note']"/>
+                <param name="amountFact" mapping="['amountFact']"/>
+                <param name="amountPlan" mapping="['amountPlan']"/>
+                <param name="storeOpr.id" mapping="['storeOprId']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+                <param name="emplPos.id" mapping="['emplPosId']"/>
+                <param name="procurementMethod.id" mapping="['procurementMethodId']"/>
+            </in-parameters>
+
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['displayedValue']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="isContractFieldEmpty"/>
+                <validation ref-id="arrInvCheckUnique"/>
+            </validations>
+            <success-text>Приходная накладная № {docNumber} сохранена</success-text>
+            <confirmation-text>Продолжить сохранение Приходной накладной?</confirmation-text>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from inventory.document i where i.id= :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>При удалении Приходной накладной будут удалены все её спецификации.
+                Вы уверены, что хотите удалить Приходную накладную?
+            </confirmation-text>
+            <success-text>Документ и спецификации удалены</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="writeOffDocForStoreSupExists"/>
+                <validation ref-id="expInvoiceForPartyExists"/>
+            </validations>
+        </action>
+
+        <action id="execute" form-submit-label="Провести" name="Провести">
+            <invocation>
+                <rest:rest method="GET" >
+                    ${n2o.backend.path}/inventory/execute
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="executeDate.id" mapping="['executeDate']" domain="string"/>
+                <param name="docType.name" mapping="['docType']"/>
+                <param name="empPos.id" mapping="['empPosId']"/>
+                <param name="store.id" mapping="['storeId']"/>
+                <param name="isEnabled" value="${n2o.inv.execute.arr.spec.with.different.prices}"
+                                        domain="boolean"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Документ проведён</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="emplPosIsEmpty"/>
+                <validation ref-id="comparePricesForExecutingWarning"/>
+                <validation ref-id="comparePricesForExecutingError"/>
+            </validations>
+        </action>
+
+        <action id="cancel" form-submit-label="Отменить" name="Отменить">
+            <invocation>
+                <rest:rest method="GET" >
+                    ${n2o.backend.path}/inventory/execute/cancel
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docType.name" mapping="['docType']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <confirmation-text>Вы действительно хотите отменить проводку документа?</confirmation-text>
+            <success-text>Проводка документа отменена</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="arrInvCheckUnique" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.document
+                    where int_doc_number = :docNumber
+                    and int_doc_type_id = :docTypeId
+                    and org_id = :orgId
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="docNumber" mapping="['docNumber']" domain="string"/>
+                <param name="docType.id" mapping="['docTypeId']"/>
+                <param name="org.id" mapping="['orgId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Приходная накладная с таким номером уже существует.</message>
+        </constraint>
+
+        <constraint id="writeOffDocForStoreSupExists" level="warning">
+            <message>Существуют спецификации Акта списания на основе товарных запасов.Спецификации будут удалены.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.write_off_spec s where
+                    s.store_sup_id in (select spec.store_sup_id from inventory.arrival_spec spec where spec.doc_id= :id)
+                    and s.status_id = 1
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="returnSpecForStoreSupExists" level="warning">
+            <message>Существуют спецификации Возвратного документа на основе товарных запасов. Спецификации будут удалены.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.return_doc_spec s where
+                    s.store_sup_id in (select spec.store_sup_id from inventory.arrival_spec spec where spec.doc_id= :id)
+                    and s.status_id = 1
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="expInvoiceForPartyExists" level="warning">
+            <message>Существуют спецификации Расходного документа на основе партий. Спецификации будут удалены.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.exp_spec s
+                    left outer join inventory.batch batch on s.batch_id=batch.id
+                    left outer join inventory.exp_invoice inv on inv.id = s.doc_id
+                    left outer join inventory.store_supply ss on ss.batch_id=batch.id
+                    left outer join inventory.arrival_spec spec on ss.id = spec.store_sup_id
+                    left outer join inventory.arrival_invoice ai on ai.id = spec.doc_id
+                    where  inv.send_store_id = ss.store_id
+                           and spec.price_vat=ss.price
+                           and s.fund_source_id = ss.funding_source_id
+                           and spec.doc_id = :id and s.status_exp_id = 1
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="isContractFieldEmpty" level="warning">
+            <message>Поле "Контракт/Договор" не заполнено.</message>
+            <expression>(typeof baseDoc!='undefined' &amp;&amp; baseDoc!=null &amp;&amp;((baseDoc.id!=null &amp;&amp; baseDoc.id!='')
+                       ||(baseDocNumber!=null &amp;&amp; baseDocNumber!='')))
+            </expression>
+        </condition>
+
+        <condition id="emplPosIsEmpty" level="error">
+            <message>Операция не может быть завершена. Не указана должность в контексте пользователя</message>
+            <expression>typeof empPos!='undefined' &amp;&amp; empPos!=null &amp;&amp; empPos.id!=null</expression>
+        </condition>
+
+        <constraint id="comparePricesForExecutingWarning" level="warning">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.arrival_spec s
+                    left outer join inventory.fin_contract_spec fcs on fcs.id=s.contract_spec_id
+                         where s.price_vat != fcs.price and s.doc_id=:id and :isEnabled::boolean is true
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0] == 0"/>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="isEnabled" mapping="['isEnabled']" value="${n2o.inv.execute.arr.spec.with.different.prices}" domain="boolean"/>
+            </in-parameters>
+            <message>Существуют спецификации, в которых цена отличается от цены контракта. Продолжить проводку документа?
+            </message>
+        </constraint>
+
+        <constraint id="comparePricesForExecutingError" level="warning">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.arrival_spec s
+                    left outer join inventory.fin_contract_spec fcs on fcs.id=s.contract_spec_id
+                         where s.price_vat != fcs.price and s.doc_id=:id and :isEnabled::boolean is false
+                </sql:sql>
+            </invocation>
+            <result expression="[0][0][0] == 0"/>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="isEnabled" mapping="['isEnabled']" value="${n2o.inv.execute.arr.spec.with.different.prices}" domain="boolean"/>
+            </in-parameters>
+            <message>Спецификации, в которых цена отличается от цены контракта, не будут проведены. Продолжить проводку документа?</message>
+        </constraint>
+
+        <constraint id="checkFinContractUnique" level="error">
+            <message>
+                Договор с номером {number} уже зарегистрирован.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from fin_contract f
+                    inner join public.fin_contractor c on c.contract_id=f.id and c.role_id=(select r.id from fin_contractor_role r where r.code='CUSTOMER')
+                    where f.number=:number
+                    and f.type_id=:finContractTypeId
+                    and c.organization_id = :customerId
+                    and ( f.id != :id or :id is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="baseDoc.id" mapping="['id']"/>
+                <param name="finContractType.id" mapping="['finContractTypeId']"/>
+                <param name="baseDocNumber" mapping="['number']" domain="string"/>
+                <param name="org.id" mapping="['customerId']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+
+</object>

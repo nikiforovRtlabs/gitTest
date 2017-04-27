@@ -1,0 +1,321 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>partogramPrescription</name>
+
+    <actions>
+        <action id="save" form-submit-label="Добавить">
+            <invocation>
+                <n2o:rest method="POST">
+                    <n2o:query>
+                        ${n2o.backend.path}/hospital/pregnant-service/save-prescription
+                    </n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="prescriptionId" mapping="['prescriptionId']" domain="integer"/>
+                <param name="pregnantOutcomeId" mapping="['pregnantOutcomeId']" domain="integer"/>
+                <param name="holdings" mapping="['holdings']" domain="object[]"/>
+                <param name="time" mapping="['time']" domain="string"/>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="administrationRoute.id" mapping="['administrationRouteId']"/>
+                <param name="periodicity.id" mapping="['periodicityId']"/>
+                <param name="caseId" mapping="['caseId']" domain="integer"/>
+                <param name="patientId" mapping="['patientId']" domain="integer"/>
+                <param name="stepId" mapping="['stepId']" domain="integer"/>
+                <param name="doctorId" mapping="['doctorId']" value="#{emplPosRes.id?}"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+            <success-text>Данные о полученных лекарственных средствах на время {time} сохранены.</success-text>
+        </action>
+
+        <action id="delete">
+            <invocation>
+                <n2o:rest method="DELETE">
+                    <n2o:query>
+                        ${n2o.backend.path}/hospital/prescription?id={id}
+                    </n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="prescriptionId" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить данные о полученных лекарственных средствах на время {time}?</confirmation-text>
+            <success-text>Данные о полученных лекарственных средствах на время {time} удалены.</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkTime" level="error">
+            <message>Некорректный формат времени.</message>
+            <expression on="time">
+                <![CDATA[
+                    var regex = new RegExp('([0-1][0-9]|2[0-3]):[0-5][0-9]');
+                    var b = true;
+                    if(typeof time != 'undefined' && time != null && time != '')
+                    b = regex.test(time);
+                    b;
+                ]]>
+            </expression>
+        </condition>
+        <constraint id="uniqueTime" level="error">
+            <message>На данное время параметры уже созданы.</message>
+            <invocation>
+                <n2o:sql>
+                    select count(*) from motherhood.mh_pregnant_outcome_prescription op
+                    inner join hospital.prescription p on op.prescription_id = p.id
+                    where period_begin_dt = cast(:date as date) + :time::time and (:id is null or op.id != :id)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="time" mapping="['time']"/>
+                <param name="date" mapping="['date']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="assertDate" level="error">
+            <message>
+                Дата и время добавления параметра не могут быть раньше даты и времени оказания услуги.
+            </message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                        select (case when ssr.bdate is null then true
+                            else (case when :time is null then ssr.bdate <= cast(:date as date) else ssr.bdate + ssr.begin_time <= cast(:date as date) + :time::time end) end)
+                        from public.sr_srv_rendered ssr
+                        inner join motherhood.mh_pregnant_outcome mpo on mpo.service_id = ssr.id
+                        where mpo.id = :pregnantOutcomeId
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="time" mapping="['time']" domain="string"/>
+                <param name="pregnantOutcomeId" mapping="['pregnantOutcomeId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+        </constraint>
+        <condition id="checkDoseFormat" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[0].dose"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[0].dose!=null && typeof holdings[0].dose!= 'undefined'){
+                        regex.test(holdings[0].dose);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkCountFormat" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[0].count"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[0].count!=null && typeof holdings[0].count!= 'undefined'){
+                        regex.test(holdings[0].count);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkDoseFormat2" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[1].dose"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[1].dose!=null && typeof holdings[1].dose!= 'undefined'){
+                        regex.test(holdings[1].dose);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkCountFormat2" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[1].count"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[1].count!=null && typeof holdings[1].count!= 'undefined'){
+                        regex.test(holdings[1].count);
+                    }else true;
+
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkDoseFormat3" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[2].dose"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[2].dose!=null && typeof holdings[2].dose!= 'undefined'){
+                        regex.test(holdings[2].dose);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkCountFormat3" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[2].count"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[2].count!=null && typeof holdings[2].count!= 'undefined'){
+                        regex.test(holdings[2].count);
+                    }else true;
+
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkDoseFormat4" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[3].dose"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[3].dose!=null && typeof holdings[3].dose!= 'undefined'){
+                        regex.test(holdings[3].dose);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkCountFormat4" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[3].count"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[3].count!=null && typeof holdings[3].count!= 'undefined'){
+                        regex.test(holdings[3].count);
+                    }else true;
+
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkDoseFormat5" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[4].dose"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[4].dose!=null && typeof holdings[4].dose!= 'undefined'){
+                        regex.test(holdings[4].dose);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkCountFormat5" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[4].count"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[4].count!=null && typeof holdings[4].count!= 'undefined'){
+                        regex.test(holdings[4].count);
+                    }else true;
+
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkDoseFormat6" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[5].dose"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[5].dose!=null && typeof holdings[5].dose!= 'undefined'){
+                        regex.test(holdings[5].dose);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkCountFormat6" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[5].count"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[5].count!=null && typeof holdings[5].count!= 'undefined'){
+                        regex.test(holdings[5].count);
+                    }else true;
+
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkDoseFormat7" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[6].dose"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[6].dose!=null && typeof holdings[6].dose!= 'undefined'){
+                        regex.test(holdings[6].dose);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkCountFormat7" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[6].count"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[6].count!=null && typeof holdings[6].count!= 'undefined'){
+                        regex.test(holdings[6].count);
+                    }else true;
+
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkDoseFormat8" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[7].dose"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[7].dose!=null && typeof holdings[7].dose!= 'undefined'){
+                        regex.test(holdings[7].dose);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkCountFormat8" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[7].count"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[7].count!=null && typeof holdings[7].count!= 'undefined'){
+                        regex.test(holdings[7].count);
+                    }else true;
+
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkDoseFormat9" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[8].dose"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[8].dose!=null && typeof holdings[8].dose!= 'undefined'){
+                        regex.test(holdings[8].dose);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkCountFormat9" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[8].count"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[8].count!=null && typeof holdings[8].count!= 'undefined'){
+                        regex.test(holdings[8].count);
+                    }else true;
+
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkDoseFormat10" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[9].dose"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[9].dose!=null && typeof holdings[9].dose!= 'undefined'){
+                        regex.test(holdings[9].dose);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkCountFormat10" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[9].count"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[9].count!=null && typeof holdings[9].count!= 'undefined'){
+                        regex.test(holdings[9].count);
+                    }else true;
+
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicAppointment</object-id>
+    <name>caseType</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                with t as (
+                select
+                distinct md1.code bcode, md2.code ecode
+                from md_nosol_registr_diagnosis mnrd
+                join md_diagnosis md1 on md1.id = mnrd.init_diagnosis_id
+                join md_diagnosis md2 on md2.id = mnrd.final_diagnosis_id
+                )
+
+                select :select
+                from md_diagnosis md
+                where is_leaf = true and :where
+                order by md.code ASC
+            </n2o:items-query>
+            <n2o:count-query>select count(md)
+                from md_diagnosis md
+                where is_leaf = true and :where
+            </n2o:count-query>
+            <n2o:alias>md</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>md.code || ' ' || md.name</expression>
+            <search>(upper(md.code || ' ' || md.name) like '%' || upper(:name) || '%'
+                or upper(md.code) like upper(:name || '%')
+                or upper(md.name) like upper('%' || :name || '%')
+                or upper(md.code) like translate(upper(:name), 'ЙЦУКЕНГШЩЗФЫВАПРОЛДЯЧСМИТЬ', 'QWERTYUIOPASDFGHJKLZXCVBNM')||'%'
+                or upper(md.name) like '%' || translate(upper(:name), 'QWERTYUIOP[]ASDFGHJKL;''ZXCVBNM,.','ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ') || '%')
+            </search>
+        </field>
+
+        <field>
+            <id>isDAccounting</id>
+            <domain>boolean</domain>
+            <name>Подлежит Д-учёту</name>
+            <expression>
+                ( exists (select 1 from t where md.code between t.bcode and t.ecode))
+            </expression>
+        </field>
+
+        <field>
+            <id>isInjury</id>
+            <domain>boolean</domain>
+            <expression>(md.code between 'S00' and 'T99')</expression>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>:patientId</expression>
+            <search unavailable="true"/>
+        </field>
+
+       <!-- <field>
+            <id>repeatCountId</id>
+            <domain>integer</domain>
+            <expression>
+                case when (select count(mccount.id) from mc_case mccount
+                left join mc_diagnosis mdcount on ( mccount.main_diagnos_id = mdcount.id  )
+                where mdcount.diagnos_id = md.id and
+                mccount.patient_id = :patientId and date_part('year', now()) = date_part('year', mccount.create_date)) > 0 then 2 else 1
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>repeatCountName</id>
+            <domain>integer</domain>
+            <expression>(select mrc.name from mc_repeat_count mrc where mrc.id = (case when (select count(mccount.id) from mc_case mccount
+                left join mc_diagnosis mdcount on ( mccount.main_diagnos_id = mdcount.id  )
+                where mdcount.diagnos_id = md.id and
+                mccount.patient_id = :patientId and date_part('year', now()) = date_part('year', mccount.create_date)) > 0 then 2 else 1
+                end))</expression>
+        </field>-->
+
+        <field>
+            <id>repeatCount</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(r) from (
+                select
+                mrc.id as id,
+                mrc.name as name
+                from mc_repeat_count mrc where mrc.id = (case when (select count(mccount.id) from mc_case mccount
+                left join mc_diagnosis mdcount on ( mccount.main_diagnos_id = mdcount.id  )
+                where mdcount.diagnos_id = md.id and
+                mccount.patient_id = :patientId and date_part('year', now()) = date_part('year', mccount.create_date)) > 0 then 2 else 1
+                end)) as r)
+            </expression>
+        </field>
+
+    </fields>
+</query>

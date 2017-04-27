@@ -1,0 +1,212 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <!--<id>route</id>-->
+    <name>Направление</name>
+    <object-id>route</object-id>
+    <layout>n2o/layout/top-bottom(left-right)</layout>
+    <regions>
+        <region place="top" type="none">
+            <container id="route">
+                <wgt:table>
+                    <wgt:name>Направление</wgt:name>
+                    <wgt:query-id>route_ref</wgt:query-id>
+                    <wgt:columns>
+                        <!--<wgt:column column-field-id="id" width="5%"/>-->
+                        <wgt:column column-field-id="code" width="100px"/>
+                        <wgt:column column-field-id="name" width="350px"/>
+                        <wgt:column column-field-id="station.name" width="350px"/>
+                        <wgt:column column-field-id="from_time" width="100px"/>
+                        <wgt:column column-field-id="to_time" width="100px"/>
+                    </wgt:columns>
+                    <wgt:filters position = "left" opened = "true">
+                        <ctrl:classifier id="station" label="Станция" search-are-you-type="true">
+                            <ctrl:query query-id="station" value-field-id="id" label-field-id="name"/>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+                                <ctrl:value field-id="name">#{org.name?}</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="substation" label="Подстанция" search-are-you-type="true">
+                            <ctrl:query query-id="substation" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="dorgId" ref="station.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <!--<ctrl:default-model>-->
+                                <!--<ctrl:value field-id="id">#{dep.id?}</ctrl:value>-->
+                                <!--<ctrl:value field-id="name">#{dep.name?}</ctrl:value>-->
+                            <!--</ctrl:default-model>-->
+                        </ctrl:classifier>
+                        <ctrl:input-text id="name"/>
+                        <ctrl:select id="active" label="Действующий">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"действующий"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"не действующий"}</ctrl:option>
+                            </ctrl:options>
+                        </ctrl:select>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Создать(Ins)" context="false" key="Insert">
+                            <wgt:show-modal page-id="route_create_copy" result-container-id="single" action-id="create" width="500px" refresh-on-close="true"
+                                    page-name="Создать направление"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="read" label="Просмотр" context="true" default="true" key="Alt+Enter" visible="false" icon="glyphicons glyphicons-display" type="textAndIcon">
+                            <wgt:show-modal page-id="route_create_copy" width="500px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить(Enter)" context="true" default="true" key="Enter">
+                            <wgt:show-modal page-id="route_upd" result-container-id="single" action-id="update" width="500px"
+                                    page-name="Изменить направление '{route.name}'"/>
+                            <wgt:properties>
+                                <wgt:property key="security-replace" value="read"/>
+                            </wgt:properties>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="copy" label="Копировать(Alt+1)" context="true" key="Alt+1">
+                            <wgt:show-modal page-id="route_create_copy" action-id="create" width="500px" model="query"
+                                    page-name="Копировать направление '{route.name}'">
+                                <!--<wgt:pre-filters>-->
+                                    <!--<wgt:pre-filter field-id="from_time" value="today()"/>-->
+                                <!--</wgt:pre-filters>-->
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" label="Удалить(Del)" context="true" key="Delete">
+                            <wgt:invoke-action action-id="delete"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>ractive == 1</wgt:expression>
+                                    <wgt:tooltip>Настройка уже не действующая</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="left" type="none">
+            <container id="route_service" depends-on="route">
+                <wgt:table master-field-id="id" detail-field-id="route.id">
+                    <wgt:query-id>route_service</wgt:query-id>
+                    <wgt:name>Подстанции в направлении</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="id" width="50px"/>
+                        <wgt:column column-field-id="route.name" width="100px"/>
+                        <!--<wgt:column column-field-id="station.name" width="150px"/>-->
+                        <wgt:column column-field-id="substation.name" width="150px"/>
+                        <wgt:column column-field-id="from_time" width="100px"/>
+                        <wgt:column column-field-id="to_time" width="100px"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить(Ins)" context="false" default="false" key="Insert">
+                            <wgt:show-modal page-id="route_service" action-id="create" width="500px"
+                                    page-name="Создать подстанцию в направлении '{route.name}'">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="dorgId" value="{amb.route.route:rorgId}"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>route.ractive == 1</wgt:expression>
+                                    <wgt:tooltip>Настройка уже не действующая</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="read" label="Просмотр" context="true" default="true" key="Alt+Enter" visible="false" icon="glyphicons glyphicons-display" type="textAndIcon">
+                            <wgt:show-modal page-id="route_service" width="500px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить (Enter)" default="true" context="true" key="Enter">
+                            <wgt:show-modal page-id="route_service" action-id="update" width="500px"
+                                    page-name="Изменить подстанцию '{route_service.substation.name}' в направлении '{route.name}'"/>
+                            <wgt:properties>
+                                <wgt:property key="security-replace" value="read"/>
+                            </wgt:properties>
+                            <!--<wgt:conditions>-->
+                                <!--<wgt:enabling-condition>-->
+                                    <!--<wgt:expression>active.id == true</wgt:expression>-->
+                                    <!--<wgt:tooltip>Настройка уже не действующая</wgt:tooltip>-->
+                                <!--</wgt:enabling-condition>-->
+                            <!--</wgt:conditions>-->
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" label="Удалить (Del)" default="false" context="true" key="Delete">
+                            <!--<wgt:show-modal page-id="route_service" action-id="update" width="500px"/>-->
+                            <wgt:invoke-action action-id="delete"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>active == 1</wgt:expression>
+                                    <wgt:tooltip>Настройка уже не действующая</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="right" type="none">
+            <container id="route_area" depends-on="route">
+                <wgt:table master-field-id="id" detail-field-id="route.id">
+                    <wgt:query-id>route_area</wgt:query-id>
+                    <wgt:name>Территория обслуживания направления</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="id" width="50px"/>
+                        <wgt:column column-field-id="route.name" width="100px"/>
+                        <!--<wgt:column column-field-id="station.name" width="150px"/>-->
+                        <wgt:column column-field-id="address" width="250px"/>
+                        <wgt:column column-field-id="building_pattent" width="150px"/>
+                        <!--<wgt:column column-field-id="substation.name" width="150px"/>-->
+                        <wgt:column column-field-id="from_time" width="100px"/>
+                        <wgt:column column-field-id="to_time" width="100px"/>
+                    </wgt:columns>
+                    <!--<wgt:rows>-->
+                        <!--<wgt:color>-->
+                            <!--<wgt:switch value-field-id="is_start">-->
+                                <!--<wgt:case value="false">text-info</wgt:case>-->
+                            <!--</wgt:switch>-->
+                        <!--</wgt:color>-->
+                    <!--</wgt:rows>-->
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить(Ins)" context="false" default="false" key="Insert">
+                            <wgt:show-modal page-id="route_area" action-id="create" width="700px"
+                                            page-name="Добавить территорию обслуживания направления '{route.name}'">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="route.ractive" ref="route.ractive"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>route.ractive == 1</wgt:expression>
+                                    <wgt:tooltip>Настройка уже не действующая</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="read" label="Просмотр" context="true" default="true" key="Alt+Enter" visible="false" icon="glyphicons glyphicons-display" type="textAndIcon">
+                            <wgt:show-modal page-id="route_area" width="500px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить (Enter)" default="true" context="true" key="Enter">
+                            <wgt:show-modal page-id="route_area" action-id="update" width="700px"
+                                    page-name="Изменить территорию обслуживания направления '{route.name}'"/>
+                            <wgt:properties>
+                                <wgt:property key="security-replace" value="read"/>
+                            </wgt:properties>
+                            <!--<wgt:conditions>-->
+                            <!--<wgt:enabling-condition>-->
+                            <!--<wgt:expression>active.id == true</wgt:expression>-->
+                            <!--<wgt:tooltip>Настройка уже не действующая</wgt:tooltip>-->
+                            <!--</wgt:enabling-condition>-->
+                            <!--</wgt:conditions>-->
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" label="Удалить (Del)" default="false" context="true" key="Delete">
+                            <!--<wgt:show-modal page-id="route_area" action-id="update" width="500px"/>-->
+                            <wgt:invoke-action action-id="delete"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>active == 1</wgt:expression>
+                                    <wgt:tooltip>Настройка уже не действующая</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>

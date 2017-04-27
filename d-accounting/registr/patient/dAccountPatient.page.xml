@@ -1,0 +1,124 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/info-panel-widget-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0"
+      xsi:schemaLocation="http://n2oapp.net/framework/config/schema/page-1.0 http://localhost:8080/n2o/config/schema/page/page-1.0.xsd">
+    <object-id>dAccount</object-id>
+    <layout>n2o/layout/single</layout>
+    <modal-width>900px</modal-width>
+    <name>Постановка на учет</name>
+    <containers>
+        <container id="c1" place="single">
+            <wgt:form>
+                <wgt:query-id>dAccount</wgt:query-id>
+                <wgt:name>Добавить</wgt:name>
+                <wgt:info-panel id="patient" show-personal-data="true" show-medical-data="false"/>
+                <fs:field-set header="line" label="Д-учет">
+                    <fs:row>
+                        <ctrl:date-time id="regDate" label="Дата постановки на учет" default-value="today()" required="true">
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="regDateCheck" side="client"/>
+                            </ctrl:validations>
+                        </ctrl:date-time>
+                        <ctrl:input-text id="vrach" default-value="#{emplPosRes.name}" readonly="true" required="true"/>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="clinicDistrict" label="Участок" autoselect="true"
+                                         search-are-you-type="true">
+                            <ctrl:query query-id="clinicDistrict" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"></ctrl:pre-filter>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="ac_stage" label="Этап взятия на учёт" required="true" autoselect="true">
+                            <ctrl:query query-id="dAccountStage" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="cond" label="Условия постановки на Д-учёт" search-are-you-type="true"
+                                         required="true">
+                            <ctrl:query query-id="dAccountRegCondition" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="patState" label="Юридический статус пациента" search-are-you-type="true"
+                                         required="true">
+                            <ctrl:query query-id="dAccountPatState" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="hiv" label="Результат обследования на ВИЧ" search-are-you-type="true"
+                                         required="false">
+                            <ctrl:query query-id="dAccountHIV" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:date-time id="hivDate" label="Дата постановки диагноза ВИЧ"
+                                        dependency-condition="hiv.is_hiv_dt_req == true">
+                            <ctrl:set-value-expression on="hiv">
+                                <![CDATA[
+                                if(hiv.is_hiv_dt_req == true)
+                                    hivDate;
+                                else
+                                    null;
+                            ]]>
+                            </ctrl:set-value-expression>
+                        </ctrl:date-time>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:input-text id="epidemConclusionNumber" label="Номер эпидемиологического заключения"
+                                         dependency-condition="hiv.is_hiv_dt_req == true"/>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="group" label="Д-группа" search-are-you-type="true"
+                                         required="true">
+                            <ctrl:query query-id="dAccountDgroup" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="amb" label="Вид амбулаторной помощи" search-are-you-type="true"
+                                         required="true">
+                            <ctrl:query query-id="dAccountAmbKind" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                    </fs:row>
+                </fs:field-set>
+                <fs:field-set header="line" label="Диагноз">
+                    <fs:row>
+                        <ctrl:classifier id="stage" label="Этап установления" search-are-you-type="true"
+                                         required="true">
+                            <ctrl:query query-id="dAccountMcStageWithoutFinal" label-field-id="name"
+                                        value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="disease" label="Характер заболевания" search-are-you-type="true">
+                            <ctrl:query query-id="dAccountDiseaseType" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                    </fs:row>
+                    <ctrl:input-text id="isCvkk" label="" control-style="display: none;"
+                                     dependency-condition="patient.id!=null">
+                        <ctrl:actions>
+                            <ctrl:link label="Диагноз решения ЦВКК">
+                                <ctrl:on-click src="d-account/n2o/custom/diagnosisFromIssue.js"
+                                               function-name="getDiagnosisFromIssue"/>
+                            </ctrl:link>
+                        </ctrl:actions>
+                    </ctrl:input-text>
+                    <rc:diagnosis label="Диагноз" id="main_diagnos" required="true" control-style="width:600px;"/>
+                    <ctrl:classifier id="clinicalForm" label="Клиническая форма" search-are-you-type="true"
+                                     required="true" control-style="width:600px;">
+                        <ctrl:query query-id="diagnosisClinicalForm" label-field-id="name" value-field-id="id"/>
+                        <ctrl:show-modal page-id="diagnosisClinicalFormTree" result-container-id="clinicalForm"
+                                         value-field-id="id"/>
+                    </ctrl:classifier>
+                    <ctrl:classifier id="localization" label="Вторая локализация" search-are-you-type="true"
+                                     control-style="width:600px;">
+                        <ctrl:query query-id="diagnosisLocalization" label-field-id="name" value-field-id="id"/>
+                    </ctrl:classifier>
+                    <ctrl:classifier id="complication" label="Осложнения" search-are-you-type="true"
+                                     control-style="width:600px;">
+                        <ctrl:query query-id="diagnosisComplication" label-field-id="name" value-field-id="id"/>
+                    </ctrl:classifier>
+                    <ctrl:checkbox id="is_toxic" dependency-condition="var str = main_diagnos.name; str.substr(0,2) == 'F1';" label="Токсикоман"/>
+                    <ctrl:output-text id="mo.id" visible="false" default-value="#{org.id?}"/>
+                </fs:field-set>
+            </wgt:form>
+        </container>
+    </containers>
+</page>

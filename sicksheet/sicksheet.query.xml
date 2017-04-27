@@ -1,0 +1,493 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>sickdoc</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sickdoc.sickdoc s
+                join sickdoc.sickdoc_extended se on s.id = se.id
+                join md_sicklist_state state on state.id = s.state_id
+                left join pim_organization workplace on (s.workplace_id = workplace.id)
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select 1
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>hasMaxCountOfPeriods</id>
+            <domain>boolean</domain>
+            <expression>(sickdoc.sickdoc_has_max_available_count_of_periods(s.id))</expression>
+        </field>
+        <field>
+            <id>infoString</id>
+            <domain>string</domain>
+            <expression>
+                concat(
+                'Открыт с ' || s.begin_dt,
+                '  Продлен до ' || (select p.to_dt from sickdoc.period p where p.sickdoc_id = s.id order by p.to_dt desc limit 1) || ' ' || s.days || ' дн.')
+            </expression>
+        </field>
+        <field>
+            <id>infBeginDt</id>
+            <domain>string</domain>
+            <expression>to_char(s.begin_dt,'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>creationDate</id>
+            <domain>string</domain>
+            <expression>s.begin_dt</expression>
+        </field>
+        <field>
+            <id>infclosedOrContinuedDt</id>
+            <domain>string</domain>
+            <expression>to_char((select p.to_dt from sickdoc.period p where p.sickdoc_id = s.id order by p.to_dt desc limit 1),'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>infDuration</id>
+            <domain>string</domain>
+            <expression>s.days || ' дн.'</expression>
+        </field>
+        <field>
+            <id>beginDt</id>
+            <domain>date</domain>
+            <expression>s.issue_dt</expression>
+        </field>
+        <field>
+            <id>careForPatient1.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select patient_id from sickdoc.family_member where id = se.family_member_1_id)
+            </expression>
+        </field>
+        <field>
+            <id>familyRelation1.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select relation_id from sickdoc.family_member where id = se.family_member_1_id)
+            </expression>
+        </field>
+        <field>
+            <id>familyRelation2.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select relation_id from sickdoc.family_member where id = se.family_member_2_id)
+            </expression>
+        </field>
+        <field>
+            <id>careForPatient2.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select patient_id from sickdoc.family_member where id = se.family_member_2_id)
+            </expression>
+        </field>
+        <!-- Мигрированные с LSD поля -->
+        <!-- Пациент1 -->
+        <field>
+            <id>hasMigratedFamilyMember</id>
+            <domain>boolean</domain>
+            <expression><![CDATA[
+                ( se.family_member_1_relation_id_lsd NOTNULL OR
+                se.family_member_1_age_lsd NOTNULL OR
+                se.family_member_1_age_month_lsd NOTNULL OR
+                COALESCE(se.family_member_1_name_lsd,'')<>'' OR
+                se.family_member_2_relation_id_lsd NOTNULL OR
+                se.family_member_2_age_lsd NOTNULL OR
+                se.family_member_2_age_month_lsd NOTNULL OR
+                COALESCE(se.family_member_2_name_lsd,'')<>'' )
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>family_member_1_relation_id_lsd.id</id>
+            <domain>integer</domain>
+            <expression>
+                se.family_member_1_relation_id_lsd
+            </expression>
+        </field>
+        <field>
+            <id>family_member_1_age_lsd</id>
+            <domain>integer</domain>
+            <expression>
+                se.family_member_1_age_lsd
+            </expression>
+        </field>
+        <field>
+            <id>family_member_1_age_month_lsd</id>
+            <domain>integer</domain>
+            <expression>
+                se.family_member_1_age_month_lsd
+            </expression>
+        </field>
+        <field>
+            <id>family_member_1_name_lsd</id>
+            <domain>string</domain>
+            <expression>
+                se.family_member_1_name_lsd
+            </expression>
+        </field>
+        <!-- Пациент2 -->
+        <field>
+            <id>family_member_2_relation_id_lsd.id</id>
+            <domain>integer</domain>
+            <expression>
+                se.family_member_2_relation_id_lsd
+            </expression>
+        </field>
+        <field>
+            <id>family_member_2_age_lsd</id>
+            <domain>integer</domain>
+            <expression>
+                se.family_member_2_age_lsd
+            </expression>
+        </field>
+        <field>
+            <id>family_member_2_age_month_lsd</id>
+            <domain>integer</domain>
+            <expression>
+                se.family_member_2_age_month_lsd
+            </expression>
+        </field>
+        <field>
+            <id>family_member_2_name_lsd</id>
+            <domain>string</domain>
+            <expression>
+                se.family_member_2_name_lsd
+            </expression>
+        </field>
+        <!-- Мигрированные с LSD поля -->
+        <field>
+            <id>clinicId</id>
+            <expression>s.clinic_id</expression>
+        </field>
+        <field>
+            <id>curClinicId</id>
+            <domain>integer</domain>
+            <display value="#{org.id?}" unavailable="true"/>
+            <search value="#{org.id?}">1=1</search>
+        </field>
+        <field>
+            <id>curEmplPos</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{emplPos.id?}"/>
+            <search value="#{emplPos.id?}">1=1</search>
+        </field>
+        <field>
+            <id>depId</id>
+            <domain>integer</domain>
+            <display unavailable="true" value="#{dep.id?}"/>
+            <search value="#{dep.id?}">1=1</search>
+        </field>
+        <field>
+            <id>disabilityPeriod.begin</id>
+            <expression>se.disability_from_dt</expression>
+        </field>
+        <field>
+            <id>disabilityPeriod.end</id>
+            <expression>se.disability_to_dt date</expression>
+        </field>
+        <field>
+            <id>disabilityReasonEdited.id</id>
+            <expression>se.disability_reason_edited_id</expression>
+        </field>
+        <field>
+            <id>disabilityReasonExt.id</id>
+            <expression>se.disability_reason_ext_id</expression>
+        </field>
+        <field>
+            <id>disabilityReason.id</id>
+            <expression>se.disability_reason_id</expression>
+        </field>
+        <field>
+            <id>isDisabilityGroupChanged</id>
+            <expression>se.is_disability_group_changed</expression>
+        </field>
+        <field>
+            <id>isEarlyPregnancyRegister</id>
+            <expression>se.is_early_pregnancy_register</expression>
+        </field>
+        <field>
+            <id>isMse</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when se.is_disability_group_changed or se.mse_emp NOTNULL or se.mse_examination_dt NOTNULL or se.mse_org_id NOTNULL or se.mse_referral_dt NOTNULL or se.mse_register_dt NOTNULL then true else false end)
+            </expression>
+        </field>
+        <field>
+            <id>wasInHospital</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when s.hospital_from_dt NOTNULL and s.hospital_to_dt NOTNULL then true else false end)
+            </expression>
+        </field>
+        <field>
+            <id>isRegimenViolation</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when se.regimen_violation_doctor_id NOTNULL or se.regimen_violation_dt NOTNULL or regimen_violation_id NOTNULL then true else false end)
+            </expression>
+        </field>
+        <field>
+            <id>mseExaminationDt</id>
+            <expression>se.mse_examination_dt</expression>
+        </field>
+        <field>
+            <id>mseReferralDt</id>
+            <expression>se.mse_referral_dt</expression>
+        </field>
+        <field>
+            <id>mseRegisterDt</id>
+            <expression>se.mse_register_dt</expression>
+        </field>
+        <field>
+            <id>onPlacementService</id>
+            <domain>boolean</domain>
+            <expression>se.on_placement_service</expression>
+        </field>
+        <field>
+            <id>regimenViolationDoctor.id</id>
+            <expression>se.regimen_violation_doctor_id</expression>
+        </field>
+        <field>
+            <id>regimenViolationDt</id>
+            <expression>se.regimen_violation_dt</expression>
+        </field>
+        <field>
+            <id>regimenViolation.id</id>
+            <expression>se.regimen_violation_id</expression>
+        </field>
+        <field>
+            <id>sanatorium.id</id>
+            <expression>se.sanatorium_id</expression>
+        </field>
+        <field>
+            <id>sanatoriumOGRN</id>
+            <expression>se.sanatorium_ogrn_code</expression>
+        </field>
+        <field>
+            <id>voucherCode</id>
+            <expression>se.voucher_code</expression>
+        </field>
+        <field>
+            <id>hospitalDt.begin</id>
+            <expression>s.hospital_from_dt</expression>
+        </field>
+        <field>
+            <id>hospitalDt.end</id>
+            <expression>s.hospital_to_dt</expression>
+        </field>
+        <field>
+            <id>individual.id</id>
+            <expression>s.individual_id</expression>
+        </field>
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>
+                (select concat(i.surname, ' ' || left(i.name, 1) || '.', ' ' || left( (case when trim(i.patr_name) in ('',null) then null else trim(i.patr_name) end ), 1) || '.')
+                from pim_individual i
+                where i.id = s.individual_id)
+            </expression>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>initialDiagnosis.id</id>
+            <expression>s.initial_diagnosis_id</expression>
+        </field>
+        <field>
+            <id>finalDiagnosis.id</id>
+            <expression>s.final_diagnosis_id</expression>
+        </field>
+        <field>
+            <id>finalDiagnosis.present</id>
+            <domain>boolean</domain>
+            <expression>(s.final_diagnosis_id IS NOT NULL)</expression>
+        </field>
+        <field>
+            <id>journal.id</id>
+            <expression>s.journal_id</expression>
+        </field>
+        <field>
+            <id>mcase.id</id>
+            <expression>s.case_id</expression>
+        </field>
+        <!-- Для обычной output строки -->
+        <field>
+            <id>sicksheet_number</id>
+            <expression>s.number</expression>
+        </field>
+        <!-- Для комбо-бокса -->
+        <field>
+            <id>avail_sicksheet_number.number</id>
+            <expression>substr(s.number, 0, 10)</expression>
+        </field>
+
+        <field>
+            <id>avail_sicksheet_number_print</id>
+            <expression>substr(s.number, 10)</expression>
+        </field>
+
+        <field>
+            <id>avail_sicksheet_fullnumber_print</id>
+            <expression>s.number</expression>
+        </field>
+
+        <field>
+            <id>continue_sicksheet_number</id>
+            <expression>(select cont.number from sickdoc.sickdoc cont where cont.parent_id = s.id and cont.type_id = 2 limit 1)</expression>
+        </field>
+        <field>
+            <id>primary_sicksheet_number</id>
+            <expression>
+                (
+                case
+                  <!-- Если текущий ЛН - продолжение -->
+                  when s.type_id = 2
+                    then (select prim.number from sickdoc.sickdoc prim where prim.id = s.parent_id limit 1)
+                  <!-- Если текущий ЛН - дубликат продолжения -->
+                  when s.type_id = 3 and (select par.type_id from sickdoc.sickdoc par where par.id = s.parent_id ) = 2
+                    then (select prim.number
+                            from sickdoc.sickdoc par
+                            join sickdoc.sickdoc prim ON prim.id = par.parent_id
+                            where par.id = s.parent_id limit 1)
+                end
+                )
+            </expression>
+        </field>
+        <field>
+            <id>readyToWorkDt</id>
+            <expression>s.ready_to_work_dt</expression>
+        </field>
+        <field>
+            <id>readyToWorkOtherDt</id>
+            <expression>s.ready_to_work_other_dt</expression>
+        </field>
+        <field>
+            <id>readyToWorkOther.id</id>
+            <expression>s.ready_to_work_other_id</expression>
+        </field>
+        <field>
+            <id>stateId</id>
+            <expression>s.state_id</expression>
+        </field>
+        <field>
+            <id>transferToOtherClinic</id>
+            <expression>s.transfer_to_o_clinic</expression>
+        </field>
+        <field>
+            <id>registrator.id</id>
+            <domain>integer</domain>
+            <expression>s.registrator_id</expression>
+        </field>
+        <field>
+            <id>registrator.name</id>
+            <domain>string</domain>
+            <expression>
+                (select sickdoc.sickdoc_display_registrator_line( s.registrator_id , s.issue_dt, s.clinic_id ))
+            </expression>
+        </field>
+        <!-- Поле используется для вывода в строке Оформлен при регстрации ЛН из другого МО -->
+        <field>
+            <id>registratorOfTransfered.name</id>
+            <domain>string</domain>
+            <expression>
+                (select sickdoc.sickdoc_display_registrator_line( s.registrator_id , s.issue_dt, (select pe.organization_id from pim_employee_position pem join pim_employee pe on pe.id = pem.employee_id where pem.id = s.registrator_id) ))
+            </expression>
+        </field>
+        <field>
+            <id>registratorContext.name</id>
+            <domain>string</domain>
+            <display>
+                (select sickdoc.sickdoc_display_registrator_line( :curEmplPos , current_date, :curClinicId ))
+            </display>
+        </field>
+        <field>
+            <id>parentId</id>
+            <expression>s.parent_id</expression>
+        </field>
+        <field>
+            <id>issuedClinic.id</id>
+            <expression>s.clinic_id</expression>
+        </field>
+        <field>
+            <id>workplace.id</id>
+            <expression>workplace.id</expression>
+        </field>
+        <field>
+            <id>workplace.name</id>
+            <expression>workplace.short_name</expression>
+        </field>
+        <field>
+            <id>issuedClinicId</id>
+            <domain>integer</domain>
+            <expression>s.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>workplaceType</id>
+            <domain>integer</domain>
+            <expression>
+                case
+                    when s.workplace_type_id is null or s.workplace_type_id = 1
+                    then 1
+                    else s.workplace_type_id
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>workplacePrint</id>
+            <expression>s.workplace_print</expression>
+        </field>
+        <field>
+            <id>isClosed</id>
+            <domain>boolean</domain>
+            <expression>(state.code = '3')</expression>
+        </field>
+        <field>
+            <id>existsSameTime</id>
+            <name>Есть ЛН по совместительству</name>
+            <domain>boolean</domain>
+            <expression>exists(select 1 from sickdoc.sickdoc xs where xs.parent_id = s.id)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>isAnnuled</id>
+            <domain>boolean</domain>
+            <expression>(state.code = '5')</expression>
+        </field>
+        <field>
+            <id>is_main_job</id>
+            <domain>boolean</domain>
+            <expression>(s.workplace_type_id isnull or s.workplace_type_id = 1)</expression>
+        </field>
+
+        <field>
+            <id>hasAvailableSicksheetNumbers</id>
+            <domain>boolean</domain>
+            <expression>
+                exists(SELECT distr.id
+                FROM sickdoc.bso_distr_record distr
+                INNER JOIN sickdoc.bso_distr_record_range ran ON ran.distr_record_id = distr.id
+                WHERE distr.receiver_id = :curEmplPos)
+            </expression>
+        </field>
+    </fields>
+</query>

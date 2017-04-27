@@ -1,0 +1,214 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+
+    <name>add_patient</name>
+
+    <actions>
+        <action id="addOne" name="Добавить пациента" form-submit-label="Добавить">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO vac.patient_is_group (patient_id, group_id) VALUES (:patient_id, :group_id)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="group_id" mapping="['group_id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>Пациент "{patient.fullName}" добавлен</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="uniquePatient"/>
+                <validation ref-id="existsUidPatient"/>
+            </validations>
+        </action>
+
+        <action id="addList" name="Добавить группу пациентов" form-submit-label="Добавить">
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                        INSERT INTO vac.patient_is_group (patient_id,group_id)
+                          (SELECT i.id,  :new_group_id::Integer
+                           FROM pim_individual i
+                             JOIN pci_patient p ON p.id = i.id
+                           WHERE
+                                 (:gender_id ISNULL  or (:gender_id IS NOT NULL AND i.gender_id = :gender_id))
+                                AND
+                                    exists(
+                                         SELECT 1
+                                         FROM pim_indiv_code c JOIN pim_code_type ct ON ct.id = c.type_id
+                                         WHERE c.indiv_id = i.id AND ct.code = 'UID'
+                                     )
+
+                                AND
+                                     (:mo_id IS NULL OR (:mo_id IS NOT NULL  AND (exists(
+                                         SELECT 1
+                                         FROM pci_patient_reg ppr
+                                         WHERE
+                                             ppr.clinic_id = :mo_id
+                                           AND ppr.patient_id = i.id AND (:district_id IS NULL OR ppr.district_id = :district_id)
+                                            AND (ppr.unreg_dt IS NULL OR ppr.unreg_dt <= current_date)
+                                         LIMIT 1))))
+
+                                AND
+                                     (:org_id IS NULL OR (:org_id IS NOT NULL AND (exists(
+                                         SELECT 1
+                                         FROM pci_patient_job ppj
+                                         WHERE organization_id = :org_id AND ppj.patient_id = i.id
+                                               AND (ppj.to_dt IS NULL OR ppj.to_dt >= current_date)
+                                         LIMIT 1)))
+                                     )
+
+                                and
+                                     (:ageFrom ISNULL or :ageTo ISNULL or
+                                      (not (:ageFrom ISNULL AND :ageTo ISNULL) AND (i.birth_dt is not null and  (
+                                        (EXTRACT(YEAR FROM (AGE(coalesce(i.death_dt, current_date),i.birth_dt) )) between :ageFrom and :ageTo)
+                                      ))))
+                           EXCEPT
+                           SELECT
+                             patient_id,
+                             :new_group_id::Integer
+                           FROM vac.patient_is_group
+                           WHERE group_id = :new_group_id::Integer
+                            )
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="group_id" mapping="['new_group_id']" domain="integer"/>
+                <param name="ageFrom" mapping="['ageFrom']" domain="integer"/>
+                <param name="ageTo" mapping="['ageTo']" domain="integer"/>
+                <param name="mo.id" mapping="['mo_id']" domain="integer"/>
+                <param name="district.id" mapping="['district_id']" domain="integer"/>
+                <param name="gend.id" mapping="['gender_id']" domain="integer"/>
+                <param name="org.id" mapping="['org_id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены что хотите добавить всех пациентов из списка?</confirmation-text>
+            <success-text>Пациенты из списка добавлены в ваше мероприятие</success-text>
+        </action>
+
+        <action id="addTheGroup" name="Добавить пациентов из мероприятия" form-submit-label="Добавить">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO vac.patient_is_group (patient_id, group_id)
+                        (SELECT patient_id, :new_group_id from vac.patient_is_group
+                            WHERE group_id in (select * from unnest(string_to_array(translate(:groupIds,'[]',''),',')::INTEGER[]))
+                       EXCEPT
+                        SELECT patient_id, :new_group_id from vac.patient_is_group
+                            WHERE group_id = :new_group_id)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="group_id" mapping="['new_group_id']" domain="integer"/>
+                <param name="group*.id" mapping="['groupIds']" domain="string"/>
+            </in-parameters>
+            <success-text>Пациенты из мероприятий {group*.name}, добавлены в ваше мероприятие</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="existsNewPatients"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить пациента">
+            <invocation>
+                <n2o:sql>
+                    delete from vac.patient_is_group where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <success-text>Пациент "{displayName}" удален</success-text>
+            <confirmation-text> Вы действительно хотите удалить пациента "{displayName}"</confirmation-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="deleteAll" name="Удалить всех пациентов">
+            <invocation>
+                <n2o:sql>
+                    delete from vac.patient_is_group where group_id = :group_id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="group_id" mapping="['group_id']" domain="integer"/>
+            </in-parameters>
+            <success-text>Все пациенты мероприятия удалены</success-text>
+            <confirmation-text> Вы действительно хотите удалить всех пациентов мероприятия</confirmation-text>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="uniquePatient" level="error">
+            <message>Пациент уже добавлен в мероприятие</message>
+            <invocation>
+                <n2o:sql>
+                    select count(1) from vac.patient_is_group where patient_id = :patient_id and group_id = :group_id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+                <param name="group_id" mapping="['group_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+        <constraint id="existsUidPatient" level="error">
+            <message>У пациента отсутствует уникальный идентификатор (UID)</message>
+            <invocation>
+                <n2o:sql>
+                    select count(1) FROM pim_indiv_code c
+                    JOIN pim_code_type ct ON ct.id = c.type_id
+                    WHERE c.indiv_id = :patient_id and ct.code ='UID'
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patient_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0]!=0"/>
+        </constraint>
+
+        <constraint id="existsNewPatients" level="error">
+            <message>В указанных мероприятиях отсутствуют пациенты или они уже существуют в вашем мероприятии</message>
+            <invocation>
+                <n2o:sql>
+                   select not exists(select * from unnest(string_to_array(translate(:groupIds,'[]',''),',')::INTEGER[]))
+                    or exists(
+                      SELECT patient_id, :new_group_id from vac.patient_is_group
+                        WHERE group_id in (select * from unnest(string_to_array(translate(:groupIds,'[]',''),',')::INTEGER[]))
+                    EXCEPT
+                      SELECT patient_id, :new_group_id from vac.patient_is_group
+                        WHERE group_id = :new_group_id
+                    )
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="group_id" mapping="['new_group_id']" domain="integer"/>
+                <param name="group*.id" mapping="['groupIds']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0]==true"/>
+        </constraint>
+
+        <condition id="checkRangeAge" level="error">
+            <message>Начальное значение больше конечного</message>
+            <expression on="ageFrom,ageTo">
+                <![CDATA[ (ageFrom == '' || ageTo == '') || (ageFrom <= ageTo) ]]>
+            </expression>
+        </condition>
+
+        <condition id="ageFromMoreZero" level="error">
+            <message>Число не может быть меньше нуля</message>
+            <expression on="ageFrom">
+                <![CDATA[  (ageFrom >= 0) ]]>
+            </expression>
+        </condition>
+
+        <condition id="ageToMoreZero" level="error">
+            <message>Число не может быть меньше нуля</message>
+            <expression on="ageTo">
+                <![CDATA[  (ageTo >= 0) ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

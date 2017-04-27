@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>modifFormType</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    insert into inventory.form_type(id, short_name, full_name)
+                    values(nextval('inventory.form_type_seq'),:shortName, :fullName)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="shortName" mapping="['shortName']" domain="string"/>
+                <param name="fullName" mapping="['fullName']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="update">
+            <invocation>
+                <n2o:sql>
+                    update inventory.form_type
+                    set short_name= :shortName,
+                    full_name= :fullName
+                    where id= :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="shortName" mapping="['shortName']"/>
+                <param name="fullName" mapping="['fullName']"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from inventory.form_type where id=:id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить форму выпуска?</confirmation-text>
+            <success-text>Удаление завершено</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="modifRefExists"/>
+                <validation ref-id="refFromReceiptExists"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="modifRefExists" level="error">
+            <message>Невозможно завершить операцию. Существует ссылка из Модификации.</message>
+            <invocation>
+                <n2o:sql>
+                    select count(1) from inventory.hold_modif
+                    where form_type_id=:id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+        <constraint id="refFromReceiptExists" level="error">
+            <message>Невозможно завершить операцию. Существует рецепт, который ссылается на данную запись.</message>
+            <invocation>
+                <n2o:sql>
+                    select count(1) from ehr.general_receipt where form_type_id  = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+</object>

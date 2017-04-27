@@ -1,0 +1,162 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>dAccountCase</object-id>
+    <name>dAccountCaseClose</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.mc_case c inner join mc_step s on c.closing_step_id = s.id
+                    left join mc_diagnosis mcd
+                        on mcd.case_id = c.id and mcd.stage_id = 4 and mcd.step_id is null
+                            and (not exists(select 1 from mc_diagnosis where case_id = c.id and stage_id = 4 and step_id is null and is_main = true) or mcd.is_main = true)
+                    left join mc_diagnosis amcd
+                        on amcd.case_id = c.id and amcd.stage_id = 5 and amcd.step_id is null
+                            and (not exists(select 1 from mc_diagnosis where case_id = c.id and stage_id = 5 and step_id is null and is_main = true) or mcd.is_main = true)
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(c)
+                from public.mc_case c inner join mc_step s on c.closing_step_id = s.id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+            <search>c.id = :id</search>
+        </field>
+        <field>
+            <id>result</id>
+            <domain>string</domain>
+            <expression>(select coalesce(sr.code || ' ', '') || sr.name from mc_step_result sr where sr.id = s.result_id)</expression>
+        </field>
+        <field>
+            <id>resultIsDeath</id>
+            <domain>boolean</domain>
+            <expression>(select is_death from mc_step_result where id = s.result_id)</expression>
+        </field>
+        <field>
+            <id>resultReason</id>
+            <domain>string</domain>
+            <expression>(select name from mc_step_result_reason where id = s.reason_id)</expression>
+        </field>
+        <field>
+            <id>outcome</id>
+            <domain>string</domain>
+            <expression>(select name from mc_step_care_result scr where scr.id = s.outcome_id)</expression>
+        </field>
+        <field>
+            <id>outcomeDate</id>
+            <domain>string</domain>
+            <expression>to_char(s.outcome_date, 'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>deviationReason</id>
+            <domain>string</domain>
+            <expression>(select name from mc_deviation_reason where id = s.deviation_reason_id)</expression>
+        </field>
+        <field>
+            <id>csg</id>
+            <domain>string</domain>
+            <expression>(select coalesce(code, '') || coalesce(' ' || name, '') from md_clinical_statistical_group where id = s.csg_id)</expression>
+        </field>
+        <field>
+            <id>diagnos.id</id>
+            <domain>integer</domain>
+            <expression>mcd.diagnos_id</expression>
+        </field>
+        <field>
+            <id>diagnos.name</id>
+            <domain>string</domain>
+            <expression>(select mdd.code || ' ' || mdd.name from md_diagnosis mdd where mdd.id = mcd.diagnos_id)</expression>
+        </field>
+        <field>
+            <id>attr</id>
+            <domain>object[]</domain>
+            <expression>
+                (SELECT array_to_json(array_agg(row_to_json(ROW(concat('(', av.value, ') ', av.name))) order by ap.pos))
+                FROM mc_diag_attr da
+                join mc_diagnosis dd on dd.id=da.diagnosis_id
+                join md_attr_value av on da.attr_value_id = av.id
+                join md_diag_attr mda on mda.id=av.diag_attr_id
+                join md_attr_pos ap on ap.diag_attr_id=mda.id and ap.diagnosis_id=dd.diagnos_id
+                WHERE da.diagnosis_id = mcd.id
+                group by da.diagnosis_id)
+            </expression>
+        </field>
+        <field>
+            <id>main</id>
+            <domain>boolean</domain>
+            <expression>mcd.is_main</expression>
+        </field>
+        <field>
+            <id>diagnosisType</id>
+            <domain>string</domain>
+            <expression>(select name from mc_diagnosis_type where id = mcd.type_id)</expression>
+        </field>
+        <field>
+            <id>diseaseType</id>
+            <domain>string</domain>
+            <expression>(select name from mc_disease_type where id = mcd.disease_type_id)</expression>
+        </field>
+        <field>
+            <id>establishmentDate</id>
+            <domain>string</domain>
+            <expression>to_char(mcd.establishment_date, 'DD.MM.YYYY')</expression>
+        </field>
+
+        <field>
+            <id>pathologic</id>
+            <domain>boolean</domain>
+            <expression>amcd.id is not null</expression>
+        </field>
+        <field>
+            <id>patientPathologicDiagnosisId</id>
+            <domain>integer</domain>
+            <expression>amcd.id</expression>
+        </field>
+        <field>
+            <id>pathologicDiagnosisType.id</id>
+            <domain>integer</domain>
+            <expression>(select id from mc_diagnosis_type where id = amcd.type_id)</expression>
+        </field>
+        <field>
+            <id>pathologicDiagnosisType.name</id>
+            <domain>string</domain>
+            <expression>(select name from mc_diagnosis_type where id = amcd.type_id)</expression>
+        </field>
+        <field>
+            <id>pathologicDiagnos</id>
+            <domain>object</domain>
+            <expression>(select get_diagnosis_init(amcd.diagnos_id, (select array_agg(attr_value_id) from mc_diag_attr where diagnosis_id = amcd.id)))</expression>
+        </field>
+        <field>
+            <id>pathologicEstablishmentDate</id>
+            <domain>date</domain>
+            <expression>amcd.establishment_date</expression>
+        </field>
+        <field>
+            <id>pathologicNote</id>
+            <domain>string</domain>
+            <expression>amcd.note</expression>
+        </field>
+
+        <field>
+            <id>careRegimenId</id>
+            <domain>integer</domain>
+            <expression>c.care_regimen_id</expression>
+        </field>
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+    </fields>
+</query>

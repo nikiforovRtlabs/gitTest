@@ -1,0 +1,108 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>bills</object-id>
+    <name>billSpec</name>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select
+                FROM fin_bill_spec_item item
+                LEFT JOIN md_srv_rendered med_service ON med_service.id = item.service_id
+                LEFT JOIN sr_srv_rendered service ON service.id = med_service.id
+                LEFT JOIN pim_individual patient ON patient.id = service.customer_id
+                LEFT JOIN sr_service srv ON srv.id = service.service_id
+                LEFT JOIN mc_case mc ON mc.id = med_service.case_id
+                WHERE :where
+                ORDER by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                SELECT COUNT(item)
+                FROM fin_bill_spec_item item
+                LEFT JOIN md_srv_rendered med_service ON med_service.id = item.service_id
+                LEFT JOIN sr_srv_rendered service ON service.id = med_service.id
+                LEFT JOIN pim_individual patient ON patient.id = service.customer_id
+                LEFT JOIN sr_service srv ON srv.id = service.service_id
+                LEFT JOIN mc_case mc ON mc.id = med_service.case_id
+                WHERE AND :where
+            </n2o:count-query>
+            <n2o:alias>item</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>billId</id>
+            <domain>integer</domain>
+            <expression>item.bill_id</expression>
+        </field>
+        <field>
+            <id>patientName</id>
+            <domain>string</domain>
+            <expression>concat_ws(' ', patient.surname, patient.name, patient.patr_name)</expression>
+            <name>Пациент</name>
+        </field>
+        <field>
+            <id>serviceName</id>
+            <domain>string</domain>
+            <expression>srv.name</expression>
+            <name>Услуга</name>
+        </field>
+        <field>
+            <id>case_uid</id>
+            <domain>string</domain>
+            <expression>mc.uid</expression>
+            <name>Случай</name>
+        </field>
+        <field>
+            <id>plannedDate</id>
+            <domain>date</domain>
+            <expression>service.planned_date</expression>
+            <name>Дата назначения</name>
+        </field>
+        <field>
+            <id>provisionDate</id>
+            <domain>date</domain>
+            <expression>service.bdate</expression>
+            <name>Дата оказания</name>
+        </field>
+
+        <field>
+            <id>price</id>
+            <domain>numeric</domain>
+            <expression>service.total_cost</expression>
+            <name>Стоимость услуги</name>
+        </field>
+        <field>
+            <id>priceDiscounted</id>
+            <domain>numeric</domain>
+            <expression>item.price</expression>
+            <name>Стоимость услуги со скидкой</name>
+        </field>
+        <field>
+            <id>discount</id>
+            <domain>string</domain>
+            <expression>(select array_to_string(array_agg(dis.name), ', ')
+                from fin_bill_spec_item_discount_rel rel
+                join fin_discount dis on dis.id = rel.discount_id
+                where rel.bill_spec_item_id = item.id)</expression>
+            <name>Примененная скидка наценка</name>
+        </field>
+        <field>
+            <id>payment</id>
+            <domain>numeric</domain>
+            <expression>
+                (SELECT sum(p.amount)
+                FROM fin_payment_share p
+                WHERE p.service_id = service.id)
+            </expression>
+            <name>Оплата</name>
+        </field>
+    </fields>
+</query>

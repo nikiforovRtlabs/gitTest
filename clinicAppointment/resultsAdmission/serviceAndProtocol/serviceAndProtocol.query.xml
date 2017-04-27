@@ -1,0 +1,446 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>serviceAndProtocol</object-id>
+    <name>serviceAndProtocol</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from mc_step ms
+                left join md_srv_rendered msr on ( ms.id = msr.step_id )
+                left join sr_srv_rendered ssr on ( msr.id = ssr.id )
+                left join sr_res_group srg on srg.id = ssr.res_group_id
+                left join pim_employee_position_resource epr on epr.employee_position_id = srg.responsible_id
+                left join mc_case mc on ( ms.case_id = mc.id )
+                left join sr_service ss on ( ssr.service_id = ss.id )
+                left join sr_srv_rendered srsr on srsr.id = ssr.complex_srv_id
+                left join sr_service rss on rss.id = srsr.service_id
+                left join sr_srv_composition sc on rss.id = sc.complex_id
+                left join md_diagnosis md on ( msr.diagnosis_id = md.id )
+                left join fin_funding_source_type ffst on ( ssr.funding_id = ffst.id )
+                left join pim_employee_position pep on ( srg.responsible_id = pep.id )
+                left join pim_employee pe on ( pep.employee_id = pe.id )
+                left join pim_individual pi on ( pe.individual_id = pi.id )
+                left join sr_srv_result ssr1 on ( ssr.id = ssr1.service_id )
+                left join sr_srv_result_type ssrt on ( ssr1.result_type_id = ssrt.id )
+                left join sr_srv_duration_unit ssdu on ( ssr.duration_measure_unit_id = ssdu.id )
+                left join cmn_measure cm on ( ssdu.measure_id = cm.id )
+                <!--Закоммитил, так как не используется-->
+                <!--left join mc_health_group mhg on ( msr.health_group_id = mhg.id  )-->
+                <!--left join mc_anesthesia_type mat on ( msr.anesthesia_type_id = mat.id  )-->
+                <!--left join fin_bill_spec_item bsi on bsi.service_id = ssr.id-->
+                where :where and (case when ssr.complex_srv_id is not null then sc.service_id = ss.id else true end)
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ms)
+                from mc_step ms
+                left join md_srv_rendered msr on ( ms.id = msr.step_id )
+                left join sr_srv_rendered ssr on ( msr.id = ssr.id )
+                left join sr_res_group srg on srg.id = ssr.res_group_id
+                left join pim_employee_position_resource epr on epr.employee_position_id = srg.responsible_id
+                left join mc_case mc on ( ms.case_id = mc.id )
+                left join sr_service ss on ( ssr.service_id = ss.id )
+                left join sr_srv_rendered srsr on srsr.id = ssr.complex_srv_id
+                left join sr_service rss on rss.id = srsr.service_id
+                left join sr_srv_composition sc on rss.id = sc.complex_id
+                left join md_diagnosis md on ( msr.diagnosis_id = md.id )
+                left join fin_funding_source_type ffst on ( ssr.funding_id = ffst.id )
+                left join pim_employee_position pep on ( srg.responsible_id = pep.id )
+                left join pim_employee pe on ( pep.employee_id = pe.id )
+                left join pim_individual pi on ( pe.individual_id = pi.id )
+                left join sr_srv_result ssr1 on ( ssr.id = ssr1.service_id )
+                left join sr_srv_result_type ssrt on ( ssr1.result_type_id = ssrt.id )
+                left join sr_srv_duration_unit ssdu on ( ssr.duration_measure_unit_id = ssdu.id )
+                left join cmn_measure cm on ( ssdu.measure_id = cm.id )
+                where :where and (case when ssr.complex_srv_id is not null then sc.service_id = ss.id else true end)
+            </n2o:count-query>
+            <n2o:alias>ms</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ssr.id</expression>
+        </field>
+
+        <field>
+            <id>visit.id</id>
+            <domain>integer</domain>
+            <expression>ms.id</expression>
+            <search>:expression = :visit.id</search>
+        </field>
+
+        <field>
+            <id>isCaseState</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when mc.closing_step_id is null then false
+                else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>isResult</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when (select ssr.id from sr_srv_result ssr where service_id = msr.id limit 1)is null then false
+                else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>isIndependent</id>
+            <domain>boolean</domain>
+            <expression>ss.is_independent</expression>
+        </field>
+
+        <field>
+            <id>isAppointment</id>
+            <domain>boolean</domain>
+            <expression>(case when ssr.planned_date is null
+                then false
+                else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>anesthesiaType.id</id>
+            <domain>integer</domain>
+            <expression>msr.anesthesia_type_id</expression>
+        </field>
+
+        <field>
+            <id>isAmalgamFilling</id>
+            <domain>boolean</domain>
+            <expression>ssr.is_amalgam_filling</expression>
+        </field>
+
+        <field>
+            <id>durationMeasure.id</id>
+            <domain>integer</domain>
+            <expression>ssdu.id</expression>
+        </field>
+
+        <field>
+            <id>durationMeasure.name</id>
+            <domain>string</domain>
+            <expression>cm.name</expression>
+        </field>
+
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>epr.id</expression>
+        </field>
+
+        <field>
+            <id>initialServiceId</id>
+            <domain>integer</domain>
+            <expression>(case when ssr.complex_srv_id is not null
+                then rss.id
+                else ss.id end)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>renderedId</id>
+            <domain>integer</domain>
+            <expression>msr.id</expression>
+            <search>:expression = :rendered.id</search>
+        </field>
+
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>(case when ssr.complex_srv_id is not null then rss.id else ss.id end)</expression>
+        </field>
+
+        <field>
+            <id>serviceName</id>
+            <domain>string</domain>
+            <name>Наименование услуги</name>
+            <expression>
+                (case when ss.is_complex = true then '[+]' else '' end) || coalesce(ss.code, '') || ' ' || coalesce(ss.name, '')
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>service.code</id>
+            <domain>string</domain>
+            <name>Код</name>
+            <expression>ss.code</expression>
+        </field>
+
+        <field>
+            <id>quantity</id>
+            <domain>integer</domain>
+            <name>Количество</name>
+            <expression>ssr.quantity</expression>
+        </field>
+
+        <field>
+            <id>duration</id>
+            <domain>integer</domain>
+            <expression>ssr.duration</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>md.id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.diagnosisId</id>
+            <domain>integer</domain>
+            <expression>md.id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.name</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <expression>md.code || ' ' || md.name</expression>
+        </field>
+
+        <field>
+            <id>cost</id>
+            <domain>string</domain>
+            <name>Итоговая стоимость</name>
+            <expression>ssr.cost</expression>
+        </field>
+
+        <field>
+            <id>totalCost</id>
+            <domain>string</domain>
+            <name>Итоговая стоимость</name>
+            <expression>ssr.total_cost</expression>
+        </field>
+
+        <field>
+            <id>fundingType.id</id>
+            <domain>integer</domain>
+            <expression>(case when ffst.id is null then 1 else ffst.id end)</expression>
+        </field>
+
+        <field>
+            <id>fundingType.name</id>
+            <domain>string</domain>
+            <name>Оплата</name>
+            <expression>(case when ffst.id is null then (select name from fin_funding_source_type where id = 1) else ffst.name end)</expression>
+        </field>
+
+        <field>
+            <id>bdate</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>ssr.bdate</expression>
+        </field>
+
+        <field>
+            <id>resGroup.id</id>
+            <domain>integer</domain>
+            <expression>srg.id</expression>
+        </field>
+
+        <field>
+            <id>resGroup.name</id>
+            <domain>string</domain>
+            <name>Ответственный</name>
+            <expression>
+                (coalesce(pi.surname, '') || ' ' || coalesce(pi.name, '') || ' ' || coalesce(pi.patr_name, '')|| ' ' ||
+                coalesce(pe.note, ''))
+            </expression>
+        </field>
+
+        <field>
+            <id>isUrgent</id>
+            <domain>boolean</domain>
+            <expression>msr.is_urgent</expression>
+        </field>
+
+        <field>
+            <id>toothNumber</id>
+            <domain>integer</domain>
+            <expression>ssr.tooth_number</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>ssr.customer_id</expression>
+        </field>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>msr.case_id</expression>
+        </field>
+
+        <field>
+            <id>isRendered</id>
+            <domain>boolean</domain>
+            <expression>ssr.is_rendered</expression>
+        </field>
+
+        <field>
+            <id>serviceRes</id>
+            <domain>object</domain>
+            <expression>
+                (select case exists(select 1 from sr_service s where
+                exists(select 1 from sr_res_group_service srgp join sr_res_group srg on srgp.group_id = srg.id where s.id = srgp.srv_type_id and srg.responsible_id = :emplContext  and srg.is_system = false)
+                and s.org_id = :orgId and ss.id = s.id) when true then
+                (case when ss.is_complex = true
+                then (select row_to_json(r) from (select ss.id as id, '[+]' || coalesce(ss.code, '') || ' ' || coalesce(ss.name, '') as name) r)
+                else (case when (sc.id is null or ssr.complex_srv_id is null)
+                then (select row_to_json(r) from(select ss.id as id, coalesce(ss.code, '') || ' ' || coalesce(ss.name, '') as name) r)
+                else (select row_to_json(r) from(select rss.id as id, '[+]' || coalesce(rss.code, '') || ' ' || coalesce(rss.name, '') as name) r) end) end)
+                when false then null end)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>serviceMO</id>
+            <domain>object</domain>
+            <expression>
+                (select case exists(select 1 from sr_service s where
+                exists(select 1 from sr_res_group_service srgp join sr_res_group srg on srgp.group_id = srg.id where s.id = srgp.srv_type_id and srg.responsible_id = :emplContext  and srg.is_system = false)
+                and s.org_id = :orgId and ss.id = s.id) when true then null when false then
+                (case when ss.is_complex = true
+                then (select row_to_json(r) from (select ss.id as id, '[+]' || coalesce(ss.code, '') || ' ' || coalesce(ss.name, '') as name) r)
+                else (case when (sc.id is null or ssr.complex_srv_id is null)
+                then (select row_to_json(r) from(select ss.id as id, coalesce(ss.code, '') || ' ' || coalesce(ss.name, '') as name) r)
+                else (select row_to_json(r) from(select rss.id as id, '[+]' || coalesce(rss.code, '') || ' ' || coalesce(rss.name, '') as name) r) end) end)
+                end)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>serviceComplex</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(r) from(select ss.id as id, coalesce(ss.code, '') || ' ' || coalesce(ss.name, '') as name) r)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>isServiceEditable</id>
+            <domain>boolean</domain>
+            <expression>(case when ssr.planned_date is not null or
+                (sc.id is not null and sc.complex_id is not null and ssr.complex_srv_id is not null) or
+                ((select count(ssr1.id)
+                from sr_srv_rendered ssr1 where ssr1.complex_srv_id = ssr.id) > 0)
+                then null
+                else true end)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>isComplexChildServiceEditable</id>
+            <domain>boolean</domain>
+            <expression>(case when (sc.id is not null and sc.complex_id is not null and sc.is_required = true)
+                then null
+                else true end)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>isNotDelete</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when
+                ((select count(ssr2.id) from sr_srv_rendered ssr2 where ssr2.complex_srv_id = ssr.id) > 0)
+                then true else false end)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>selectServices.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select
+                case exists(
+                select 1
+                from sr_service s
+                where
+                exists(
+                select 1 from sr_res_group_service srgp join sr_res_group srg on srgp.group_id = srg.id where s.id = srgp.srv_type_id and srg.responsible_id = :emplContext and srg.is_system = false
+                )
+                and s.org_id = :orgId and ss.id = s.id
+                )
+                when true then 2
+                when false then 1
+                end)
+            </expression>
+            </field>
+
+        <field>
+            <id>emplContext</id>
+            <domain>integer</domain>
+            <expression>:emplContext</expression>
+            <search value="#{emplPos.id}">:expression = :emplContext</search>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+            <search value="#{org.id?}">(:expression = :orgId or :orgId is null)</search>
+        </field>
+
+        <field>
+            <id>isComplexServiceChild</id>
+            <domain>boolean</domain>
+            <expression>(case when ssr.complex_srv_id is not null then true else false end)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>requiredFields</id>
+            <domain>object[]</domain>
+            <expression>
+                (
+                select array_to_json(array_agg(r)) from (
+                select s1.id as id, (coalesce(s1.code, '') || ' ' || coalesce(s1.name, '')) as name, s1.is_need_anatomic_zone as isToothRequired
+                from sr_service s1
+                join sr_srv_composition sc1 on s1.id = sc1.service_id
+                where sc1.complex_id = ss.id and sc1.is_required = true
+                ) r
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>requiredFieldsIds</id>
+            <domain>integer[]</domain>
+            <expression>
+                ( select array_agg(s1.id)
+                    from sr_service s1
+                    join sr_srv_composition sc1 on s1.id = sc1.service_id
+                    where sc1.complex_id = ss.id and sc1.is_required = true )
+            </expression>
+        </field>
+
+        <field>
+            <id>initialIsFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>:initialIsFinanceTypeControl</expression>
+        </field>
+
+        <field>
+            <id>isStomatologyVisit</id>
+            <domain>boolean</domain>
+            <expression>:isStomatologyVisit</expression>
+        </field>
+
+    </fields>
+</query>

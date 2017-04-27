@@ -1,0 +1,82 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+
+    <name>Спецификация</name>
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/inventory/request-doc/spec
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc.id" mapping="['docId']"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="quantity" mapping="['quantity']"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+                <param name="status.id" mapping="['statusId']"/>
+                <param name="releasedQuantity" mapping="['releasedCount']"/>
+            </in-parameters>
+            <success-text>Спецификация сохранена</success-text>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from inventory.request_spec where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить Спецификацию?</confirmation-text>
+            <success-text>Спецификация удалена</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="reqSpecCheckUnique" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.request_spec
+                    where fund_source_id = :fundSourceId
+                    and modif_id= :modifId
+                    and request_doc_id = :docId
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="doc.id" mapping="['docId']"/>
+                <param name="modif.id" mapping="['modifId']"/>
+                <param name="fundSource.id" mapping="['fundSourceId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Спецификация с такими параметрами уже существует.</message>
+        </constraint>
+
+        <constraint id="reqSpecCheckStatus" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.request_doc
+                    where (status_id = 5 or status_id =7)
+                    and id = :docId
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="doc.id" mapping="['docId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Невозможно завершить операцию. Проверьте статус документа.</message>
+        </constraint>
+
+        <condition id="quantityValidation" level="error">
+            <message>Значение не может превышать остаток: {actualQuantity}</message>
+            <expression on="quantity">
+                <![CDATA[ typeof id!='undefined' && id!=null || Number(actualQuantity) >= Number(quantity)]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

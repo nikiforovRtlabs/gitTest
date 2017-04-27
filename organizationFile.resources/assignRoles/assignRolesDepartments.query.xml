@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>dummy</object-id>
+    <name>employeeResourceDepartments</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from pim_employee e
+                inner join pim_individual i on i.id=e.individual_id
+                inner join pim_employee_position ep on ep.employee_id=e.id
+                inner join pim_position p on p.id=ep.position_id
+                inner join pim_department d on d.id=p.department_id
+                where e.organization_id = any(array(select :org_id union all select select_organization_children_list(:org_id))) and :where
+                group by d.id, d.name
+                order by d.name
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from pim_employee e
+                inner join pim_individual i on i.id=e.individual_id
+                inner join pim_employee_position ep on ep.employee_id=e.id
+                inner join pim_position p on p.id=ep.position_id
+                inner join pim_department d on d.id=p.department_id
+                where e.organization_id = any(array(select :org_id union all select select_organization_children_list(:org_id))) and :where
+                group by d.id, d.name
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>oid</id>
+            <domain>integer</domain>
+            <expression>d.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>format('%s (%s)', d.name, count(*))</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    upper(d.name) like '%'||upper(:name)||'%'
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>:org_id</expression>
+            <filters>
+                <filter type="eq" filter-field="org_id" default-value="#{stocks.orgId}"/>
+            </filters>
+        </field>
+    </fields>
+</query>

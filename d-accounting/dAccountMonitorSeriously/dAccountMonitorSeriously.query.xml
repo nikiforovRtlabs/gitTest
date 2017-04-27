@@ -1,0 +1,614 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>dAccountMonitorSeriously</object-id>
+    <name>monitorSpecialCasesList</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                with
+                prm as (select :entrance_date.begin::date bd, :entrance_date.end::date ed, :org.id::integer cln),
+                c as (
+                 select c.*
+                 from mc_case c
+                 join prm on (c.clinic_id = prm.cln or prm.cln is null) and
+                 c.create_date between coalesce(prm.bd,'-infinity') and coalesce(prm.ed,'infinity') and
+                 (:state_severity_level.id is null or :state_severity_level.id = c.severity_level_id) and
+                 (:social_status.id is null or exists (select 1 from pci_patient p where p.social_group_id = :social_status.id)) and
+                 (:age is null and :gender.id is null or exists (
+                   select 1 from pim_individual i
+                   where (:age is null or :age = extract(year from age(current_date, i.birth_dt))) and
+                         (:gender.id is null or :gender.id = i.gender_id)
+                   )
+                 )
+
+                ),
+
+                main_diag as (
+                select
+                mcd.case_id,
+                true is_main,
+                string_agg((md_diagnosis.code || ' ' || md_diagnosis.name), ', ') d_str,
+                array_agg(md_diagnosis.id) d_ids,
+                array_agg(mcd.doctor_id) doctor_ids,
+                array_agg(mcd.stage_id) stage_ids,
+                sum(cr.point) f1,
+                0 f2
+                from c
+                join mc_diagnosis mcd on c.id = mcd.case_id and mcd.is_main and mcd.stage_id is not null
+                join md_diagnosis on mcd.diagnos_id = md_diagnosis.id
+                left join monitoring.md_traumatology_diagnosis_criteria cr on cr.diagnosis_id = mcd.diagnos_id and cr.type_id = 1 and cr.stage_id = mcd.stage_id
+                group by mcd.case_id
+                ),
+
+                accomp_diag as (
+                select
+                mcd.case_id,
+                false is_main,
+                string_agg((d.code || ' ' || d.name), ', ') d_str,
+                array_agg(d.id) d_ids,
+                array_agg(mcd.doctor_id) doctor_ids,
+                array_agg(mcd.stage_id) stage_ids,
+                0 f1,
+                sum(cr.point) f2
+                from c
+                join mc_diagnosis mcd on c.id = mcd.case_id and mcd.is_main = false
+                join md_diagnosis d on (mcd.diagnos_id = d.id)
+                left join monitoring.md_traumatology_diagnosis_criteria cr on cr.diagnosis_id = mcd.diagnos_id and cr.type_id = 2
+                group by mcd.case_id
+                ),
+
+
+
+                diag as (
+                select
+                diag_.case_id,
+                string_agg((case when diag_.is_main = true then diag_.d_str end), ', ') m_diag_str,
+                monitoring.agg_ids((case when diag_.is_main = true then diag_.d_ids end)) m_d_ids,
+                string_agg((case when diag_.is_main = false then diag_.d_str end), ', ') diag_str,
+                monitoring.agg_ids((case when diag_.is_main = false then diag_.d_ids end)) d_ids,
+                monitoring.agg_ids((case when diag_.is_main = true then diag_.doctor_ids end)) doctor_ids,
+                monitoring.agg_ids((case when diag_.is_main = true then diag_.stage_ids end)) stage_ids,
+                sum((case when diag_.f1 is null then 0 else diag_.f1 end)) f1,
+                sum((case when diag_.f2 is null then 0 else diag_.f2 end)) f2
+                from (
+                -- основной диагноз
+                select * from main_diag
+                union all
+                -- сопутствующий диагноз
+                select * from accomp_diag
+                ) diag_
+                group by diag_.case_id
+                ),
+
+                doctor as (
+                select mdep.id, i.surname || ' ' || i.name || ' ' || i.patr_name doctor_full_name
+                from md_employee_position mdep
+                join diag on mdep.id = diag.doctor_ids[1]
+                join pim_employee_position ep on ep.id = mdep.id
+                join pim_employee e on ep.employee_id = e.id
+                join pim_individual i on i.id = e.individual_id
+                ),
+
+                hsp as (
+                select mc_step._patient_id, array_agg(mc_step.case_id) case_ids, case when count(hsp_record.*)>0 then (select point from monitoring.md_traumatology_hospitalization where id = 2) else 0 end as f5
+                from mc_step
+                join c on c.id = mc_step.case_id
+                join hsp_record on (mc_step.id = hsp_record.id)
+                join mc_step_result on (mc_step_result.id = mc_step.result_id)
+                where mc_step_result.is_closed = true
+                group by mc_step._patient_id
+                ),
+
+                severity as (
+                select slc.severity_level_id, slc.point, msl.name from mc_severity_level msl
+                left join monitoring.md_traumatology_severity_level_criteria slc on msl.id = slc.severity_level_id
+
+                ),
+
+                r as (
+                select
+                row_number() over() row_num,
+                c.id case_id,
+                c.uid case_num_str,
+                i.surname || ' ' || i.name || ' ' || i.patr_name patient_full_name,
+                i.birth_dt,
+                extract(year from age(now(), i.birth_dt)) age,
+                dep.type_id department_type_id,
+                cs.pim_department_type_id mc_case_state_department_type_id,
+                p.social_group_id,
+                sg.name social_group,
+                c.patient_id patient_id,
+                g.id gender_id,
+                g.name gender_name,
+                m.case_id monitor_id,
+                c.create_date enter_date,
+                cl.short_name mo_name,   -- name of medical organization
+                cl.id mo_id,
+                m.case_id is not null is_on_control,
+                coalesce(hsp.f5, 0) f5,
+                hsp.f5 = 1 is_hospitalized_before,
+                create_date,
+                m_diag_str,
+                m_d_ids,
+                diag_str,
+                d_ids,
+                doctor_ids,
+                stage_ids,
+                f1,
+                f2,
+                doctor.doctor_full_name,
+                doctor.id doctor_id,
+                severity.severity_level_id severity_level_id,
+                severity.name severity_name,
+                severity.point f3_severity_point,   --  фактор тяжести общего состояния больного
+                social_factor.point f4_social_point,  -- социальный фактор
+                coalesce(hsp.f5, 0) f5_hospital_point,
+                coalesce(f1, 0) + coalesce(f2, 0) + coalesce(severity.point, 0) + coalesce(social_factor.point, 0) + coalesce(hsp.f5, 0) main_factor,
+                mc_step.id step_id
+
+                from c
+                join mc_step on mc_step.case_id = c.id
+                left join mc_diagnosis md on md.step_id = mc_step.id and md.is_main
+                left join sr_res_group rg on rg.id = mc_step.res_group_id and md.id is not null
+                join pim_individual i on i.id = c.patient_id
+                join pci_patient p on i.id = p.id
+                join mc_case_type ct on c.case_type_id = ct.id
+                join hsp_record hr on mc_step.id = hr.id
+                join pim_department_type dt on dt.code = '4'
+                join pim_department dep on hr.department_id = dep.id and dep.type_id = dt.id
+                left join mc_case_state cs on c.state_id = cs.id
+                -- diagnosis part
+                left join diag on diag.case_id = c.id
+                left join doctor on doctor.id = coalesce(diag.doctor_ids[1], rg.responsible_id)
+                -- diagnosis part end
+                left join md_clinic cl on cl.id = c.clinic_id
+                left join md_soc_group sg on sg.id = p.social_group_id
+                left join pim_gender g on i.gender_id = g.id
+                left join monitoring.monitored_cases_list m on c.id = m.case_id
+                left join hsp on c.patient_id = hsp._patient_id and c.id != any(hsp.case_ids)
+                left join severity on (c.severity_level_id = severity.severity_level_id )
+                left join monitoring.md_traumatology_soc_group_criteria social_factor on c.soc_group_id = social_factor.soc_group_id
+                where
+                pim_department_type_id = dep.type_id or pim_department_type_id is null
+                )
+                select :select from r where :where
+
+            </n2o:items-query>
+            <n2o:count-query>
+                with
+                prm as (select :entrance_date.begin::date bd, :entrance_date.end::date ed, :org.id::integer cln),
+                c as (
+                select c.*
+                from mc_case c
+                join prm on (c.clinic_id = prm.cln or prm.cln is null) and
+                c.create_date between coalesce(prm.bd,'-infinity') and coalesce(prm.ed,'infinity') and
+                (:state_severity_level.id is null or :state_severity_level.id = c.severity_level_id) and
+                (:social_status.id is null or exists (select 1 from pci_patient p where p.social_group_id = :social_status.id)) and
+                (:age is null and :gender.id is null or exists (
+                select 1 from pim_individual i
+                where (:age is null or :age = extract(year from age(current_date, i.birth_dt))) and
+                (:gender.id is null or :gender.id = i.gender_id)
+                )
+                )
+
+                ),
+
+                main_diag as (
+                select
+                mcd.case_id,
+                true is_main,
+                string_agg((md_diagnosis.code || ' ' || md_diagnosis.name), ', ') d_str,
+                array_agg(md_diagnosis.id) d_ids,
+                array_agg(mcd.doctor_id) doctor_ids,
+                array_agg(mcd.stage_id) stage_ids,
+                sum(cr.point) f1,
+                0 f2
+                from c
+                join mc_diagnosis mcd on c.id = mcd.case_id and mcd.is_main and mcd.stage_id is not null
+                join md_diagnosis on mcd.diagnos_id = md_diagnosis.id
+                left join monitoring.md_traumatology_diagnosis_criteria cr on cr.diagnosis_id = mcd.diagnos_id and cr.type_id = 1 and cr.stage_id = mcd.stage_id
+                group by mcd.case_id
+                ),
+
+                accomp_diag as (
+                select
+                mcd.case_id,
+                false is_main,
+                string_agg((d.code || ' ' || d.name), ', ') d_str,
+                array_agg(d.id) d_ids,
+                array_agg(mcd.doctor_id) doctor_ids,
+                array_agg(mcd.stage_id) stage_ids,
+                0 f1,
+                sum(cr.point) f2
+                from c
+                join mc_diagnosis mcd on c.id = mcd.case_id and mcd.is_main = false
+                join md_diagnosis d on (mcd.diagnos_id = d.id)
+                left join monitoring.md_traumatology_diagnosis_criteria cr on cr.diagnosis_id = mcd.diagnos_id and cr.type_id = 2
+                group by mcd.case_id
+                ),
+
+
+
+                diag as (
+                select
+                diag_.case_id,
+                string_agg((case when diag_.is_main = true then diag_.d_str end), ', ') m_diag_str,
+                monitoring.agg_ids((case when diag_.is_main = true then diag_.d_ids end)) m_d_ids,
+                string_agg((case when diag_.is_main = false then diag_.d_str end), ', ') diag_str,
+                monitoring.agg_ids((case when diag_.is_main = false then diag_.d_ids end)) d_ids,
+                monitoring.agg_ids((case when diag_.is_main = true then diag_.doctor_ids end)) doctor_ids,
+                monitoring.agg_ids((case when diag_.is_main = true then diag_.stage_ids end)) stage_ids,
+                sum((case when diag_.f1 is null then 0 else diag_.f1 end)) f1,
+                sum((case when diag_.f2 is null then 0 else diag_.f2 end)) f2
+                from (
+                -- основной диагноз
+                select * from main_diag
+                union all
+                -- сопутствующий диагноз
+                select * from accomp_diag
+                ) diag_
+                group by diag_.case_id
+                ),
+
+                doctor as (
+                select mdep.id, i.surname || ' ' || i.name || ' ' || i.patr_name doctor_full_name
+                from md_employee_position mdep
+                join diag on mdep.id = diag.doctor_ids[1]
+                join pim_employee_position ep on ep.id = mdep.id
+                join pim_employee e on ep.employee_id = e.id
+                join pim_individual i on i.id = e.individual_id
+                ),
+
+                hsp as (
+                select mc_step._patient_id, array_agg(mc_step.case_id) case_ids, case when count(hsp_record.*)>0 then (select point from monitoring.md_traumatology_hospitalization where id = 2) else 0 end as f5
+                from mc_step
+                join c on c.id = mc_step.case_id
+                join hsp_record on (mc_step.id = hsp_record.id)
+                join mc_step_result on (mc_step_result.id = mc_step.result_id)
+                where mc_step_result.is_closed = true
+                group by mc_step._patient_id
+                ),
+
+                severity as (
+                select slc.severity_level_id, slc.point, msl.name from mc_severity_level msl
+                left join monitoring.md_traumatology_severity_level_criteria slc on msl.id = slc.severity_level_id
+
+                ),
+
+                r as (
+                select
+                row_number() over() row_num,
+                c.id case_id,
+                c.uid case_num_str,
+                i.surname || ' ' || i.name || ' ' || i.patr_name patient_full_name,
+                i.birth_dt,
+                extract(year from age(now(), i.birth_dt)) age,
+                dep.type_id department_type_id,
+                cs.pim_department_type_id mc_case_state_department_type_id,
+                p.social_group_id,
+                sg.name social_group,
+                c.patient_id patient_id,
+                g.id gender_id,
+                g.name gender_name,
+                m.case_id monitor_id,
+                c.create_date enter_date,
+                cl.short_name mo_name,   -- name of medical organization
+                cl.id mo_id,
+                m.case_id is not null is_on_control,
+                coalesce(hsp.f5, 0) f5,
+                hsp.f5 = 1 is_hospitalized_before,
+                create_date,
+                m_diag_str,
+                m_d_ids,
+                diag_str,
+                d_ids,
+                doctor_ids,
+                stage_ids,
+                f1,
+                f2,
+                doctor.doctor_full_name,
+                doctor.id doctor_id,
+                severity.severity_level_id severity_level_id,
+                severity.name severity_name,
+                severity.point f3_severity_point,   --  фактор тяжести общего состояния больного
+                social_factor.point f4_social_point,  -- социальный фактор
+                coalesce(hsp.f5, 0) f5_hospital_point,
+                coalesce(f1, 0) + coalesce(f2, 0) + coalesce(severity.point, 0) + coalesce(social_factor.point, 0) + coalesce(hsp.f5, 0) main_factor,
+                mc_step.id step_id
+
+                from c
+                join mc_step on mc_step.case_id = c.id
+                join pim_individual i on i.id = c.patient_id
+                join pci_patient p on i.id = p.id
+                join mc_case_type ct on c.case_type_id = ct.id
+                join hsp_record hr on mc_step.id = hr.id
+                join pim_department_type dt on dt.code = '4'
+                join pim_department dep on hr.department_id = dep.id and dep.type_id = dt.id
+                left join mc_case_state cs on c.state_id = cs.id
+                -- diagnosis part
+                left join diag on diag.case_id = c.id
+                left join doctor on doctor.id = diag.doctor_ids[1]
+                -- diagnosis part end
+                left join md_clinic cl on cl.id = c.clinic_id
+                left join md_soc_group sg on sg.id = c.soc_group_id
+                left join pim_gender g on i.gender_id = g.id
+                left join monitoring.monitored_cases_list m on c.id = m.case_id
+                left join hsp on c.patient_id = hsp._patient_id and c.id != any(hsp.case_ids)
+                left join severity on (c.severity_level_id = severity.severity_level_id )
+                left join monitoring.md_traumatology_soc_group_criteria social_factor on c.soc_group_id = social_factor.soc_group_id
+                where
+                pim_department_type_id = type_id or pim_department_type_id is null
+                )
+                select count(1) from r where :where
+
+            </n2o:count-query>
+            <n2o:alias>r</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>row_num</id>
+            <display/>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>is_on_control</id>
+            <domain>boolean</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="on_control_attribute.id">
+                    is_on_control = :on_control_attribute.id
+                </filter>
+            </filters>
+
+        </field>
+
+        <field>
+            <id>monitor_id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>enter_date</id>
+            <domain>date</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>entrance_date.begin</id>
+            <domain>date</domain>
+        </field>
+
+        <field>
+            <id>entrance_date.end</id>
+            <domain>date</domain>
+        </field>
+
+        <field>
+            <id>patient_full_name</id>
+            <display/>
+        </field>
+
+        <field>
+            <id>gender_id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="gender.id">
+                    gender_id = :gender.id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>gender_name</id>
+            <domain>string</domain>
+            <expression>substr(gender_name,1,1)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>patient_id</id>
+            <domain>integer</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>birth_dt</id>
+            <domain>string</domain>
+            <expression>extract(year from AGE(NOW(), birth_dt)) || ' (' || to_char(birth_dt, 'DD.MM.YYYY') || ')'</expression>
+            <display/>
+        </field>
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <filters>
+                <filter type="eq" filter-field="age">
+                    age = :age
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>social_group_id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="social_status.id">
+                    social_group_id = :social_status.id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>social_group</id>
+            <domain>string</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>case_id</id>
+            <domain>integer</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>case_num_str</id>
+            <domain>string</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>m_diag_str</id>
+            <display/>
+        </field>
+
+        <field>
+            <id>diag_str</id>
+            <display/>
+        </field>
+
+        <field>
+            <id>d_id</id>
+            <domain>integer</domain>
+            <expression>d_ids</expression>
+            <filters>
+                <filter type="eq" filter-field="accompanying_diagnosis.id">
+                    :accompanying_diagnosis.id = any (:expression)
+                </filter>
+            </filters>
+        </field>
+
+
+        <field>
+            <id>md_id</id>
+            <domain>integer</domain>
+            <expression>m_d_ids</expression>
+            <filters>
+                <filter type="eq" filter-field="main_diagnosis.id">
+                    :main_diagnosis.id = any (:expression)
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>mo_name</id>
+            <domain>string</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>mo_id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="org.id">
+                    mo_id = :org.id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>stage_ids</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>stage_ids</expression>
+            <filters>
+                <filter type="eq" filter-field="stage.id">
+                    :stage.id = any (:expression)
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>doctor_id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="doctor.employeePositionId">
+                    doctor_id = :doctor.employeePositionId
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>doctor_full_name</id>
+            <display/>
+        </field>
+
+        <field>
+            <id>severity_name</id>
+            <domain>string</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>severity_level_id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="state_severity_level.id">
+                    severity_level_id = :state_severity_level.id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>main_factor</id>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="integral_risk_index.id">
+                    main_factor = :integral_risk_index.id
+                </filter>
+            </filters>
+        </field>
+
+        <!--<field>-->
+            <!--<id>main_factor1</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display/>-->
+        <!--</field>-->
+
+        <field>
+            <id>is_hospitalized_before</id>
+            <domain>boolean</domain>
+            <display/>
+
+        </field>
+
+
+        <field>
+            <id>f1</id>
+            <display/>
+        </field>
+
+        <field>
+            <id>f2</id>
+            <display/>
+        </field>
+
+        <field>
+            <id>f3_severity_point</id>
+            <display/>
+        </field>
+
+        <field>
+            <id>f4_social_point</id>
+            <display/>
+        </field>
+
+        <field>
+            <id>f5_hospital_point</id>
+            <display/>
+        </field>
+
+        <field>
+            <id>step_id</id>
+            <display/>
+        </field>
+    </fields>
+</query>

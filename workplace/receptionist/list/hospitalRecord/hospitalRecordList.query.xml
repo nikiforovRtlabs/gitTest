@@ -1,0 +1,99 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hospitalRecordList</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from hsp_record rec
+                inner join mc_step step on step.id = rec.id
+                left outer join pim_department dep on dep.id = rec.department_id
+                left outer join fin_funding_source_type fun on fun.id = rec.funding_id
+                left outer join sr_res_group res_group on res_group.id = step.res_group_id
+                left outer join pim_employee_position empl_posit on empl_posit.id = res_group.responsible_id
+                left outer join pim_employee empl on empl.id = empl_posit.employee_id
+                left outer join pim_individual indiv on indiv.id = empl.individual_id
+                where previous_id is not null and :where
+                order by :order, rec.id
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1) from hsp_record rec
+                inner join mc_step step on step.id = rec.id
+                left outer join pim_department dep on dep.id = rec.department_id
+                left outer join fin_funding_source_type fun on fun.id = rec.funding_id
+                left outer join sr_res_group res_group on res_group.id = step.res_group_id
+                left outer join pim_employee_position empl_posit on empl_posit.id = res_group.responsible_id
+                left outer join pim_employee empl on empl.id = empl_posit.employee_id
+                left outer join pim_individual indiv on indiv.id = empl.individual_id
+                where previous_id is not null and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>id</name>
+            <expression>rec.id</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>step.case_id</expression>
+            <search>step.case_id = :caseId</search>
+        </field>
+
+        <field>
+            <id>admissionDate</id>
+            <domain>date</domain>
+            <name>Дата поступления</name>
+            <expression>step.admission_date + coalesce(step.admission_time, '00:00')</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>outcomeDate</id>
+            <domain>date</domain>
+            <name>Дата выписки</name>
+            <expression>step.outcome_date + step.outcome_time</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>department</id>
+            <domain>string</domain>
+            <name>Отделение</name>
+            <expression>dep.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>doctor</id>
+            <domain>string</domain>
+            <name>Лечащий врач</name>
+            <expression>
+                coalesce(indiv.surname, '') ||
+                coalesce(' ' || substring(indiv.name for 1) || '.', '') ||
+                coalesce(' ' || substring(indiv.patr_name for 1) || '.', '')
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>funding</id>
+            <domain>string</domain>
+            <name>Вид оплаты</name>
+            <expression>fun.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+    </fields>
+
+
+</query>

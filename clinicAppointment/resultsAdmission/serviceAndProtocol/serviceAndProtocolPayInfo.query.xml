@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>serviceAndProtocol</object-id>
+    <name>serviceAndProtocolPay</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from sr_srv_rendered ssr
+                    left join fin_price_list fpl on fpl.id = ssr.price_list_id
+                    left join fin_contract fc on fc.id = ssr.contract_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ms)
+                from sr_srv_rendered ssr
+                    left join fin_price_list fpl on fpl.id = ssr.price_list_id
+                    left join fin_contract fc on fc.id = ssr.contract_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ssr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ssr.id</expression>
+        </field>
+        <field>
+            <id>cost</id>
+            <domain>numeric</domain>
+            <expression>ssr.cost</expression>
+        </field>
+        <field>
+            <id>totalCost</id>
+            <domain>numeric</domain>
+            <expression>ssr.total_cost</expression>
+        </field>
+        <field>
+            <id>contract</id>
+            <domain>string</domain>
+            <expression>'№ ' || fc.number || ' от ' || to_char(fc.date, 'dd.mm.yyyy')</expression>
+        </field>
+        <field>
+            <id>paid</id>
+            <domain>numeric</domain>
+            <expression>(select sum(fps.amount) from fin_payment_share fps where fps.service_id = ssr.id)</expression>
+        </field>
+        <field>
+            <id>price</id>
+            <domain>numeric</domain>
+            <expression>(select bsi.price from fin_bill_spec_item bsi where bsi.service_id = ssr.id)</expression>
+        </field>
+        <field>
+            <id>discountName</id>
+            <domain>string</domain>
+            <expression>(select string_agg(distinct d.name, ', ') from public.fin_bill_spec_item bsi
+                join fin_bill_spec_item_discount_rel r on r.bill_spec_item_id = bsi.id
+                join fin_discount d on d.id = r.discount_id
+                where bsi.service_id = ssr.id)
+            </expression>
+        </field>
+        <field>
+            <id>pricingCatName</id>
+            <domain>string</domain>
+            <expression>(select string_agg(distinct dpc.name, ', ') from public.fin_bill_spec_item bsi
+                join fin_bill_spec_item_discount_rel r on r.bill_spec_item_id = bsi.id
+                join fin_discount d on d.id = r.discount_id
+                join fin_discount_pricing_cat dpc on d.pricing_cat_id = dpc.id
+                where bsi.service_id = ssr.id)
+            </expression>
+        </field>
+        <field>
+            <id>priceList</id>
+            <domain>number</domain>
+            <expression>fpl.name</expression>
+        </field>
+    </fields>
+</query>

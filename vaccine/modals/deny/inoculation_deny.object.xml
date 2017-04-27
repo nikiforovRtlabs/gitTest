@@ -1,0 +1,95 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Отвод</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/vaccine/inoculations/{id}/deny/
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="inoculationId" mapping="['id']" domain="integer"/>
+                <param name="clinic.id" mapping="['clinicId']" domain="integer"/>
+                <param name="diagnosis.id" mapping="['diagnosisId']" domain="integer"/>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="reason.id" mapping="['reasonId']" domain="integer"/>
+                <param name="tillDate" mapping="['tillDate']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="emplPosRes.posId" mapping="['employeeId']" domain="integer"/>
+                <param name="emplPosRes.id" mapping="['emplPosResId']" domain="integer"/>
+                <param name="isPermanentDeny" mapping="['permanentDeny']" domain="boolean"/>
+                <param name="forMantuDto" mapping="['forMantu']" domain="boolean"/>
+            </in-parameters>
+        </action>
+        <action id="update">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/vaccine/inoculations/deny/{id}/
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="inoculationId" mapping="['inoculationId']" domain="integer"/>
+                <param name="clinic.id" mapping="['clinicId']" domain="integer"/>
+                <param name="diagnosis.id" mapping="['diagnosisId']" domain="integer"/>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="reason.id" mapping="['reasonId']" domain="integer"/>
+                <param name="tillDate" mapping="['tillDate']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="emplPosRes.posId" mapping="['employeeId']" domain="integer"/>
+                <param name="emplPosRes.id" mapping="['emplPosResId']" domain="integer"/>
+                <param name="isPermanentDeny" mapping="['permanentDeny']" domain="boolean"/>
+                <param name="forMantuDto" mapping="['forMantu']" domain="boolean"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/vaccine/inoculations/deny/{denyId}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['denyId']" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="todate_gt_denydate" level="error">
+            <invocation>
+                <n2o:sql>
+                    select cast(:tillDate as date) is null
+                    or cast(:date as date) is null
+                    or cast(:tillDate as date) >= cast(:date as date)
+                    and cast(:tillDate as date) is not null
+                    and :tillDate != 'undefined'
+                </n2o:sql>
+                </invocation>
+            <in-parameters>
+            <param name="tillDate" mapping="['tillDate']"/>
+            <param name="date" mapping="['date']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>"До даты" не может быть меньше даты отвода</message>
+        </constraint>
+        <condition id="correctDenyNumber" level="error">
+            <expression on="denyNumber"><![CDATA[
+                    (/^[0-9]*$/.test(denyNumber))
+            ]]>
+            </expression>
+            <message>Неверный формат!</message>
+        </condition>
+
+        <condition id="tillDateDoneInoculation" level="error">
+            <message>Дата отвода не может быть больше даты выполненной услуги(прививки)</message>
+            <expression ><![CDATA[
+                       (inoculationStatusId != 3 ||
+                       (moment(inoculationDate, 'DD.MM.YYYY') >= moment(tillDate, 'DD.MM.YYYY')) &&
+                       inoculationStatusId == 3)
+                       ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

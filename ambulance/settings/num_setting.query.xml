@@ -1,0 +1,174 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>num_setting</id>-->
+    <name>Нумератор</name>
+    <object-id>num_setting</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query> select :select
+                from amb.md_ambulance_numb_setting ns
+                join amb.md_ambulance_numbers man on man.numb_id = ns.id
+                <!--and man.change_id = :act_change-->
+                join cmn_scope_type st on ns.scope_id=st.id
+                join pim_organization po on ns.clinic_id = po.id
+                join pim_department pd on pd.id = man.dep_id
+                join amb.md_ambulance_change mac on mac.id = man.change_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from amb.md_ambulance_numb_setting ns
+                join amb.md_ambulance_numbers man on man.numb_id = ns.id
+                <!--and man.change_id = :act_change-->
+                join cmn_scope_type st on ns.scope_id=st.id
+                join pim_organization po on ns.clinic_id = po.id
+                join pim_department pd on pd.id = man.dep_id
+                join amb.md_ambulance_change mac on mac.id = man.change_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ns</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>ns.id</expression>
+        </field>
+        <field>
+            <id>scope.name</id>
+            <domain>string</domain>
+            <name>Уровень</name>
+            <expression>st.name</expression>
+        </field>
+        <field>
+            <id>scope.code</id>
+            <domain>string</domain>
+            <expression>st.code</expression>
+        </field>
+        <field>
+            <id>scope.id</id>
+            <domain>integer</domain>
+            <expression>st.id</expression>
+        </field>
+        <field>
+            <id>station.name</id>
+            <domain>String</domain>
+            <name>Станция</name>
+            <expression>coalesce(po.short_name,po.full_name)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <name>Станция</name>
+            <expression>po.id</expression>
+        </field>
+        <field>
+            <id>station.orgId</id>
+            <domain>integer</domain>
+            <name>Станция</name>
+            <expression>po.id</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <name>Тип нумерации</name>
+            <expression>ns.type_num</expression>
+        </field>
+        <field>
+            <id>type.name</id>
+            <domain>string</domain>
+            <name>Тип нумератора</name>
+            <expression>case when ns.type_num = 1 then 'ежедневная'
+                             when ns.type_num = 2 then 'еженедельная'
+                             when ns.type_num = 3 then 'ежемесячная'
+                             when ns.type_num = 4 then 'ежегодная'
+                        end
+            </expression>
+        </field>
+        <field>
+            <id>value</id>
+            <domain>integer</domain>
+            <name>Текущее значение</name>
+            <expression>man.value</expression>
+        </field>
+
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <name>Подстанция</name>
+            <expression>pd.id</expression>
+        </field>
+
+        <field>
+            <id>change.id</id>
+            <domain>integer</domain>
+            <name>Смена</name>
+            <expression>mac.id</expression>
+        </field>
+
+        <field>
+            <id>change.data</id>
+            <domain>date</domain>
+            <name>Смена</name>
+            <expression>mac.from_data</expression>
+            <!--<search>cast(:expression as date) = cast(:change.data as date)</search>-->
+            <!--<search>-->
+                <!--case when :change.data is null-->
+                    <!--then-->
+                        <!--(cast(:expression as date) =-->
+                            <!--(select cast(c.from_data as date) from amb.md_ambulance_change c-->
+                              <!--join amb.md_ambulance_numbers n on n.change_id = po.id-->
+                                <!--where c.clinic_id = ns.id and c.department_id = pd.id-->
+                              <!--order by c.from_data desc-->
+                                <!--limit 1)-->
+                                                             <!--)-->
+                    <!--else-->
+                <!--cast(:expression as date) = cast(:change.data as date)-->
+                <!--end-->
+            <!--</search>-->
+        </field>
+
+        <field>
+            <id>change.data_def</id>
+            <domain>string</domain>
+            <name>Смена</name>
+            <expression>to_char(mac.from_data,'dd.mm.yyyy')</expression>
+            <!--<search>cast(:expression as date) = cast(:change.data as date)</search>-->
+            <search filter-field="data_enable">
+                mac.from_data =
+                coalesce(:change.data
+                         ,(select cast(c.from_data as date) from amb.md_ambulance_change c
+                            join amb.md_ambulance_numbers n on n.change_id = c.id
+                            where c.clinic_id = po.id and c.department_id = pd.id
+                            order by c.from_data desc
+                            limit 1)
+                        )
+
+                <!--case when :change.data is null-->
+                    <!--then-->
+                        <!--(cast(:expression as date) =-->
+                        <!--(select cast(c.from_data as date) from amb.md_ambulance_change c-->
+                        <!--join amb.md_ambulance_numbers n on n.change_id = po.id-->
+                        <!--where c.clinic_id = ns.id and c.department_id = pd.id-->
+                        <!--order by c.from_data desc-->
+                        <!--limit 1)-->
+                        <!--)-->
+                    <!--else-->
+                         <!--cast(:change.data as date)-->
+                <!--end-->
+            </search>
+        </field>
+
+        <!--<field>-->
+            <!--<id>act_change</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display value="#{change.id}" unavailable="true"/>-->
+        <!--</field>-->
+
+    </fields>
+</query>

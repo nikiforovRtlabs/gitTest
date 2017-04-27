@@ -1,0 +1,178 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>bills</object-id>
+    <name>billSpecForm</name>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select
+                FROM md_srv_rendered mservice
+                INNER JOIN sr_srv_rendered service ON service.id = mservice.id
+                INNER JOIN sr_service srv ON srv.id = service.service_id
+                LEFT JOIN public.fin_contract AS ctr ON service.contract_id = ctr.id
+                LEFT JOIN public.fin_price_list AS pl ON service.price_list_id = pl.id
+                LEFT JOIN pim_individual patient ON patient.id = service.customer_id
+                WHERE not exists(select 1 from  public.fin_bill_spec_item item where item.service_id = mservice.id)
+                and :where
+                ORDER by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                SELECT COUNT(mservice.id)
+                FROM md_srv_rendered mservice
+                INNER JOIN sr_srv_rendered service ON service.id = mservice.id
+                INNER JOIN sr_service srv ON srv.id = service.service_id
+                LEFT JOIN public.fin_contract AS ctr ON service.contract_id = ctr.id
+                LEFT JOIN public.fin_price_list AS pl ON service.price_list_id = pl.id
+                LEFT JOIN pim_individual patient ON patient.id = service.customer_id
+                WHERE not exists(select 1 from  public.fin_bill_spec_item item where item.service_id = mservice.id)
+                and :where
+            </n2o:count-query>
+            <n2o:alias>mservice</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>contract.id</id>
+            <domain>integer</domain>
+            <expression>ctr.id</expression>
+        </field>
+        <field>
+            <id>contract.number</id>
+            <domain>string</domain>
+            <expression>ctr.number</expression>
+            <name>Договор</name>
+        </field>
+        <field>
+            <id>priceList.id</id>
+            <domain>integer</domain>
+            <expression>pl.id</expression>
+        </field>
+        <field>
+            <id>priceList.name</id>
+            <domain>string</domain>
+            <expression>pl.name</expression>
+            <name>Прейскурант</name>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>patient.id</expression>
+        </field>
+        <field>
+            <id>patientName</id>
+            <domain>string</domain>
+            <expression>
+                concat_ws(' ',
+                patient.surname,
+                patient.name,
+                patient.patr_name)
+            </expression>
+            <name>Пациент</name>
+        </field>
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>srv.id</expression>
+        </field>
+        <field>
+            <id>service.name</id>
+            <domain>string</domain>
+            <expression>srv.name</expression>
+            <name>Услуга</name>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>numeric</domain>
+            <expression>service.quantity</expression>
+            <name>Количество</name>
+        </field>
+
+        <field>
+            <id>plannedDate.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>plannedDate.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>plannedDate</id>
+            <domain>date</domain>
+            <expression>
+                service.planned_date
+            </expression>
+            <search>
+                <![CDATA[
+                (:plannedDate.begin::date is null and :plannedDate.end::date is null or
+                (:plannedDate.begin::date is null or service.planned_date >= :plannedDate.begin) and
+                (:plannedDate.end::date is null or service.planned_date <= :plannedDate.end))
+                ]]>
+            </search>
+            <sorting>:expression</sorting>
+            <name>Дата назначения</name>
+        </field>
+
+        <field>
+            <id>provisionDate.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>provisionDate.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>provisionDate</id>
+            <expression>
+                service.bdate
+            </expression>
+            <search>
+                <![CDATA[
+                (:provisionDate.begin::date is null and :provisionDate.end::date is null or
+                (:provisionDate.begin::date is null or service.bdate >= :provisionDate.begin) and
+                (:provisionDate.end::date is null or service.bdate <= :provisionDate.end))
+                ]]>
+            </search>
+            <sorting>:expression</sorting>
+            <name>Дата оказания</name>
+        </field>
+        <field>
+            <id>price</id>
+            <domain>numeric</domain>
+            <expression>
+                service.cost
+            </expression>
+            <name>Цена за единицу</name>
+        </field>
+
+        <field>
+            <id>priceTotal</id>
+            <domain>numeric</domain>
+            <expression>
+                service.total_cost
+            </expression>
+            <name>Стоимость</name>
+        </field>
+
+        <field>
+            <id>billId</id>
+            <domain>integer</domain>
+            <expression>:billId</expression>
+            <search unavailable="true"/>
+        </field>
+    </fields>
+</query>

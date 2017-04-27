@@ -1,0 +1,123 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <object-id>documents</object-id>
+    <layout>n2o/layout/single</layout>
+
+    <regions>
+        <region place="single" type="none">
+            <container id="main">
+                <wgt:form detail-field-id="id" master-field-id="id">
+                    <wgt:query-id>documents</wgt:query-id>
+                    <wgt:name>Документ</wgt:name>
+                    <fs:field-set>
+                        <ctrl:hidden id="org_id" default-value="#{stocks.orgId}"/>
+                        <ctrl:hidden id="doctype.series_format"/>
+                        <ctrl:hidden id="doctype.number_format"/>
+                        <ctrl:classifier id="doctype" label="Вид документа" required="true" label-style="width:100px;"
+                                         control-style="width:600px;">
+                            <ctrl:query query-id="stocks_docType" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                    </fs:field-set>
+                    <fs:field-set style="border:1px solid gray; margin-bottom:10px; margin-top:10px;"
+                                  label="Организация выдавшая" header="line">
+                        <ctrl:classifier id="issuer" control-style="width:700px;" label-style="display:none;width:0px;">
+                            <ctrl:query query-id="organizationsStocksDocs" value-field-id="name" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:input-text id="issuer_text" required="true" control-style="width:700px;"
+                                         label-style="display:none;width:0px;">
+                            <ctrl:set-value-expression on="issuer.name">
+                                var o = issuer.name.trim();
+                                o;
+                            </ctrl:set-value-expression>
+                        </ctrl:input-text>
+
+                    </fs:field-set>
+                    <fs:field-set>
+                        <fs:row>
+
+                            <ctrl:custom src="patients/n2o/controls/custom/masked-dynamic/masked-dynamic" id="series"
+                                         label="Серия документа" depends-on="doctype" control-style="width:100px;">
+                                <ctrl:set-value-expression on="doctype,series">
+                                    var o = new Object();
+                                    o.mask = (doctype.series_format != null) ?
+                                    doctype.series_format : null;
+                                    o.value = (typeof series != 'undefined' &amp;&amp; series != null ) ?
+                                    (typeof series != 'undefined' &amp;&amp; series.value != null) ? series.value : series  : '';
+                                    o;
+                                </ctrl:set-value-expression>
+                            </ctrl:custom>
+                            <ctrl:custom src="patients/n2o/controls/custom/masked-dynamic/masked-dynamic" id="number"
+                                         label="Номер документа" depends-on="doctype" required="true" control-style="width:250px;">
+                                <ctrl:set-value-expression on="doctype,number">
+                                    var o = new Object();
+                                    o.mask = (doctype.number_format != null) ?
+                                    doctype.number_format : null;
+                                    o.value = (typeof number != 'undefined' &amp;&amp; number != null ) ?
+                                    (number.value != null) ? number.value : number : '';
+                                    o;
+                                </ctrl:set-value-expression>
+                            </ctrl:custom>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="reg_number" label="Регистрационный номер документа"
+                                             control-style="width:100px;"/>
+                            <ctrl:date-time id="issue_dt" label="Дата выдачи"/>
+                        </fs:row>
+
+                        <rc:address id="work_territory" label="Территория действия" control-style="width:250px"
+                                    format="(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)" max-level="2"
+                                    min-level="2"
+                                    autocreate="false"/>
+                        <fs:row>
+                            <ctrl:date-time id="active_from" label="Действителен с" label-style="width:130px;"
+                                            readonly="true" control-style="width:140px;">
+                                <ctrl:set-value-expression on="issue_dt">
+                                    var o = issue_dt;
+                                    o;
+                                </ctrl:set-value-expression>
+                            </ctrl:date-time>
+                            <ctrl:date-time id="expire_from" label="Действителен по" label-style="width:130px;"
+                                            control-style="width:140px;"/>
+                        </fs:row>
+                        <ctrl:checkbox id="is_active" label="Действителен" default-value="true" readonly="true"
+                                       label-style="width:430px;">
+                            <ctrl:set-value-expression on="expire_from,active_from">
+                                <![CDATA[
+                                    var result = true;
+                                    var beginDatePresent = typeof active_from != 'undefined' && active_from != null;
+                                    var endDatePresent = typeof expire_from != 'undefined' && expire_from != null;
+                                    var now = moment();
+                                    if( beginDatePresent && endDatePresent) {
+                                        var periodBegin = moment(active_from, 'DD.MM.YYYY');
+                                        var periodEnd = moment(expire_from, 'DD.MM.YYYY');
+                                        if (!(now.isAfter(periodBegin) && now.isBefore(periodEnd))) {
+                                            result = false;
+                                        }
+                                    }
+                                    else if (beginDatePresent) {
+                                        var periodBegin = moment(active_from, 'DD.MM.YYYY');
+                                         if (!(now.isAfter(periodBegin))) {
+                                            result = false;
+                                         }
+                                    }
+                                    else if (endDatePresent) {
+                                        var periodEnd = moment(expire_from, 'DD.MM.YYYY');
+                                        if (!(now.isBefore(periodEnd))) {
+                                            result = false;
+                                         }
+                                    }
+                                    is_active=result;
+                                ]]>
+                            </ctrl:set-value-expression>
+
+                        </ctrl:checkbox>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+    </regions>
+</page>

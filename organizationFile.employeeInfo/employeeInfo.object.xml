@@ -1,0 +1,195 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+
+    <name>Сотрудник</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into pim_employee (id, individual_id, organization_id, note, number,
+                    employment_dt, is_dismissed, dismissal_dt, callup_subject_id)
+                    values
+                    (nextval('pim_employee_id_seq'), :individual_id, :organization_id, :note, :number,
+                    :employment_dt, :is_dismissed, :dismissal_dt, :callup_subject_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="ind.id" mapping="['individual_id']" domain="integer"/>
+                <param name="org.id" mapping="['organization_id']" domain="integer"/>
+                <param name="pec.id" mapping="['callup_subject_id']" domain="integer"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="number1" mapping="['number']" domain="string"/>
+                <param name="employment_dt" mapping="['employment_dt']" domain="date"/>
+                <param name="dismissal_dt" mapping="['dismissal_dt']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Сотрудник {ind.fio} успешно сохранен в системе.
+            </success-text>
+            <validations activate="all">
+                <validation ref-id="checkNumber" />
+                <validation ref-id="checkEmployeeAlreadyExists" />
+            </validations>
+
+        </action>
+
+        <action id="employeeCreate" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into pim_employee (
+                        id,
+                        individual_id,
+                        organization_id)
+                    values (
+                        nextval('pim_employee_id_seq'),
+                        :individual_id,
+                        :organization_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="individual.id" mapping="['individual_id']" domain="integer"/>
+                <param name="stocks.orgId" mapping="['organization_id']" value="#{stocks.orgId}" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Сотрудник успешно сохранен в системе.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkEmployeeAlreadyExists" />
+            </validations>
+        </action>
+
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_employee set
+                    individual_id = :individual_id,
+                    organization_id = :organization_id,
+                    note = :note,
+                    number = :number,
+                    employment_dt = :employment_dt,
+                    is_dismissed = :is_dismissed,
+                    dismissal_dt = :dismissal_dt,
+                    callup_subject_id = :callup_subject_id
+                    where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="ind.id" mapping="['individual_id']" domain="integer"/>
+                <param name="org.id" mapping="['organization_id']" domain="integer"/>
+                <param name="pec.id" mapping="['callup_subject_id']" domain="integer"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="number1" mapping="['number']" domain="string"/>
+                <param name="employment_dt" mapping="['employment_dt']" domain="date"/>
+                <param name="dismissal_dt" mapping="['dismissal_dt']" domain="date"/>
+            </in-parameters>
+            <success-text>
+                Данные сотрудника {ind.fio} успешно изменены.
+            </success-text>
+
+        </action>
+
+        <action id="updateEmployeeIndividual" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    update pim_individual set
+                      surname = :emp_surname,
+                      name = :emp_name,
+                      patr_name = :emp_patr_name,
+                      birth_dt = :emp_birth,
+                      gender_id = :emp_gender_id
+                      where id = (select individual_id from pim_employee where id = :emp_id);
+
+                    update pim_employee set
+                      number = :number1,
+                      callup_subject_id = :callup_subject_id,
+                      note = :note
+                      where id = :emp_id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['emp_id']" domain="integer"/>
+                <param name="emp_surname" mapping="['emp_surname']" domain="string"/>
+                <param name="emp_name" mapping="['emp_name']" domain="string"/>
+                <param name="emp_patr_name" mapping="['emp_patr_name']" domain="string"/>
+                <param name="emp_birth" mapping="['emp_birth']" domain="date"/>
+                <param name="emp_gender.id" mapping="['emp_gender_id']" domain="integer"/>
+
+                <param name="pec.id" mapping="['callup_subject_id']" domain="integer"/>
+                <param name="number1" mapping="['number1']" domain="string"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_employee where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="fio" mapping="['fio']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что сотрудник {fio} должен быть удален?
+            </confirmation-text>
+            <success-text>
+                Сотрудник {fio} успешно удален.
+            </success-text>
+
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="checkNumber" level="error">
+            <message>В пределах организации табельный номер сотрудника должен быть уникальным!</message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from pim_employee
+                    where
+                    organization_id = :organization_id
+                    and
+                    number = :number
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="org.id" mapping="['organization_id']" domain="integer"/>
+                <param name="number1" mapping="['number']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkEmployeeAlreadyExists" level="warning">
+            <message>Сотрудник уже имеется в штате организации</message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                      from pim_employee
+                    where
+                      organization_id = :organization_id and
+                      individual_id = :individual_id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="stocks.orgId" mapping="['organization_id']" domain="integer"/>
+                <param name="individual.id" mapping="['individual_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+    </validations>
+
+</object>
+

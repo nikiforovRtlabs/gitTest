@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <!--<id>patCode</id>-->
+    <name>Идентификаторы пациента</name>
+    <actions>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/patients/{pat}/uids/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="full_name" mapping="['full_name']" domain="string"/>
+                <param name="patient.id" mapping="['pat']" domain="integer"/>
+            </in-parameters>
+            <!--<confirmation-text>-->
+                <!--Вы уверены, что документ "{full_name}" должен быть удален?-->
+            <!--</confirmation-text>-->
+            <validations activate="all">
+                <validation ref-id="checkExistsDoc"/>
+            </validations>
+            <success-text>
+                Идентификатор успешно удален
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkExistsDoc" level="warning" moment="before-action">
+            <!--todo NNO-542 Параметризация сообщений валидации на клиенте n2o.ver = 2.2-->
+            <message>Есть связанный документ "{full_name}", который будет удален</message>
+            <invocation>
+                <sql:sql>
+                    select
+                    count(*)
+                    from pim_individual_doc pid
+                    where pid.indiv_id = :pat
+                    and pid.code_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 1"/>
+        </constraint>
+    </validations>
+</object>

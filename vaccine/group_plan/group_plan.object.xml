@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO vac.group_plan
+                    (name,note,user_id,clinic_id, only_user)
+                    VALUES
+                    (:name,:note,
+                    :user_id,
+                    :clinic_id,
+                    case when :access_id = 1 then true else false end)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="access.id" mapping="['access_id']" domain="integer"/>
+                <param name="user_id" mapping="['user_id']" value="#{user.id}"/>
+                <param name="clinic_id" mapping="['clinic_id']" value="#{org.id}"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+        </action>
+
+        <action id="update">
+            <invocation>
+                <n2o:sql>
+                    update vac.group_plan set
+                    name = :name,
+                    note = :note,
+                    user_id = :user_id,
+                    clinic_id =:clinic_id,
+                    only_user = case when :access_id = 1 then true else false end
+                    where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="access.id" mapping="['access_id']" domain="integer"/>
+                <param name="user_id" mapping="['user_id']" value="#{user.id}"/>
+                <param name="clinic_id" mapping="['clinic_id']" value="#{org.id}"/>
+            </in-parameters>
+        </action>
+
+        <action id="delete">
+            <invocation>
+                <n2o:sql>
+                    DELETE FROM vac.group_plan where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="uniqueGroupName" level="error">
+            <message>Наименование списка должно быть уникальным</message>
+            <invocation>
+                <n2o:sql>
+                    SELECT count(1)
+                    FROM vac.group_plan
+                    WHERE upper(trim(name)) = upper(trim(:name))
+                        AND (:id is null or id != :id)
+                        AND CASE :access_id
+                                WHEN 1 THEN (user_id = :user_id)
+                                WHEN 2 THEN (clinic_id = :clinic_id)
+                            END
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="access.id" mapping="['access_id']" domain="integer"/>
+                <param name="user_id" mapping="['user_id']" domain="integer"/>
+                <param name="clinic_id" mapping="['clinic_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+</object>

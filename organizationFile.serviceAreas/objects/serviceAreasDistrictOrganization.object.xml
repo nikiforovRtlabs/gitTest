@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Прикрепление огранизации и ее подразделений</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO md_district_organization(id, organization_id, district_id)
+                    VALUES (nextval('md_district_organization_seq'), :organization_id, :district_id);
+
+                    select set_district_departments( :district_id, :organization_id, :district_departments);
+
+                    select currval('md_district_organization_seq');
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="district_id" mapping="['district_id']" domain="integer"/>
+                <param name="organization.oid" mapping="['organization_id']" domain="integer"/>
+                <param name="district_departments*.oid" mapping="['district_departments']" domain="integer[]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="oid" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Прикрепление огранизации успешно добавлено.
+            </success-text>
+        </action>
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    select set_district_departments( :district_id, :organization_id, :district_departments);
+                    select :organization_id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="district_id" mapping="['district_id']" domain="integer"/>
+                <param name="organization.oid" mapping="['organization_id']" domain="integer"/>
+                <param name="district_departments*.oid" mapping="['district_departments']" domain="integer[]"/>
+            </in-parameters>
+            <success-text>
+                Прикрепление огранизации успешно изменено.
+            </success-text>
+        </action>
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from md_district_org_department where district_org_id = :oid;
+                    delete from md_district_organization where id = :oid;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="oid" mapping="['oid']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы действительно хотите удалить запись о прикреплении огранизации?
+            </confirmation-text>
+            <success-text>
+                Запись о прикреплении организации успешно удалена.
+            </success-text>
+        </action>
+    </actions>
+</object>

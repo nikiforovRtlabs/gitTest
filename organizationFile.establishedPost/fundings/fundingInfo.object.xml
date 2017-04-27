@@ -1,0 +1,96 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+
+    <name>Финансирование</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+
+                    insert into pim_position_funding(id, position_id, funding_type_id)
+                    values
+                    (nextval('pim_position_funding_seq'), :position_id, :funding_type_id);
+
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <!--
+                <param name="id" mapping="['id']" domain="integer"/>
+                -->
+                <param name="ppf.id" mapping="['id']" domain="integer"/>
+                <param name="pos.id" mapping="['position_id']" domain="integer"/>
+                <param name="fst.id" mapping="['funding_type_id']" domain="integer"/>
+            </in-parameters>
+            <success-text>
+                Финансирование {ems.name} успешно сохранено в системе.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="is_funding_type_already_exists"/>
+            </validations>
+        </action>
+
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_position_funding set
+                    funding_type_id = :funding_type_id
+                    where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="ppf.id" mapping="['id']" domain="integer"/>
+                <param name="fst.id" mapping="['funding_type_id']" domain="integer"/>
+                <param name="pos.id" mapping="['position_id']" domain="integer"/> <!-- just for validation -->
+            </in-parameters>
+            <success-text>
+                Финансирование "{ems.name}" успешно изменено.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="is_funding_type_already_exists"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_position_funding where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="ppf.id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что финансирование "{ems.name}" должно быть удалено?
+            </confirmation-text>
+            <success-text>
+                Финансирование "{ems.name}" успешно удалено.
+            </success-text>
+
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="is_funding_type_already_exists" level="error">
+            <message>В списке уже существует такой вид финансирования</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                        select count(1) from pim_position_funding
+                        where position_id = :position_id and funding_type_id = :funding_type_id and (:id isnull or id <> :id)
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="ppf.id" mapping="['id']" domain="integer"/>
+                <param name="pos.id" mapping="['position_id']" domain="integer"/>
+                <param name="fst.id" mapping="['funding_type_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+    </validations>
+
+</object>

@@ -1,0 +1,268 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>receptionist_hospitalRecord</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_step s2 on s2.case_id = s.case_id
+                inner join hsp_record r2 on r2.id = s2.id and r2.previous_id is null and r.previous_id = r2.id
+                inner join mc_case c on c.id = s.case_id
+                inner join pci_patient pat on pat.id = c.patient_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+                left outer join fin_funding_source_type funding on funding.id = c.funding_id
+                left outer join pim_department department on department.id = r.department_id
+                left outer join md_profile profile on profile.id = s.profile_id
+                left outer join mc_care_regimen regimen on regimen.id = s.regimen_id
+                left outer join sr_res_group rg on rg.id = s.res_group_id
+                left outer join pim_employee_position_resource epr on epr.employee_position_id = rg.responsible_id
+                left outer join mc_step_result msr on msr.id = s.result_id
+                left outer join mc_step_care_result mscr on mscr.id = s.outcome_id
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(r)
+                from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_step s2 on s2.case_id = s.case_id
+                inner join hsp_record r2 on r2.id = s2.id and r2.previous_id is null and r.previous_id = r2.id
+                inner join mc_case c on c.id = s.case_id
+                inner join pci_patient pat on pat.id = c.patient_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+                left outer join pim_department department on department.id = r.department_id
+                left outer join md_profile profile on profile.id = s.profile_id
+                left outer join mc_care_regimen regimen on regimen.id = s.regimen_id
+                left outer join sr_res_group rg on rg.id = s.res_group_id
+                left outer join pim_employee_position_resource epr on epr.employee_position_id = rg.responsible_id
+                left outer join mc_step_result msr on msr.id = s.result_id
+                left outer join mc_step_care_result mscr on mscr.id = s.outcome_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>s.case_id</expression>
+            <search>:expression = :caseId</search>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>r.id</expression>
+        </field>
+
+        <field>
+            <id>patientName</id>
+            <domain>string</domain>
+            <expression>coalesce(pat_ind.surname, '') || ' ' || coalesce(pat_ind.name, '') || ' ' ||
+                coalesce(pat_ind.patr_name, '')
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>pat.id</expression>
+        </field>
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <expression>c.uid</expression>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>c.funding_id</expression>
+        </field>
+
+        <field>
+            <id>financialTypeName</id>
+            <domain>string</domain>
+            <expression>funding.name</expression>
+        </field>
+
+        <field>
+            <id>isFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>r.is_finance_type_control</expression>
+        </field>
+
+        <field>
+            <id>admissionDate</id>
+            <domain>date</domain>
+            <expression>s.admission_date + coalesce(s.admission_time, '00:00')</expression>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>department.id</expression>
+            <search type="in" unavailable="true"/>
+            <search type="eq" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>department.name</id>
+            <domain>string</domain>
+            <expression>department.name</expression>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>profile.id</expression>
+        </field>
+
+        <field>
+            <id>profile.name</id>
+            <domain>string</domain>
+            <expression>profile.name</expression>
+        </field>
+
+        <field>
+            <id>careRegimen.id</id>
+            <domain>integer</domain>
+            <expression>regimen.id</expression>
+        </field>
+
+        <field>
+            <id>careRegimen.name</id>
+            <domain>string</domain>
+            <expression>regimen.name</expression>
+        </field>
+
+        <field>
+            <id>resGroupId</id>
+            <domain>integer</domain>
+            <expression>s.res_group_id</expression>
+        </field>
+
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>epr.id</expression>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <expression>c.note</expression>
+        </field>
+
+        <!--todo: Значения из настроек-->
+        <field>
+            <id>caseNumeratorByClinic</id>
+            <domain>boolean</domain>
+            <expression>
+                (select case when sv.value is not null and sv.value != '' then sv.value else s.default_value end from cmn_setting s
+                left join cmn_setting_value sv on sv.setting_id = s.id
+                left join cmn_scope sc on sc.id = sv.scope_id
+                left join cmn_scope_type st on st.id = sc.type_id and st.code = 'Global'
+                where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.caseNumeratorByClinic' limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>caseNumeratorByDepartment</id>
+            <domain>boolean</domain>
+            <expression>
+                (select case when sv.value is not null and sv.value != '' then sv.value else s.default_value end from cmn_setting s
+                left join cmn_setting_value sv on sv.setting_id = s.id
+                left join cmn_scope sc on sc.id = sv.scope_id
+                left join cmn_scope_type st on st.id = sc.type_id and st.code = 'Global'
+                where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.caseNumeratorByDepartment' limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>enableUidLink</id>
+            <domain>string</domain>
+            <expression>(select 'enable')</expression>
+        </field>
+
+        <field>
+            <id>endDate</id>
+            <domain>date</domain>
+            <expression>
+                (case when s.outcome_date is null then r.issue_planned_date else case when s.outcome_time is null then s.outcome_date else s.outcome_date + s.outcome_time end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>bedResource.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select md_bed_resource.id from sr_res_group
+                inner join sr_res_group_relationship on sr_res_group.id = rg.id and sr_res_group_relationship.group_id = sr_res_group.id
+                inner join md_bed_resource on md_bed_resource.id = sr_res_group_relationship.resource_id
+                where is_disabled is false or is_disabled is null)
+            </expression>
+        </field>
+
+        <field>
+            <id>is_need_sickList</id>
+            <domain>integer</domain>
+            <expression>c.is_need_sickList</expression>
+        </field>
+
+        <field>
+            <id>has_sickList</id>
+            <domain>integer</domain>
+            <expression>(select count(1) > 0 from md_sicklist sl where sl.transfer_from_clinic is true and sl.case_id = c.id and sl.patient_id = c.patient_id)</expression>
+        </field>
+
+        <field>
+            <id>sickListId</id>
+            <domain>integer</domain>
+            <expression>(select sl.id from md_sicklist sl where sl.transfer_from_clinic is true and sl.case_id = c.id and sl.patient_id = c.patient_id order by sl.issue_dt desc limit 1)</expression>
+        </field>
+
+        <field>
+            <id>sickListIssueDate</id>
+            <domain>date</domain>
+            <expression>(select sl.issue_dt from md_sicklist sl where sl.transfer_from_clinic is true and sl.case_id = c.id and sl.patient_id = c.patient_id order by sl.issue_dt desc limit 1)</expression>
+        </field>
+
+        <field>
+            <id>sickListNumber</id>
+            <domain>string</domain>
+            <expression>(select sl.code from md_sicklist sl where sl.transfer_from_clinic is true and sl.case_id = c.id and sl.patient_id = c.patient_id order by sl.issue_dt desc limit 1)</expression>
+        </field>
+
+        <field>
+            <id>outcome.id</id>
+            <domain>integer</domain>
+            <expression>s2.outcome_id</expression>
+            <search>:expression = :outcome.id</search>
+        </field>
+
+        <field>
+            <id>result.id</id>
+            <domain>integer</domain>
+            <expression>s2.result_id</expression>
+            <search>:expression = :result.id</search>
+        </field>
+
+    </fields>
+
+</query>

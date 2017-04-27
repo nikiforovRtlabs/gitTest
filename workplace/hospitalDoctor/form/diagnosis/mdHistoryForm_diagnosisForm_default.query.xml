@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+
+    <object-id>mdHistoryForm_diagnosisForm</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from hsp_record rec
+                join mc_step step on step.id = rec.id
+                join mc_case c on c.id = step.case_id
+                join pci_patient pat on pat.id = c.patient_id
+                join pim_individual i on i.id = pat.id
+                where :where
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1) from hsp_record rec
+                join mc_step step on step.id = rec.id
+                join mc_case c on c.id = step.case_id
+                join pci_patient pat on pat.id = c.patient_id
+                join pim_individual i on i.id = pat.id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>case.step.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>step.id = :case.step.id</search>
+        </field>
+
+        <field>
+            <id>setMesByDiagnosis</id>
+            <domain>boolean</domain>
+            <expression>(select coalesce((select sv.value::boolean from cmn_setting s
+                join cmn_setting_value sv on sv.setting_id = s.id
+                join cmn_scope sc on sc.id = sv.scope_id
+                join cmn_scope_type st on st.id = sc.type_id
+                where st.code = 'Global' and s.code='cz.atria.medcase.ui.MedicalCaseUISettings.setMesByDiagnosis' limit 1), s.default_value::boolean) from cmn_setting s
+                where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.setMesByDiagnosis' limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>regimenId</id>
+            <domain>integer</domain>
+            <expression>step.regimen_id</expression>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>ageGroupId</id>
+            <domain>integer</domain>
+            <expression>
+                <![CDATA[(case when i.birth_dt is null then 3 else case when extract(year from AGE(NOW(), i.birth_dt)) <= 17 then 2 else 1 end end)]]>
+            </expression>
+        </field>
+        <field>
+            <id>establishmentDateHidden</id>
+            <domain>date</domain>
+            <expression>step.admission_date</expression>
+        </field>
+    </fields>
+
+</query>

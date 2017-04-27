@@ -1,0 +1,110 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>hosp_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from sr_service s
+                left join sr_srv_composition sc on s.id = sc.service_id
+                join public.sr_srv_type st on st.id=s.type_id and st.app_code in ('LABORATORY','PROBES')
+                left join public.md_clinic_laboratory_research mclr on mclr.service_id=s.id
+                left join public.md_clinic_biomaterial mcb on mcb.id = mclr.clinic_biomaterial_id
+                where
+                (case when :isComplex is not true then (not exists (select 1 from sr_srv_composition sc2 where s.id = sc2.complex_id)) else 1=1 end) and
+                :where
+            </n2o:items-query>
+            <n2o:count-query>select count(s)
+                from sr_service s
+                left join sr_srv_composition sc on s.id = sc.service_id
+                join public.sr_srv_type st on st.id=s.type_id and st.app_code in ('LABORATORY','PROBES')
+                left join public.md_clinic_laboratory_research mclr on mclr.service_id=s.id
+                left join public.md_clinic_biomaterial mcb on mcb.id = mclr.clinic_biomaterial_id
+                where
+                (case when :isComplex is not true then (not exists (select 1 from sr_srv_composition sc2 where s.id = sc2.complex_id)) else 1=1 end) and
+                :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>stomatologyService</id>
+            <domain>integer</domain>
+            <expression>s.is_stomat</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>
+                case when :isComplex is true then
+                (case when sc.is_required is true then concat('[!] ',s.code,' ', s.name)
+                                                  else concat(s.code,' ', s.name)
+                end )
+                else concat(s.code,' ', s.name)
+                end
+            </expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+            <search>(case when :labId is not null then s.org_id = :labId else s.org_id = :orgId end)</search>
+        </field>
+
+        <field>
+            <id>labId</id>
+            <domain>integer</domain>
+            <expression>:labId</expression>
+        </field>
+
+        <field>
+            <id>complexId</id>
+            <domain>integer</domain>
+            <expression>sc.complex_id</expression>
+            <display/>
+            <search>(case when :isComplex is true then :expression = :complexId else 1=1 end)</search>
+        </field>
+
+        <field>
+            <id>isComplex</id>
+            <domain>boolean</domain>
+            <expression>:isComplex</expression>
+            <display/>
+            <search>(case when ((:complexId is null and :isComplex is not true) or (:complexId is not null and :isComplex is  true))
+                then 1=1 else 1!=1 end)</search>
+        </field>
+
+        <field>
+            <id>EtBiomaterial_id</id>
+            <domain>integer</domain>
+            <name>Биоматериал по умолчанию</name>
+            <display/>
+            <expression>mcb.id</expression>
+        </field>
+        <field>
+            <id>EtBiomaterial_name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>mcb.name</expression>
+        </field>
+
+
+
+
+
+
+    </fields>
+</query>

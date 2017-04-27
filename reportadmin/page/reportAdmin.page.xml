@@ -1,0 +1,222 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <object-id>reportAdmin</object-id>
+    <name>Администрирование отчетов</name>
+    <layout>n2o/layout/top-bottom</layout>
+    <regions>
+        <region place="top" type="none">
+            <container id="reports" place="top">
+                <wgt:table>
+                    <wgt:name>Информация об отчете</wgt:name>
+                    <wgt:query-id>reportCriteria</wgt:query-id>
+                    <size>20</size>
+                    <wgt:columns>
+                        <wgt:column column-field-id="name" name="Наименование"/>
+                        <wgt:column column-field-id="fileName"/>
+                        <wgt:column column-field-id="form.id" tooltip-field-id="invalidMessage">
+                            <wgt:color>
+                                <wgt:switch value-field-id="isInvalid">
+                                    <wgt:case value="true">label label-important</wgt:case>
+                                </wgt:switch>
+                            </wgt:color>
+                        </wgt:column>
+                        <wgt:column column-field-id="inModule_cbx">
+                            <wgt:checkbox>
+                                <wgt:invoke-action action-id="add_to_module"/>
+                            </wgt:checkbox>
+                        </wgt:column>
+                        <wgt:column column-field-id="group.name"/>
+                        <wgt:column column-field-id="note"/>
+                    </wgt:columns>
+                    <wgt:rows>
+                        <wgt:color>
+                            <wgt:switch value-field-id="is_generated_form">
+                                <wgt:case value="false">success</wgt:case>
+                            </wgt:switch>
+                        </wgt:color>
+                    </wgt:rows>
+                    <wgt:filters position="left" opened="true">
+                        <ctrl:input-text id="name" label="Наименование"/>
+                        <ctrl:input-text id="fileName" label="Файл"/>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="multiUpload" label="Загрузить" icon="icon-plus"
+                                       context="false" color="btn-success">
+                            <wgt:show-modal page-id="reportMultiUpload"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="createReport" label="Загрузить вручную" context="false">
+                            <wgt:show-modal page-id="reportUpload" action-id="uploadReport" focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update_report" label="Изменить" icon="icon-pencil" context="true">
+                            <wgt:show-modal page-id="reportEdit" action-id="update_report"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="show_report" label="Открыть" icon="glyphicon glyphicon-print" context="true">
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>n2oForm.id != null</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isInvalid == null || isInvalid == false</wgt:expression>
+                                    <wgt:tooltip>Форма не валидна!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:show-modal-form form-id="{n2oForm.id}" page-name="{reports.name}"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="show_url" label="Открыть" icon="glyphicon glyphicon-print" context="true">
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>form.id == null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                            <wgt:a href="${rmis.report.url}?__report=:fileName:&amp;__format=pdf" target="newWindow"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editForm" label="Форма" icon="glyphicon glyphicon-wrench" type="textAndIcon"
+                                       context="true">
+                            <wgt:sub-menu>
+                                <wgt:menu-item id="editFormXmlItemUserMode" label="Параметры формы" context="true">
+                                    <wgt:conditions>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>form.id != null</wgt:expression>
+                                            <wgt:tooltip>Отчет без параметров</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>form.id == null || !isInvalid</wgt:expression>
+                                            <wgt:tooltip>Форма не валидна</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                    </wgt:conditions>
+                                    <wgt:show-modal page-id="reportFormFieldProp">
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="formId" ref="form.id"/>
+                                        </wgt:pre-filters>
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="reportXmlEdit" label="Редактор XML" context="true">
+                                    <wgt:conditions>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>form.id != null</wgt:expression>
+                                            <wgt:tooltip>Отчет без параметров</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>form.id == null || !isInvalid</wgt:expression>
+                                            <wgt:tooltip>Форма не валидна</wgt:tooltip>
+                                        </wgt:enabling-condition>
+                                    </wgt:conditions>
+                                    <wgt:open-page page-id="reportXmlEdit" detail-field-id="id"
+                                                   master-field-id="form.id"/>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="regenForm" label="Пересоздать форму" context="true">
+                                    <wgt:conditions>
+                                        <wgt:visibility-condition>
+                                            <wgt:expression>form.id != null &amp;&amp; name == null</wgt:expression>
+                                        </wgt:visibility-condition>
+                                    </wgt:conditions>
+                                    <wgt:show-modal page-id="reportRegenForm" action-id="regenerateForm"/>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="regenFormWithName" label="Пересоздать форму" context="true">
+                                    <wgt:conditions>
+                                        <wgt:visibility-condition>
+                                            <wgt:expression>form.id != null &amp;&amp; name != null</wgt:expression>
+                                        </wgt:visibility-condition>
+                                    </wgt:conditions>
+                                    <wgt:invoke-action action-id="regenerateForm"/>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" context="true">
+                            <wgt:invoke-action action-id="delete"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+
+        </region>
+        <region place="bottom">
+            <container id="placeToReport" depends-on="reports" refresh-dependent-container="true">
+                <wgt:table master-field-id="id" detail-field-id="report.id">
+                    <wgt:name>Места вызова</wgt:name>
+                    <wgt:query-id>reportPlaceToReport</wgt:query-id>
+                    <size>20</size>
+                    <wgt:columns>
+                        <wgt:column column-field-id="placeName" tooltip-field-id="invalidMessage">
+                            <wgt:color>
+                                <wgt:switch value-field-id="isInvalid">
+                                    <wgt:case value="true">label label-important</wgt:case>
+                                </wgt:switch>
+                            </wgt:color>
+                        </wgt:column>
+                        <wgt:column column-field-id="reportContainerName"/>
+                    </wgt:columns>
+                    <wgt:rows>
+                        <wgt:color>
+                            <wgt:switch value-field-id="isInvalid">
+                                <wgt:case value="true">error</wgt:case>
+                            </wgt:switch>
+                        </wgt:color>
+                    </wgt:rows>
+                    <wgt:filters position="left">
+                        <ctrl:input-text id="placeName" label="Наименование страницы"/>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" icon="icon-plus" context="false">
+                            <wgt:show-modal page-id="reportAddToPlace" focus-after-submit="true" width="500px"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>report.isInvalid == null || report.isInvalid == false
+                                    </wgt:expression>
+                                    <wgt:tooltip>Ошибка в файле формы вызова отчета</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="change_parameters" label="Параметры вызова" icon="icon-pencil"
+                                       context="true">
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isInvalid == null || isInvalid == false</wgt:expression>
+                                    <wgt:tooltip>Ошибка в файле места вызова отчета</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>reportContainerId</wgt:expression>
+                                    <wgt:tooltip>Вызов из меню страницы</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>formId</wgt:expression>
+                                    <wgt:tooltip>Отчет без параметров</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:show-modal page-id="reportConnectParams" width="600px" master-field-id="formId"
+                                            detail-field-id="formId">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="placeId" ref="placeId"/>
+                                    <wgt:pre-filter field-id="containerId" ref="reportContainerId"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editXml" label="XML" context="true" icon="glyphicon glyphicon-wrench">
+                            <wgt:open-page page-id="reportPlaceXmlEdit" action-id="persistXml" master-field-id="code"
+                                           detail-field-id="id">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="n2oClass" ref="n2oClass"/>
+                                </wgt:pre-filters>
+                            </wgt:open-page>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete_from_place_item" label="Удалить" icon="icon-remove" context="true">
+                            <wgt:invoke-action action-id="deleteFromPlace"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isInvalid == null || isInvalid == false</wgt:expression>
+                                    <wgt:tooltip>Ошибка в файле места вызова отчета</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="formId" ref="form.id"/>
+                    <pre-filter field-id="fileName" ref="fileName"/>
+                </pre-filters>
+            </container>
+        </region>
+    </regions>
+</page>

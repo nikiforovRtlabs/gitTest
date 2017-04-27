@@ -1,0 +1,377 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <object-id>receipt</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>Журнал рецептов</name>
+
+    <regions>
+        <region place="single" type="none">
+            <container id="main">
+                <wgt:table customize="js" src="n2o/widgets/custom/receiptTable">
+                    <wgt:name>Журнал рецептов</wgt:name>
+                    <wgt:query-id>receiptJournal</wgt:query-id>
+                    <wgt:properties>
+                        <wgt:property key="user" value="#{user.id?}"/>
+                    </wgt:properties>
+                    <wgt:filters>
+                        <ctrl:classifier id="clinic" label="МО" css-class="mo-receipt-classifier">
+                            <ctrl:query query-id="receiptMedicalOrganization">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="userId" value="#{user.id}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+                                <ctrl:value field-id="name">#{org.name?}</ctrl:value>
+                            </ctrl:default-model>-->
+                        </ctrl:classifier>
+                        <ctrl:classifier id="type" label="Тип рецепта">
+                            <ctrl:query query-id="receiptType"/>
+                        </ctrl:classifier>
+                        <ctrl:input-text id="series" label="Серия"/>
+                        <ctrl:input-text id="num" label="Номер"/>
+                        <rc:patient id="patient" label="Пациент" isFilter="true" control-style="width:350px;"/>
+                        <ctrl:classifier id="benefit_type" label="Категория льготы">
+                            <ctrl:query query-id="receiptBenefitType" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="benefit_definition" label="Льгота" depends-on="benefit_type">
+                            <ctrl:query query-id="benefitDefinitionFilter">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="benefit_type.id" ref="benefit_type.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="employee" label="Сотрудник">
+                            <ctrl:query query-id="receiptDoctorFilter">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" ref="clinic.id"/>
+                                    <ctrl:pre-filter field-id="userId" value="#{user.id}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:date-interval id="issue_dt" label="Дата выдачи"/>
+                        <ctrl:classifier id="diagnosis" label="Диагноз">
+                            <ctrl:query query-id="receiptMdDiagnosis"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="funding_source_type" label="Источник финансирования">
+                            <ctrl:query query-id="receiptFundingSourceType"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="inv_inn" label="ЛС(МНН)">
+                            <ctrl:query query-id="receiptInventoryInn"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="inv_holding" label="ЛС(торговое наименование)">
+                            <ctrl:query query-id="receiptInvHolding"/>
+                        </ctrl:classifier>
+                        <ctrl:checkbox id="canceled" label="Аннулирован"/>
+                        <ctrl:checkbox id="isImplemented" label="Отпущен"/>
+                        <ctrl:date-interval id="implementationDate" label="Дата отпуска"/>
+                        <ctrl:checkbox id="isDeferred" label="Отложен"/>
+                        <ctrl:date-interval id="deferredDate" label="Дата признака отложенности"/>
+                    </wgt:filters>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="add" label="Добавить" icon="icon-plus">
+                            <wgt:sub-menu>
+                                <wgt:menu-item id="createGeneral" label="Обычный" context="false">
+                                    <wgt:show-modal page-id="generalReceiptForm" action-id="createGeneral" refresh-on-close="true"/>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="createBenefit" label="Льготный" context="false">
+                                    <wgt:show-modal page-id="benefitReceiptForm" action-id="createBenefit"
+                                                    model="default" after-submit="closeModal"
+                                                    refresh-after-submit="true" create-more="false"
+                                                    page-name="Льготный рецепт">
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="type.code" value="PRIVILEGED"/>
+                                            <wgt:pre-filter field-id="clinic.id" value="#{org.id?}"/>
+                                            <wgt:pre-filter field-id="emplPos.id" value="#{emplPos.id}"/>
+                                        </wgt:pre-filters>
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="createDrugs" label="На наркотические и психотропные препараты" context="false">
+                                    <wgt:show-modal page-id="specialReceiptForm" action-id="createBenefit"
+                                                    model="default" after-submit="closeModal"
+                                                    refresh-after-submit="true" create-more="false"
+                                                    page-name="Рецепт на наркотические и психотропные препараты">
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="type.code" value="DRUGS_PSYCHOACTIVE"/>
+                                            <wgt:pre-filter field-id="clinic.id" value="#{org.id?}"/>
+                                            <wgt:pre-filter field-id="emplPos.id" value="#{emplPos.id?}"/>
+                                        </wgt:pre-filters>
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="createSpecial" label="Специальный" context="false">
+                                    <wgt:show-modal page-id="specialReceiptForm" action-id="createBenefit"
+                                                    model="default" after-submit="closeModal"
+                                                    refresh-after-submit="true" create-more="false"
+                                                    page-name="Специальный рецепт">
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="type.code" value="SPECIAL"/>
+                                            <wgt:pre-filter field-id="clinic.id" value="#{org.id?}"/>
+                                            <wgt:pre-filter field-id="emplPos.id" value="#{emplPos.id?}"/>
+                                        </wgt:pre-filters>
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="createMilky" label="Молочная кухня" context="false">
+                                    <wgt:show-modal page-id="milkyReceiptForm" result-container-id="single" action-id="createMilky"
+                                                    create-more="false" page-name="Создать рецепт">
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="clinic.id" value="#{org.id?}"/>
+                                            <wgt:pre-filter field-id="emplPos.id" value="#{emplPos.id?}"/>
+                                        </wgt:pre-filters>
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+
+                        <!--begin: Редактирование-->
+                        <wgt:menu-item id="editGeneral" label="Редактировать" context="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="generalReceiptForm" action-id="updateGeneral" after-submit="closeModal"
+                                            refresh-on-close="true" master-field-id="id" detail-field-id="id"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'REGULAR'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == false</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editMilky" label="Редактировать" context="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="milkyReceiptForm" result-container-id="single"
+                                            action-id="updateMilky"
+                                            create-more="false"
+                                            page-name="Изменить рецепт {main.series} №{main.num} от {main.issue_date}"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'BABYFOOD'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == false</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editBenefit" label="Редактировать" context="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="benefitReceiptForm" action-id="updateBenefit" after-submit="closeModal"
+                                            refresh-on-close="true" master-field-id="id" detail-field-id="id"
+                                            create-more="false" page-name="Льготный рецепт">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="fromButtonFlag" value="true"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'PRIVILEGED'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == false</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editDrugs" label="Редактировать" context="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="specialReceiptForm" action-id="updateBenefit" after-submit="closeModal"
+                                            refresh-on-close="true" master-field-id="id" detail-field-id="id"
+                                            create-more="false" page-name="Рецепт на наркотические и льготные препараты"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'DRUGS_PSYCHOACTIVE'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == false</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="editSpecial" label="Редактировать" context="true">
+                            <wgt:show-modal page-id="specialReceiptForm" action-id="updateBenefit" after-submit="closeModal"
+                                            refresh-on-close="true" master-field-id="id" detail-field-id="id"
+                                            create-more="false" page-name="Специальный рецепт"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'SPECIAL'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == false</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <!--end: Редактирование-->
+
+                        <!--begin: Удаление-->
+                        <wgt:menu-item id="deleteGeneral" label="Удалить" context="true" icon="glyphicon glyphicon-remove">
+                            <wgt:invoke-action action-id="deleteGeneral" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'REGULAR'</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteBenefit" label="Удалить" context="true" icon="glyphicon glyphicon-remove">
+                            <wgt:invoke-action action-id="deleteBenefit" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'PRIVILEGED'</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteDrugs" label="Удалить" context="true" icon="glyphicon glyphicon-remove">
+                            <wgt:invoke-action action-id="deleteBenefit" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'DRUGS_PSYCHOACTIVE'</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteSpecial" label="Удалить" context="true" icon="glyphicon glyphicon-remove">
+                            <wgt:invoke-action action-id="deleteBenefit" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'SPECIAL'</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteMilkyReceipt" label="Удалить" context="true" icon="glyphicon glyphicon-remove">
+                            <wgt:invoke-action action-id="deleteMilkyReceipt" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'BABYFOOD'</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <!--end: Удаление-->
+
+                        <!--begin: Аннулирование-->
+                        <wgt:menu-item id="cancelGeneral" label="Аннулировать" context="true">
+                            <wgt:invoke-action action-id="cancelReceipt"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'REGULAR'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == false</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="cancelBenefit" label="Аннулировать" context="true">
+                            <wgt:invoke-action action-id="cancelReceipt"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'PRIVILEGED'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == false</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="cancelDrugs" label="Аннулировать" context="true">
+                            <wgt:invoke-action action-id="cancelReceipt"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'DRUGS_PSYCHOACTIVE'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == false</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="cancelSpecial" label="Аннулировать" context="true">
+                            <wgt:invoke-action action-id="cancelReceipt"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'SPECIAL'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == false</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="cancelMilkyReceipt" label="Аннулировать" context="true">
+                            <wgt:invoke-action action-id="cancelReceipt"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'BABYFOOD'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == false</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <!--end: Аннулирование-->
+
+                        <!--begin: Отмена аннулирования-->
+                        <wgt:menu-item id="unCancelGeneral" label="Отменить аннулирование" context="true">
+                            <wgt:invoke-action action-id="unCancelReceipt"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'REGULAR'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="unCancelBenefit" label="Отменить аннулирование" context="true">
+                            <wgt:invoke-action action-id="unCancelReceipt"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'PRIVILEGED'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="unCancelDrugs" label="Отменить аннулирование" context="true">
+                            <wgt:invoke-action action-id="unCancelReceipt"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'DRUGS_PSYCHOACTIVE'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="unCancelSpecial" label="Отменить аннулирование" context="true">
+                            <wgt:invoke-action action-id="unCancelReceipt"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'SPECIAL'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="unCancelMilkyReceipt" label="Отменить аннулирование" context="true">
+                            <wgt:invoke-action action-id="unCancelReceipt"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>type.code == 'BABYFOOD'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!!canceled == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <!--end: Отмена аннулирования-->
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="type.name"/>
+                        <wgt:column column-field-id="issue_dt"/>
+                        <wgt:column column-field-id="patient.name"/>
+                        <wgt:column column-field-id="series"/>
+                        <wgt:column column-field-id="num"/>
+                        <wgt:column column-field-id="diagnosis.name"/>
+                        <wgt:column column-field-id="employee.fio"/>
+                        <wgt:column column-field-id="benefit_type.name"/>
+                        <wgt:column column-field-id="implementationDate"/>
+                        <wgt:column column-field-id="deferredDate"/>
+                    </wgt:columns>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+
+</page>

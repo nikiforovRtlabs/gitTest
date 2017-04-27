@@ -1,0 +1,108 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+
+    <name>Ответы</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    insert into amb.md_ambulance_answer (id,  question_id, answer_text,code, caller_reason_id, next_question_id)
+                    values(nextval('amb.md_ambulance_answer_id_seq'), :question, :answer_text, :code, :caller_reason, :next_question);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name ="answer_text" mapping = "['answer_text']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="caller_reason.id" mapping="['caller_reason']" domain="integer"/>
+                <param name="question.id" mapping="['question']" domain="integer"/>
+                <param name="next_question.id" mapping="['next_question']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkReasonQuestion"/>
+            </validations>
+        </action>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update amb.md_ambulance_answer set code = :code, answer_text = :answer_text,
+                    caller_reason_id = :caller_reason, next_question_id = :next_question
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+                <param name ="answer_text" mapping = "['answer_text']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="caller_reason.id" mapping="['caller_reason']" domain="integer"/>
+                <param name="next_question.id" mapping="['next_question']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkReasonQuestion"/>
+            </validations>
+        </action>
+        <action id="delete">
+            <invocation>
+                <sql:sql>
+                    delete from amb.md_ambulance_answer where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+        <action id="add_question">
+            <invocation>
+                <sql:sql>
+                    update amb.md_ambulance_answer set question_id = null
+                    where id = :old_id;
+                    update amb.md_ambulance_answer set question_id = :question
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "answer.id" mapping = "['id']" domain="integer"/>
+                <param name="question.id" mapping="['question']" domain="integer"/>
+                <param name="id" mapping="['old_id']" domain="integer"/>
+            </in-parameters>
+        </action>
+        <action id="del_question">
+            <invocation>
+                <sql:sql>
+                    update amb.md_ambulance_answer set question_id = null
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="ambulanceanswercodeUnique" level="error">
+            <message>Ответ с кодом '{code}' уже существует ->
+                Укажите другой код!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count (*) from amb.md_ambulance_answer where trim(upper(code)) = trim(upper(:code)) and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name ="code" mapping = "['code']" domain="string"/>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <condition id="checkReasonQuestion" level="error">
+            <expression>
+                caller_reason.id != null ||
+                next_question.id != null
+            </expression>
+            <message>Повод либо вопрос на текущий ответ должен быть заполнен</message>
+        </condition>
+    </validations>
+</object>

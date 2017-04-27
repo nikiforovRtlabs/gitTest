@@ -1,0 +1,126 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_prescription</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hospital.prescription p
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from hospital.prescription p
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+            <search>p.id = :id</search>
+        </field>
+
+        <field>
+            <id>holdings</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(t)) from (
+                select
+                ph.id
+                , holding
+                , ph.count * ph.hold_dose_value    as dose
+                , ph.count
+                , ph.is_patient_medicament
+
+                from hospital.prescription_holding ph
+                join ( select id, row_to_json(holding) as holding from ( select
+                phold.id
+                , phold.holding_id 		           as holding_id
+                , (select name from inventory.holding where id = phold.holding_id) || coalesce(', ' || ft.short_name, '') || coalesce(', ' || phold.hold_con_value || coalesce(' ' || dm.name,''), '')
+                as holding_full_name
+                , phold.hold_form_type_id          as form_type_id
+                , trim(to_char(phold.hold_dose_value, 'FM9999990.999'), '.') || ' ' || dm.name
+                as dose_with_measure
+                , phold.hold_dose_value            as dose
+                , phold.hold_dose_measure_id       as dose_measure_id
+                , dm.name                          as dose_measure_name
+                , phold.hold_con_value             as concentration
+                , phold.hold_con_measure_id        as concentration_measure_id
+                , phold.hold_mnei_id               as mnei_id
+                , (select name from cmn_measure where id = phold.hold_mnei_id)
+                as mnei_name
+                , h.name || coalesce(', ' || ft.short_name, '')
+                || coalesce(', ' || phold.hold_con_value || coalesce(' ' || (select name from cmn_measure where id = phold.hold_con_measure_id),''), '')
+                || coalesce(', ' || trim(to_char(phold.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' ' || (select name from cmn_measure where id = phold.hold_dose_measure_id),''), '')
+                || coalesce(', ' || mnei.name, '') as name_holding
+                from hospital.prescription_holding phold
+                join inventory.holding h on h.id = phold.holding_id
+                left join inventory.form_type ft on ft.id = phold.hold_form_type_id
+                left join cmn_measure dm on dm.id = phold.hold_dose_measure_id
+                left join cmn_measure mnei on mnei.id = phold.hold_mnei_id
+                order by phold.id ) holding ) h on h.id = ph.id
+
+                where ph.prescription_id = p.id
+                order by ph.id) as t)
+            </expression>
+        </field>
+
+        <field>
+            <id>administrationRoute.id</id>
+            <domain>integer</domain>
+            <expression>p.administration_route_id</expression>
+        </field>
+
+        <field>
+            <id>prescriptionPeriodicity.id</id>
+            <domain>integer</domain>
+            <expression>p.periodicity_id</expression>
+        </field>
+
+        <field>
+            <id>visitTerm.id</id>
+            <domain>integer</domain>
+            <expression>p.visit_term_id</expression>
+        </field>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>p.case_id</expression>
+        </field>
+
+        <field>
+            <id>case.patient.id</id>
+            <domain>integer</domain>
+            <expression>p.patient_id</expression>
+        </field>
+
+        <field>
+            <id>case.step.id</id>
+            <domain>integer</domain>
+            <expression>p.step_id</expression>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <expression>p.note</expression>
+        </field>
+
+        <field>
+            <id>isExecutionOnce</id>
+            <domain>boolean</domain>
+            <expression>p.is_execution_once</expression>
+        </field>
+
+    </fields>
+</query>

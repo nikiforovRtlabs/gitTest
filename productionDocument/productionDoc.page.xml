@@ -1,0 +1,160 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <object-id>productionDoc</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>Документ на изготовление</name>
+
+    <regions>
+        <region place="single" type="none">
+            <container id="main">
+                <wgt:form master-field-id="id" detail-field-id="id">
+                    <wgt:edit model="query" condition="status.id==1" after-submit="closeModal">
+                        <wgt:invoke-action action-id="save"/>
+                    </wgt:edit>
+                    <wgt:query-id>productionDoc</wgt:query-id>
+                    <fs:field-set field-label-location="top">
+                        <fs:row>
+                            <ctrl:hidden id="org.id" default-value="#{org.id?}"/>
+                            <ctrl:classifier id="docType" label="Тип" autoselect="true" css-class="n2o-label-4 n2o-control-4" readonly="true">
+                                <ctrl:query query-id="inv_documentType" label-field-id="name" value-field-id="id"/>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">10</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+
+                            <ctrl:input-text id="docNumber" label="Номер" css-class="n2o-label-4 n2o-control-4">
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>typeof id!='undefined' &amp;&amp; id!=null</ctrl:required-condition>
+                                </ctrl:dependencies>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="prodDocCheckUnique" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+
+                            <ctrl:date-time id="docDate" label="Дата" default-value="today()" css-class="n2o-label-6 n2o-control-4" required="true"/>
+
+                            <ctrl:classifier id="baseDocType" label="Тип основания" autoselect="true" css-class="n2o-label-4 n2o-control-4">
+                                <ctrl:query query-id="inv_documentType" label-field-id="name" value-field-id="id"/>
+                            </ctrl:classifier>
+
+                            <ctrl:input-text id="baseDocNumber" label="Номер основания" css-class="n2o-label-4 n2o-control-4" dependency-condition="baseDocType.id != 11"/>
+
+                            <ctrl:classifier id="appProdDocNumber" label="Номер основания" autoselect="true" dependency-condition="baseDocType.id == 11" css-class="n2o-label-4 n2o-control-4">
+                                <ctrl:query query-id="application_prod_doc" label-field-id="number" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="baseDocDate" ref="baseDocDate" reset-mode="on"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:date-time id="baseDocDate" label="Дата основания" css-class="n2o-label-4 n2o-control-4">
+                                <ctrl:set-value-expression on="appProdDocNumber" on-load="false">if(appProdDocNumber!=null &amp;&amp; appProdDocNumber.id!=null) appProdDocNumber.baseDocDate; else null;</ctrl:set-value-expression>
+                            </ctrl:date-time>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="sendStore" label="Склад" autoselect="true" control-style="width:410px" label-style="width: 450px" required="true">
+                                <ctrl:query query-id="inv_store" label-field-id="name" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                        <ctrl:pre-filter field-id="storeTypeId" value="1"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:select-tree id="fundSource" ajax="false" label="Финансирование" search="true"
+                                              control-style="width:410px" required="true">
+                                <ctrl:inheritance-nodes query-id="inv_fundingSource_inheritance"
+                                                        parent-field-id="parentId"
+                                                        has-children-field-id="hasChildren" search-field-id="name"
+                                                        label-field-id="name" icon-field-id="iconId">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:inheritance-nodes>
+                            </ctrl:select-tree>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="arrStoreOpr" autoselect="true" label="Операция прихода" readonly="true"
+                                             control-style="width:410px" label-style="width: 450px" required="true">
+                                <ctrl:query query-id="inv_storeOperation" label-field-id="name" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="oprTypeId" value="1"/>
+                                        <ctrl:pre-filter field-id="code" value="14"/>
+                                        <ctrl:pre-filter field-id="recTypeId" ref="1"/>
+                                        <ctrl:pre-filter field-id="sendTypeId" ref="1"/>
+                                        <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            
+                            <ctrl:classifier id="formulaDoc" label="Пропись" search-as-you-type="true" control-style="width:410px">
+                                <ctrl:query query-id="inv_formulaDocument" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression on="appProdDocNumber" on-load="false" silent-mode="false">if(appProdDocNumber!=null &amp;&amp; appProdDocNumber.id!=null) appProdDocNumber.formulaDoc;</ctrl:set-value-expression>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="expStoreOpr" autoselect="true" label="Операция расхода" readonly="true" control-style="width:410px" label-style="width: 450px" required="true">
+                                <ctrl:query query-id="inv_storeOperation" label-field-id="name" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="code" value="15"/>
+                                        <ctrl:pre-filter field-id="oprTypeId" value="2"/>
+                                        <ctrl:pre-filter field-id="recTypeId" ref="1"/>
+                                        <ctrl:pre-filter field-id="sendTypeId" ref="1"/>
+                                        <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="modif" autoselect-alone="true" label="Наименование ЛС и ИМН"
+                                             control-style="width:410px"  label-style="width:400px" required="true" depends-on="formulaDoc">
+                                <ctrl:query query-id="inv_holdModifWithParams" label-field-id="name" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                        <ctrl:pre-filter field-id="isExtemporal" value="true"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression on="formulaDoc" on-load="false">if(formulaDoc!=null &amp;&amp; formulaDoc.id!=null) formulaDoc.modif; else null;</ctrl:set-value-expression>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="mneiQuantity" label="Кол-во в МНЕИ" css-class="n2o-label-4 n2o-control-4" depends-on="modif" required="true">
+                                <ctrl:set-value-expression on="quantity" silent-mode="true">quantity*modif.countInMNEI</ctrl:set-value-expression>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="checkMneiQuantity"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+                            <ctrl:output-text id="modif.MNEI" label="&#144;" css-class="n2o-label-3 n2o-control-3" label-style="width:0px" depends-on="modif" readonly="true" copied="false" />
+
+                            <ctrl:input-text id="quantity" label="Кол-во" css-class="n2o-label-3 n2o-control-4" depends-on="modif" required="true" readonly="true">
+                                <ctrl:set-value-expression on="mneiQuantity" silent-mode="true">mneiQuantity/modif.countInMNEI</ctrl:set-value-expression>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="checkQuantity"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+                            <ctrl:output-text id="modif.unitName" label="&#144;" label-style="width:85px" control-style="width: 60px" depends-on="modif" readonly="true" copied="false"/>
+
+                            <ctrl:input-text id="price" label="Цена" css-class="n2o-label-7 n2o-control-5" label-style="width: 240px" readonly="true" required="true" default-value="0"/>
+                            <ctrl:input-text id="amount" label="Сумма" css-class="n2o-label-3 n2o-control-5" readonly="true" default-value="0"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="series" label="Серия партии" css-class="n2o-label-7 n2o-control-4" label-style="width: 215px"/>
+                            <ctrl:date-time id="expireDate" label="Срок годности" css-class="n2o-label-5 n2o-control-4" label-style="width: 225px"/>
+                            <ctrl:input-text id="certificate" label="Сертификат" css-class="n2o-label-7 n2o-control-5" label-style="width: 240px"/>
+                            <ctrl:date-time id="prodDate" label="Дата производства" css-class="n2o-label-5 n2o-control-5"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:text-area id="note" label="Примечание" control-style="width:870px" rows="1"/>
+                        </fs:row>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+    </regions>
+
+</page>

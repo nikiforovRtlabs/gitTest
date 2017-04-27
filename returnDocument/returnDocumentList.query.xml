@@ -1,0 +1,190 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>returnDocumentList</name>
+    <object-id>returnDocument</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.return_document rd
+                inner join inventory.document d on d.id=rd.id
+                left outer join pim_organization provider on provider.id=rd.provider_id
+                left outer join inventory.funding_source fs on fs.id=rd.fund_source_id
+                left outer join inventory.store s on s.id=rd.send_store_id
+                left outer join inventory.store_opr opr on opr.id=rd.store_opr_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(rd)
+                from inventory.return_document rd
+                inner join inventory.document d on d.id=rd.id
+                left outer join pim_organization provider on provider.id=rd.provider_id
+                left outer join inventory.funding_source fs on fs.id=rd.fund_source_id
+                left outer join inventory.store s on s.id=rd.send_store_id
+                left outer join inventory.store_opr opr on opr.id=rd.store_opr_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>rd</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>docNumber</id>
+            <domain>string</domain>
+            <name>№</name>
+            <expression>d.int_doc_number</expression>
+            <search>(:expression like '%'||'-'||:docNumber or :expression=:docNumber)</search>
+        </field>
+        <field>
+            <id>docDate</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>d.int_doc_dt</expression>
+            <search type="between">
+                <![CDATA[(:docDate.begin::date is null or d.int_doc_dt >= :docDate.begin) and
+                        (:docDate.end::date is null or d.int_doc_dt <= :docDate.end) ]]></search>
+        </field>
+        <field>
+            <id>docDateString</id>
+            <domain>date</domain>
+            <expression>to_char(d.int_doc_dt, 'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>docDate.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>docDate.begin</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>statusDate</id>
+            <domain>date</domain>
+            <name>Проводка</name>
+            <expression>d.execute_dt</expression>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>d.doc_status_id</expression>
+            <search> :expression = :status.id</search>
+        </field>
+        <field>
+            <id>statusTooltip</id>
+            <domain>string</domain>
+            <display>
+                case when d.doc_status_id=1 then 'не проведен' else 'проведен' end
+            </display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>provider.id</id>
+            <domain>integer</domain>
+            <expression>provider.id</expression>
+        </field>
+        <field>
+            <id>provider.name</id>
+            <domain>string</domain>
+            <name>Поставщик</name>
+            <expression>coalesce(provider.short_name,provider.full_name)</expression>
+        </field>
+        <field>
+            <id>providerList*.id</id>
+            <domain>integer[]</domain>
+            <search>provider.id in (:providerList*.id)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>sendStore.id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+        <field>
+            <id>sendStores*.id</id>
+            <domain>integer[]</domain>
+            <search>s.id in (:sendStores*.id)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>sendStore.name</id>
+            <name>Отправитель</name>
+            <domain>string</domain>
+            <expression>s.name</expression>
+        </field>
+        <field>
+            <id>operation.id</id>
+            <domain>integer</domain>
+            <expression>opr.id</expression>
+        </field>
+        <field>
+            <id>operation.name</id>
+            <name>Операция</name>
+            <domain>string</domain>
+            <expression>opr.name</expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fs.id</expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <name>Финансирование</name>
+            <expression>fs.name</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>d.org_id</expression>
+            <search value="#{org.id?}"/>
+        </field>
+        <field>
+            <id>isExecutedSimbol</id>
+            <domain>boolean</domain>
+            <name> </name>
+            <expression>(case when d.doc_status_id=1 then '&#10008;' else '&#10004;' end)</expression>
+        </field>
+        <field>
+            <id>amount</id>
+            <domain>string</domain>
+            <name>Сумма</name>
+            <expression>rd.amount</expression>
+        </field>
+        <field>
+            <id>countOfSpec</id>
+            <domain>integer</domain>
+            <expression>(select count(1) from inventory.return_doc_spec where document_id= rd.id)</expression>
+        </field>
+        <field>
+            <id>isExecuted</id>
+            <domain>string</domain>
+            <expression>(case when d.doc_status_id=1 then 'false' else 'true' end)</expression>
+        </field>
+        <field>
+            <id>executedSpecExists</id>
+            <domain>boolean</domain>
+            <expression>(select exists(select 1 from inventory.return_doc_spec where document_id=d.id and status_id=2))</expression>
+        </field>
+        <field>
+            <id>docType.name</id>
+            <domain>string</domain>
+            <expression>'RETURN_DOC'</expression>
+        </field>
+        <field>
+            <id>isExecutedColor</id>
+            <domain>string</domain>
+            <expression>case when d.doc_status_id=2 then 'success' end</expression>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>hospitalization</id>-->
+    <name>Госпитализация</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    select amb.add_call_note(:call,21,true,null,:descr,:reg,null);
+                    update amb.md_ambulance_call set
+                    reason_diag = :diag,
+                    to_org_id = :toorg,
+                    to_department_id = :todep,
+                    to_address_id = :to_addr,
+                    to_description = :to_descr
+                    where id = :call;
+                    <!--Обновление результата вызова на "Доставлен в больницу (403)"-->
+                    update mc_step set result_id = (select id from mc_step_result where e_code = '403')
+                    where case_id = (select case_id from amb.md_ambulance_call_result where id = :call);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="call_id" mapping="['call']" domain="integer"/>
+                <param name="note_reason.id" mapping="['reason']" domain="integer"/>
+                <param name="descr" mapping="['descr']" domain="string"/>
+                <param name="employee.id" mapping="['reg']" domain="integer" value="#{emplPos.id?}"/>
+                <param name="diagnosis.id" mapping="['diag']" domain="integer"/>
+                <param name="to_org.id" mapping="['toorg']" domain="integer"/>
+                <param name="to_department.id" mapping="['todep']" domain="integer"/>
+                <param name="toaddr_data.id" mapping="['to_addr']" domain="integer"/>
+                <param name="to_addr_descr" mapping="['to_descr']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]" domain="integer"/>
+            </out-parameters>
+        </action>
+        <!--<action id="update">-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--update amb.md_ambulance_call_selfrefused set caller_id = :caller, employee_id = :employee,caller_surname = trim(:surname),comment = trim(:comment) where id = :id-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name = "id" mapping = "['id']" domain="integer"/>-->
+                <!--<param name="caller.id" mapping="['caller']"/>-->
+                <!--<param name="employee_med.id" mapping="['emp']"/>-->
+                <!--<param name="surname" mapping="['surname']"/>-->
+                <!--<param name="comment" mapping="['comment']"/>-->
+            <!--</in-parameters>-->
+        <!--</action>-->
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    select amb.add_call_note(:call,21,false,:reason,:descr,:reg,null);
+                    update amb.md_ambulance_call set reason_diag = null,to_org_id = null,to_department_id = null,to_address_id = null,to_house = null,to_housing = null,to_apartment = null,to_porch = null,to_description = null where id = :call;
+                    <!--Обннуление результата вызова-->
+                    update mc_step set result_id = null
+                    where case_id = (select case_id from amb.md_ambulance_call_result where id = :call);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="call_id" mapping="['call']" domain="integer"/>
+                <!--<param name="note.id" mapping="['note']" domain="integer"/>-->
+                <!--<param name ="call_note.type" mapping = "['type']" domain="boolean"/>-->
+                <param name="note_reason.nrId" mapping="['reason']" domain="integer"/>
+                <param name="descr" mapping="['descr']" domain="string"/>
+                <param name="employee.id" mapping="['reg']" domain="integer" value="#{emplPos.id?}"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Снять ранее установленную отметку о госпитализации?</confirmation-text>
+        </action>
+    </actions>
+</object>

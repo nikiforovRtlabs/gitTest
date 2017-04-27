@@ -1,0 +1,99 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>series</name>
+
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    insert into public.vac_series (id, label, vaccine_id, producer_id, produce_date, end_date)
+                    values(nextval('public.vac_series_id_seq'), :label, :vaccine, :producer, :produceDate, :endDate)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="label" mapping="['label']" domain="string"/>
+                <param name="vaccine.id" mapping="['vaccine']" domain="integer"/>
+                <param name="producer.id" mapping="['producer']" domain="integer"/>
+                <param name="produce_date" mapping="['produceDate']" domain="date"/>
+                <param name="end_date" mapping="['endDate']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+        </action>
+
+        <action id="update" name="Редактировать">
+            <invocation>
+                <sql:sql>
+                    update public.vac_series set label = :label, vaccine_id = :vaccine, producer_id = :producer, produce_date = :produceDate, end_date = :endDate where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="label" mapping="['label']" domain="string"/>
+                <param name="vaccine.id" mapping="['vaccine']" domain="integer"/>
+                <param name="producer.id" mapping="['producer']" domain="integer"/>
+                <param name="produce_date" mapping="['produceDate']" domain="date"/>
+                <param name="end_date" mapping="['endDate']" domain="date"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="seriesIsUsed"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from public.vac_series where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="seriesIsUsed" level="warning">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from public.vac_inoculation
+                    where series_id = :series;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['series']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>В системе зарегистрированы прививки с данной серией вакцины. Вы уверены что хотите сохранить изменения серии вакцины?</message>
+        </constraint>
+        <condition id="checkDates" level="error">
+            <message>Дата изготовления не может быть позже даты окончания годности</message>
+            <expression><![CDATA[
+                    (produce_date != null && end_date != null &&
+                    (!moment(produce_date, 'DD.MM.YYYY').isAfter(moment(end_date, 'DD.MM.YYYY'))))
+                    ||produce_date == null||end_date == null]]>
+            </expression>
+        </condition>
+        <constraint id="unique" level="error">
+            <message>Серия с таким наименованием, вакциной и производителем уже существует</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from vac_series
+                    where (label = :label and vaccine_id = :vaccine and producer_id = :producer) and
+                    (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="label" mapping="['label']" domain="string"/>
+                <param name="vaccine.id" mapping="['vaccine']" domain="integer"/>
+                <param name="producer.id" mapping="['producer']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

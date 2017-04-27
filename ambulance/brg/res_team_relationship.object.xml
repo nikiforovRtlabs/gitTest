@@ -1,0 +1,189 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>res_team_relationship</id>-->
+    <name>Состав бригады</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <sql:sql>
+                    insert into amb.sr_res_team_relationship (res_team_id,template_emp_id,is_head,template_transp_id,btime,etime)
+                    values (:res_team,:emp,false,:transp,cast(:btime as time),cast(:etime as time));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="res_team.id" mapping="['res_team']" domain="integer"/>
+                <param name="template_emp.id" mapping="['emp']" domain="integer"/>
+                <!--<param name="is_head" mapping="['is_head']" domain="boolean"/>-->
+                <param name="template_transp.id" mapping="['transp']" domain="integer"/>
+                <param name="btime" mapping="['btime']" domain="string"/>
+                <param name="etime" mapping="['etime']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+        </action>
+        <action id="update" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    update amb.sr_res_team_relationship set btime = cast(:btime as time),etime = cast(:etime as time) where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="btime" mapping="['btime']" domain="string"/>
+                <param name="etime" mapping="['etime']" domain="string"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    select amb.del_res_team (:id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkUniqueRes" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.sr_res_team_relationship srtr
+                    where srtr.res_team_id = :team
+                    and (srtr.template_emp_id = :emp or srtr.template_transp_id = :transp)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="res_team.id" mapping="['team']" domain="integer"/>
+                <param name="template_emp.id" mapping="['emp']" domain="integer"/>
+                <param name="template_transp.id" mapping="['transp']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Настройка для рабочего места в бригаде уже существует в системе</message>
+        </constraint>
+        <!--<constraint id="checkUniqueEmp" level="error">-->
+        <!--<invocation>-->
+        <!--<sql:sql>-->
+        <!--select count(*)-->
+        <!--from amb.sr_res_team_relationship srtr-->
+        <!--&lt;!&ndash;join amb.sr_res_team srt on srt.id = srtr.res_team_id&ndash;&gt;-->
+        <!--&lt;!&ndash;join public.sr_res_group srg on srg.id = srt.resource_id&ndash;&gt;-->
+        <!--&lt;!&ndash;join amb.sr_res_team_template_employer srtte on srtte.id = srtr.template_emp_id&ndash;&gt;-->
+        <!--where srtr.res_team_id = :team-->
+        <!--and (srtr.template_emp_id = :emp or srtr.template_transp_id = :transp)-->
+        <!--</sql:sql>-->
+        <!--</invocation>-->
+        <!--<in-parameters>-->
+        <!--<param name="res_team.id" mapping="['team']" domain="integer"/>-->
+        <!--<param name="template_emp.id" mapping="['emp']" domain="integer"/>-->
+        <!--<param name="template_transp.id" mapping="['transp']" domain="integer"/>-->
+        <!--&lt;!&ndash;<param name="template_emp.work_place" mapping="['work_place']"/>&ndash;&gt;-->
+        <!--&lt;!&ndash;<param name="res_team.name" mapping="['name']"/>&ndash;&gt;-->
+        <!--</in-parameters>-->
+        <!--<result expression="[0][0][0] == 0"/>-->
+        <!--<message>Настройка для рабочего места '{template_emp.id}' в бригаде '{res_team.id}' уже существует в системе</message>-->
+        <!--</constraint>-->
+        <!--<constraint id="TranspcheckUnique" level="error">-->
+        <!--<invocation>-->
+        <!--<sql:sql>-->
+        <!--select count(*)-->
+        <!--from amb.sr_res_team_relationship srtr-->
+        <!--where srtr.res_team_id = :team-->
+        <!--and srtr.template_transp_id = :transp-->
+        <!--</sql:sql>-->
+        <!--</invocation>-->
+        <!--<in-parameters>-->
+        <!--<param name="res_team.id" mapping="['team']" domain="integer"/>-->
+        <!--<param name="template_transp.id" mapping="['transp']" domain="integer"/>-->
+        <!--</in-parameters>-->
+        <!--<result expression="[0][0][0] == 0"/>-->
+        <!--<message>Настройка для рабочего места в бригаде уже существует в системе</message>-->
+        <!--</constraint>-->
+
+        <!--не забыть ещё сравнение не только с началом работы бригады, но и смены -->
+        <constraint id="TimecheckRes" level="warning">
+            <invocation>
+                <sql:sql>
+                    <!--select count(*)-->
+                    <!--from amb.sr_res_team_relationship srtr-->
+                    <!--join amb.sr_res_team srt on srt.id = srtr.res_team_id-->
+                    <!--left join amb.sr_res_team_template_employer srtte on srtte.id = srtr.template_emp_id-->
+                    <!--left join amb.sr_res_team_template_transport srttt on srttt.id = srtr.template_transp_id-->
+                    <!--where srtr.res_team_id = :team-->
+                    <!--and coalesce(srtte.res_role_id,srttt.res_role_id) = coalesce(:Erole,:Trole)-->
+                    <!--and ((cast(:btime as time) >=srtr.btime and  srtr.etime>= cast(:btime as time)) or (cast(:etime as time) >=srtr.btime and  srtr.etime>= cast(:etime as time)))-->
+                    <!--and (:id is null or srtr.id != :id)-->
+                    select count(*)
+                    from amb.sr_res_team_relationship srtr
+                    join amb.sr_res_team srt on srt.id = srtr.res_team_id
+                    left join amb.sr_res_team_template_employer srtte on srtte.id = srtr.template_emp_id
+                    left join amb.sr_res_team_template_transport srttt on srttt.id = srtr.template_transp_id
+                    where srtr.res_team_id = :team
+                    and (srtte.res_role_id = :Erole or srttt.res_role_id =:Trole)
+                    <!--coalesce(srtte.res_role_id,srttt.res_role_id) = coalesce(:Erole,:Trole)-->
+                    and (
+                    (
+                    case when cast(:btime as time) >= cast('00:00' as time) and coalesce(srt.btime,cast(:change as time)) > cast(:btime as time)
+                    then  cast(now() as date) + CAST('1 days' as interval) + cast(:btime as time)
+                    else cast(now() as date) + cast(:btime as time)
+                    end >=
+                    case when srtr.btime >= cast('00:00' as time) and coalesce(srt.btime,cast(:change as time)) > srtr.btime
+                    then cast(now() as date) + CAST('1 days' as interval) + srtr.btime
+                    else cast(now() as date) + srtr.btime
+                    end
+                    and case when srtr.etime >= cast('00:00' as time) and coalesce(srt.btime,cast(:change as time)) >= srtr.etime
+                    then cast(now() as date) + CAST('1 days' as interval) + srtr.etime - CAST('1 second' as interval)
+                    else cast(now() as date) + srtr.etime- CAST('1 second' as interval)
+                    end >=
+                    case when cast(:btime as time) >= cast('00:00' as time) and coalesce(srt.btime,cast(:change as time)) > cast(:btime as time)
+                    then  cast(now() as date) + CAST('1 days' as interval) + cast(:btime as time)
+                    else cast(now() as date) + cast(:btime as time)
+                    end
+                    )
+                    or
+                    (	case when cast(:etime as time) >= cast('00:00' as time) and coalesce(srt.btime,cast(:change as time)) >= cast(:etime as time)
+                    then  cast(now() as date) + CAST('1 days' as interval) + cast(:etime as time)
+                    else cast(now() as date) + cast(:etime as time)
+                    end >=
+                    case when srtr.btime >= cast('00:00' as time) and coalesce(srt.btime,cast(:change as time)) > srtr.btime
+                    then cast(now() as date) + CAST('1 days' as interval) + srtr.btime + CAST('1 second' as interval)
+                    else cast(now() as date) + srtr.btime + CAST('1 second' as interval)
+                    end
+                    and
+                    case when srtr.etime >= cast('00:00' as time) and coalesce(srt.btime,cast(:change as time)) >= srtr.etime
+                    then cast(now() as date) + CAST('1 days' as interval) + srtr.etime
+                    else cast(now() as date) + srtr.etime
+                    end >=
+                    case when cast(:etime as time) >= cast('00:00' as time) and coalesce(srt.btime,cast(:change as time)) >= cast(:etime as time)
+                    then  cast(now() as date) + CAST('1 days' as interval) + cast(:etime as time)
+                    else cast(now() as date) + cast(:etime as time)
+                    end
+                    )
+                    )
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <!--<param name="id" mapping="['id']" domain="integer"/>-->
+                <param name="changebtime" mapping="['change']" domain="string"/>
+                <param name="res_team.id" mapping="['team']" domain="integer"/>
+                <param name="template_emp.role_id" mapping="['Erole']" domain="integer"/>
+                <param name="template_transp.role_id" mapping="['Trole']" domain="integer"/>
+                <param name="btime" mapping="['btime']" domain="string"/>
+                <param name="etime" mapping="['etime']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Настройка для рабочего места пересекается со временем работы другого ресурса</message>
+        </constraint>
+
+        <condition id="has_temset" level="warning">
+            <message>Для выбранной бригады отсутствуют рабочие места в шаблоне</message>
+            <expression>
+                (typeof res_team.temsetId != 'undefined')&amp;&amp;(res_team.temsetId != null)
+            </expression>
+        </condition>
+    </validations>
+</object>

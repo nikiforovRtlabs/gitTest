@@ -1,0 +1,220 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>complexResource</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sr_res_group rg
+                left join pim_department d on d.id=rg.department_id
+                left join pim_employee_position pep on pep.id=rg.responsible_id
+                left join sr_res_group_label gl on gl.id=rg.label_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(rg)
+                from sr_res_group rg
+                left join pim_department d on d.id=rg.department_id
+                left join pim_employee_position pep on pep.id=rg.responsible_id
+                left join sr_res_group_label gl on gl.id=rg.label_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <!-- todo rg.template_res_group_id-->
+    <fields>
+        <field>
+            <id>oid</id>
+            <domain>integer</domain>
+            <expression>rg.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>rg.name</expression>
+            <display/>
+            <sorting/>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    upper(:expression) like '%'||upper(:name)||'%'
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>department.oid</id>
+            <domain>integer</domain>
+            <expression>d.id</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>department.name</id>
+            <domain>string</domain>
+            <expression>d.name</expression>
+            <display/>
+            <sorting/>
+        </field>
+        <field>
+            <id>period.begin</id>
+            <domain>date</domain>
+            <expression>rg.bdate</expression>
+            <display/>
+            <sorting/>
+            <filters>
+                <filter type="eq" filter-field="period.begin">
+                    <![CDATA[
+                    ((rg.bdate is null and rg.edate is null) or
+                     (rg.edate is null or rg.edate >= :period.begin))
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>period.end</id>
+            <domain>date</domain>
+            <expression>rg.edate</expression>
+            <display/>
+            <sorting/>
+            <filters>
+                <filter type="eq" filter-field="period.end">
+                    <![CDATA[
+                    ((rg.bdate is null and rg.edate is null) or
+                     (rg.bdate is null or rg.bdate <= :period.end))
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>active</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[
+                ((rg.bdate is null and rg.edate is null) or
+                 ((rg.edate is null or rg.edate >= now()::date) and
+                  (rg.bdate is null or rg.bdate <= (now()::date + 1))))
+                ]]>
+            </expression>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>is_system</id>
+            <domain>boolean</domain>
+            <expression>rg.is_system</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <expression>rg.note</expression>
+            <display/>
+            <sorting/>
+            <filters>
+                <filter type="eq" filter-field="note">
+                    upper(:expression) like '%'||upper(:note)||'%'
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>responsible.oid</id>
+            <domain>integer</domain>
+            <expression>pep.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>responsible.name</id>
+            <domain>string</domain>
+            <expression>sickdoc.employee_position_displayname(pep.id)</expression>
+            <display/>
+            <sorting/>
+        </field>
+        <field>
+            <id>is_available_in_electronic_queue</id>
+            <domain>boolean</domain>
+            <expression>rg.is_available_in_electronic_queue</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>label.oid</id>
+            <domain>integer</domain>
+            <expression>gl.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>label.name</id>
+            <domain>string</domain>
+            <expression>gl.liter</expression>
+            <display/>
+            <sorting/>
+            <filters>
+                <filter type="eq" filter-field="label.name">
+                    upper(:expression) like '%'||upper(:label.name)||'%'
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>ignore_regclinic_check</id>
+            <domain>boolean</domain>
+            <expression>rg.ignore_regclinic_check</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>blocked</id>
+            <domain>boolean</domain>
+            <filters>
+                <filter type="eq" filter-field="address.id">
+                    <![CDATA[
+                    (
+                        exists (
+                            select * from sr_res_group_block
+                            where res_group_id=rg.id and
+                                  (bdate is null and edate is null) or
+                                  ((edate is null or edate >= now()::date) and
+                                   (bdate is null or bdate <= (now()::date + 1)))
+                        )
+                    )
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>emergency</id>
+            <domain>boolean</domain>
+            <expression>rg.emergency</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>ignore_districts</id>
+            <domain>boolean</domain>
+            <expression>rg.ignore_districts</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>rg.org_id</expression>
+            <display default-value="#{stocks.orgId?}"/>
+            <filters>
+                <filter type="eq" filter-field="org.oid" default-value="#{stocks.orgId?}">
+                    case when :org.oid is null then rg.org_id=:org_id else rg.org_id=:org.oid end
+                </filter>
+            </filters>
+        </field>
+    </fields>
+</query>

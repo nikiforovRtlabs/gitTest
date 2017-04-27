@@ -1,0 +1,127 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>organizationsList</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from md_clinic mc
+                left join md_clinic_nom_type mcn on mc.nomenclature_type_id=mcn.id
+                left join md_subordination_category msc on msc.id=mc.subordination_category_id
+                left join md_departmental_attachment mda on mda.id=mc.departmental_attachment_id
+                left join pim_organization po2 on mc.parent_id=po2.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mc)
+                from md_clinic mc
+                left join md_clinic_nom_type mcn on mc.nomenclature_type_id=mcn.id
+                left join md_subordination_category msc on msc.id=mc.subordination_category_id
+                left join md_departmental_attachment mda on mda.id=mc.departmental_attachment_id
+                left join pim_organization po2 on mc.parent_id=po2.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mc</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>mc.id</expression>
+        </field>
+        <field>
+            <id>code</id>
+            <name>Код</name>
+            <domain>string</domain>
+            <expression>mc.code</expression>
+        </field>
+        <field>
+            <id>shortName</id>
+            <name>Краткое наименование</name>
+            <domain>string</domain>
+            <expression>mc.short_name</expression>
+            <search>upper(:expression) like '%'||upper(:shortName)||'%'</search>
+        </field>
+        <field>
+            <id>fullName</id>
+            <name>Полное наименование</name>
+            <domain>string</domain>
+            <expression>mc.full_name</expression>
+            <search>upper(:expression) like '%'||upper(:fullName)||'%'</search>
+        </field>
+        <field>
+            <id>regDate</id>
+            <name>Дата начала действия</name>
+            <domain>date</domain>
+            <expression>mc.reg_dt</expression>
+        </field>
+        <field>
+            <id>nomType.id</id>
+            <domain>integer</domain>
+            <expression>mcn.id</expression>
+            <search>:expression = :nomType.id</search>
+        </field>
+        <field>
+            <id>nomType.name</id>
+            <name>Номенклатура</name>
+            <domain>string</domain>
+            <expression>mcn.name</expression>
+        </field>
+        <field>
+            <id>subCategory.id</id>
+            <domain>integer</domain>
+            <expression>msc.id</expression>
+            <search>:expression = :subCategory.id</search>
+        </field>
+        <field>
+            <id>subCategory.name</id>
+            <name>Подчиненность</name>
+            <domain>string</domain>
+            <expression>msc.name</expression>
+        </field>
+        <field>
+            <id>depAttach.id</id>
+            <domain>integer</domain>
+            <expression>mda.id</expression>
+            <search>:expression = :depAttach.id</search>
+        </field>
+        <field>
+            <id>depAttach.name</id>
+            <name>Ведомственная принадлежность</name>
+            <domain>string</domain>
+            <expression>mda.name</expression>
+        </field>
+        <field>
+            <id>parentOrg.id</id>
+            <domain>integer</domain>
+            <expression>po2.id</expression>
+            <search>:expression = :parentOrg.id</search>
+        </field>
+        <field>
+            <id>parentOrg.name</id>
+            <name>Вышестоящая организация</name>
+            <domain>string</domain>
+            <expression>coalesce(po2.short_name,po2.full_name)</expression>
+        </field>
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>mc.id in (select clinic_id from md_clinic_to_profile mctp where mctp.profile_id=:profile.id)</search>
+        </field>
+        <field>
+            <id>ageGroup.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>mc.id in (select clinic_id from md_clinic_to_age_group mctag where mctag.age_group_id=:ageGroup.id)</search>
+        </field>
+        <field>
+            <id>actualOrg.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>((:actualOrg.id = 1 and (mc.close_dt is null or mc.close_dt > CURRENT_DATE))
+                or (:actualOrg.id = 2 and (mc.close_dt is not null and CURRENT_DATE >= mc.close_dt))
+                or :actualOrg.id = 3)</search>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,96 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>operationPlan</object-id>
+    <name>caseNumber</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from hospital.operation_plan op
+                left join hospital.basic_data_anesthetic_map bap on bap.id = op.anesthetic_map_id
+                <!--left join hospital.md_srv_rendered_oper srop on srop.id = op.operation_id-->
+                left join hospital.manipulation_operating mop on mop.id = op.manipulation_id
+                left join hospital.stages_operation sop on sop.id = op.stage_id
+                where :where
+                order by op.id asc
+            </n2o:items-query>
+            <n2o:count-query>select count(op)
+                from hospital.operation_plan op
+                left join hospital.basic_data_anesthetic_map bap on bap.id = op.anesthetic_map_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>op</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>op.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>rowNumber</id>
+            <domain>integer</domain>
+            <expression>(row_number() over(order by op.id asc))</expression>
+            <display/>
+        </field>
+
+        <!--<field>
+            <id>operation.id</id>
+            <domain>integer</domain>
+            <expression>srop.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="operation.id"/>
+            </filters>
+        </field>-->
+
+        <field>
+            <id>anestheticMap.id</id>
+            <domain>integer</domain>
+            <expression>bap.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="anestheticMap.id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>selectPlanType.id</id>
+            <domain>integer</domain>
+            <expression>(
+                    case when manipulation_id is null
+                    then 1
+                    else 2 end
+                )</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>manipulation</id>
+            <domain>object</domain>
+            <expression>(select row_to_json(r) from(select mop.id as id, mop.name as name) r)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>stage</id>
+            <domain>object</domain>
+            <expression>(select row_to_json(r) from(select sop.id as id, sop.stage_name as name) r)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>(coalesce(mop.name, '') || coalesce(sop.stage_name, ''))</expression>
+            <display/>
+        </field>
+    </fields>
+</query>

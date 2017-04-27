@@ -1,0 +1,264 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>batch</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+               <![CDATA[WITH batch_list as (select extract(month from age(batch.expire_dt::date, current_date)) monthOfExpiration,
+                extract(day from age(batch.expire_dt::date, current_date)) dayOfExpiration,
+                extract(year from age(batch.expire_dt::date, current_date)) yearOfExpiration,
+                batch.series batchseries,batch.delivery_dt batchdelivery_dt, batch.expire_dt batchexpire_dt, batch.contractor_id as contractor_id,
+                org.id orgid, org.short_name orgshort_name,
+                hm.id hmid,hm.name hmname, hold.commodity_group_id holdcommodity_group_id,
+                ss.funding_source_id ssfunding_source_id, fs.name fsname, ss.price ssprice,
+                ss.id ssid,ss.store_id ssstore_id, cg.name cgname,batch.id batchid,
+                inventory.get_quantity_info_string_for_batch(ss.id,hm.id,ss.act_balance_mnei, :doc.docDate::date,hm.price_unit_flag,hm.mnei_id, coalesce(hm.mnei_count_in_sec_pk,1)) quantity
+
+                from inventory.store_supply ss
+                left outer join inventory.batch batch on ss.batch_id = batch.id
+                left outer join inventory.funding_source fs on fs.id=ss.funding_source_id
+                left outer join inventory.holding_producer prod on batch.hold_producer_id= prod.id
+                left outer join pim_organization org on org.id=prod.org_id
+                left outer join inventory.hold_modif hm on hm.id=batch.hold_modif_id
+                left outer join inventory.holding hold on hold.id=hm.holding_id
+                left outer join inventory.commodity_group cg on cg.id=hold.commodity_group_id
+                     where batch.delivery_dt <= :doc.docDate::date and :where)
+                select :select from  batch_list
+                where  batch_list.quantity!='0'
+                order by upper(hmname) like upper(:filterHoldModif.name)||'%' desc, :order
+                 ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                <![CDATA[WITH batch_list as (select extract(month from age(batch.expire_dt::date, current_date)) monthOfExpiration,
+                extract(day from age(batch.expire_dt::date, current_date)) dayOfExpiration,
+                extract(year from age(batch.expire_dt::date, current_date)) yearOfExpiration,
+                batch.series batchseries,batch.delivery_dt batchdelivery_dt, batch.expire_dt batchexpire_dt, batch.contractor_id as contractor_id,
+                org.id orgid, org.short_name orgshort_name,
+                hm.id hmid,hm.name hmname, hold.commodity_group_id holdcommodity_group_id,
+                ss.funding_source_id ssfunding_source_id, fs.name fsname, ss.price ssprice,
+                ss.id ssid,ss.store_id ssstore_id, cg.name cgname,batch.id batchid,
+                inventory.get_quantity_info_string_for_batch(ss.id,hm.id,ss.act_balance_mnei, :doc.docDate::date,hm.price_unit_flag,hm.mnei_id, coalesce(hm.mnei_count_in_sec_pk,1)) quantity
+
+                from  inventory.store_supply ss
+                left outer join inventory.batch batch on ss.batch_id = batch.id
+                left outer join inventory.funding_source fs on fs.id=ss.funding_source_id
+                left outer join inventory.holding_producer prod on batch.hold_producer_id= prod.id
+                left outer join pim_organization org on org.id=prod.org_id
+                left outer join inventory.hold_modif hm on hm.id=batch.hold_modif_id
+                left outer join inventory.holding hold on hold.id=hm.holding_id
+                left outer join inventory.commodity_group cg on cg.id=hold.commodity_group_id
+                where batch.delivery_dt <= :doc.docDate::date and :where)
+                select count(1) from  batch_list
+                where  batch_list.quantity!='0' ]]>
+            </n2o:count-query>
+            <n2o:alias>batch</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <expression>ssid</expression>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>batch.id</id>
+            <domain>integer</domain>
+            <expression>batchid</expression>
+        </field>
+        <field>
+            <id>doc.sendStore.id</id>
+            <domain>integer</domain>
+            <expression>ssstore_id</expression>
+            <search>ss.store_id = :doc.sendStore.id</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>ssfunding_source_id</expression>
+            <search>ss.funding_source_id = :fundSource.id</search>
+        </field>
+        <field>
+            <id>fundSourceList*.id</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search>ss.funding_source_id in (:fundSourceList*.id)</search>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <name>Финансирование</name>
+            <expression>fsname</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>doc.fundSource.id</id>
+            <domain>integer</domain>
+            <expression>ssfunding_source_id</expression>
+            <search>(ss.funding_source_id = :doc.fundSource.id or :doc.fundSource.id is null)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>doc.comGroup.id</id>
+            <domain>integer</domain>
+            <expression>holdcommodity_group_id</expression>
+            <search>(hold.commodity_group_id = :doc.comGroup.id or :doc.comGroup.id is null)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>holdcommodity_group_id</expression>
+            <search>hold.commodity_group_id = :comGroup.id</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>comGroup.name</id>
+            <domain>string</domain>
+            <name>Тов. группа</name>
+            <expression>cgname</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>contractor</id>
+            <domain>string</domain>
+            <name>Поставщик</name>
+            <expression>(select short_name from pim_organization where id = contractor_id)</expression>
+        </field>
+        <field>
+            <id>doc.id</id>
+            <domain>string</domain>
+            <expression>(select :doc.id)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>doc.docNumber</id>
+            <domain>string</domain>
+            <expression>(select :doc.docNumber)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>doc.docDateString</id>
+            <domain>string</domain>
+            <expression>(select :doc.docDateString)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>storeSupply.id</id>
+            <domain>integer</domain>
+            <expression>ssid</expression>
+        </field>
+        <field>
+            <id>filterHoldModif.name</id>
+            <domain>string</domain>
+            <expression>hmname</expression>
+            <search>translate(upper(hm.name),',. ','') like '%'||translate(upper(:filterHoldModif.name),',. ','')||'%'</search>
+        </field>
+        <field>
+            <id>holdModif.name</id>
+            <domain>string</domain>
+            <expression>hmname</expression>
+            <name>Наименование ЛС и ИМН</name>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>holdModif.id</id>
+            <domain>integer</domain>
+            <expression>hmid</expression>
+        </field>
+        <field>
+            <id>arrDocument.id</id>
+            <domain>integer</domain>
+            <search>
+                exists(select 1 from inventory.store_opr_jur jur where jur.rec_store_sup_id = batch_list.ssid and
+                jur.doc_id = :arrDocument.id)
+            </search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>producer.id</id>
+            <domain>integer</domain>
+            <expression>orgid</expression>
+        </field>
+        <field>
+            <id>producer.name</id>
+            <domain>string</domain>
+            <expression>orgshort_name</expression>
+            <name>Производитель</name>
+        </field>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <expression>batchseries</expression>
+            <name>Серия</name>
+            <search>upper(batch.series) like '%'||upper(:series)||'%'</search>
+        </field>
+        <field>
+            <id>expireDt</id>
+            <domain>date</domain>
+            <expression>batchexpire_dt</expression>
+            <name>Срок годности</name>
+            <search type="between">
+                <![CDATA[(:expireDt.begin::date is null or batch.expire_dt >= :expireDt.begin) and
+                        (:expireDt.end::date is null or batch.expire_dt <= :expireDt.end) ]]>
+            </search>
+        </field>
+        <field>
+            <id>periodOfExpiration</id>
+            <name>Период срока годности</name>
+            <domain>string</domain>
+            <expression><![CDATA[(case when yearOfExpiration<0 or monthOfExpiration<0 or (yearOfExpiration=0 and monthOfExpiration = 0 and (dayOfExpiration=0 or dayOfExpiration<0))  then 'text-error'
+            else
+             case when yearOfExpiration= 0 and (monthOfExpiration = 0 or (monthOfExpiration = 1 and dayOfExpiration = 0))
+                  then 'text-info'
+                  else
+                      case when yearOfExpiration= 0 and (monthOfExpiration = 1 or (monthOfExpiration = 2 and dayOfExpiration = 0)) then 'text-success' end
+                  end
+            end)]]>
+            </expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>expireDt.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>expireDt.begin</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>deliveryDate</id>
+            <domain>date</domain>
+            <expression>batchdelivery_dt</expression>
+            <name>Дата</name>
+        </field>
+        <field>
+            <id>quantityInfo</id>
+            <domain>string</domain>
+            <name>Кол-во</name>
+            <expression>quantity</expression>
+        </field>
+        <field>
+            <id>doc.docDate</id>
+            <domain>date</domain>
+            <expression>(select :doc.docDate::date)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>priceWithVat</id>
+            <domain>string</domain>
+            <name>Цена за ед.</name>
+            <expression>ssprice</expression>
+        </field>
+        <field>
+            <id>doc.provider.id</id>
+            <domain>integer</domain>
+            <search>contractor_id = :doc.provider.id</search>
+            <display unavailable="true"/>
+        </field>
+    </fields>
+</query>

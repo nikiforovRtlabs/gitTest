@@ -1,0 +1,125 @@
+<form xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+
+    <name>Назначение</name>
+    <object-id>hosp_prescriptionService</object-id>
+    <default-values-query-id>hosp_prescriptionServiceForm_default</default-values-query-id>
+    <query-id>hosp_prescriptionServiceForm</query-id>
+
+    <edit after-submit="closeModal" refresh-after-submit="true">
+        <invoke-action action-id="save"/>
+    </edit>
+
+    <fs:field-set>
+
+        <ctrl:output-text id="caseInfo" label="Случай" control-style="width: 385px;"/>
+        <ctrl:text-area id="name" label="Наименование" rows="2" control-style="width: 385px;" required="true" css-class="prescription-name">
+            <ctrl:set-value-expression on-load="false" on="service,duration,srvDurationUnit">
+                if(typeof service != 'undefined' &amp;&amp; service != null){
+                    service.nname + ' ' +
+                    (duration != null  &amp;&amp; duration != ''  &amp;&amp; typeof duration != 'undefined' &amp;&amp;
+                typeof srvDurationUnit != 'undefined' &amp;&amp; srvDurationUnit != null &amp;&amp; srvDurationUnit.id != null
+                    ? duration + ' ' + srvDurationUnit.name : ''
+                    )
+                }
+            </ctrl:set-value-expression>
+        </ctrl:text-area>
+
+        <ctrl:classifier id="service" label="Услуга" control-style="width:385px;">
+            <ctrl:query query-id="hosp_service" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="orgId" ref="clinicId"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+            <ctrl:dependencies>
+                <ctrl:required-condition>
+                    execution.id == 1
+                </ctrl:required-condition>
+            </ctrl:dependencies>
+        </ctrl:classifier>
+
+        <fs:row>
+            <ctrl:masked-input id="duration" label="Длительность" control-style="width: 100px;" mask="?99" default-value=""/>
+            <ctrl:classifier id="srvDurationUnit" label="" label-style="width:0px;" control-style="float:left;width: 100px;">
+                <ctrl:query query-id="hosp_srvDurationUnit" value-field-id="id" label-field-id="name"/>
+            </ctrl:classifier>
+        </fs:row>
+
+        <ctrl:classifier id="periodicity" label="Периодичность" required="true" control-style="width: 385px;">
+            <ctrl:query query-id="hosp_prescriptionPeriodicity" value-field-id="id" label-field-id="name"/>
+        </ctrl:classifier>
+
+        <ctrl:classifier id="visitTerm" label="Условия" control-style="width: 385px;">
+            <ctrl:query query-id="hosp_visitTerm" value-field-id="id" label-field-id="name"/>
+        </ctrl:classifier>
+
+        <fs:row>
+            <ctrl:date-time id="periodBeginDt" format="DD.MM.YYYY HH:mm" label="Период с" required="true" default-value="now()" control-style="width:170px;" >
+                <ctrl:validations>
+                    <ctrl:validation ref-id="prescriptionPeriodValidation" side="client"/>
+                </ctrl:validations>
+            </ctrl:date-time>
+
+            <ctrl:date-time id="periodEndDt" label="по" format="DD.MM.YYYY HH:mm" default-time="now()" required="true" control-style="width:170px;" label-style="width:20px;" >
+                <ctrl:validations>
+                    <ctrl:validation ref-id="prescriptionPeriodValidation" side="client"/>
+                </ctrl:validations>
+            </ctrl:date-time>
+        </fs:row>
+
+        <ctrl:text-area id="note" label="Комментарий" rows="2" control-style="width: 385px;"/>
+        <ctrl:select id="execution" label="Выполнение" control-style="width: 250px;" required="true">
+            <ctrl:options>
+                <ctrl:option>{"id":1, "name":"Обязательно"}</ctrl:option>
+                <ctrl:option>{"id":2, "name":"Рекомендовано"}</ctrl:option>
+            </ctrl:options>
+        </ctrl:select>
+
+        <ctrl:output-text id="count" label="Количество">
+            <ctrl:set-value-expression>
+                <![CDATA[
+                if(typeof periodBeginDt != 'undefined' && periodBeginDt != null &&
+                   typeof periodEndDt != 'undefined' && periodEndDt != null &&
+                   typeof periodicity != 'undefined' && periodicity != null && periodicity.id != null)
+                {
+
+                var periodEnd = moment(periodEndDt, 'DD.MM.YYYY');
+                var periodBegin = moment(periodBeginDt, 'DD.MM.YYYY');
+                var days = periodEnd.diff(periodBegin, 'days') + 1;
+
+                var interval = periodicity.interval;
+                if(interval != null && interval != 0)
+                {
+                    var daysWithInterval = Math.ceil(days / interval);
+                    days = daysWithInterval;
+                }
+
+                var serviceCount = periodicity.count * days;
+                var missedServices = 0;
+
+                if(periodicity.times != null)
+                {
+                    var times = periodicity.times.split(',');
+                    for(var i = 0; i < times.length; i++)
+                    {
+                        if (moment(times[i], 'HH:mm:ss').isBefore(moment(moment(periodBeginDt, 'DD.MM.YYYY HH:mm').format('HH:mm'),'HH:mm')))
+                         {
+                            missedServices = missedServices + 1;
+                         }
+
+                        if (moment(times[i], 'HH:mm:ss').isAfter(moment(moment(periodEndDt, 'DD.MM.YYYY HH:mm').format('HH:mm'),'HH:mm')))
+                         {
+                            missedServices = missedServices + 1;
+                         }
+
+                    }
+                }
+                count = serviceCount - missedServices;
+                }
+               ]]>
+            </ctrl:set-value-expression>
+        </ctrl:output-text>
+
+    </fs:field-set>
+</form>

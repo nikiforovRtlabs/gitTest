@@ -1,0 +1,655 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <!--<id>death_certificate</id>-->
+    <name>Свидетельство о смерти</name>
+    <object-id>death_certificate</object-id>
+    <layout>n2o/layout/top-bottom</layout>
+    <modal-width>985px</modal-width>
+    <regions >
+        <region place="top" type="tabs">
+            <container id="death" place="top" opened="true">
+                <wgt:form src="ext/css/death_form.page" customize="css" css-class="death-form n2o-form">
+                    <wgt:name>Свидетельство о смерти</wgt:name>
+                    <wgt:query-id>death_certificate</wgt:query-id>
+
+                    <!--<wgt:edit after-submit="edit" refresh-after-submit="false" create-more="false"-->
+                                <!--condition="(typeof $action !='undefined')&amp;&amp;($action != null)">-->
+                        <!--<wgt:invoke-action action-id="{$action}"/>-->
+                    <!--</wgt:edit>-->
+
+                    <fs:field-set>
+                        <ctrl:hidden id="$action" default-value="create">
+                            <ctrl:set-value-expression on="id" on-load="true">
+                                if ((typeof id != 'undefined')&amp;&amp;(id != null)) 'update'; else throw '111';
+                            </ctrl:set-value-expression>
+                        </ctrl:hidden>
+
+                        <!--<ctrl:hidden id="$action" default-value="create">-->
+                            <!--<ctrl:set-value-expression on="$action" on-load="false" silent-mode="true">-->
+                                <!--'update'-->
+                            <!--</ctrl:set-value-expression>-->
+                        <!--</ctrl:hidden>-->
+                    </fs:field-set>
+                    <fs:field-set field-label-location="left" header="none" css-class="death-form-banner">
+                        <fs:row>
+                            <ctrl:masked-input id="code" label="СЕРИЯ" mask="?99999" required="true" copied="false"
+                                             control-style="width:50px;margin-left:25px;" label-style="width:55px;font-weight:bold;margin-left:30px;">
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                </ctrl:properties>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition on="id">
+                                        (typeof id == 'undefined')||(id == null)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:masked-input>
+                            <ctrl:masked-input id="number" label="№" required="true" mask="?9999999999999999999999999" copied="false"
+                                             control-style="width:195px;margin-left:25px;" label-style="width:25px;font-weight: bold;">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="dCertif_unique" side="client,server"/>
+                                </ctrl:validations>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition on="id">
+                                        (typeof id == 'undefined')||(id == null)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:masked-input>
+                            <ctrl:date-time id="issue_date" label="Дата выдачи" default-value="today()" copied="false"
+                                            control-style="width:125px;" label-style="width:85px;">
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false))
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:date-time>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:hidden id="par_kind" copied="false"/>
+                            <ctrl:hidden id="kind.id" copied="false">
+                                <ctrl:set-value-expression on="par_kind" on-load="true" on-non-empty="true">
+                                    if ((typeof par_kind != 'undefined')&amp;&amp; (par_kind != null)&amp;&amp; (par_kind == 1)) 4;
+                                        else if ((typeof par_kind != 'undefined')&amp;&amp; (par_kind != null)&amp;&amp; (par_kind == 2)) 3; else throw '!';
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+                            <ctrl:radio-group id="kind" label="" inline="true" copied="false" required="true"
+                                              control-style="width:650px;margin-left:30px;" label-style="display:none;">
+                                <ctrl:query query-id="certificate_kind" value-field-id="id" label-field-id="name"/>
+                            </ctrl:radio-group>
+                            <ctrl:input-text id="instead" visible="false">
+                                <ctrl:set-value-expression on="kind" on-invisible="true" on-non-empty="true" on-readonly="true">
+                                    if (kind.id == 3) 2; else if (kind.id == 4) 1;
+                                </ctrl:set-value-expression>
+                            </ctrl:input-text>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="parent_instead" label="Выберите исходное Свидетельство взамен которого" copied="false" search-as-you-type="true"
+                                             control-style="width:215px;" label-style="width:343px;font-weight:bold;margin-left:40px;"
+                                            dependency-condition="(typeof kind != 'undefined')&amp;&amp;(kind != null)&amp;&amp;(kind.id != null)&amp;&amp;(kind.id != 1)&amp;&amp; (kind.id != 2)&amp;&amp; ((typeof parent_code == 'undefined')||(parent_code == null))">
+                                <ctrl:query query-id="death_certificate" value-field-id="id" label-field-id="certificate">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="kind.id" ref="instead"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition on="kind">
+                                        (typeof kind != 'undefined')&amp;&amp;(kind != null)&amp;&amp;(kind.id != null)&amp;&amp;(kind.id != 1)&amp;&amp; (kind.id != 2)
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                                <ctrl:update-model query-id="parentDeathUpdModel" master-field-id="parent_instead.id" detail-field-id="cert.id" target="form"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="parent" copied="false" visible="false">
+                                <ctrl:query query-id="death_certificate" value-field-id="id" label-field-id="certificate"/>
+                            </ctrl:classifier>
+                            <ctrl:masked-input id="parent_code" label="серия" mask="?99999" readonly="true"
+                                               control-style="width:50px;" label-style="width:35px;margin-left:100px;" copied="false"/>
+                            <ctrl:masked-input id="parent_number" label="№" mask="?9999999999999999999999999" readonly="true"
+                                               control-style="width:190px;" label-style="width:15px;" copied="false"/>
+                            <ctrl:date-time id="parent_dt" label="" format="DD.MM.YYYY" readonly="true"
+                                            control-style="width:120px;" label-style="width:0px;"/>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="none" field-label-location="left" css-class="death-form-notes"
+                                  depends-on="is_enabling">
+                        <ctrl:checkbox id="is_duplicate" label="ДУБЛИКАТ" readonly="true" css-class="death-check-box" copied="false"
+                                       control-style="width:100px;color:blue;margin-bottom:-12px;" label-style="width:0px;"/>
+                        <ctrl:checkbox id="is_relativeswords" label="со слов родственников" css-class="death-check-box"
+                                       copied="false"
+                                       control-style="width:100px;color:green;margin-bottom:-12px;" label-style="width:0px;"/>
+                        <ctrl:checkbox id="is_faulty" label="испорчено" css-class="death-check-box" copied="false"
+                                       control-style="width:100px;;color:crimson;margin-bottom:-5px;" label-style="width:0px;"/>
+                    </fs:field-set>
+                    <fs:field-set header="line" label="" field-label-location="left" css-class="death-form-DopInfo"
+                            depends-on="is_enabling">
+                        <fs:row>
+                            <ctrl:classifier id="indiv" label="Умерший" control-style="width:758px;" label-style="width:70px;"
+                                             autoselect-alone="true" search-as-you-type="true">
+                                <ctrl:query query-id="patientsSearch" value-field-id="id" label-field-id="displayName"/>
+                                <ctrl:show-modal page-id="patientsList" result-container-id="pats" width="42%"/>
+                                <ctrl:actions>
+                                    <ctrl:button icon="icon-plus" type="icon" label="Создать">
+                                        <ctrl:a href="/pats/patients/new?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html" target="newWindow"/>
+                                    </ctrl:button>
+                                    <ctrl:button icon="icon-pencil" type="icon" label="Редактировать">
+                                        <ctrl:a href="/pats/patients/:indiv.id:/edit?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html" target="newWindow"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:enabling-condition>indiv.id != null</ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                </ctrl:actions>
+                                <ctrl:update-model query-id="patInfo_updModel" master-field-id="indiv.id" detail-field-id="ind.id" target="form"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="fio" label="1. Фамилия, имя, отчество"
+                                             control-style="width:745px;" label-style="width:163px;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:radio-group id="gender" label="2. Пол" control-style="width:75px;" label-style="width:39px;">
+                                <ctrl:query query-id="death_certif_gender" value-field-id="id" label-field-id="name"/>
+                            </ctrl:radio-group>
+                            <ctrl:date-time id="birth_dt" label="3. Дата рождения:" format="DD.MM.YYYY"
+                                            control-style="width:120px;margin-left:0px;" label-style="width:115px;"/>
+                            <ctrl:masked-input id="child_age_months" label="число месяцев"  control-style="width:30px;margin-left:0px;" label-style="width:95px;" mask="?99">
+                                <ctrl:set-value-expression on="birth_dt,death_dt" on-load="false" on-non-empty="true">
+                                    <![CDATA[
+                                    if ((typeof death_dt != 'undefined')&&(death_dt != null)&&(moment(death_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'months') < 12)&&(moment(death_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'months') > 0))
+                                        moment(death_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'months')
+                                        ;else null;
+                                    ]]>
+                                </ctrl:set-value-expression>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        <![CDATA[((typeof death_dt != 'undefined')&&(death_dt != null)&&(moment(death_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'months') < 12))]]>
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:masked-input>
+                            <ctrl:masked-input id="child_age_days" label="число дней"  control-style="width:30px;margin-left:0px;" label-style="width:70px;" mask="?99">
+                                <ctrl:set-value-expression on="birth_dt,death_dt" on-load="false" on-non-empty="true">
+                                    <![CDATA[if ((typeof death_dt != 'undefined')&&(death_dt != null)&&(moment(death_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'months') < 1))
+                                    moment(death_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'days')
+                                    ;else null;
+                                    ]]>
+                                </ctrl:set-value-expression>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        <![CDATA[((typeof death_dt != 'undefined')&&(death_dt != null)&&(moment(death_dt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'months') < 1))]]>
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:masked-input>
+                            <ctrl:date-time id="death_dt" label="4. Дата и время смерти:" format="DD.MM.YYYY HH:mm"
+                                            control-style="width:158px;" label-style="width:121px;">
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false))
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:date-time>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:hidden id="addr.id" default-value="#{addr_parent}"/>
+                            <rc:address id="addr" label="5. Место постоянного жительства (регистрации):"
+                                        control-style="width:612px;" label-style="width:296px;">
+                                <rc:set-value-expression on="maddress.id">
+                                    if ((typeof address.id != 'undefined')&amp;&amp;(address.id != null)) address; else throw '!';
+                                </rc:set-value-expression>
+                            </rc:address>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="ad" autoselect-alone="true" visible="false">
+                                <ctrl:query query-id="addr_hidden" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression on="addr" on-load="false" on-non-empty="true" on-invisible="true">addr</ctrl:set-value-expression>
+                                <ctrl:update-model query-id="Reg_addr_updModel" master-field-id="ad.id" detail-field-id="adr.id" target="form"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="region" label="республика, край, область" control-style="width:245px;" label-style="width:87px;">
+                                <!--<ctrl:set-value-expression on="is_faulty" on-load="false" on-non-empty="true" on-invisible="true">-->
+                                    <!--if  ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false)) throw '!'; else null;-->
+                                <!--</ctrl:set-value-expression>-->
+                            </ctrl:input-text>
+                            <ctrl:input-text id="district" label="район" control-style="width:199px;" label-style="width:45px;">
+                                <!--<ctrl:set-value-expression on="is_faulty" on-load="false" on-non-empty="true" on-invisible="true">-->
+                                    <!--if  ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false)) throw '!'; else null;-->
+                                <!--</ctrl:set-value-expression>-->
+                            </ctrl:input-text>
+                            <ctrl:input-text id="city" label="город (село)" control-style="width:199px;" label-style="width:83px;">
+                                <!--<ctrl:set-value-expression on="is_faulty" on-load="false" on-non-empty="true" on-invisible="true">-->
+                                    <!--if  ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false)) throw '!'; else null;-->
+                                <!--</ctrl:set-value-expression>-->
+                            </ctrl:input-text>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="street" label="улица" control-style="width:370px;" label-style="width:40px;"/>
+                            <ctrl:input-text id="home" label="дом" control-style="width:45px;margin-left: 5px;" label-style="width:25px;"/>
+                            <ctrl:input-text id="apartment" label="кв." control-style="width:45px;margin-left: 5px;" label-style="width:20px;"/>
+                            <ctrl:classifier id="citiship" label="6. Местность:" control-style="width:175px;" label-style="width:133px;"
+                                    autoselect-alone="true">
+                                <ctrl:query query-id="citizenship" value-field-id="id" label-field-id="name"/>
+                                <!--<ctrl:set-value-expression on="is_faulty" on-load="false" on-non-empty="true" on-invisible="true">-->
+                                    <!--if  ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false)) throw '!'; else null;-->
+                                <!--</ctrl:set-value-expression>-->
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:radio-group id="death_place" label="9. Смерть наступила:" inline="true"
+                                              control-style="width:700px;" label-style="width:131px;">
+                                <ctrl:query query-id="death_place" value-field-id="id" label-field-id="name"/>
+                            </ctrl:radio-group>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:hidden id="org.addr" default-value="#{org.addr}" visible="false"/>
+                            <ctrl:hidden id="org.addrname" default-value="#{org.addrname}" visible="false"/>
+                            <ctrl:hidden id="death_addr.id" default-value="#{addr_parent}"/>
+                            <rc:address id="death_addr" label="7. Место смерти:" control-style="width:804px;" label-style="width:104px;">
+                                <rc:set-value-expression on="death_place,org.addr,org.addrname" on-load="false" on-non-empty="true">
+                                    if ((typeof death_place == 'undefined')||(death_place == null)||(death_place.id == null)) throw '!';
+                                        else
+                                            if (death_place.id == 3)
+                                            {
+                                            var o = new Object();
+                                            o.id = org.addr;
+                                            o.displayName = org.addrname;
+                                            o;
+                                            }
+                                            else
+                                                if (death_place.id == 4) addr
+                                                else null;
+                                </rc:set-value-expression>
+                            </rc:address>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="dad" autoselect-alone="true" visible="false">
+                                <ctrl:query query-id="addr_hidden" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression on="death_addr">death_addr</ctrl:set-value-expression>
+                                <ctrl:update-model query-id="Death_addr_updModel" master-field-id="dad.id" detail-field-id="dadr.id" target="form"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="death_region" label="республика, край, область" control-style="width:245px;" label-style="width:87px;">
+                                <!--<ctrl:set-value-expression on="is_faulty" on-load="false" on-non-empty="true" on-invisible="true">-->
+                                    <!--if  ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false)) throw '!'; else null;-->
+                                <!--</ctrl:set-value-expression>-->
+                            </ctrl:input-text>
+                            <ctrl:input-text id="death_district" label="Район" control-style="width:199px;" label-style="width:45px;">
+                                <!--<ctrl:set-value-expression on="is_faulty" on-load="false" on-non-empty="true" on-invisible="true">-->
+                                    <!--if  ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false)) throw '!'; else null;-->
+                                <!--</ctrl:set-value-expression>-->
+                            </ctrl:input-text>
+                            <ctrl:input-text id="death_city" label="город (село)" control-style="width:199px;" label-style="width:83px;">
+                                <!--<ctrl:set-value-expression on="is_faulty" on-load="false" on-non-empty="true" on-invisible="true">-->
+                                    <!--if  ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false)) throw '!'; else null;-->
+                                <!--</ctrl:set-value-expression>-->
+                            </ctrl:input-text>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="death_street" label="улица" control-style="width:370px;" label-style="width:40px;"/>
+                            <ctrl:input-text id="death_home" label="дом" control-style="width:45px;margin-left: 5px;" label-style="width:25px;"/>
+                            <ctrl:input-text id="death_apartment" label="кв." control-style="width:45px;margin-left: 5px;" label-style="width:20px;"/>
+                            <ctrl:classifier id="death_citiship" label="8. Местность:" control-style="width:173px;" label-style="width:135px;"
+                                             autoselect-alone="true">
+                                <ctrl:query query-id="citizenship" value-field-id="id" label-field-id="name"/>
+                                <!--<ctrl:set-value-expression on="is_faulty" on-load="false" on-non-empty="true" on-invisible="true">-->
+                                    <!--if  ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false)) throw '!'; else null;-->
+                                <!--</ctrl:set-value-expression>-->
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                    <!--todo enabling-condition-->
+                    <fs:field-set label="Для детей, умерших в возрасте до 1 года" header="line" css-class="death-form-DopInfo"
+                                  depends-on="is_enabling">
+                        <fs:row>
+                            <ctrl:classifier id="maturity" label="10. Для детей, умерших в возрасте от 168 час. до 1 месяца:" search-as-you-type="true"
+                                             control-style="width:150px;" label-style="width:369px;">
+                                <ctrl:query query-id="pre_post_maturity" value-field-id="id" label-field-id="name"/>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        ((typeof child_age_days != 'undefined')&amp;&amp;(child_age_days != null))
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:output-text id="up_to_a_year" label="11. Для детей, умерших в возрасте от 168 час. до 1 года:"
+                                              control-style="display:none;" label-style="width:352px;margin-top:-10px;"/>
+                            <ctrl:masked-input id="weight" label="масса тела ребенка при рождении" mask="?9999"
+                                               control-style="width:45px;margin-top:-10px;margin-left:5px;" label-style="width:209px;margin-left:21px;margin-top:-10px;">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        ((typeof child_age_months != 'undefined')&amp;&amp;(child_age_months != null)||(typeof child_age_days != 'undefined')&amp;&amp;(child_age_days != null))
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:masked-input>
+                            <ctrl:output-text id="gr" label="грамм," control-style="display:none;" label-style="width:38px;margin-left:-5px;margin-top:-10px;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:masked-input id="general_order" label="каким по счету ребенок был рожден у матери (считая умерших и не считая мертворожденных)" mask="?99"
+                                               control-style="width:45px;margin-top:-10px;" label-style="width:585px;margin-top:-10px;margin-left:230px;">
+
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        ((typeof child_age_months != 'undefined')&amp;&amp;(child_age_months != null)||(typeof child_age_days != 'undefined')&amp;&amp;(child_age_days != null))
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:masked-input>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="birth_place" label="Место рождения" control-style="width:807px;" label-style="width:101px;">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        ((typeof child_age_months != 'undefined')&amp;&amp;(child_age_months != null)||(typeof child_age_days != 'undefined')&amp;&amp;(child_age_days != null))
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="mather" label="Мать" control-style="width:797px;" label-style="width:31px;"
+                                             autoselect-alone="true" search-as-you-type="true">
+                                <ctrl:query query-id="patientsSearch" value-field-id="id" label-field-id="displayName">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="genderId" value="2"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:show-modal page-id="patientsList" result-container-id="pats" width="42%"/>
+                                <ctrl:actions>
+                                    <ctrl:button icon="icon-plus" type="icon" label="Создать">
+                                        <ctrl:a href="/pats/patients/new?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html" target="newWindow"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:enabling-condition>
+                                                ((typeof child_age_months != 'undefined')&amp;&amp;(child_age_months != null)||(typeof child_age_days != 'undefined')&amp;&amp;(child_age_days != null))
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                    <ctrl:button icon="icon-pencil" type="icon" label="Редактировать">
+                                        <ctrl:a href="/pats/patients/:mather.id:/edit?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html" target="newWindow"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:enabling-condition>mather.id != null</ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                </ctrl:actions>
+                                <ctrl:update-model query-id="mamInfo_death_updModel" master-field-id="mather.id" detail-field-id="mind.id" target="form"/>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        ((typeof child_age_months != 'undefined')&amp;&amp;(child_age_months != null)||(typeof child_age_days != 'undefined')&amp;&amp;(child_age_days != null))
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="matherF" label="фамилия матери" control-style="width:225px;" label-style="width:103px;">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        ((typeof child_age_months != 'undefined')&amp;&amp;(child_age_months != null)||(typeof child_age_days != 'undefined')&amp;&amp;(child_age_days != null))
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                            <ctrl:input-text id="matherI" label="имя" control-style="width:225px;" label-style="width:25px;">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        ((typeof child_age_months != 'undefined')&amp;&amp;(child_age_months != null)||(typeof child_age_days != 'undefined')&amp;&amp;(child_age_days != null))
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                            <ctrl:input-text id="matherO" label="отчество" control-style="width:225px;" label-style="width:55px;">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        ((typeof child_age_months != 'undefined')&amp;&amp;(child_age_months != null)||(typeof child_age_days != 'undefined')&amp;&amp;(child_age_days != null))
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:date-time id="mather_bdt" label="дата рождения матери" format="DD.MM.YYYY" control-style="width:120px;" label-style="width:138px;">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition on="child_age_months,child_age_days">
+                                        ((typeof child_age_months != 'undefined')&amp;&amp;(child_age_months != null)||(typeof child_age_days != 'undefined')&amp;&amp;(child_age_days != null))
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:date-time>
+                            <ctrl:masked-input id="mather_age" label="возраст матери (полных лет)" mask="?999" control-style="width:35px;margin-left:10px;" label-style="width:185px;">
+                                <ctrl:set-value-expression on="birth_dt,mather_bdt" on-load="false" on-non-empty="true">
+                                    if ((typeof mather_bdt != undefined)&amp;&amp;(mather_bdt != null))
+                                    <!--&amp;&amp;(moment(mather_bdt,'DD.MM.YYYY').diff(moment(birth_dt,'DD.MM.YYYY'),'years') > 1))-->
+                                        moment(birth_dt,'DD.MM.YYYY').diff(moment(mather_bdt,'DD.MM.YYYY'),'years')
+                                        ;else null;
+                                </ctrl:set-value-expression>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition on="child_age_months,child_age_days">
+                                        ((typeof child_age_months != 'undefined')&amp;&amp;(child_age_months != null)||(typeof child_age_days != 'undefined')&amp;&amp;(child_age_days != null))
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:masked-input>
+                        </fs:row>
+                    </fs:field-set>
+
+                    <fs:field-set depends-on="is_enabling">
+                        <fs:row>
+                            <ctrl:classifier id="marital_status" label="12. Семейное положение:" search-as-you-type="true"
+                                             control-style="width:315px;" label-style="width:156px;">
+                                <ctrl:query query-id="cerf_maritalStatus" value-field-id="id" label-field-id="name"/>
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false))
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="education" label="13. Образование:" search-as-you-type="true"
+                                             control-style="width:307px;" label-style="width:105px;">
+                                <ctrl:query query-id="education" value-field-id="id" label-field-id="name"/>
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        ((typeof is_faulty == 'undefined')||(is_faulty == null)||(is_faulty == false))
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="busyness" label="14. Занятость:" search-as-you-type="true"
+                                             control-style="width:440px;" label-style="width:88px;">
+                                <ctrl:query query-id="busyness" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="death_kind" label="15. Смерть произошла:" search-as-you-type="true"
+                                             control-style="width:395px;" label-style="width:141px;">
+                                <ctrl:query query-id="death_kind" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="ecode" value="9" type="less"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:output-text id="16" label="16. В случае смерти от несчастного случая, убийства, "
+                                              control-style="display:none;" label-style="width:364px;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:output-text id="16-2" label="самоубийства, от военных и террористических действий, при неустановленном роде смерти - указать дату и время травмы (отравления):"
+                                              control-style="display:none;" label-style="width:843px;margin-top:-10px;margin-bottom:-5px;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:date-time id="trauma_dt" label="" format="DD.MM.YYYY HH:mm"
+                                            control-style="width:155px;margin-left:1px;" label-style="display:none;">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition on="death_kind">
+                                        death_kind.id != 1
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:date-time>
+                            <ctrl:output-text id="16-3" label=", а также место и обстоятельства, при которых произошла травма (отравление)"
+                                              control-style="display:none;" label-style="width:487px;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="conditions" label="" control-style="width:923px;margin-left:1px;margin-top:-10px;" label-style="display:none;">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition on="death_kind">
+                                        death_kind.id != 1
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="establish_cause" label="17. Причины смерти установлены:" search-as-you-type="true"
+                                             control-style="width:300px;margin-left:1px;" label-style="width:209px;">
+                                <ctrl:query query-id="establish_cause" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="ecode" value="6" type="less"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="definition_grounds" label="18. на основании:" search-as-you-type="true"
+                                             control-style="width:295px;margin-left:1px;" label-style="width:107px;">
+                                <ctrl:query query-id="definition_grounds" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set ref-id="I_death_reason" dependency-condition="to_read == true"
+                                  depends-on="is_enabling"/>
+                    <fs:field-set ref-id="II_death_reason" dependency-condition="to_read == true"
+                                  depends-on="is_enabling"/>
+                    <fs:field-set depends-on="is_enabling">
+                        <fs:row>
+                            <ctrl:classifier id="dtp_death" label="20. В случае смерти в результате ДТП:" search-as-you-type="true"
+                                             control-style="width:310px;margin-top:-7px;" label-style="width:242px;margin-top:-7px;">
+                                <ctrl:query query-id="time_dtp_death" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            <!--todo для женщин только-->
+                            <ctrl:classifier id="woman_death_time" label="21. " search-as-you-type="true"
+                                             control-style="width:534px;margin-top:-7px;" label-style="width:18px;margin-top:-7px;">
+                                <ctrl:query query-id="woman_death_time" value-field-id="id" label-field-id="name"/>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        (gender.id == 2)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="line" label="" depends-on="is_enabling">
+                        <fs:row>
+                            <ctrl:classifier id="recipient" label="Получатель" control-style="width:833px;margin-top:7px;" label-style="width:75px;;margin-top:7px;"
+                                             autoselect-alone="true" search-as-you-type="true">
+                                <ctrl:query query-id="patientsSearch" value-field-id="id" label-field-id="displayName"/>
+                                <ctrl:show-modal page-id="patientsList" result-container-id="pats" width="42%"/>
+                                <ctrl:update-model query-id="recepient_updModel" master-field-id="recipient.id" detail-field-id="rec.id" target="form"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="recipient_fio" label="" control-style="width:450px;margin-left:0px;margin-top:-7px;" label-style="display:none;">
+                                <ctrl:set-value-expression on="recipient">
+                                    if ((typeof recipient != 'undefined')&amp;&amp;(recipient != null)&amp;&amp;(recipient.id != null)) (recipient.fullName); else throw '!'
+                                </ctrl:set-value-expression>
+                                <ctrl:description>фамилия, имя, отчество</ctrl:description>
+                            </ctrl:input-text>
+                            <ctrl:input-text id="recipient_doc" label="" control-style="width:448px;margin-top:-7px;"  label-style="display:none;">
+                                <ctrl:description>(документ удостоверяющий личность получателя, серия, номер, кем выдан)</ctrl:description>
+                            </ctrl:input-text>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set>
+                        <ctrl:input-text id="org.id" visible="false" default-value="#{org.id?}"/>
+                        <ctrl:input-text id="org_name" visible="false" default-value="#{org.name?}"/>
+                        <ctrl:input-text id="receptionist.id" visible="false" default-value="#{emplPos.id?}"/>
+                        <ctrl:input-text id="reseptionist" visible="false" default-value="#{emplPos.name?}"/>
+                        <ctrl:input-text id="position" visible="false" default-value="#{pos.name?}"/>
+                        <ctrl:input-text id="to_read" visible="false" default-value="false"/>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+            <container id="death_reason_I" depends-on="death" opened="true" dependency-condition="(death.to_read == false)">
+                <wgt:table master-field-id="id" detail-field-id="certificate.id">
+                    <wgt:query-id>death_reason</wgt:query-id>
+                    <wgt:name>19.I</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="orderAll.id" name="п/п" width="33px"/>
+                        <wgt:column column-field-id="name" name="Причина" width="400px"/>
+                        <wgt:column column-field-id="length" name="Приблизительный период времени между началом патологического процесса и смертью" width="388px"/>
+                        <wgt:column column-field-id="code" name="Код по МКБ-10" width="110px"/>
+                    </wgt:columns>
+                    <wgt:rows>
+                        <wgt:color color-field-id="color"/>
+                    </wgt:rows>
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="orderAll.id" direction="ASC"/>
+                    </wgt:sortings>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить(Ins)" default="false" context="false" key="Insert">
+                            <wgt:show-modal page-id="death_reason" master-field-id="certificate.id" detail-field-id="certificate.id"
+                                            action-id="create" refresh-on-close="true" model="default"
+                                            page-name="Добавить причину" create-more="false">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="is_I" value="true"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить(Enter)" default="true" context="true" key="Enter">
+                            <wgt:show-modal page-id="death_reason" action-id="update" model="query"
+                                            page-name="Изменить ">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="is_I" value="true"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <!--<wgt:menu-item id="delete" label="Удалить(Del)" context="true" key="Delete">-->
+                            <!--<wgt:invoke-action action-id="delete" confirmation="true"/>-->
+                        <!--</wgt:menu-item>-->
+                        <wgt:menu-item id="originReason" label="Подобрать код первоначальной причины смерти" context="true">
+                            <wgt:show-modal page-id="original_death_reason" action-id="originReason" model="default"
+                                            master-field-id="certificate.id" detail-field-id="certificate.id">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="IndB4" ref="has_foreign"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="is_I" value="true"/>
+                </pre-filters>
+            </container>
+            <container id="death_reason_II" depends-on="death" opened="true" dependency-condition="(death.to_read == false)">
+                <wgt:table master-field-id="id" detail-field-id="certificate.id">
+                    <wgt:query-id>death_reason</wgt:query-id>
+                    <wgt:name>19.II</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="orderAll.id" name="" width="15px"/>
+                        <wgt:column column-field-id="name" name="Причина" width="400px"/>
+                        <wgt:column column-field-id="length" name="Приблизительный период времени между началом патологического процесса и смертью" width="414px"/>
+                        <wgt:column column-field-id="code" name="Код по МКБ-10" width="110px"/>
+                    </wgt:columns>
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="orderAll.id" direction="ASC"/>
+                    </wgt:sortings>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить(Ins)" default="false" context="false" key="Insert">
+                            <wgt:show-modal page-id="death_reason" master-field-id="certificate.id" detail-field-id="certificate.id"
+                                            action-id="create" refresh-on-close="true" model="default"
+                                            page-name="Добавить причину" create-more="false">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="is_I" value="false"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить(Enter)" default="true" context="true" key="Enter">
+                            <wgt:show-modal page-id="death_reason" action-id="update"
+                                            page-name="Изменить ">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="is_I" value="false"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <!--<wgt:menu-item id="delete" label="Удалить(Del)" context="true" key="Delete">-->
+                        <!--<wgt:invoke-action action-id="delete" confirmation="true"/>-->
+                        <!--</wgt:menu-item>-->
+                    </wgt:action-menu>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="is_I" value="false"/>
+                </pre-filters>
+            </container>            
+        </region>
+    </regions>
+</page>

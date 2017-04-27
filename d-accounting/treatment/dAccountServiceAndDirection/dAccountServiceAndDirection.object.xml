@@ -1,0 +1,139 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-2.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Назначение услуг</name>
+
+    <actions>
+        <action id="createPlannedService" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    <rest:query>
+                        ${n2o.backend.path}/d-accounting/dAccountService
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="account.activeCaseId" mapping="['caseId']"/>
+                <param name="account.activeStepId" mapping="['stepId']"/>
+                <param name="plannedDate" mapping="['plannedDate']" domain="date"/>
+                <param name="service.id" mapping="['serviceId']"/>
+                <param name="financialType.id" mapping="['financialTypeId']"/>
+                <param name="patientId" mapping="['patientId']"/>
+                <param name="clinic.id" mapping="['clinicId']"/>
+                <param name="account.activePlanId" mapping="['treatmentPlanId']"/>
+                <param name="isUrgent" mapping="['urgent']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+        </action>
+
+        <action id="updatePlannedService" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="PUT" >
+                    <rest:query>
+                        ${n2o.backend.path}/d-accounting/dAccountService/{id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="account.activeCaseId" mapping="['caseId']"/>
+                <param name="account.activeStepId" mapping="['stepId']"/>
+                <param name="plannedDate" mapping="['plannedDate']" domain="date"/>
+                <param name="service.id" mapping="['serviceId']"/>
+                <param name="financialType.id" mapping="['financialTypeId']"/>
+                <param name="patientId" mapping="['patientId']"/>
+                <param name="clinic.id" mapping="['clinicId']"/>
+                <param name="account.activePlanId" mapping="['treatmentPlanId']"/>
+                <param name="resGroupId" mapping="['resourceGroupId']"/>
+                <param name="isUrgent" mapping="['urgent']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="all"/>
+        </action>
+
+        <action id="saveServiceResult" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="PUT" >
+                    <rest:query>
+                        ${n2o.backend.path}/d-accounting/dAccountService/serviceResult/{id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="account.activeCaseId" mapping="['caseId']"/>
+                <param name="account.activeStepId" mapping="['stepId']"/>
+                <param name="service.id" mapping="['serviceId']"/>
+                <param name="financialType.id" mapping="['financialTypeId']"/>
+                <param name="patientId" mapping="['patientId']"/>
+                <param name="clinicId" mapping="['clinicId']"/>
+                <param name="account.activePlanId" mapping="['treatmentPlanId']"/>
+                <param name="resGroupId" mapping="['resourceGroupId']"/>
+                <param name="renderedDate" mapping="['bdate']" domain="date"/>
+                <param name="doctor.employeePositionResourceId" mapping="['doctorId']"/>
+                <param name="treatmentMonth.id" mapping="['treatmentMonthId']"/>
+                <param name="studyUID" mapping="['studyUID']" domain="string"/>
+                <param name="isUrgent" mapping="['urgent']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+        </action>
+
+
+
+        <action id="delete" form-submit-label="Удалить" name="Удаление услуги">
+            <invocation>
+                <rest:rest method="DELETE">
+                    <rest:query>
+                        ${n2o.backend.path}/hospital/medical-service?id={id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены, что хотите удалить запланированную услугу?</confirmation-text>
+        </action>
+
+
+        <action id="cancelRendered" form-submit-label="Отменить результат">
+            <invocation>
+                <rest:rest method="POST">
+                    <rest:query>
+                        ${n2o.backend.path}/d-accounting/dAccountService/cancelServiceResult?id={id}&amp;employeePositionUserId={employeePositionUserId}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="employeePositionUserId" mapping="['employeePositionUserId']" value="#{emplPos.id?}"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены, что хотите отменить результат ?</confirmation-text>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="checkServiceDate" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[select :plannedDate >= admission_date and (outcome_date is null or :plannedDate <= outcome_date ) from mc_step where id=:stepId]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="hospitalRecord.id" mapping="['stepId']"/>
+                <param name="plannedDate" mapping="['plannedDate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+            <message>Дата направления на услугу должна соответствовать датам пребывания в отделении.</message>
+        </constraint>
+    </validations>
+</object>

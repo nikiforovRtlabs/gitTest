@@ -1,0 +1,121 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>servicesTemplate</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from services_template_prescription stp
+                left join services_template st on st.id = stp.template_id
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from services_template_prescription stp
+                left join services_template st on st.id = stp.template_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>stp.id</expression>
+        </field>
+
+        <field>
+            <id>templateId</id>
+            <domain>integer</domain>
+            <expression>stp.template_id</expression>
+        </field>
+
+        <field>
+            <id>holdings</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(t)) from (
+                select
+                stph.id
+                , holding
+                , stph.count * stph.hold_dose_value    as dose
+                , stph.count
+
+                from services_template_prescription_holding stph
+                join ( select id, row_to_json(holding) as holding from ( select
+                stphold.id
+                , stphold.holding_id 		           as holding_id
+                , h.name || coalesce(', ' || ft.short_name, '') || coalesce(', ' || CASE WHEN stphold.hold_con_value~'^[0-9]*\.?[0-9]*$' THEN trim(to_char(stphold.hold_con_value::numeric, 'FM9999990.999'), '.') ELSE stphold.hold_con_value END || coalesce(' ' || cm.name,''), '')
+                as holding_full_name
+                , stphold.hold_form_type_id          as form_type_id
+                , trim(to_char(stphold.hold_dose_value, 'FM9999990.999'), '.') || ' ' || dm.name
+                as dose_with_measure
+                , stphold.hold_dose_value            as dose
+                , stphold.hold_dose_measure_id       as dose_measure_id
+                , dm.name                          as dose_measure_name
+                , stphold.hold_con_value             as concentration
+                , stphold.hold_con_measure_id        as concentration_measure_id
+                , stphold.hold_mnei_id               as mnei_id
+                , (select name from cmn_measure where id = stphold.hold_mnei_id)
+                as mnei_name
+                , h.name || coalesce(', ' || ft.short_name, '')
+                || coalesce(', ' || CASE WHEN stphold.hold_con_value~'^[0-9]*\.?[0-9]*$' THEN trim(to_char(stphold.hold_con_value::numeric, 'FM9999990.999'), '.') ELSE stphold.hold_con_value END || coalesce(' ' || cm.name,''), '')
+                || coalesce(', ' || trim(to_char(stphold.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' ' || dm.name,''), '')
+                || coalesce(', ' || mnei.name, '') as name_holding
+                from services_template_prescription_holding stphold
+                join inventory.holding h on h.id = stphold.holding_id
+                left join inventory.form_type ft on ft.id = stphold.hold_form_type_id
+                left join cmn_measure dm on dm.id = stphold.hold_dose_measure_id
+                left join cmn_measure cm on cm.id = stphold.hold_con_measure_id
+                left join cmn_measure mnei on mnei.id = stphold.hold_mnei_id
+                order by stphold.id ) holding ) h on h.id = stph.id
+
+                where stph.prescription_id = stp.id
+                order by stph.id) as t)
+            </expression>
+        </field>
+
+        <field>
+            <id>administrationRoute.id</id>
+            <domain>integer</domain>
+            <expression>stp.administration_route_id</expression>
+        </field>
+
+        <field>
+            <id>prescriptionPeriodicity.id</id>
+            <domain>integer</domain>
+            <expression>stp.periodicity_id</expression>
+        </field>
+
+        <field>
+            <id>visitTerm.id</id>
+            <domain>integer</domain>
+            <expression>stp.visit_term_id</expression>
+        </field>
+
+        <field>
+            <id>beginDay</id>
+            <domain>integer</domain>
+            <expression>stp.begin_day</expression>
+        </field>
+
+        <field>
+            <id>countDay</id>
+            <domain>integer</domain>
+            <expression>stp.count_day</expression>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <expression>stp.note</expression>
+        </field>
+
+    </fields>
+</query>

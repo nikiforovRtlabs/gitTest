@@ -1,0 +1,350 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <name>migrantList</name>
+    <object-id>migrantList</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select
+                FROM migr.md_migr_card mmc
+                    LEFT JOIN disp.md_event_patient mep ON mep.id = mmc.id
+                    LEFT JOIN disp.md_event me ON me.id = mep.event_id
+                    LEFT JOIN pim_individual i ON i.id = mep.indiv_id
+                    LEFT JOIN pim_gender g ON i.gender_id = g.id
+                    LEFT JOIN migr.md_migr_status mms ON mms.id = mmc.status_id
+                    LEFT JOIN migr.md_migr_close_reason mmcr ON mmcr.id = mmc.close_reason_id
+                    LEFT JOIN mc_case mc ON mc.id = mep.case_id
+                WHERE :where
+                ORDER BY :order
+            </n2o:items-query>
+            <n2o:count-query>
+                SELECT count(mmc)
+                FROM migr.md_migr_card mmc
+                    LEFT JOIN disp.md_event_patient mep ON mep.id = mmc.id
+                    LEFT JOIN disp.md_event me ON me.id = mep.event_id
+                    LEFT JOIN pim_individual i ON i.id = mep.indiv_id
+                    LEFT JOIN pim_gender g ON i.gender_id = g.id
+                    LEFT JOIN migr.md_migr_status mms ON mms.id = mmc.status_id
+                    LEFT JOIN migr.md_migr_close_reason mmcr ON mmcr.id = mmc.close_reason_id
+                    LEFT JOIN mc_case mc ON mc.id = mep.case_id
+                WHERE :where
+            </n2o:count-query>
+            <n2o:alias>mmc</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>user.id</id>
+            <domain>integer</domain>
+            <display value="#{user.id}" unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mmc.id</display>
+            <search>mmc.id = :id</search>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>Integer</domain>
+            <display>me.id</display>
+            <search>me.id = :eventId</search>
+        </field>
+        <field>
+            <id>indivId</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indivId</search>
+        </field>
+        <field>
+            <id>caseId</id>
+            <domain>Integer</domain>
+            <display>mc.id</display>
+            <search>mc.id= :caseId</search>
+        </field>
+        <field>
+            <id>fio</id>
+            <domain>String</domain>
+            <expression>concat_ws(' ', i.surname, i.name, i.patr_name)</expression>
+            <display>concat_ws(' ', i.surname, i.name, i.patr_name)</display>
+            <search>lower(concat_ws(' ', i.surname, i.name, i.patr_name)) like '%' || lower(:fio) || '%'</search>
+            <name>ФИО</name>
+        </field>
+        <field>
+            <id>birthday</id>
+            <domain>Date</domain>
+            <display>i.birth_dt</display>
+            <search>i.birth_dt = :birthday</search>
+            <name>Дата рождения</name>
+            <sorting>i.birth_dt</sorting>
+        </field>
+        <field>
+            <id>certificatesDate</id>
+            <domain>string</domain>
+            <display>array(select distinct to_char(mmd.document_issuance_date, 'DD.MM.YYYY') from migr.md_migr_document
+                mmd where mmd.type_id = (SELECT id from migr.md_migr_document_type where code = 'certificate' limit 1)
+                and mmd.card_id = mmc.id and mmd.is_issued = true)
+            </display>
+            <name>Даты сертификатов</name>
+        </field>
+        <field>
+            <id>conclusionsDate</id>
+            <domain>string</domain>
+            <display>array(select distinct to_char(mmd.document_issuance_date, 'DD.MM.YYYY') from migr.md_migr_document
+                mmd where mmd.type_id = (SELECT id from migr.md_migr_document_type where code = 'conclusion' limit 1)
+                and mmd.card_id = mmc.id and mmd.is_issued = true)
+            </display>
+            <name>Даты заключений</name>
+        </field>
+        <field>
+            <id>certificates</id>
+            <domain>string</domain>
+            <display>array(select distinct '"'||concat_ws(' ',mmd.series, mmd.number)||'"' from migr.md_migr_document
+                mmd where mmd.type_id = (SELECT id from migr.md_migr_document_type where code = 'certificate' limit 1)
+                and mmd.card_id = mmc.id and mmd.is_issued = true)
+            </display>
+            <name>Даты сертификатов</name>
+        </field>
+        <field>
+            <id>conclusions</id>
+            <domain>string</domain>
+            <display>array(select distinct '"'||concat_ws(' ',mmd.series, mmd.number)||'"' from migr.md_migr_document
+                mmd where mmd.type_id = (SELECT id from migr.md_migr_document_type where code = 'conclusion' limit 1)
+                and mmd.card_id = mmc.id and mmd.is_issued = true)
+            </display>
+            <name>Даты заключений</name>
+        </field>
+        <field>
+            <id>status</id>
+            <domain>string</domain>
+            <display>mms.name</display>
+            <expression>mms.name</expression>
+            <name>Статус</name>
+        </field>
+        <field>
+            <id>statusId</id>
+            <domain>integer</domain>
+            <display>mms.id</display>
+        </field>
+        <field>
+            <id>gender.id</id>
+            <domain>integer</domain>
+            <display>g.id</display>
+            <search>case :gender.id when 1 then g.code = 'MALE' when 2 then g.code = 'FEMALE' end</search>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>conclusion_number</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search>
+                exists ( select * from migr.md_migr_document where card_id = mmc.id and
+                type_id = ( select id from migr.md_migr_document_type where code = 'conclusion' limit 1) and
+                number = :conclusion_number)
+            </search>
+        </field>
+        <field>
+            <id>certificate_number</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search>
+                exists ( select id from migr.md_migr_document where card_id = mmc.id and
+                type_id = ( select id from migr.md_migr_document_type where code = 'certificate' limit 1) and
+                number = :certificate_number)
+            </search>
+        </field>
+        <field>
+            <id>conclusion_series</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search>
+                exists ( select * from migr.md_migr_document where card_id = mmc.id and
+                type_id = ( select id from migr.md_migr_document_type where code = 'conclusion' limit 1) and
+                series = :conclusion_series)
+            </search>
+        </field>
+        <field>
+            <id>certificate_series</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search>
+                exists ( select id from migr.md_migr_document where card_id = mmc.id and
+                type_id = ( select id from migr.md_migr_document_type where code = 'certificate' limit 1) and
+                series = :certificate_series)
+            </search>
+        </field>
+        <field>
+            <id>conclusion_date.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search>
+                CASE WHEN (:conclusion_date.end) :: DATE IS NOT NULL THEN
+                EXISTS ( SELECT id FROM migr.md_migr_document WHERE card_id = mmc.id AND
+                type_id = ( SELECT id FROM migr.md_migr_document_type WHERE code = 'conclusion' LIMIT 1) AND
+                document_issuance_date &gt;= :conclusion_date.begin AND
+                document_issuance_date &lt;= :conclusion_date.end)
+                ELSE
+                EXISTS ( SELECT id FROM migr.md_migr_document WHERE card_id = mmc.id AND
+                type_id = ( SELECT id FROM migr.md_migr_document_type WHERE code = 'conclusion' LIMIT 1) AND
+                document_issuance_date &gt;= :conclusion_date.begin)
+                END
+            </search>
+        </field>
+        <field>
+            <id>conclusion_date.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search>
+                CASE WHEN (:conclusion_date.begin) :: DATE IS NOT NULL THEN
+                TRUE
+                ELSE
+                EXISTS ( SELECT id FROM migr.md_migr_document WHERE card_id = mmc.id AND
+                type_id = ( SELECT id FROM migr.md_migr_document_type WHERE code = 'conclusion' LIMIT 1) AND
+                document_issuance_date &lt;= :conclusion_date.end)
+                END
+            </search>
+        </field>
+        <field>
+            <id>cert_date_begin.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search>
+                CASE WHEN (:cert_date_begin.end) :: DATE IS NOT NULL THEN
+                EXISTS ( SELECT id FROM migr.md_migr_document WHERE card_id = mmc.id AND
+                type_id = ( SELECT id FROM migr.md_migr_document_type WHERE code = 'certificate' LIMIT 1) AND
+                document_issuance_date &gt;= :cert_date_begin.begin AND
+                document_issuance_date &lt;= :cert_date_begin.end)
+                ELSE
+                EXISTS ( SELECT id FROM migr.md_migr_document WHERE card_id = mmc.id AND
+                type_id = ( SELECT id FROM migr.md_migr_document_type WHERE code = 'certificate' LIMIT 1) AND
+                document_issuance_date &gt;= :cert_date_begin.begin)
+                END
+            </search>
+        </field>
+        <field>
+            <id>cert_date_begin.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search>
+                CASE WHEN (:cert_date_begin.begin) :: DATE IS NOT NULL THEN
+                TRUE
+                ELSE
+                EXISTS ( SELECT id FROM migr.md_migr_document WHERE card_id = mmc.id AND
+                type_id = ( SELECT id FROM migr.md_migr_document_type WHERE code = 'certificate' LIMIT 1) AND
+                document_issuance_date &lt;= :cert_date_begin.end)
+                END
+            </search>
+        </field>
+        <field>
+            <id>conclusion_filter.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                CASE :conclusion_filter.id WHEN 1 THEN
+                EXISTS ( SELECT id FROM migr.md_migr_document WHERE card_id = mmc.id AND
+                type_id = ( SELECT id FROM migr.md_migr_document_type WHERE code = 'conclusion' LIMIT 1) AND
+                is_issued IS TRUE )
+                ELSE
+                NOT EXISTS ( SELECT id FROM migr.md_migr_document WHERE card_id = mmc.id AND
+                type_id = ( SELECT id FROM migr.md_migr_document_type WHERE code = 'conclusion' LIMIT 1) AND
+                is_issued IS TRUE ) END
+            </search>
+        </field>
+        <field>
+            <id>сertificate_date.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                CASE :сertificate_date.id WHEN 1 THEN
+                EXISTS ( SELECT id FROM migr.md_migr_document WHERE card_id = mmc.id AND
+                type_id = ( SELECT id FROM migr.md_migr_document_type WHERE code = 'certificate' LIMIT 1) AND
+                validity &gt;= CURRENT_DATE )
+                ELSE
+                EXISTS ( SELECT id FROM migr.md_migr_document WHERE card_id = mmc.id AND
+                type_id = ( SELECT id FROM migr.md_migr_document_type WHERE code = 'certificate' LIMIT 1) AND
+                validity &lt; CURRENT_DATE ) END
+            </search>
+        </field>
+
+        <field>
+            <id>card_filter.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                CASE :card_filter.id
+                WHEN 1 THEN TRUE
+                WHEN 2 THEN mmc.status_id= 4
+                WHEN 3 THEN mmc.status_id=1 END
+            </search>
+        </field>
+        <field>
+            <id>closeReason.id</id>
+            <domain>integer</domain>
+            <expression>mmcr.id</expression>
+        </field>
+        <field>
+            <id>closeReason.code</id>
+            <domain>integer</domain>
+            <name>Причина закрытия</name>
+            <expression>mmcr.code</expression>
+        </field>
+        <field>
+            <id>closeReason.name</id>
+            <domain>string</domain>
+            <name>Причина закрытия</name>
+            <expression>mmcr.name</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <display>me.org_id</display>
+            <search>me.org_id = :org.id</search>
+        </field>
+        <field>
+            <id>arm</id>
+            <domain>integer</domain>
+            <display>:arm</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>notAllServiceRendered</id>
+            <domain>boolean</domain>
+            <display>(exists(select 1 from disp.md_event_service_patient esp
+                where esp.event_patient_id = mep.id
+                and esp.status = 1) or not exists(select 1 from disp.md_event_service_patient esp
+                where esp.event_patient_id = mep.id))
+            </display>
+        </field>
+        <field>
+            <id>statusColor</id>
+            <domain>integer</domain>
+            <display>case mmc.status_id
+                when 1 then 1
+                when 2 then
+                (case mmc.close_reason_id
+                when 2 then 2
+                when 1 then 3
+                else 4
+                end)
+                end
+            </display>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>conclusionSaved</id>
+            <domain>boolean</domain>
+            <display>
+                exists (select id from migr.md_migr_document
+                where card_id = mmc.id and
+                type_id = (select id from migr.md_migr_document_type where code = 'conclusion' limit 1) and
+                commission_id is not null)
+            </display>
+        </field>
+    </fields>
+</query>

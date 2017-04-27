@@ -1,0 +1,145 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>empInfo</object-id>
+    <name>Сотрудники</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from pim_position pos
+                left outer join pim_employee_position epo on (epo.position_id = pos.id)
+                left outer join pim_employee emp on (emp.id = epo.employee_id)
+                left outer join pim_individual ind on (ind.id = emp.individual_id)
+                left outer join pim_position_type pty on (pty.id = epo.position_type_id)
+                left outer join pim_employment_type ety on (ety.id = epo.employment_type_id)
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(1)
+                from pim_position pos
+                left outer join pim_employee_position epo on (epo.position_id = pos.id)
+                left outer join pim_employee emp on (emp.id = epo.employee_id)
+                left outer join pim_individual ind on (ind.id = emp.individual_id)
+                left outer join pim_position_type pty on (pty.id = epo.position_type_id)
+                left outer join pim_employment_type ety on (ety.id = epo.employment_type_id)
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pos2</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>pos.id</id>
+            <domain>integer</domain>
+            <expression>pos.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+
+        <field>
+            <id>emp.id</id>
+            <domain>integer</domain>
+            <expression>emp.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+
+        <field>
+            <id>fio</id>
+            <domain>String</domain>
+            <expression>ind.surname||' '||ind.name||' '||ind.patr_name</expression>
+            <sorting/>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+
+
+        <field>
+            <id>ety.id</id>
+            <domain>integer</domain>
+            <expression>ety.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+
+        <field>
+            <id>ety.name</id>
+            <domain>string</domain>
+            <name>Вид занятости</name>
+            <expression>ety.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>pty.id</id>
+            <domain>integer</domain>
+            <expression>pty.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+
+        <field>
+            <id>pty.name</id>
+            <domain>string</domain>
+            <name>Тип должности</name>
+            <expression>pty.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>rate</id>
+            <domain>numeric</domain>
+            <expression>epo.rate</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>is_dismissed</id>
+            <domain>boolean</domain>
+            <expression>coalesce(emp.is_dismissed,false)</expression>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>emp_status.id</id>
+            <domain>integer</domain>
+            <expression>1=1</expression>
+            <filters auto-generate="true">
+                <filter type="eq" filter-field="emp_status.id"><![CDATA[
+                    (case
+                      when :emp_status.id = 1 then (epo.end_date isnull or epo.end_date >= :employmentDate) and (:employmentDate >= epo.start_date)
+                      when :emp_status.id = 2 then (epo.end_date notnull and epo.end_date < :employmentDate)
+                      when :emp_status.id = 3 then (epo.end_date isnull or epo.end_date >= :employmentDate) and (:employmentDate >= epo.start_date) or (epo.end_date notnull and epo.end_date < :employmentDate)
+                     end)
+                    ]]>
+                </filter>
+            </filters>
+            <display/>
+        </field>
+
+        <field>
+            <id>actual_status_name</id>
+            <domain>string</domain>
+            <expression>
+                <![CDATA[
+                (case
+                    when (epo.end_date isnull or epo.end_date >= :employmentDate) and (:employmentDate >= epo.start_date) then 'Работает'
+                    when (epo.end_date notnull and epo.end_date < :employmentDate) then 'Уволен'
+                    else ''
+                end)
+                ]]>
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>employmentDate</id>
+            <domain>date</domain>
+            <expression>:employmentDate</expression>
+            <filters auto-generate="false"/>
+        </field>
+
+    </fields>
+</query>

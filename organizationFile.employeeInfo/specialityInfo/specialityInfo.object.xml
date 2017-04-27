@@ -1,0 +1,95 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+
+    <name>Специальности</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into pim_employee_to_speciality(id, employee_id, speciality_id)
+                    values
+                    (nextval('pim_employee_to_speciality_id_seq'), :employee_id, :speciality_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <!--
+                <param name="id" mapping="['id']" domain="integer"/>
+                -->
+                <param name="pts.id" mapping="['id']" domain="integer"/>
+                <param name="emp.id" mapping="['employee_id']" domain="integer"/>
+                <param name="ems.id" mapping="['speciality_id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="pts.id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Специальность {ems.name} успешно сохранена в системе.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkHasAlreadySpeciality"/>
+            </validations>
+        </action>
+
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_employee_to_speciality set
+                    speciality_id = :speciality_id
+                    where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pts.id" mapping="['id']" domain="integer"/>
+                <param name="emp.id" mapping="['employee_id']" domain="integer"/>
+                <param name="ems.id" mapping="['speciality_id']" domain="integer"/>
+            </in-parameters>
+            <success-text>
+                Специальность "{ems.name}" успешно изменена.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkHasAlreadySpeciality"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_employee_to_speciality where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pts.id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что специальность "{ems.name}" должна быть удалена?
+            </confirmation-text>
+            <success-text>
+                Специальность "{ems.name}" успешно удалена.
+            </success-text>
+
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="checkHasAlreadySpeciality" level="error">
+            <message>Специальность уже существует в списке</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from
+                        pim_employee_to_speciality
+                        where employee_id = :employee_id and speciality_id = :speciality_id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="pts.id" mapping="['id']" domain="integer"/>
+                <param name="emp.id" mapping="['employee_id']" domain="integer"/>
+                <param name="ems.id" mapping="['speciality_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+</object>

@@ -1,0 +1,209 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>dAccountIndividual</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.pim_individual ind
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(ind) from public.pim_individual ind
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ind.id</expression>
+        </field>
+
+        <field>
+            <id>uid</id>
+            <name>Идентификатор</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT indc.code FROM public.pim_indiv_code indc WHERE indc.indiv_id = ind.id AND indc.type_id =
+                (select ctype.id from pim_code_type ctype where ctype.code = 'UID' limit 1) LIMIT 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>fio</id>
+            <name>ФИО</name>
+            <domain>string</domain>
+            <expression>initcap(concat_ws(' ',ind.surname, ind.name, ind.patr_name))</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <name>Имя пациента</name>
+            <domain>string</domain>
+            <expression>ind.name</expression>
+            <search>lower(ind.name) like '%'||lower(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>surname</id>
+            <name>Фамилия пациента</name>
+            <domain>string</domain>
+            <expression>ind.surname</expression>
+            <search>lower(ind.surname) like '%'||lower(:surname)||'%'</search>
+        </field>
+
+        <field>
+            <id>patr_name</id>
+            <name>Отчество пациента</name>
+            <domain>string</domain>
+            <expression>ind.patr_name</expression>
+            <search>lower(ind.patr_name) like '%'||lower(:patr_name)||'%'</search>
+        </field>
+
+        <field>
+            <id>birth_dt</id>
+            <name>Дата рождения</name>
+            <domain>date</domain>
+            <expression>ind.birth_dt</expression>
+            <search>ind.birth_dt = :birth_dt</search>
+        </field>
+
+        <field>
+            <id>gender.id</id>
+            <name>Пол</name>
+            <domain>integer</domain>
+            <expression>ind.gender_id</expression>
+        </field>
+
+        <field>
+            <id>gender.name</id>
+            <name>Пол</name>
+            <domain>string</domain>
+            <expression>
+                (select name
+                from pim_gender g
+                where scope_id IS NOT NULL AND g.id = ind.gender_id)</expression>
+        </field>
+
+        <field>
+            <id>passport</id>
+            <name>Серия и номер паспорта</name>
+            <domain>string</domain>
+            <expression>(select concat_ws(' ',passport.series, passport.number) from pim_individual_doc passport where passport.indiv_id = ind.id and passport.type_id =
+                (select dtype.id from pim_doc_type dtype where dtype.code = 'PASSPORT_RUSSIAN_FEDERATION' limit 1) limit 1)</expression>
+        </field>
+
+        <field>
+            <id>passport_dt</id>
+            <name>Дата выдачи</name>
+            <domain>date</domain>
+            <expression>(select passport.issue_dt from pim_individual_doc passport where passport.indiv_id = ind.id and passport.type_id =
+                (select dtype.id from pim_doc_type dtype where dtype.code = 'PASSPORT_RUSSIAN_FEDERATION' limit 1) limit 1)</expression>
+        </field>
+
+        <field>
+            <id>polic</id>
+            <name>Серия и номер полиса</name>
+            <domain>string</domain>
+            <expression>
+                (select concat_ws(' ', polic.series, polic.number)
+                from pim_individual_doc polic
+                where polic.indiv_id = ind.id and polic.type_id in
+                (select dtype.id from pim_doc_type dtype where dtype.code in ('MHI_UNIFORM', 'MHI_OLDER'))
+                order by polic.type_id desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>smo</id>
+            <name>СМО</name>
+            <domain>string</domain>
+            <expression>
+                (select coalesce(o.short_name, o.full_name)
+                from public.pim_individual_doc polic
+                    join public.pim_organization o ON o.id = polic.issuer_id
+                where polic.indiv_id = ind.id and polic.type_id in
+                (select dtype.id from pim_doc_type dtype where dtype.code in ('MHI_UNIFORM', 'MHI_OLDER'))
+                order by polic.type_id desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>polic_dt</id>
+            <name>Дата выдачи</name>
+            <domain>date</domain>
+            <expression>
+                (select polic.issue_dt
+                from pim_individual_doc polic
+                where polic.indiv_id = ind.id and polic.type_id in
+                (select dtype.id from pim_doc_type dtype where dtype.code in ('MHI_UNIFORM', 'MHI_OLDER'))
+                order by polic.type_id desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>snils</id>
+            <name>СНИЛС</name>
+            <domain>string</domain>
+            <expression>(select indc.code from public.pim_indiv_code indc where indc.indiv_id = ind.id and indc.type_id =
+                (select ctype.id from pim_code_type ctype where ctype.code = 'SNILS' limit 1) limit 1)</expression>
+        </field>
+
+        <field>
+            <id>adr_reg</id>
+            <name>Адрес регистрации</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT adr__get_element_as_text (padr.addr_id, '(1,s,0)(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)') FROM pim_party_address padr
+                 JOIN pim_party party ON party.id = padr.party_id
+                 JOIN pim_address_type adr_type ON adr_type.party_type_id = party.type_id AND adr_type.code = 'REGISTER'
+                 WHERE padr.party_id = ind.id limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>adr_fact</id>
+            <name>Адрес проживания</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT adr__get_element_as_text (padr.addr_id, '(1,s,0)(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)') FROM pim_party_address padr
+                JOIN pim_party party ON party.id = padr.party_id
+                JOIN pim_address_type adr_type ON adr_type.party_type_id = party.type_id AND adr_type.code = 'ACTUAL'
+                WHERE padr.party_id = ind.id limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>mo</id>
+            <domain>string</domain>
+            <display value="#{org.name?}" unavailable="true"/>
+            <name>МО</name>
+        </field>
+
+        <field>
+            <id>fioVrach</id>
+            <domain>string</domain>
+            <display value="#{emplPosRes.name?}" unavailable="true"/>
+            <name>ФИО врача, поставившего на учет</name>
+        </field>
+
+        <field>
+            <id>today</id>
+            <domain>date</domain>
+            <expression>CURRENT_DATE</expression>
+            <name>Дата постановки на учет</name>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,149 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicReferral</object-id>
+    <name>clinicPre-entry</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from md_appointment ma
+                left join sr_service ss on ( ma.service_id = ss.id  )
+                left join sr_res_group srg on ( ma.executor_id = srg.id  )
+                left join md_appointment_state mas ON ( ma.state_id = mas.id  )
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ma)
+                from md_appointment ma
+                left join md_appointment_state mas ON ( ma.state_id = mas.id  )
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ma</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>ma.customer_id</expression>
+        </field>
+
+        <field>
+            <id>ticketNumber</id>
+            <domain>string</domain>
+            <expression>ma.ticket_number</expression>
+        </field>
+
+        <field>
+            <id>bTime</id>
+            <domain>string</domain>
+            <expression>to_char(ma.bdatetime, 'HH24:MI')</expression>
+        </field>
+
+        <field>
+            <id>bDate</id>
+            <domain>string</domain>
+            <expression>to_char(ma.bdatetime, 'DD.MM.YYYY')</expression>
+        </field>
+
+        <field>
+            <id>service</id>
+            <domain>string</domain>
+            <expression>ss.code || ' ' || ss.name</expression>
+        </field>
+
+        <field>
+            <id>serviceId</id>
+            <domain>integer</domain>
+            <expression>ma.service_id</expression>
+        </field>
+
+        <field>
+            <id>executor</id>
+            <domain>string</domain>
+            <expression>srg.name</expression>
+        </field>
+
+        <field>
+            <id>status</id>
+            <domain>boolean</domain>
+            <expression>(case when mas.code = 'PLANNED' then true else false end)</expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+        </field>
+
+        <field>
+            <id>recvOrgId</id>
+            <domain>integer</domain>
+            <expression>:recvOrgId</expression>
+        </field>
+
+        <field>
+            <id>resourceGroupId</id>
+            <domain>string</domain>
+            <expression>:resourceGroupId</expression>
+        </field>
+
+        <field>
+            <id>referralId</id>
+            <domain>integer</domain>
+            <expression>ma.referral_id</expression>
+            <search>:expression = :referralId</search>
+        </field>
+
+        <!--<field>-->
+            <!--<id>referralServiceId</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>-->
+                <!--(case when :orgId != :recvOrgId-->
+                    <!--then (case when ((:prototype is not null and json_array_length((:prototype)::JSON) > 1)-->
+                                <!--or :prototype is null or (:serviceIds is not null and json_array_length((:serviceIds)::JSON) > 1)-->
+                                <!--or :serviceIds is null)-->
+                        <!--then null-->
+                        <!--else (case when (select count(id) from sr_service where org_id = :recvOrgId-->
+                                            <!--and prototype_id = (select prototype_id from json_to_recordset((:prototype)::JSON)-->
+                                            <!--as x(id int, referral_service_id int, prototype_id int, prototype_name text))) = 1-->
+                                <!--then (select id from sr_service where org_id = :recvOrgId-->
+                                            <!--and prototype_id = (select prototype_id from json_to_recordset((:prototype)::JSON)-->
+                                            <!--as x(id int, referral_service_id int, prototype_id int, prototype_name text)))-->
+                                <!--else null end)-->
+                        <!--end)-->
+                    <!--else (case when :rootService is not null-->
+                            <!--then (case when :serviceIds is not null then null else (select json_extract_path_text( :rootService, 'id')) end)-->
+                            <!--else (case when ((:serviceIds is not null and json_array_length((:serviceIds)::JSON) > 1) or :serviceIds is null)-->
+                                <!--then null else (select id from json_to_recordset((:serviceIds)::JSON) as x(id int, name text)) end)-->
+                            <!--end)-->
+                    <!--end)-->
+            <!--</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>referralServiceId</id>
+            <domain>integer</domain>
+            <expression>:referralServiceId</expression>
+        </field>
+
+        <field>
+            <id>rootServiceId</id>
+            <domain>integer</domain>
+            <expression>:rootServiceId</expression>
+        </field>
+
+        <field>
+            <id>isStomatologyVisit</id>
+            <domain>boolean</domain>
+            <expression>:isStomatologyVisit</expression>
+        </field>
+
+    </fields>
+</query>

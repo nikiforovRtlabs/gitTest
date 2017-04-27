@@ -1,0 +1,156 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>analysis</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.md_srv_rendered msr
+                join public.sr_srv_rendered ssr on ssr.id = msr.id
+                join public.sr_service s on s.id = ssr.service_id
+                join public.sr_srv_type st on st.id = s.type_id
+                join pim_individual i on i.id=ssr.customer_id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual ind on ind.id = e.individual_id
+                left join sr_srv_result res on res.service_id=ssr.id
+                where st.code in ('LABORATORY','PROBES','DIAGNOSTICS') and  :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from public.md_srv_rendered msr
+                join public.sr_srv_rendered ssr on ssr.id = msr.id
+                join public.sr_service s on s.id = ssr.service_id
+                join public.sr_srv_type st on st.id = s.type_id
+                join pim_individual i on i.id=ssr.customer_id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual ind on ind.id = e.individual_id
+                left join sr_srv_result res on res.service_id=ssr.id
+                where st.code in ('LABORATORY','PROBES','DIAGNOSTICS') and  :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>msr.id</expression>
+        </field>
+
+        <field>
+            <id>studyUIDId</id>
+            <domain>integer</domain>
+            <expression>res.id</expression>
+        </field>
+
+        <field>
+            <id>studyUID</id>
+            <domain>string</domain>
+            <name>Номер исследования</name>
+            <expression>res.value</expression>
+        </field>
+
+        <field>
+            <id>renderedDate</id>
+            <domain>date</domain>
+            <name>Дата забора материала</name>
+            <expression>ssr.bdate + coalesce(ssr.begin_time, '00:00')</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>i.id</expression>
+        </field>
+
+        <field>
+            <id>patient.fio</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>initcap(concat_ws(' ', i.surname, i.name, i.patr_name))</expression>
+        </field>
+
+        <field>
+            <id>doctor.id</id>
+            <domain>string</domain>
+            <expression>ep.id</expression>
+        </field>
+
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>(case when ssr.is_rendered then 2 else 1 end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>status.name</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>(case when ssr.is_rendered then 'Оказана' else 'Назначена' end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>clinicName</id>
+            <domain>string</domain>
+            <name>МО</name>
+            <expression>(SELECT coalesce(cl.short_name, cl.full_name) FROM pim_organization cl WHERE cl.id = ssr.org_id LIMIT 1)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <expression>ssr.org_id</expression>
+        </field>
+
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>isUrgent</id>
+            <domain>boolean</domain>
+            <expression>msr.is_urgent</expression>
+        </field>
+
+        <field>
+            <id>urgent</id>
+            <expression>(case when msr.is_urgent and not ssr.is_rendered then 'text-error'  else '' end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>ssr.funding_id</expression>
+        </field>
+        <field>
+            <id>plannedDate</id>
+            <domain>date</domain>
+            <expression>ssr.planned_date</expression>
+        </field>
+
+        <field>
+            <id>bdate</id>
+            <domain>date</domain>
+            <expression>ssr.bdate</expression>
+        </field>
+
+        <field>
+            <id>resGroupId</id>
+            <domain>integer</domain>
+            <expression>rg.id</expression>
+        </field>
+    </fields>
+</query>

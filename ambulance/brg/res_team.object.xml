@@ -1,0 +1,178 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Бригады</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <sql:sql>
+                    select amb.add_res_team(:org,:dep,:name,:bdate,:edate,:setting,:kind,:job,:type,:radio,:prof,:mprof,cast(:btime as time),cast(:etime as time));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="station.id" mapping="['org']" domain="integer" value="#{org.id}"/>
+                <param name="substation.id" mapping="['dep']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="bdate" mapping="['bdate']" domain="date"/>
+                <param name="edate" mapping="['edate']" domain="date"/>
+                <param name="team_template_setting.id" mapping="['setting']" domain="integer"/>
+                <param name="team_kind.id" mapping="['kind']" domain="integer"/>
+                <param name="job_kind.id" mapping="['job']" domain="integer"/>
+                <param name="team_type.id" mapping="['type']" domain="integer"/>
+                <param name="radio_code" mapping="['radio']" domain="string"/>
+                <param name="amb_profile.id" mapping="['prof']" domain="integer"/>
+                <param name="md_profile.id" mapping="['mprof']" domain="integer"/>
+                <param name="brg.btime" mapping="['btime']" domain="string"/>
+                <param name="brg.etime" mapping="['etime']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+            <validations activate="blackList">
+                <validation ref-id="checkChangeBtime"/>
+                <validation ref-id="checkChangeEtime"/>
+            </validations>
+        </action>
+        <action id="update" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    select amb.upd_res_team(:id,:dep,:name,:bdate,:edate,:setting,:kind,:job,:type,:radio,:prof,:mprof,cast(:btime as time),cast(:etime as time));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="substation.id" mapping="['dep']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="bdate" mapping="['bdate']" domain="date"/>
+                <param name="edate" mapping="['edate']" domain="date"/>
+                <param name="team_template_setting.id" mapping="['setting']" domain="integer"/>
+                <param name="team_kind.id" mapping="['kind']" domain="integer"/>
+                <param name="job_kind.id" mapping="['job']" domain="integer"/>
+                <param name="team_type.id" mapping="['type']" domain="integer"/>
+                <param name="radio_code" mapping="['radio']" domain="string"/>
+                <param name="amb_profile.id" mapping="['prof']" domain="integer"/>
+                <param name="md_profile.id" mapping="['mprof']" domain="integer"/>
+                <param name="brg.btime" mapping="['btime']" domain="string"/>
+                <param name="brg.etime" mapping="['etime']" domain="string"/>
+            </in-parameters>
+            <validations activate="blackList">
+                <validation ref-id="checkChangeBtime"/>
+                <validation ref-id="checkChangeEtime"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    select amb.del_res_team (:id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <condition id="checkChangeBtime" level="error">
+            <message>Начало работы бригады не должно быть раньше начала смены</message>
+            <expression on="brg.btime, substation">
+                <![CDATA[
+                    var b = true;
+                    if(change.btime != null && brg.btime != null){
+                        b = (moment(brg.btime, 'HH:mm') >= moment(change.btime, 'HH:mm'));
+                    }
+                    b;
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkChangeEtime" level="error">
+            <message>Окончание работы бригады не должно быть позже окончания смены</message>
+            <expression on="brg.etime, substation">
+                <![CDATA[
+                    var b = true;
+                    if(change.etime != null && brg.etime != null){
+                        b = (moment(brg.etime, 'HH:mm') <= moment(change.etime, 'HH:mm'));
+                    }
+                    b;
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkFormatTimeBegin" level="error">
+            <message>Некорректный формат времени.</message>
+            <expression on="brg.btime">
+                <![CDATA[
+                        var regex = new RegExp('([0-1][0-9]|2[0-3]):[0-5][0-9]');
+                        var b = true;
+                        if(typeof brg.btime != 'undefined' && brg.btime != null && brg.btime != '')
+                            b = regex.test(brg.btime);
+                        b;
+                    ]]>
+            </expression>
+        </condition>
+        <condition id="checkFormatTimeEnd" level="error">
+            <message>Некорректный формат времени.</message>
+            <expression on="brg.etime">
+                <![CDATA[
+                    var regex = new RegExp('([0-1][0-9]|2[0-3]):[0-5][0-9]');
+                    var b = true;
+                    if(typeof change.etime != 'undefined' && change.etime != null && change.etime != '')
+                        b = regex.test(change.etime);
+                    b;
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="checkUniqueTeamName" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.sr_res_team srt
+                    left join sr_res_group srg on srt.resource_id = srg.id
+                    where srg.org_id = :org
+                    and srg.department_id = :dep
+                    and upper(srg.name) = upper(:name)
+                    and ((edate > now()) or edate is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="station.id" mapping="['org']" domain="integer"/>
+                <param name="substation.id" mapping="['dep']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Бригада с таким наименованием уже существует в системе</message>
+        </constraint>
+
+        <constraint id="checkUniqueTeamRadioCode" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from amb.sr_res_team srt
+                    left join sr_res_group srg on srt.resource_id = srg.id
+                    where srg.org_id = :org
+                    and srg.department_id = :dep
+                    and srt.radio_code = :radio
+                    and ((edate > now()) or edate is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="station.id" mapping="['org']" domain="integer"/>
+                <param name="substation.id" mapping="['dep']" domain="integer"/>
+                <param name="radio_code" mapping="['radio']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Код рации уже используется</message>
+        </constraint>
+
+        <condition id="checkDates" level="error">
+            <expression>
+                <![CDATA[
+                    if ((typeof edate != 'undefined') && (edate != null)){
+                        moment(edate, 'DD.MM.YYYY') > moment(bdate, 'DD.MM.YYYY');
+                    } else true;
+                ]]>
+            </expression>
+            <message>Дата окончания действия не может быть меньше даты начала действия</message>
+        </condition>
+    </validations>
+</object>

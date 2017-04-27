@@ -1,0 +1,117 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <name>Согласие</name>
+    <object-id>orphansDisprCardAgreement</object-id>
+    <!--<execution>-->
+        <!--<n2o:rest>-->
+            <!--<n2o:query>-->
+                <!--${disp.remote.rest.host}:${disp.remote.rest.port}/${disp.remote.rest.context}/m_getAgreementForm_new-->
+            <!--</n2o:query>-->
+            <!--<n2o:response-mapping collection="list" count="count"/>-->
+            <!--<n2o:filter param-name="filter" separator=";"/>-->
+            <!--<n2o:size param-name="limit" />-->
+            <!--<n2o:offset param-name="offset" />-->
+        <!--</n2o:rest>-->
+    <!--</execution>-->
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event me
+                left join disp.md_event_type met on met.id=me.event_type
+                left join disp.md_event_patient mep on mep.event_id=me.id
+                left join pim_individual i on mep.indiv_id=i.id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mep)
+                from disp.md_event me
+                left join disp.md_event_patient mep on mep.event_id=me.id
+
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>(select mea.id from  disp.md_event_agreement mea where mea.event_patient_id = mep.id)</display>
+            <search> (select mea.id from  disp.md_event_agreement mea where mea.event_patient_id = mep.id and mea.id = :id)</search>
+        </field>
+        <field>
+            <id>event_patient_id</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+            <search>mep.id = :event_patient_id</search>
+        </field>
+        <field>
+            <id>agree</id>
+            <domain>boolean</domain>
+            <display>(select mea.agree from  disp.md_event_agreement mea where mea.event_patient_id = mep.id)</display>
+            <search> (select mea.agree from  disp.md_event_agreement mea where mea.event_patient_id = mep.id and mea.agree = :agree)</search>
+        </field>
+        <field>
+            <id>denial</id>
+            <domain>Integer</domain>
+            <display>(select mea.denial from  disp.md_event_agreement mea where mea.event_patient_id = mep.id)</display>
+            <search>(select mea.denial from  disp.md_event_agreement mea where mea.event_patient_id = mep.id and mea.denial = :denial)</search>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <display>(select mea.adate from  disp.md_event_agreement mea where mea.event_patient_id = mep.id)</display>
+            <search>(select mea.adate from  disp.md_event_agreement mea where mea.event_patient_id = mep.id and mea.adate = :date)</search>
+        </field>
+
+        <field>
+            <id>birthDate</id>
+            <domain>date</domain>
+            <display>i.birth_dt</display>
+        </field>
+        <field>
+            <id>startDate</id>
+            <domain>string</domain>
+            <display>to_char(me.start_date,'dd.mm.yyyy')</display>
+        </field>
+        <field>
+            <id>endDate</id>
+            <domain>string</domain>
+            <display>to_char(me.end_date,'dd.mm.yyyy')</display>
+        </field>
+        <field>
+            <id>start</id>
+            <domain>date</domain>
+            <display>me.start_date</display>
+        </field>
+        <field>
+            <id>end</id>
+            <domain>date</domain>
+            <display>me.end_date</display>
+        </field>
+        <field>
+            <id>eventCode</id>
+            <domain>string</domain>
+            <display>met.code</display>
+        </field>
+        <field>
+            <id>check_pres_group</id>
+            <domain>string</domain>
+            <name>Назначено?</name>
+            <display>
+                (select array_to_json(array_agg(row_to_json(serv)))
+                from (select unnest(disp.select_service_for_all_patient_agreement(mep.id,mep.event_age)) as id ) as serv)</display>
+        </field>
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <display>me.org_id</display>
+            <search>me.org_id = :org_id</search>
+        </field>
+    </fields>
+</query>

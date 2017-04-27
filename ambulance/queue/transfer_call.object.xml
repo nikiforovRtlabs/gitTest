@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>transfer_call</id>-->
+    <name>Посыл бригады на вызов</name>
+    <actions>
+        <action id="transfer" name="Посыл">
+            <invocation>
+                <sql:sql>
+                    select amb.send_brg_to_call (:call,:transstate,:brg,:reg,:user);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="call_id" mapping="['call']" domain="integer"/>
+                <param name ="transstate.id" mapping = "['transstate']" domain="integer"/>
+                <param name="brg.id" mapping="['brg']" domain="integer"/>
+                <param name="emp_hist_reg.id" mapping="['reg']" domain="integer" value="#{emplPos.id}"/>
+                <param name="user" mapping="['user']" domain="integer" value="#{user.id}"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="brg_is_not" level="error">
+            <!--<message summary ="На вызов '{number}' уже назначена бригада '{brg_name}'">-->
+            <message>
+                Нельзя послать бригаду на этот вызов, бригада уже назначена!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count (*)
+                    from amb.md_ambulance_call
+                    where id = :id and brg_id is null
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 1"/>
+        </constraint>
+
+        <constraint id="brg_is_free" level="error">
+            <!--<message summary ="На вызов '{number}' уже назначена бригада '{brg_name}'">-->
+            <message>
+                Бригада уже на вызове!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select (select job_status_id
+                    from amb.sr_res_team_job_status_history
+                    where team_job_id = :brg order by date_time DESC, id desc limit 1) = 1
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="brg.id" mapping="['brg']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="val" mapping="[0][0][0]" domain="boolean"/>
+            </out-parameters>
+            <result expression="[0][0][0]"/>
+        </constraint>
+    </validations>
+</object>

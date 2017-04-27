@@ -1,0 +1,87 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+
+    <actions>
+
+        <action id="create">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/d-accounting/observ_plan/create
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="account.id" mapping="['accountId']" domain="integer"/>
+                <param name="from_dt" mapping="['fromDate']" domain="date"/>
+                <param name="to_dt" mapping="['toDate']" domain="date"/>
+                <param name="timePeriod.id" mapping="['timePeriodId']" domain="integer"/>
+                <param name="weekDay.id" mapping="['weekDay']" domain="integer"/>
+                <param name="org.id" value="#{org.id?}" mapping="['orgId']" domain="integer"/>
+                <param name="dep.id" value="#{dep.id?}" mapping="['departmentId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+        </action>
+
+        <action id="addVisit">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/d-accounting/observ_plan/h/create
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="account_id" mapping="['accountId']" domain="integer"/>
+                <param name="fact_dt" mapping="['factDt']" domain="date"/>
+                <param name="info" mapping="['info']" domain="string"/>
+                <param name="res.id" mapping="['resourceGroupId']" domain="integer"/>
+                <param name="unscheduled" mapping="['unscheduled']" domain="boolean"/>
+            </in-parameters>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="fromDtCheck" level="error">
+            <message>Вы не можете создать новый план с указанными датами,
+                т.к. у активного плана есть оказанные посещения и услуги.
+                Создайте план с текущей даты.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*)
+                    from d_accounting.observ_plan_h ph
+                    where ph.fact_dt is not null
+                    and ((
+                    (ph.fact_dt >= :fromDt)
+                    and (ph.fact_dt <= :toDt)
+                    )or(
+                    (ph.plan_dt >= :fromDt)
+                    and
+                    (ph.plan_dt<= :toDt)
+                    ))
+                    and ph.account_id=:accountId
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="account.id" mapping="['accountId']" domain="integer"/>
+                <param name="from_dt" mapping="['fromDt']" domain="date"/>
+                <param name="to_dt" mapping="['toDt']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <condition id="datesCheck" level="error">
+            <message>План наблюдения не может быть создан менее, чем на 2 дня!</message>
+            <expression><![CDATA[(moment(to_dt, 'DD.MM.YYYY HH:mm').isAfter(moment(from_dt, 'DD.MM.YYYY HH:mm')))]]></expression>
+        </condition>
+        <condition id="datesCheckVal" level="error">
+            <message>Дата начала больше даты окончания!</message>
+            <expression><![CDATA[(moment(to_dt, 'DD.MM.YYYY HH:mm')>=moment(from_dt, 'DD.MM.YYYY HH:mm'))]]></expression>
+        </condition>
+    </validations>
+
+</object>

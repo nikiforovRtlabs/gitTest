@@ -1,0 +1,299 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+
+    <name>gibddRefence</name>
+    <object-id>gibddRefence</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select, gibdd.update_driver_status()
+                from gibdd.md_gibdd_reference mgr
+                left join gibdd.md_gibdd_reference_reference mgrr on mgrr.card_id = mgr.id
+                left join disp.md_event_patient mep on mep.id= mgr.id
+                left join disp.md_event me on me.id = mep.event_id
+                left join pim_individual i on i.id = mep.indiv_id
+                left join pim_gender g on i.gender_id = g.id
+                left join mc_case mc on mc.id = mep.case_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mgr)
+                from gibdd.md_gibdd_reference mgr
+                left join disp.md_event_patient mep on mep.id= mgr.id
+                left join disp.md_event me on me.id = mep.event_id
+                left join pim_individual i on i.id = mep.indiv_id
+                left join pim_gender g on i.gender_id = g.id
+                left join mc_case mc on mc.id = mep.case_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mgr</n2o:alias>
+            <n2o:data-source>${rmis.system.jdbc.master.datasource}</n2o:data-source>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mgr.id</display>
+            <search>mgr.id = :id</search>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>Integer</domain>
+            <display>mep.event_id</display>
+            <search>mep.event_id = :eventId</search>
+        </field>
+        <field>
+            <id>indivId</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indivId</search>
+        </field>
+
+        <field>
+            <id>fio</id>
+            <domain>String</domain>
+            <expression>concat_ws(' ', i.surname, i.name, i.patr_name)</expression>
+            <display>concat_ws(' ', i.surname, i.name, i.patr_name)</display>
+            <search>lower(concat_ws(' ', i.surname, i.name, i.patr_name)) like '%' || lower(:fio) || '%'</search>
+            <name>ФИО</name>
+        </field>
+
+        <field>
+            <id>seriesReference</id>
+            <domain>String</domain>
+            <expression>mgrr.series</expression>
+            <search>:expression = :seriesReference</search>
+            <name>Серия справки</name>
+        </field>
+
+        <field>
+            <id>numberReference</id>
+            <domain>String</domain>
+            <expression>mgrr.number</expression>
+            <search>:expression = :numberReference</search>
+            <name>Номер справки</name>
+        </field>
+        <field>
+            <id>birthday</id>
+            <domain>Date</domain>
+            <display>i.birth_dt</display>
+            <search>i.birth_dt = :birthday</search>
+            <name>Дата рождения</name>
+            <sorting>i.birth_dt</sorting>
+        </field>
+        <field>
+            <id>blank_date</id>
+            <domain>Date</domain>
+            <display>mgr.blank_date</display>
+            <name>Дата выдачи бланка</name>
+            <sorting>mgr.blank_date</sorting>
+        </field>
+        <field>
+            <id>passport</id>
+            <name>Паспорт</name>
+            <domain>string</domain>
+            <display>(select id.series || ' ' || id.number
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where dt.code = 'PASSPORT_RUSSIAN_FEDERATION' and id.indiv_id = i.id and is_active = true limit 1)</display>
+            <sorting unavailable="true" />
+        </field>
+
+
+        <field>
+            <id>category</id>
+            <domain>string</domain>
+            <display>
+                (select string_agg(substr(mgc.name, 11), ', ') from gibdd.md_gibdd_category mgc join gibdd.md_gibdd_reference_category mgrc on mgc.id = mgrc.category_id where mgrc.reference_id = mgr.id)
+            </display>
+            <expression>
+                (select string_agg(substr(mgc.name, 11), ', ') from gibdd.md_gibdd_category mgc join gibdd.md_gibdd_reference_category mgrc on mgc.id = mgrc.category_id where mgrc.reference_id = mgr.id)
+            </expression>
+            <search unavailable="true"/>
+            <name>Категория ТС</name>
+        </field>
+        <field>
+            <id>category.id</id>
+            <domain>integer</domain>
+            <name>Категория ТС</name>
+            <search value="-1">(case when :category.id::integer = -1 then true = true else :category.id::integer in (select rc.category_id from gibdd.md_gibdd_reference_category rc where rc.reference_id = mgr.id) end)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>valid.id</id>
+            <domain>integer</domain>
+            <search value="-1">(case when :valid.id::integer = -1 then true = true
+                when :valid.id::integer = 1 then
+                (case when (:category.id::integer = -1) then true = true
+                else ((select rc.is_valid from gibdd.md_gibdd_reference_category rc where rc.reference_id = mgr.id and rc.category_id = :category.id::integer) = true and mgr.status = 2 and mgr.close_reason_id = 1) end)
+                when :valid.id::integer = 2 then
+                (case when (:category.id::integer = -1) then true = true
+                else ((select rc.is_valid from gibdd.md_gibdd_reference_category rc where rc.reference_id = mgr.id and rc.category_id = :category.id::integer) = false and mgr.status = 2 and mgr.close_reason_id in (1,2)) end)
+                end)
+            </search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>voen</id>
+            <domain>string</domain>
+            <display>(select 'Серия: ' || id.series || ', номер: ' || id.number
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where dt.code = '17' and id.indiv_id = i.id and is_active = true limit 1)</display>
+            <sorting unavailable="true" />
+        </field>
+        <field>
+            <id>status</id>
+            <name>Статус name</name>
+            <domain>string</domain>
+            <display>
+                case
+                        when (mgr.status = 1 and mgr.is_reopen is not true) then 'В работе'
+                        when (mgr.status = 1 and mgr.is_reopen is true) then 'Переоткрыта'
+                        when mgr.status = 2 then 'Закрыта'
+                end
+            </display>
+            <sorting unavailable="true" />
+        </field>
+        <field>
+            <id>statusId</id>
+            <name>Статус id</name>
+            <domain>integer</domain>
+            <display>mgr.status</display>
+            <sorting unavailable="true" />
+        </field>
+        <field>
+            <id>reason</id>
+            <name>Причина закрытия</name>
+            <domain>string</domain>
+            <display>case mgr.close_reason_id
+                when 1 then 'Выдана, годен:' || (select string_agg(substr(c.name, 11), ', ') from gibdd.md_gibdd_category c join gibdd.md_gibdd_reference_category rc on c.id = rc.category_id
+                where rc.reference_id = mgr.id and rc.is_valid = true and mgr.is_contraindications=false)
+                when 2 then 'Выдана, не годен'
+                when 3 then 'Не явился'
+                end</display>
+            <sorting unavailable="true" />
+        </field>
+        <field>
+            <id>gender.id</id>
+            <domain>integer</domain>
+            <display>g.id</display>
+            <search>case :gender.id when 1 then g.code = 'MALE' when 2 then g.code = 'FEMALE' end</search>
+            <sorting unavailable="true" />
+        </field>
+        <field>
+            <id>renderedService</id>
+            <domain>boolean</domain>
+            <display>exists(select 1 from gibdd.md_gibdd_service gs where gs.event_patient_id = mep.id)</display>
+        </field>
+        <field>
+            <id>caseId</id>
+            <domain>Integer</domain>
+            <display>mc.id</display>
+            <search>mc.id= :caseId</search>
+        </field>
+        <field>
+            <id>statusColor</id>
+            <domain>integer</domain>
+            <display>case mgr.status
+                when 1 then 1
+                when 2 then
+                (case mgr.close_reason_id when 3 then 2
+                                         when 2 then 2
+                                         when 1 then
+                (case when (not exists(select 1 from gibdd.md_gibdd_reference_category rc
+                where rc.reference_id = mgr.id and rc.is_valid = false)) then 3
+                else 4
+                end)
+                end)
+                end</display>
+            <sorting unavailable="true" />
+        </field>
+        <field>
+            <id>statusFilter.id</id>
+            <domain>integer</domain>
+            <search value="-1">(case when :statusFilter.id::integer = -1 then true = true
+                when :statusFilter.id::integer = 1 then
+                mgr.status = 1
+                when :statusFilter.id::integer = 2 then
+                mgr.status = 2
+                end)
+            </search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>reasonFilter.id</id>
+            <domain>integer</domain>
+            <search value="-1">(case when :reasonFilter.id::integer = -1 then true = true
+                 else :reasonFilter.id::integer = mgr.close_reason_id end)
+            </search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <display>me.org_id</display>
+            <search>me.org_id = :org.id</search>
+        </field>
+        <field>
+            <id>arm</id>
+            <domain>integer</domain>
+            <display>:arm</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>notAllServiceRendered</id>
+            <domain>boolean</domain>
+            <display>(exists(select 1 from   disp.md_event_service_patient esp
+                where esp.event_patient_id = mep.id
+                and esp.status = 1) or not exists(select 1 from disp.md_event_service_patient esp
+                where esp.event_patient_id = mep.id))</display>
+        </field>
+        <field>
+            <id>disp.md_gibdd_status</id>
+            <domain>integer</domain>
+            <display>mgr.status</display>
+        </field>
+
+        <field>
+            <id>expDate.id</id>
+            <domain>integer</domain>
+            <expression>:expDate.id</expression>
+            <search>
+                case :expDate.id
+                    when 1 then 1=1
+                    when 2 then mgrr.is_valid is true
+                    when 3 then <![CDATA[mgrr.exp_date < current_date]]>
+                end
+            </search>
+        </field>
+
+        <field>
+            <id>issued.begin</id>
+            <domain>string</domain>
+            <expression>:issued.begin</expression>
+            <search>
+            <![CDATA[ mgr.blank_date > to_date(:issued.begin,'dd.mm.yyyy')]]>
+            </search>
+        </field>
+        <field>
+            <id>issued.end</id>
+            <domain>string</domain>
+            <expression>:issued.end</expression>
+            <search>
+                <![CDATA[ mgr.blank_date < to_date(:issued.end,'dd.mm.yyyy')]]>
+            </search>
+        </field>
+
+        <field>
+            <id>existsDuplicate</id>
+            <domain>boolean</domain>
+            <expression>exists(select 1 from gibdd.md_gibdd_reference_reference rrx where rrx.card_id = mgr.id and is_duplicate is true)</expression>
+        </field>
+    </fields>
+</query>

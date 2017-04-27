@@ -1,0 +1,132 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>licensedProfiles</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_clinic_to_profile mcp
+                left join md_profile mp on mp.id=mcp.profile_id
+                left join md_licensing_activity mla on mla.id=mcp.lic_act_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(mcp)
+                from md_clinic_to_profile mcp
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>mcp.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+
+        <field>
+            <id>careLevels</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(row_to_json(ol_json)))
+                from (select tpo.id, tpo.name from md_clinic_to_profile_to_care_level ho
+                join MC_CARE_LEVEL tpo on tpo.id= ho.cl_id
+                where ho.ctp_id = mcp.id) as ol_json)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>mcp.clinic_id</expression>
+            <filters>
+                <filter type="eq" filter-field="org_id" default-value="#{stocks.orgId}"/>
+            </filters>
+            <display/>
+        </field>
+        <field>
+            <id>careLevelsText.name</id>
+            <domain>string</domain>
+            <expression>(select string_agg(tpo.name,'; ') from md_clinic_to_profile_to_care_level ho
+                join MC_CARE_LEVEL tpo on tpo.id= ho.cl_id
+                where ho.ctp_id = mcp.id)</expression>
+            <filters>
+                <filter type="eq" filter-field="careLevelsText.name">
+                    :expression like '%'||:careLevelsText.name||'%'
+                </filter>
+            </filters>
+            <display/>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>mp.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>profile.name</id>
+            <domain>string</domain>
+            <expression>mp.code || ' ' || mp.name</expression>
+            <filters auto-generate="true"/>
+            <sorting/>
+            <display/>
+        </field>
+        <field>
+            <id>act.id</id>
+            <domain>integer</domain>
+            <expression>mla.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>act.name</id>
+            <domain>string</domain>
+            <expression>mla.code || ' ' || mla.name</expression>
+            <filters auto-generate="true"/>
+            <sorting/>
+            <display/>
+        </field>
+        <field>
+            <id>to_dt</id>
+            <domain>date</domain>
+            <expression>mcp.to_dt</expression>
+            <filters auto-generate="true"/>
+            <sorting/>
+            <display/>
+        </field>
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <expression>mcp.from_dt</expression>
+            <filters auto-generate="true"/>
+            <sorting/>
+            <display/>
+        </field>
+        <field>
+            <id>lic_document.id</id>
+            <domain>integer</domain>
+            <expression>mcp.document_id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>
+                <![CDATA[
+                (SELECT CASE WHEN
+                COALESCE(mcp.from_dt, date '1970-01-01') <= CURRENT_DATE
+                THEN (SELECT CASE WHEN COALESCE(mcp.to_dt, date '2070-01-01') >= CURRENT_DATE THEN 1 ELSE 2 END)
+                ELSE 2  END)
+                ]]>
+            </expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+    </fields>
+</query>

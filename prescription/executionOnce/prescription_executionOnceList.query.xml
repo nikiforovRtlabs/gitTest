@@ -1,0 +1,115 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>hosp_prescription</object-id>
+    <name>Списанные препараты</name>
+
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hospital.prescription p
+                left join md_visit_term vt on vt.id = p.visit_term_id
+                left join hospital.prescription_status ps on ps.id = p.status_id
+                left join hospital.prescription_periodicity pp on pp.id = p.periodicity_id
+                left join hsp_record hr on hr.id = p.step_id
+                left join pim_employee_position_resource epr on epr.id = p.doctor_id
+                left join pim_employee_position ep on ep.id = epr.employee_position_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual i on i.id = e.individual_id
+                where :where and p.is_execution_once = true and p.status_id = 4 and p.type_id = 1
+                order by :order, p.id
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from hospital.prescription p
+                left join md_visit_term vt on vt.id = p.visit_term_id
+                left join hospital.prescription_status ps on ps.id = p.status_id
+                left join hospital.prescription_periodicity pp on pp.id = p.periodicity_id
+                left join hsp_record hr on hr.id = p.step_id
+                where :where and p.is_execution_once = true and p.status_id = 4 and p.type_id = 1
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>p.case_id</expression>
+        </field>
+
+        <field>
+            <id>step.id</id>
+            <domain>integer</domain>
+            <expression>p.step_id</expression>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Препарат</name>
+            <expression>p.name_holding</expression>
+        </field>
+
+        <field>
+            <id>dose</id>
+            <name>Доза</name>
+            <domain>string</domain>
+            <expression>
+                (
+                    select array_to_string(array_agg(dose), ' + ')
+                    from
+                    (
+                        select trim(to_char(sum(hold_dose_value * count), 'FM9999990.999'), '.') || ' ' || (select name from cmn_measure where id = hold_dose_measure_id) as dose
+                        from hospital.prescription_holding
+                        where prescription_id = p.id
+                        group by hold_dose_measure_id, id
+                        order by id
+                    ) doses
+                )
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>periodBeginDt</id>
+            <name>Период с</name>
+            <domain>date</domain>
+            <expression>p.period_begin_dt</expression>
+        </field>
+
+        <field>
+            <id>periodEndDt</id>
+            <name>Период по</name>
+            <domain>date</domain>
+            <expression>p.period_end_dt</expression>
+        </field>
+
+        <field>
+            <id>periodicity</id>
+            <name>Периодичность</name>
+            <domain>string</domain>
+            <expression>pp.name</expression>
+        </field>
+
+        <field>
+            <id>doctor</id>
+            <domain>string</domain>
+            <name>Сотрудник</name>
+            <expression>coalesce(i.surname, '') || ' '
+                || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end
+                || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for 1) || '.' end
+            </expression>
+        </field>
+    </fields>
+</query>

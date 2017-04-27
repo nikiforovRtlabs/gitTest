@@ -1,0 +1,264 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--   <id>disprCard</id>
+       <name>Карточка диспансеризации</name>
+       <object-id>disprCard</object-id>
+       <execution>
+           <n2o:rest>
+               <n2o:query>
+                   ${disp.java.rest.host}:${disp.java.rest.port.getDispr}/${disp.java.rest.context.getDispr}/getDispr
+               </n2o:query>
+              &lt;!&ndash; <n2o:query-by-id>
+                   http://127.0.0.1:38088/Demo/rest/getDispr?id={id}
+               </n2o:query-by-id>&ndash;&gt;
+               <n2o:response-mapping collection="list" count="count"/>
+               &lt;!&ndash;<n2o:filter param-name="filters" separator=";"/>&ndash;&gt;
+               <n2o:sorting-direction asc="ASC" desc="DESC"/>
+           </n2o:rest>
+       </execution>-->
+    <name>disprCard</name>
+    <object-id>disprCard</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                left join disp.md_event me on me.id=mep.event_id
+                left join pim_organization po on po.id = me.org_id
+                left join fin_funding_source_type ffst on ffst.id = me.pay_type
+                left join disp.md_event_type met on met.id = me.event_type
+                left join mc_case_type mct on mct.id = met.case_type_id
+                left join disp.md_dispr md on md.id=mep.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mep)
+                from disp.md_event_patient mep
+                left join disp.md_event me on me.id=mep.event_id
+                left join pim_organization po on po.id = me.org_id
+                left join fin_funding_source_type ffst on ffst.id = me.pay_type
+                left join disp.md_event_type met on met.id = me.event_type
+                left join mc_case_type mct on mct.id = met.case_type_id
+                left join disp.md_dispr md on md.id=mep.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <name>ID</name>
+            <domain>integer</domain>
+            <sorting unavailable="true"/>
+            <display>mep.id</display>
+            <search>mep.id=:id</search>
+        </field>
+        <field>
+            <id>indivId</id>
+            <name>indivId</name>
+            <domain>integer</domain>
+            <display>mep.indiv_id</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>eventId</id>
+            <name>eventId</name>
+            <domain>integer</domain>
+            <display>mep.event_id</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>end_date</id>
+            <domain>date</domain>
+            <expression>(case when md.health_group_id is null then
+                (select ssr.bdate
+                from disp.md_event_patient mep1
+                left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep1.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+                left join (select ssr.id, msr.case_id, ssr.service_id, ssr.bdate from MD_SRV_RENDERED msr
+                left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep1.case_id and
+                ssr.service_id = mes.service_id
+                where mep1.id = mep.id and mnds.code = 'Д1.18' limit 1)
+                else (select ms.outcome_date from mc_case mc
+                left join mc_step ms on ms.id = mc.closing_step_id
+                where mc.id = mep.case_id)
+                end)
+            </expression>
+            <display>:expression</display>
+            <name>Дата окончания</name>
+        </field>
+        <field>
+            <id>open_date</id>
+            <domain>date</domain>
+            <expression>(select ssr.bdate from disp.md_event_patient mep1
+                left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep1.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                left join (select ssr.id, msr.case_id, ssr.service_id, ssr.res_group_id, ssr.bdate from MD_SRV_RENDERED
+                msr
+                left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep1.case_id and
+                ssr.service_id = mes.service_id
+                where mep1.id = mep.id and mnds.code = 'Д1.02' limit 1)
+            </expression>
+            <name>Дата начала</name>
+            <search><![CDATA[(select ssr.bdate from disp.md_event_patient mep1
+                left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep1.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                left join (select ssr.id, msr.case_id, ssr.service_id, ssr.res_group_id, ssr.bdate from MD_SRV_RENDERED msr
+                left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep1.case_id and ssr.service_id = mes.service_id
+                where mep1.id = mep.id and mnds.code = 'Д1.02') >= :open_date_1.begin]]></search>
+        </field>
+        <field>
+            <id>health_group.id</id>
+            <domain>integer</domain>
+            <display>md.health_group_id</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>is_d</id>
+            <domain>boolean</domain>
+            <display>md.is_d</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>is_2_stage</id>
+            <domain>boolean</domain>
+            <display>(case when (md.health_group_id is null) then (select exists(select 1 from md_srv_rendered msr
+                join md_referral r on r.service_id = msr.id
+                join md_referral_type rt on rt.id = r.referral_type_id
+                where msr.case_id = mep.case_id and rt.code = '37'))
+                else md.is_2_stage end)
+            </display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>is_therapy</id>
+            <domain>boolean</domain>
+            <display>md.is_therapy</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>adv_therapy.id</id>
+            <domain>integer</domain>
+            <display>md.adv_therapy</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>is_go_to_diagnostics_without</id>
+            <domain>boolean</domain>
+            <display>md.is_go_to_diagnostics_without</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>is_go_to_sanatorium</id>
+            <domain>boolean</domain>
+            <display>md.is_go_to_sanatorium</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>is_sanatorium</id>
+            <domain>boolean</domain>
+            <display>md.is_sanatorium</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+
+        <field>
+            <id>is_go_to_diagnostics_in</id>
+            <domain>boolean</domain>
+            <display>md.is_go_to_diagnostics_in</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>mes_id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+            <!-- RMIS-901, для конфигуратора, МЭС-->
+        </field>
+        <field>
+            <id>mes_id.id</id>
+            <domain>integer</domain>
+            <display>(COALESCE(me.mes_id, md.mes_id))</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>event_mes</id>
+            <domain>integer</domain>
+            <display>me.mes_id</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>event_name</id>
+            <domain>string</domain>
+            <display>me.name</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>org_name</id>
+            <domain>string</domain>
+            <display>po.short_name</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+
+        <field>
+            <id>fund_name</id>
+            <domain>string</domain>
+            <display>ffst.name</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>case_name</id>
+            <domain>string</domain>
+            <display>mct.name</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>event_type_id</id>
+            <domain>integer</domain>
+            <display>me.event_type</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>organization.id</id>
+            <domain>integer</domain>
+            <display>me.org_id</display>
+            <search>me.org_id = :organization.id</search>
+        </field>
+    </fields>
+</query>

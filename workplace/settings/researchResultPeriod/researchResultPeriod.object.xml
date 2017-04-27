@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>researchResultPeriod</name>
+
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO d_accounting.research_periodicity
+                        (research_type_id, period)
+                    VALUES
+                        (:researchTypeId, :period)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="researchType.id" mapping="['researchTypeId']"/>
+                <param name="period.id" mapping="['period']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="uniqueResearch"/>
+            </validations>
+        </action>
+        <action id="update">
+            <invocation>
+                <n2o:sql>
+                    UPDATE d_accounting.research_periodicity SET
+                        research_type_id = :researchTypeId,
+                        period = :period
+                    WHERE id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="researchType.id" mapping="['researchTypeId']"/>
+                <param name="period.id" mapping="['period']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="uniqueResearchUpdate"/>
+            </validations>
+        </action>
+        <action id="delete">
+            <invocation>
+                <n2o:sql>
+                    DELETE FROM d_accounting.research_periodicity WHERE id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="uniqueResearch" level="error">
+            <message>Для типа исследования "{name}" уже задан период</message>
+            <invocation>
+                <n2o:sql><![CDATA[
+                 select rt.name,
+                        count(rp.id) as cnt
+                   from d_accounting.research_type rt
+              left join d_accounting.research_periodicity rp on rp.research_type_id = rt.id
+                  where rt.id = :researchTypeId
+               group by 1
+                ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="researchType.id" mapping="['researchTypeId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="name" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][1] == 0"/>
+        </constraint>
+
+        <constraint id="uniqueResearchUpdate" level="error">
+            <message>Для типа исследования "{name}" уже задан период</message>
+            <invocation>
+                <n2o:sql><![CDATA[
+                 select rt.name,
+                        count(rp.id) as cnt
+                   from d_accounting.research_type rt
+              left join d_accounting.research_periodicity rp on rp.research_type_id = rt.id
+                                                             and rp.period = :period
+                  where rt.id = :researchTypeId
+               group by 1
+                ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="researchType.id" mapping="['researchTypeId']" domain="integer"/>
+                <param name="period.id" mapping="['period']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="name" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][1] == 0"/>
+        </constraint>
+    </validations>
+
+</object>

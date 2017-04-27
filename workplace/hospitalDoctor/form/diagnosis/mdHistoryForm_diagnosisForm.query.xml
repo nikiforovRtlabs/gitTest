@@ -1,0 +1,226 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>mdHistoryForm_diagnosisForm</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from mc_diagnosis cd
+                left join mc_stage stage on stage.id = cd.stage_id
+                left join mc_diagnosis_type diagType on diagType.id = cd.type_id
+                left join mc_step s on s.id = cd.step_id
+                LEFT JOIN md_standard std on std.id = cd.standard_id
+                LEFT JOIN md_clinical_statistical_group csg on csg.id = cd.csg_id
+                join md_diagnosis diag on diag.id = cd.diagnos_id
+                join mc_case c on c.id = cd.case_id
+                join pci_patient pat on pat.id = c.patient_id
+                join pim_individual i on i.id = pat.id
+                where :where
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(cd)
+                from mc_diagnosis cd
+                left join mc_stage stage on stage.id = cd.stage_id
+                left join mc_diagnosis_type diagType on diagType.id = cd.type_id
+                join md_diagnosis diag on diag.id = cd.diagnos_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>id</name>
+            <expression>cd.id</expression>
+            <search>cd.id = :id</search>
+        </field>
+
+        <field>
+            <id>main</id>
+            <domain>boolean</domain>
+            <expression>cd.is_main</expression>
+        </field>
+
+        <field>
+            <id>stage.id</id>
+            <domain>integer</domain>
+            <expression>stage.id</expression>
+        </field>
+
+        <field>
+            <id>stage.name</id>
+            <domain>string</domain>
+            <expression>stage.name</expression>
+        </field>
+
+        <field>
+            <id>diagnosisType.id</id>
+            <domain>integer</domain>
+            <expression>diagType.id</expression>
+        </field>
+
+        <field>
+            <id>diagnosisType.name</id>
+            <domain>string</domain>
+            <expression>diagType.name</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>diag.id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.name</id>
+            <domain>string</domain>
+            <expression>diag.code || ' ' || diag.name</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.isInjury</id>
+            <domain>boolean</domain>
+            <expression>(diag.code between 'S00' and 'T99')</expression>
+        </field>
+
+        <field>
+            <id>diagnosisInjuryReason</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(r) from (select id as id, code || ' ' || name as name from md_diagnosis where id = cd.injury_reason_id) as r)
+            </expression>
+        </field>
+
+        <field>
+            <id>employeePositionId</id>
+            <domain>integer</domain>
+            <expression>cd.doctor_id</expression>
+        </field>
+
+       <!-- <field>
+            <id>diagnosis</id>
+            <domain>object</domain>
+            <expression>(select get_diagnosis_init(diag.id, (select array_agg(attr_value_id) from mc_diag_attr where diagnosis_id = cd.id)))</expression>
+        </field>-->
+
+        <!--<field>-->
+            <!--<id>step.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>cd.step_id</expression>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>patient.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>cd.patient_id</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <expression>cd.note</expression>
+        </field>
+
+        <field>
+            <id>establishmentDate</id>
+            <domain>date</domain>
+            <expression>cd.establishment_date</expression>
+        </field>
+
+        <!--todo Проброс параметров -->
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>cd.case_id</expression>
+        </field>
+
+        <field>
+            <id>case.patient.id</id>
+            <domain>integer</domain>
+            <expression>cd.patient_id</expression>
+        </field>
+
+        <field>
+            <id>case.step.id</id>
+            <domain>integer</domain>
+            <expression>cd.step_id</expression>
+        </field>
+
+        <field>
+            <id>setMesByDiagnosis</id>
+            <domain>boolean</domain>
+            <expression>(select coalesce((select sv.value::boolean from cmn_setting s
+                join cmn_setting_value sv on sv.setting_id = s.id
+                join cmn_scope sc on sc.id = sv.scope_id
+                join cmn_scope_type st on st.id = sc.type_id
+                where st.code = 'Global' and s.code='cz.atria.medcase.ui.MedicalCaseUISettings.setMesByDiagnosis' limit 1), s.default_value::boolean) from cmn_setting s
+                where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.setMesByDiagnosis' limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>mes.id</id>
+            <domain>integer</domain>
+            <expression>cd.mes_id</expression>
+        </field>
+
+        <field>
+            <id>regimenId</id>
+            <domain>integer</domain>
+            <expression>s.regimen_id</expression>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>ageGroupId</id>
+            <domain>integer</domain>
+            <expression>
+                <![CDATA[(case when i.birth_dt is null then 3 else case when extract(year from AGE(NOW(), i.birth_dt)) <= 17 then 2 else 1 end end)]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>standard.id</id>
+            <domain>integer</domain>
+            <expression>cd.standard_id</expression>
+        </field>
+        <field>
+            <id>diseaseType.id</id>
+            <domain>integer</domain>
+            <expression>cd.disease_type_id</expression>
+        </field>
+
+        <field>
+            <id>standard.name</id>
+            <domain>string</domain>
+            <expression>std.name</expression>
+        </field>
+        
+        <field>
+            <id>csg.id</id>
+            <domain>integer</domain>
+            <expression>cd.csg_id</expression>
+        </field>
+
+        <field>
+            <id>csg.name</id>
+            <domain>string</domain>
+            <expression>csg.name</expression>
+        </field>
+
+    </fields>
+
+
+</query>

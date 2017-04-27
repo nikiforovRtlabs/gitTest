@@ -1,0 +1,313 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>stomatologyAppointment</object-id>
+    <name>stomatologyAppointment</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select DISTINCT :select from mc_case mc
+                left join mc_diagnosis md on ( mc.main_diagnos_id = md.id  )
+                left join md_diagnosis md1 on ( md.diagnos_id = md1.id  )
+
+                LEFT JOIN md_srv_rendered msr ON ( msr.case_id = mc.id )
+                LEFT JOIN sr_srv_rendered ssr ON ( msr.id = ssr.id )
+                LEFT JOIN sr_service ser ON ( ser.id = ssr.service_id )
+                where
+                ser.is_stomat = TRUE and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(DISTINCT mc.id) from mc_case mc
+                LEFT JOIN md_srv_rendered msr ON ( msr.case_id = mc.id )
+                LEFT JOIN sr_srv_rendered ssr ON ( msr.id = ssr.id )
+                LEFT JOIN sr_service ser ON ( ser.id = ssr.service_id )
+                where ser.is_stomat = TRUE and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>(select ssr.id from sr_srv_rendered ssr
+                join md_srv_rendered msr on ssr.id = msr.id
+                join mc_step ms on msr.step_id = ms.id
+                where ms.case_id = mc.id limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>caseClosing</id>
+            <domain>integer</domain>
+            <expression>mc.closing_step_id</expression>
+        </field>
+
+        <field>
+            <id>caseIsClosed</id>
+            <domain>boolean</domain>
+            <expression>:caseIsClosed::boolean</expression>
+            <search value="false">
+                (case when :expression = true then mc.closing_step_id is null else true end)
+            </search>
+        </field>
+
+        <field>
+            <id>caseIsClosedState</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>
+                case when mc.closing_step_id is null then 'Открыт'
+                else 'Закрыт'
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>mc.clinic_id</expression>
+            <search value="#{org.id?}"/>
+        </field>
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <name>Случай</name>
+            <expression>mc.uid</expression>
+        </field>
+
+        <field>
+            <id>openDate</id>
+            <domain>date</domain>
+            <name>Дата открытия</name>
+            <expression>mc.open_date</expression>
+            <sorting>mc.open_date</sorting>
+        </field>
+
+        <field>
+            <id>caseDate</id>
+            <domain>string</domain>
+            <name>Дата открытия/закрытия</name>
+            <expression>to_char(mc.open_date, 'DD.MM.YYYY') || ' / ' ||
+                case when mc.close_date is null then '-' else to_char(mc.close_date, 'DD.MM.YYYY') end</expression>
+            <sorting>mc.open_date</sorting>
+        </field>
+
+        <field>
+            <id>mainDiagnosisName</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <expression>md1.code || ' ' || md1.name</expression>
+        </field>
+
+        <field>
+            <id>openDoctor.name</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <expression>
+                (select pi1.surname ||' '||left(initcap(pi1.name),1)||'. '||left(initcap(pi1.patr_name),1)|| '. ' || pe1.note
+                from mc_step ms1
+                left join sr_res_group srg1 on ( ms1.res_group_id = srg1.id  )
+                left join pim_employee_position pep1 on ( srg1.responsible_id = pep1.id  )
+                left join pim_employee pe1 on ( pep1.employee_id = pe1.id  )
+                left join pim_individual pi1 on ( pe1.individual_id = pi1.id  )
+                where ms1.admission_date = mc.open_date and ms1.case_id = mc.id and
+                (case when :openDoctor.id is not null then pi1.id = :openDoctor.id else true end) limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>openDoctor.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select pi1.id
+                from mc_step ms1
+                left join sr_res_group srg1 on ( ms1.res_group_id = srg1.id  )
+                left join pim_employee_position pep1 on ( srg1.responsible_id = pep1.id  )
+                left join pim_employee pe1 on ( pep1.employee_id = pe1.id  )
+                left join pim_individual pi1 on ( pe1.individual_id = pi1.id  )
+                where ms1.admission_date = mc.open_date and ms1.case_id = mc.id and
+                (case when :openDoctor.id is not null then pi1.id = :openDoctor.id else true end) limit 1)
+            </expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>openDoctorSpeciality.name</id>
+            <domain>string</domain>
+            <name>Специальность</name>
+            <expression>
+                (select ps1.name
+                from mc_step ms1
+                left join sr_res_group srg1 on ( ms1.res_group_id = srg1.id  )
+                left join pim_employee_position pep1 on ( srg1.responsible_id = pep1.id  )
+                left join pim_position pp1 on ( pep1.position_id = pp1.id  )
+                left join pim_speciality ps1 on ( pp1.speciality_id = ps1.id  )
+                where ms1.admission_date = mc.open_date and ms1.case_id = mc.id and
+                (case when :openDoctorSpeciality.id is not null then ps1.id = :openDoctorSpeciality.id else true end) limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>openDoctorSpeciality.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select ps1.id
+                from mc_step ms1
+                left join sr_res_group srg1 on ( ms1.res_group_id = srg1.id  )
+                left join pim_employee_position pep1 on ( srg1.responsible_id = pep1.id  )
+                left join pim_position pp1 on ( pep1.position_id = pp1.id  )
+                left join pim_speciality ps1 on ( pp1.speciality_id = ps1.id  )
+                where ms1.admission_date = mc.open_date and ms1.case_id = mc.id and
+                (case when :openDoctorSpeciality.id is not null then ps1.id = :openDoctorSpeciality.id else true end) limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>mc.patient_id</expression>
+        </field>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>mc.id</expression>
+        </field>
+
+        <field>
+            <id>referral.id</id>
+            <domain>integer</domain>
+            <expression>null</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.id</id>
+            <domain>integer</domain>
+            <expression>:serviceRendered.id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>serviceRendered.orgId</id>
+            <domain>integer</domain>
+            <expression>:serviceRendered.orgId</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>serviceRendered.patientId</id>
+            <domain>integer</domain>
+            <expression>:serviceRendered.patientId</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>serviceRendered.resGroupId</id>
+            <domain>integer</domain>
+            <expression>:serviceRendered.resGroupId</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>serviceRendered.plannedDate</id>
+            <domain>date</domain>
+            <expression>:serviceRendered.plannedDate</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>serviceRendered.plannedTime</id>
+            <domain>string</domain>
+            <expression>:serviceRendered.plannedTime</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.resGroupIsSystem</id>
+            <domain>boolean</domain>
+            <expression>:serviceRendered.resGroupIsSystem</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>appointmentId</id>
+            <domain>integer</domain>
+            <expression>:appointmentId</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>resourceGroup.id</id>
+            <domain>integer</domain>
+            <expression>:resourceGroup.id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>isState</id>
+            <domain>boolean</domain>
+            <expression>:isState</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>appointment.patientId</id>
+            <domain>integer</domain>
+            <expression>:appointment.patientId</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>lastVisitId</id>
+            <domain>integer</domain>
+            <expression>
+                (select ms.id
+                from mc_step ms
+                where ms.case_id = mc.id and ms.admission_date + ms.admission_time = (select max(ms1.admission_date + ms1.admission_time) from mc_step ms1 where
+                ms1.case_id = mc.id limit 1) limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>lastVisitDate</id>
+            <domain>date</domain>
+            <expression>
+                (select ms.admission_date
+                from mc_step ms
+                where ms.case_id = mc.id and ms.admission_date + ms.admission_time = (select max(ms1.admission_date + ms1.admission_time) from mc_step ms1 where
+                ms1.case_id = mc.id limit 1) limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>mcCaseId</id>
+            <domain>integer</domain>
+            <expression>:mcCaseId</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>visitDate</id>
+            <domain>date</domain>
+            <display>:visitDate::timestamp</display>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>doctorId</id>
+            <domain>integer</domain>
+            <expression>:doctorId</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>emplPos.id</id>
+            <domain>integer</domain>
+            <expression>:emplPos.id</expression>
+            <display value="#{emplPos.id?}"/>
+        </field>
+
+    </fields>
+</query>

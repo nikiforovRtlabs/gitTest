@@ -1,0 +1,69 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>inventory_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.hold_modif m
+                where  :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(m)
+                from inventory.hold_modif m
+                where :where
+            </n2o:count-query>
+            <n2o:alias>m</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>mnei_id</id>
+            <domain>integer</domain>
+            <expression>m.mnei_id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>m.name</expression>
+            <search>translate(upper(m.name),', ','') like '%'||translate(upper(:name),', ','')||'%'</search>
+            <sorting>upper(m.name)=upper(:name) desc , upper(:name) like substr(upper(m.name), 0,position(' ' IN m.name))||'%' desc, upper(m.name) like upper(:name)||'%' desc, upper(m.name) like '%'||upper(:name)</sorting>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>m.org_owner_id</expression>
+            <search>(:expression = :org.id or :expression is null)</search>
+        </field>
+        <field>
+            <id>is_extemporal</id>
+            <domain>boolean</domain>
+            <expression>m.is_extemporal</expression>
+        </field>
+        <field>
+            <id>measure</id>
+            <domain>string</domain>
+            <name>Ед.изм.</name>
+            <expression>(select c.mnemocode from cmn_measure c where c.id=m.mnei_id)</expression>
+        </field>
+        <field>
+            <id>dosage.value</id>
+            <domain>integer</domain>
+            <name>Дозировка - значение</name>
+            <expression>(select trunc(cast(p.value as numeric))::integer from inventory.form_param_value p
+                where p.form_param_id=3 and p.hold_modif_id=m.id)</expression>
+        </field>
+        <field>
+            <id>dosage.name</id>
+            <domain>string</domain>
+            <name>Ед. изм</name>
+            <expression>(select (cast(trunc(cast(p.value as numeric)) as varchar) || ' ' || c.mnemocode) from inventory.form_param_value p
+                    inner join cmn_measure c on c.id = p.unit_id
+                where p.form_param_id=3 and p.hold_modif_id=m.id)</expression>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>institutions</name>
+<actions>
+    <action id="saveInstitutions" name="Сохранение">
+        <invocation>
+            <n2o:sql>
+                select motherhood.save_institutions(
+                :id,
+                :level,
+                :parentId,
+                :clinicId,
+                :bDate,
+                :eDate,
+                :note);
+            </n2o:sql>
+        </invocation>
+        <in-parameters>
+            <param name="id" mapping="['id']" domain="integer"/>
+            <param name="level" mapping="['level']" domain="integer"/>
+            <param name="parent.id" mapping="['parentId']" domain="integer"/>
+            <param name="clinic.id" mapping="['clinicId']" domain="integer"/>
+            <param name="period.begin" mapping="['bDate']" domain="date"/>
+            <param name="period.end" mapping="['eDate']" domain="date"/>
+            <param name="note" mapping="['note']" domain="string"/>
+        </in-parameters>
+        <out-parameters>
+            <param name="id" mapping="[0][0][0]"/>
+        </out-parameters>
+    </action>
+    <action id="deleteInstitutions" name="Удаление" >
+        <invocation>
+            <sql:sql>
+                delete from motherhood.mh_institutions where id = :id;
+            </sql:sql>
+        </invocation>
+        <in-parameters>
+            <param name="id" mapping="['id']" domain="integer"/>
+        </in-parameters>
+        <success-text>Организация удалена.</success-text>
+        <confirmation-text>Вы уверены, что хотите удалить организацию?</confirmation-text>
+    </action>
+</actions>
+    <validations>
+        <constraint id="uniqueForAllLevels" level="error">
+        <message>Такая организация уже существует на верхних уровнях</message>
+        <invocation>
+            <sql:sql>
+                select count(1)
+                from motherhood.mh_institutions  mi1
+                left join motherhood.mh_institutions  mi2 ON mi1.id= mi2.parent_id
+                WHERE mi1.level = 1 AND
+                case :xlevel
+                when 3 THEN mi2.id = :parentId and :xclinicId in (mi1.clinic_id, mi2.clinic_id)
+                when 2 THEN mi1.id = :parentId and :xclinicId in (mi1.clinic_id)
+                when 1 THEN 1!=1
+                end;
+            </sql:sql>
+        </invocation>
+        <in-parameters>
+            <param name="id" mapping="['id']"/>
+            <param name="level" mapping="['xlevel']"/>
+            <param name="parent.id" mapping="['parentId']"/>
+            <param name="clinic.id" mapping="['xclinicId']"/>
+        </in-parameters>
+        <result expression="[0][0][0] == 0"/>
+    </constraint>
+        <constraint id="uniqueForLevel" level="error">
+            <message>Такая организация уже существует на данном уровне</message>
+            <invocation>
+                <sql:sql>
+                    select count(1)
+                    from motherhood.mh_institutions
+                    where  not (id = :id and :id is NOT null)
+                      and  ((parent_id = :parentId and :parentId is NOT null)or (parent_id is null))
+                      and  level = :xlevel AND clinic_id = :xclinicId;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="level" mapping="['xlevel']"/>
+                <param name="parent.id" mapping="['parentId']"/>
+                <param name="clinic.id" mapping="['xclinicId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+
+    <name>Выдача дубликата листа нетрудоспособности</name>
+    <object-id>sickdoc</object-id>
+    <layout>n2o/layout/single</layout>
+
+    <containers>
+        <container id="single" place="single">
+            <wgt:form src="sickdoc/n2o/custom/sickdoc" customize="js">
+                <wgt:query-id>sicksheet</wgt:query-id>
+                <wgt:name>Выдача дубликата листа нетрудоспособности</wgt:name>
+                <fs:field-set>
+                    <!--Пациент-->
+                    <ctrl:output-text id="patient.name" label="Пациент" readonly="true" control-style="font-weight:bold"/>
+
+                    <!--Причина-->
+                    <ctrl:classifier id="annual_reason" label="Причина" required="true">
+                        <ctrl:query query-id="sickdoc_annual_reason" value-field-id="id" label-field-id="name"/>
+                    </ctrl:classifier>
+
+                    <!--№ (Номер)-->
+                    <!-- <ctrl:masked-input id="sicksheet_duplicate_number" label="№" mask="999999999999" search-are-you-type="true" required="true"/> -->
+                    <ctrl:hidden id="sicksheet_duplicate_number">
+                        <ctrl:set-value-expression on="avail_sicksheet_duplicate_number.number,avail_sicksheet_duplicate_fullnumber_print, avail_sicksheet_duplicate_print">
+                            <![CDATA[
+                                    if (hasAvailableSicksheetNumbers == true) {
+                                        avail_sicksheet_duplicate_number.number+avail_sicksheet_duplicate_number_print;
+                                    } else {
+                                        avail_sicksheet_duplicate_fullnumber_print;
+                                    }
+                                ]]>
+                        </ctrl:set-value-expression>
+                    </ctrl:hidden>
+                <fs:row>
+                    <ctrl:classifier required="true" id="avail_sicksheet_duplicate_number" label="№" search-are-you-type="true"  control-style="width:135px"
+                                     dependency-condition="hasAvailableSicksheetNumbers == true">
+                        <ctrl:query query-id="sd_available_sicksheet_numbers" value-field-id="number" label-field-id="number">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="emplPos" value="#{emplPos.id}"/>
+                            </ctrl:pre-filters>
+                        </ctrl:query>
+                        <ctrl:dependencies>
+                            <ctrl:required-condition>hasAvailableSicksheetNumbers == true </ctrl:required-condition>
+                        </ctrl:dependencies>
+                    </ctrl:classifier>
+
+                    <ctrl:masked-input id="avail_sicksheet_duplicate_number_print" mask="999" label=" " label-style="width:0px"
+                                       dependency-condition="hasAvailableSicksheetNumbers == true" control-style="width:60px">
+                        <ctrl:dependencies>
+                            <ctrl:required-condition>hasAvailableSicksheetNumbers == true </ctrl:required-condition>
+                        </ctrl:dependencies>
+                    </ctrl:masked-input>
+                    <!--Если настроек для пользователя нет, то оставляем возможность ввода номера полностью-->
+                    <ctrl:masked-input id="avail_sicksheet_duplicate_fullnumber_print" mask="999999999999" label="№"
+                                       dependency-condition="hasAvailableSicksheetNumbers != true" control-style="width:220px">
+                        <ctrl:dependencies>
+                            <ctrl:required-condition>hasAvailableSicksheetNumbers != true </ctrl:required-condition>
+                        </ctrl:dependencies>
+                    </ctrl:masked-input>
+                </fs:row>
+                    <!--Журнал УБСО-->
+                    <ctrl:classifier id="journal" label="Журнал" required="true">
+                        <ctrl:query query-id="sd_journal" value-field-id="id" label-field-id="name">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="clinicId" value="#{org.id?}"/>
+                                <ctrl:pre-filter field-id="isActive" value="true"/>
+                            </ctrl:pre-filters>
+                        </ctrl:query>
+                        <ctrl:set-value-expression on-load="true" on-non-empty="false">
+                            if (journalId != null) {
+                            var o = new Object;
+                            o.id = journalId;
+                            o.name = journalName;
+                            o;
+                            }
+                        </ctrl:set-value-expression>
+                    </ctrl:classifier>
+
+                    <!--Выдан-->
+                    <ctrl:output-text id="registratorContext.name" label="Выдан" control-style="width:300px"/>
+                </fs:field-set>
+            </wgt:form>
+        </container>
+    </containers>
+
+</page>

@@ -1,0 +1,130 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>indiv_plan</name>
+    <actions>
+        <action id="delete">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/vaccine/inoculations/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+        <action id="apply-calendar">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/vaccine/plan/apply-calendar
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="calendar_id" mapping="['calendarId']" domain="integer"/>
+                <param name="group_of_risk_diseases*.id" mapping="['groupOfRiskDiseaseIds']" domain="integer[]"/>
+                <param name="period.begin" mapping="['dateFrom']" domain="date"/>
+                <param name="period.end" mapping="['dateTo']" domain="date"/>
+                <param name="emplPos.id" mapping="['employeeId']" domain="integer" value="#{emplPos.id?}"/>
+                <param name="emplPosRes.id" mapping="['emplPosResId']" domain="integer" value="#{emplPosRes.id?}"/>
+                <param name="org.id" mapping="['clinicId']" domain="integer" value="#{org.id?}"/>
+            </in-parameters>
+        </action>
+        <action id="rollback-assignation">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/vaccine/plan/rollback-assignation
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="period.begin" mapping="['dateFrom']" domain="date"/>
+                <param name="period.end" mapping="['dateTo']" domain="date"/>
+                <param name="emplPos.id" mapping="['employeeId']" domain="integer" value="#{emplPos.id?}"/>
+                <param name="emplPosRes.id" mapping="['emplPosResId']" domain="integer" value="#{emplPosRes.id?}"/>
+                <param name="org.id" mapping="['clinicId']" domain="integer" value="#{org.id?}"/>
+            </in-parameters>
+        </action>
+        <action id="apply-schema">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/vaccine/plan/apply-schema
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="calendar_id" mapping="['calendarId']" domain="integer"/>
+                <param name="schema.id" mapping="['schemaId']" domain="integer"/>
+                <param name="period.begin" mapping="['dateFrom']" domain="date"/>
+                <param name="period.end" mapping="['dateTo']" domain="date"/>
+                <param name="emplPos.id" mapping="['employeeId']" domain="integer" value="#{emplPos.id?}"/>
+                <param name="emplPosRes.id" mapping="['emplPosResId']" domain="integer" value="#{emplPosRes.id?}"/>
+                <param name="org.id" mapping="['clinicId']" domain="integer" value="#{org.id?}"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="ageForFirstVaccine"/>
+            </validations>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="has_birth_date" level="error">
+            <message>У пациента отсутствует дата рождения</message>
+            <invocation>
+                <sql:sql>
+                    SELECT (
+                    CASE WHEN
+                    :pid ISNULL OR
+                    (SELECT p.birth_dt FROM pim_individual p WHERE p.id = :pid :: INTEGER) NOTNULL
+                    THEN 0
+                    ELSE 1
+                    END);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="[pid]" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="has_uid" level="error">
+            <message>У пациента отсутствует уникальный идентификатор</message>
+            <invocation>
+                <sql:sql>
+                    SELECT (
+                        CASE WHEN
+                                :pid ISNULL OR
+                                (SELECT pic.code FROM pim_indiv_code pic WHERE pic.indiv_id = :pid and pic.type_id = (select id from pim_code_type where code = 'UID') limit 1) NOTNULL
+                            THEN 0
+                            ELSE 1
+                        END);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="[pid]" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="ageForFirstVaccine" level="error">
+            <message>Планирование не возможно. Возраст пациента не соответствует диапазону допустимых возрастов первой прививки схемы.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select
+                        age(:dateFrom, (SELECT p.birth_dt FROM pim_individual p WHERE p.id = :pid :: INTEGER )) <= concat(substring(age from position('-' in age)+1 for 3),' year ',
+                        substring(age from position('-' in age)+4 for 2),' month ',
+                        substring(age from position('-' in age)+6 for 2),' day')::interval
+
+                        from vac.schema_stage where schema_id = :schemaId
+                        and substring(age from position('-' in age)+1) <> 'NO_VAL';
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="[pid]" domain="integer"/>
+                <param name="schema.id" mapping="['schemaId']" domain="integer"/>
+                <param name="period.begin" mapping="['dateFrom']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+    </validations>
+</object>

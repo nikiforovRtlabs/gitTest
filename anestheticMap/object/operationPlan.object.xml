@@ -1,0 +1,195 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>План операции</name>
+
+    <actions>
+        <action id="createOperationPlanItem">
+            <invocation>
+                <sql:sql>
+                    INSERT INTO hospital.operation_plan(anesthetic_map_id, manipulation_id, stage_id) VALUES (:anestheticMapId, :manipulationId, :stageId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="anestheticMap.id" mapping="['anestheticMapId']" domain="integer"/>
+                <param name="manipulation.id" mapping="['manipulationId']" domain="integer"/>
+                <param name="stage.id" mapping="['stageId']" domain="integer"/>
+             </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="createNotSameAsLast"/>
+                <validation ref-id="checkIsMcClosing"/>
+                <validation ref-id="checkControlSavingDone"/>
+            </validations>
+        </action>
+
+        <action id="updateOperationPlanItem">
+            <invocation>
+                <sql:sql>
+                    UPDATE hospital.operation_plan SET manipulation_id = :manipulationId, stage_id = :stageId WHERE id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="anestheticMap.id" domain="integer"/>
+                <param name="manipulation.id" mapping="['manipulationId']" domain="integer"/>
+                <param name="stage.id" mapping="['stageId']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkNotSameInLineAfterUpdate"/>
+                <validation ref-id="checkIsMcClosing"/>
+                <validation ref-id="checkControlSavingDone"/>
+            </validations>
+        </action>
+
+        <action id="deleteOperationPlanItem" name="удаление этапа/манипуляции">
+            <invocation>
+                <sql:sql>DELETE FROM hospital.operation_plan WHERE id = :id</sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="anestheticMap.id" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkNotSameInLineAfterDelete"/>
+                <validation ref-id="checkIsMcClosing"/>
+                <validation ref-id="checkControlSavingDone"/>
+            </validations>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="createNotSameAsLast" level="error">
+            <message>Нельзя создать подряд идущие одноименные этапы(манипуляции). Выберите иной этап(манипуляцию)</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from hospital.operation_plan
+                    where (manipulation_id is not null and manipulation_id = :manipulationId
+                    and id = (select max(id) from hospital.operation_plan where anesthetic_map_id = :anestheticMapId and manipulation_id is not null)
+                    or
+                    (stage_id is not null and stage_id = :stageId
+                    and id = (select max(id) from hospital.operation_plan where anesthetic_map_id = :anestheticMapId and stage_id is not null)))
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="anestheticMap.id" mapping="['anestheticMapId']" domain="integer"/>
+                <param name="manipulation.id" mapping="['manipulationId']" domain="integer"/>
+                <param name="stage.id" mapping="['stageId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkNotSameInLineAfterUpdate" level="error">
+            <message>Недопустимо, чтобы после редактирования подряд шли одноименные этапы(манипуляции). Выберите иной этап(манипуляцию)</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from hospital.operation_plan
+                    where(manipulation_id is not null and manipulation_id = :manipulationId and
+                    (
+                    (id = (select max(id) from hospital.operation_plan where anesthetic_map_id = :anestheticMapId and id &lt; :id and manipulation_id is not null))
+                    or
+                    (id = (select min(id) from hospital.operation_plan where anesthetic_map_id = :anestheticMapId and id > :id and manipulation_id is not null))
+                    ))
+                    or
+                    (stage_id is not null and stage_id = :stageId and
+                    (
+                    (id = (select max(id) from hospital.operation_plan where anesthetic_map_id = :anestheticMapId and id &lt; :id and stage_id is not null))
+                    or
+                    (id = (select min(id) from hospital.operation_plan where anesthetic_map_id = :anestheticMapId and id > :id and stage_id is not null))
+                    ))
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="anestheticMap.id" mapping="['anestheticMapId']" domain="integer"/>
+                <param name="manipulation.id" mapping="['manipulationId']" domain="integer"/>
+                <param name="stage.id" mapping="['stageId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkNotSameInLineAfterDelete" level="error">
+            <message>Недопустимо, чтобы после удаления подряд шли одноименные этапы(манипуляции). Удаление невозможно</message>
+            <invocation>
+                <sql:sql>
+                    select
+                    count(case when
+                    prev_manipulation_id is not null and next_manipulation_id is not null and prev_manipulation_id =
+                    next_manipulation_id
+                    or
+                    prev_stage_id is not null and next_stage_id is not null and prev_stage_id = next_stage_id
+                    then 1
+                    else null end
+                    )
+                    from (
+                    select anesthetic_map_id as anesthetic_map_id, stage_id as prev_stage_id
+                    from hospital.operation_plan where id = (select max(id) from hospital.operation_plan where
+                    anesthetic_map_id = :anestheticMapId and id &lt; :id and stage_id is not null)
+                    ) st1
+                    full join
+                    (
+                    select anesthetic_map_id as anesthetic_map_id, manipulation_id as prev_manipulation_id
+                    from hospital.operation_plan where id = (select max(id) from hospital.operation_plan where
+                    anesthetic_map_id = :anestheticMapId and id &lt; :id and manipulation_id is not null)
+                    ) man1 on st1.anesthetic_map_id = man1.anesthetic_map_id
+                    full join
+                    (
+                    select anesthetic_map_id as anesthetic_map_id, stage_id as next_stage_id
+                    from hospital.operation_plan where id = (select min(id) from hospital.operation_plan where
+                    anesthetic_map_id = :anestheticMapId and id > :id and stage_id is not null)
+                    ) st2 on st2.anesthetic_map_id = st1.anesthetic_map_id
+                    full join
+                    (
+                    select anesthetic_map_id as anesthetic_map_id, manipulation_id as next_manipulation_id
+                    from hospital.operation_plan where id = (select min(id) from hospital.operation_plan where
+                    anesthetic_map_id = :anestheticMapId and id > :id and manipulation_id is not null)
+                    ) man2 on man2.anesthetic_map_id = man1.anesthetic_map_id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="anestheticMap.id" mapping="['anestheticMapId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkIsMcClosing" level="error">
+            <message>Случай закрыт.</message>
+            <invocation>
+                <sql:sql><![CDATA[
+                    select not exists (select bdam.control_saving_done from
+                    hospital.basic_data_anesthetic_map bdam
+                    where bdam.id = :anestheticMapId) or (select c.closing_step_id is null from
+                    mc_case c
+                    left join hospital.basic_data_anesthetic_map bdam on c.id=bdam.uid_id
+                    where bdam.id = :anestheticMapId)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="anestheticMap.id" mapping="['anestheticMapId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true || [0][0][0] == null"/>
+        </constraint>
+
+        <constraint id="checkControlSavingDone" level="error">
+            <message>Редактирование невозможно, было произведено контрольное сохранение.</message>
+            <invocation>
+                <sql:sql><![CDATA[
+                    select not exists (select bdam.control_saving_done from
+                    hospital.basic_data_anesthetic_map bdam
+                    where bdam.id = :anestheticMapId) or (select bdam.control_saving_done is false from
+                    hospital.basic_data_anesthetic_map bdam
+                    where bdam.id = :anestheticMapId)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="anestheticMap.id" mapping="['anestheticMapId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true || [0][0][0] == null"/>
+        </constraint>
+    </validations>
+
+
+</object>

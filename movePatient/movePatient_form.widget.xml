@@ -1,0 +1,276 @@
+<form xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs2="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0"
+      customize="jsp" src="hospital/n2o/custom/movePatient_form">
+
+    <query-id>movePatient_form</query-id>
+    <name>Движение по отделениям</name>
+    <modal-width>1000px;</modal-width>
+
+    <default-values-query-id>movePatient_form_default</default-values-query-id>
+
+    <fs2:field-set label="Текущее отделение" field-label-location="left" header="line">
+        <fs2:row>
+            <ctrl:date-time format="DD.MM.YYYY HH:mm" id="admissionDate" label="Дата поступления" required="true"  control-style="width:278px;" readonly="true">
+                <ctrl:validations>
+                    <ctrl:validation ref-id="checkAdmissionOutcomeDates" side="client"/>
+                    <ctrl:validation ref-id="checkOutcomeDateInPreviousAndAdmissionInCurrent"/>
+                    <ctrl:validation ref-id="checkAdmissionDateInPreviousAndAdmissionInCurrent"/>
+                </ctrl:validations>
+            </ctrl:date-time>
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="admissionDepartment" label="Отделение" search-as-you-type="true"  control-style="width:278px;"
+                             required="true" readonly="true">
+                <ctrl:query query-id="hosp_clinicalOrResuscitDepartmentByOrg" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="caseId" ref="caseId"/>
+                        <ctrl:pre-filter field-id="date" ref="admissionDate" reset-mode="off"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="careRegimen" label="Условия оказания" search-as-you-type="true"  control-style="width:278px;"
+                             required="true" depends-on="admissionDepartment" readonly="true">
+                <ctrl:query query-id="hosp_careRegimen" value-field-id="id" label-field-id="name" master-field-id="id" detail-field-id="depId"/>
+            </ctrl:classifier>
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="profile" label="Профиль" search-as-you-type="true"  control-style="width:278px;"
+                             depends-on="admissionDepartment" required="true" autoselect-alone="true" readonly="true">
+                <ctrl:query query-id="hosp_profile" value-field-id="id" label-field-id="name"
+                            detail-field-id="departmentId" master-field-id="id"/>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="bedProfile" label="Профиль койки" search-as-you-type="true"  control-style="width:278px;"
+                             depends-on="profile" required="true">
+                <ctrl:query query-id="hosp_bedProfile" value-field-id="id" label-field-id="name"
+                            master-field-id="id" detail-field-id="profileId"/>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition on="id">
+                        typeof bedProfile.id == 'undefined' || bedProfile.id == null
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:classifier>
+
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="doctor" label="Лечащий врач" search-as-you-type="true"  control-style="width:278px;"
+                             depends-on="admissionDepartment" readonly="true">
+                <ctrl:query query-id="hosp_resourceEmployeePositionResource" value-field-id="id"
+                            label-field-id="name" detail-field-id="depId" master-field-id="id">
+                </ctrl:query>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="financialType" label="Вид оплаты"  control-style="width:278px;"
+                             search-as-you-type="true" required="true">
+                <ctrl:query query-id="hosp_financialTypeByOrg" value-field-id="id"
+                            label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>typeof isFinanceTypeControl == 'undefined' || isFinanceTypeControl == false</ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:classifier>
+
+        </fs2:row>
+
+        <fs2:row>
+            <!--<rc:diagnosis label="Диагноз" id="diagnosis" required="true" control-style="width:278px;"/>-->
+
+            <ctrl:classifier id="diagnosis" label="Диагноз" readonly="true">
+                <ctrl:query query-id="diagnosis" detail-field-id="id" master-field-id="id"/>
+            </ctrl:classifier>
+
+            <ctrl:input-text id="missedDaysAmount" label="Пропущено дней" dependency-condition="careRegimen.id == 3 || careRegimen.id == 4"  control-style="width:278px;">
+                <ctrl:set-value-expression>if(careRegimen == null || careRegimen.id != 3 &amp;&amp; careRegimen.id != 4) null; else missedDaysAmount;</ctrl:set-value-expression>
+            </ctrl:input-text>
+        </fs2:row>
+
+    </fs2:field-set>
+
+
+    <fs2:field-set label="Перевод" field-label-location="left" header="line" dependency-condition="(typeof create != 'undefined' &amp;&amp; create == true)
+                                                                                                    || (typeof outcomeDate != 'undefined' &amp;&amp; outcomeDate != null)">
+
+        <fs2:row>
+            <ctrl:date-time format="DD.MM.YYYY HH:mm" id="outcomeDate" label="Дата выбытия"  control-style="width:278px;">
+                <ctrl:validations>
+                    <ctrl:validation ref-id="checkAdmissionOutcomeDates" side="client"/>
+                    <ctrl:validation ref-id="checkAdmissionDateInNextAndOutcomeInCurrent"/>
+                </ctrl:validations>
+                <ctrl:dependencies>
+                    <ctrl:required-condition>
+                        (typeof nextHospitalRecordId != 'undefined' &amp;&amp; nextHospitalRecordId != null)
+                        || (typeof create != 'undefined' &amp;&amp; create == true)
+                        || (typeof outcomeDate != 'undefined' &amp;&amp; outcomeDate != null)
+                    </ctrl:required-condition>
+                </ctrl:dependencies>
+            </ctrl:date-time>
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="stepResult" label="Результат госпитализации" search-as-you-type="true"  control-style="width:278px;"
+                             depends-on="careRegimen">
+                <ctrl:query query-id="hosp_notClosedResult" value-field-id="id" label-field-id="name"
+                            detail-field-id="regimenId" master-field-id="id">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="dt" ref="outcomeDate" reset-mode="off"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:dependencies>
+                    <ctrl:required-condition>
+                        (typeof nextHospitalRecordId != 'undefined' &amp;&amp; nextHospitalRecordId != null)
+                        || (typeof create != 'undefined' &amp;&amp; create == true)
+                        || (typeof outcomeDate != 'undefined' &amp;&amp; outcomeDate != null)
+                    </ctrl:required-condition>
+                </ctrl:dependencies>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="outcome" label="Исход заболевания" search-as-you-type="true"  control-style="width:278px;"
+                             depends-on="stepResult">
+                <ctrl:query query-id="hosp_stepCareResultByStepResult" value-field-id="id" label-field-id="name"
+                            detail-field-id="stepResultId" master-field-id="id">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="dt" ref="outcomeDate" reset-mode="off"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:dependencies>
+                    <ctrl:required-condition>
+                        (typeof nextHospitalRecordId != 'undefined' &amp;&amp; nextHospitalRecordId != null)
+                        || (typeof create != 'undefined' &amp;&amp; create == true)
+                        || (typeof outcomeDate != 'undefined' &amp;&amp; outcomeDate != null)
+                    </ctrl:required-condition>
+                </ctrl:dependencies>
+            </ctrl:classifier>
+        </fs2:row>
+
+    </fs2:field-set>
+
+    <fs2:field-set label="Новое отделение" field-label-location="left" header="line" dependency-condition="create == true">
+
+        <fs2:row>
+
+            <ctrl:classifier id="nextDepartment" label="Отделение" search-as-you-type="true" required="true"  control-style="width:278px;">
+                <ctrl:query query-id="hosp_clinicalOrResuscitDepartmentByOrg" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                        <ctrl:pre-filter field-id="date" ref="outcomeDate"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="nextCareRegimen" label="Условия оказания" search-as-you-type="true"  control-style="width:278px;"
+                             required="true" depends-on="nextDepartment">
+                <ctrl:query query-id="hosp_careRegimen" value-field-id="id" label-field-id="name"
+                            master-field-id="id" detail-field-id="depId"/>
+                <ctrl:set-value-expression on="nextDepartment.id">if (typeof create != 'undefined' &amp;&amp; create == true) callQuery(); else throw new Error();</ctrl:set-value-expression>
+            </ctrl:classifier>
+
+
+        </fs2:row>
+
+        <fs2:row>
+
+            <ctrl:classifier id="nextProfile" label="Профиль" search-as-you-type="true"  control-style="width:278px;"
+                             depends-on="nextDepartment" required="true" autoselect-alone="true">
+                <ctrl:query query-id="hosp_profile" value-field-id="id" label-field-id="name"
+                            detail-field-id="departmentId" master-field-id="id"/>
+            </ctrl:classifier>
+            <ctrl:classifier id="nextBedProfile" label="Профиль койки" search-as-you-type="true"
+                             depends-on="nextProfile" required="true"  control-style="width:278px;">
+                <ctrl:query query-id="hosp_bedProfile" value-field-id="id" label-field-id="name"
+                            master-field-id="id" detail-field-id="profileId"/>
+            </ctrl:classifier>
+            <ctrl:classifier id="nextFinancialType" label="Вид оплаты"  control-style="width:278px;"
+                             search-as-you-type="true" required="true">
+                <ctrl:query query-id="hosp_financialTypeByOrg" value-field-id="id"
+                            label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>typeof isFinanceTypeControl == 'undefined' || isFinanceTypeControl == false</ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:classifier>
+
+        </fs2:row>
+
+    </fs2:field-set>
+
+    <fs2:field-set>
+        <fs2:row>
+            <ctrl:classifier id="standard" label="Стандарт лечения" search-as-you-type="true"  control-style="width:278px;">
+                <ctrl:query query-id="hosp_standard" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="patientId" ref="patientId"/>
+                        <ctrl:pre-filter field-id="diagnosisId" ref="diagnosis.id"/>
+                        <ctrl:pre-filter field-id="careRegimenId" ref="careRegimen.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="mes" label="МЭС" search-as-you-type="true"  control-style="width:278px;">
+                <ctrl:query query-id="hosp_mes" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                        <ctrl:pre-filter field-id="diagnosisId" ref="diagnosis.id"/>
+                        <ctrl:pre-filter field-id="regimenId" ref="careRegimen.id"/>
+                        <ctrl:pre-filter field-id="ageGroupId" ref="ageGroupId"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+        </fs2:row>
+
+            <ctrl:classifier id="csg" label="КСГ" search-as-you-type="true"  control-style="width:278px;">
+                <ctrl:query query-id="hosp_csg" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+
+        <fs2:row>
+            <ctrl:classifier id="vmp" label="ВМП" search-as-you-type="true"  control-style="width:278px;">
+                <ctrl:query query-id="hosp_vmp" value-field-id="id" label-field-id="name"/>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="vmpMethod" label="Метод ВМП" search-as-you-type="true"
+                             depends-on="vmp"  control-style="width:278px;">
+                <ctrl:query query-id="hosp_vmpMethod" value-field-id="id" label-field-id="name"
+                            master-field-id="id" detail-field-id="vmpTypeId"/>
+            </ctrl:classifier>
+
+        </fs2:row>
+
+    </fs2:field-set>
+
+    <fs2:field-set label="Результат" header="line" field-label-location="left">
+
+        <fs2:row>
+            <ctrl:classifier id="deviationReason" label="Причина отклонения от стандарта" search-as-you-type="true"
+                             control-style="width:278px;">
+                <ctrl:query query-id="hosp_deviationReason" value-field-id="id" label-field-id="name"/>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="mesQualityCriterion" label="Критерий качества МЭС" search-as-you-type="true"
+                             control-style="width:278px;">
+                <ctrl:query query-id="hosp_mes_quality_criterion" value-field-id="id" label-field-id="name"/>
+            </ctrl:classifier>
+        </fs2:row>
+
+        <ctrl:classifier id="complexityLevel" label="Уровень сложности" search-as-you-type="true"
+                         control-style="width:278px;">
+            <ctrl:query query-id="hosp_complexityLevel" value-field-id="id" label-field-id="name"/>
+        </ctrl:classifier>
+    </fs2:field-set>
+
+
+</form>

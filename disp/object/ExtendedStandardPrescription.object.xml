@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>ExtendedStandardPrescription</name>
+
+
+    <actions>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sp:stored-procedure name="disp.extendedStdPres" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]" domain="integer"/>
+                <param name="service.id" mapping="[1]" domain="integer"/>
+                <param name="model.id" mapping="[2]" domain="integer"/>
+                <param name="resource.srg_id" mapping="[3]" domain="integer"/>
+                <param name="priority.id" mapping="[4]" domain="integer"/>
+                <param name="districtCheck" mapping="[5]"/>
+                <param name="order" mapping="[6]"/>
+                <param name="ignoreService" mapping="[7]"/>
+                <param name="stage_number.id" mapping="[8]"/>
+                <param name="required" mapping="[9]"/>
+            </in-parameters>
+        </action>
+        <action id="add" name="Изменить">
+            <invocation>
+                <sp:stored-procedure name="]" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]" domain="integer"/>
+                <param name="service.id" mapping="[1]" domain="integer"/>
+                <param name="model.id" mapping="[2]" domain="integer"/>
+                <param name="resource.srg_id" mapping="[3]" domain="integer"/>
+                <param name="priority.id" mapping="[4]" domain="integer"/>
+                <param name="districtCheck" mapping="[5]"/>
+                <param name="order" mapping="[6]"/>
+                <param name="ignoreService" mapping="[7]"/>
+                <param name="stage_number.id" mapping="[8]"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    <!--delete from md_prescription where id = :id;
+                    delete from md_standard_prescription where id = :id;-->
+                    delete from disp.md_standard_prescription_extended where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+        <action id="auto">
+            <invocation>
+                <sp:stored-procedure name="disp.autoCreateStdPres" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="standard.id" mapping="[0]" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+
+    <validations>
+       <condition id="checkServiceType" level="warning">
+            <expression on="service">
+                service_type.id == null
+            </expression>
+            <message>В назначение присуствует Вид услуги. При сохранение, поле Вид услуги будет очищено.</message>
+        </condition>
+        <constraint id="checkOrder" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(mspe.order_idx) from md_standard ms
+                    left join md_standard_prescription msp on msp.standard_id = ms.id
+                    left join disp.md_standard_prescription_extended mspe on mspe.id = msp.id
+                    where ms.id = :sid and mspe.order_idx = :order
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="standard.id" mapping="['sid']" domain="integer"/>
+                <param name="order" mapping="['order']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Этот порядковый номер уже используется</message>
+        </constraint>
+    </validations>
+</object>

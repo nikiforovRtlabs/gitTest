@@ -1,0 +1,87 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>clinicForPatReg</id>-->
+    <name>МО</name>
+    <object-id>patReg</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from md_clinic mc
+                inner join pim_organization po on mc.id = po.id
+                where
+                <!--mc.id in (:orgs) and-->
+                :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(*) from md_clinic mc
+                inner join pim_organization po on mc.id = po.id
+                where
+                <!--mc.id in (:orgs) and-->
+                :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>mc.id</expression>
+            <!--<search unavailable="true"/>-->
+            <!--<search type="in" value="#{org.ids}">:expression in :id</search>-->
+            <filters>
+                <filter type="in" filter-field="id">
+                    :expression in (:orgs)
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>coalesce(po.short_name, po.full_name)</expression>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    upper(:expression) like '%'||upper(:name)||'%'
+                </filter>
+            </filters>
+            <!--<search>upper(:expression) like '%'||upper(:name)||'%'</search>-->
+        </field>
+
+       <field>
+            <id>orgs</id>
+            <domain>integer[]</domain>
+            <!-- <display default-value="#{org.ids}"-->
+            <!--<display value="#{org.ids}" unavailable="true"/>-->
+            <!--<search unavailable="true"/>-->
+            <!--<sorting unavailable="true"/>-->
+
+            <filters>
+                <filter type="in" filter-field="orgs" default-value="#{org.ids}">
+                    mc.id in (:orgs)
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>is_forbidden_org</id>
+            <domain>boolean</domain>
+            <expression>
+                case when exists (select * from public.sec_forbidden_org where id = mc.id)
+                    then true
+                    else false
+                end
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="is_forbidden_org"/>
+            </filters>
+        </field>
+        
+    </fields>
+
+</query>

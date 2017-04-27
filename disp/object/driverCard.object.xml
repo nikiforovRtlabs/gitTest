@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:rmi="http://n2oapp.net/framework/config/schema/action-java-method-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>Карточка водителя</name>
+    <actions>
+        <action id="update" name="Запонить">
+            <invocation>
+                <sql:sql>
+                    select
+                    gibdd.md_event_save_conclusion_function(:id,:issued,:contraindications,:special_notes,:exp,:medCommission,:indicationsList,:refId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="issued" mapping="['issued']" domain="date"/>
+                <param name="exp" mapping="['exp']" domain="date"/>
+                <param name="contraindications" mapping="['contraindications']" domain="boolean"/>
+                <param name="special_notes" mapping="['special_notes']" domain="string"/>
+                <param name="medCommission.id" mapping="['medCommission']" domain="integer"/>
+                <param name="refId" mapping="['refId']" domain="integer"/>
+                <param name="indicationsList*.id" mapping="['indicationsList']" domain="integer[]"/>
+            </in-parameters>
+            <validations activate="all"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="allServicesRenderedConstraint" level="error">
+            <message>Не все услуги оказаны!</message>
+            <invocation>
+                <sql:sql>select (select count(1) from gibdd.md_gibdd_service gs where gs.event_patient_id = :id) =
+                    (select count(1) from disp.md_event_service_patient esp where esp.event_patient_id = :id);</sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0]"/>
+        </constraint>
+
+        <constraint id="numberReferenceUnique" level="error">
+            <message summary ="Справка с  номером '%numberReference%' уже существует ">
+                Введите другой идентификатор!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from gibdd.md_gibdd_reference
+                    where number = :numberReference
+                    and series= :seriesReference
+                    and (id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="numberReference" mapping="['numberReference']" domain="string"/>
+                <param name="seriesReference" mapping="['seriesReference']" domain="string"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+    </validations>
+    
+</object>

@@ -1,0 +1,107 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>movePatient</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from hsp_record rec
+                join mc_step step on step.id = rec.id
+                join mc_case c on c.id = step.case_id
+                left outer join pim_department dep on dep.id = rec.department_id
+                left outer join mc_step_result r on r.id = step.result_id
+                left outer join mc_step_care_result cr on cr.id = step.outcome_id
+                where dep.type_id !=4 and :where
+                order by :order, rec.id
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1) from hsp_record rec
+                join mc_step step on step.id = rec.id
+                join mc_case c on c.id = step.case_id
+                left outer join pim_department dep on dep.id = rec.department_id
+                left outer join mc_step_result r on r.id = step.result_id
+                left outer join mc_step_care_result cr on cr.id = step.outcome_id
+                where dep.type_id !=4 and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>id</name>
+            <expression>rec.id</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>step.case_id</expression>
+            <search>step.case_id = :caseId</search>
+        </field>
+
+        <field>
+            <id>admissionDate</id>
+            <domain>date</domain>
+            <name>Дата поступления</name>
+            <expression>step.admission_date + coalesce(step.admission_time, '00:00')</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>outcomeDate</id>
+            <domain>date</domain>
+            <name>Дата выписки</name>
+            <expression>step.outcome_date + step.outcome_time</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>department</id>
+            <domain>string</domain>
+            <name>Отделение</name>
+            <expression>dep.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>result</id>
+            <domain>string</domain>
+            <name>Результат</name>
+            <expression>r.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>outcome</id>
+            <domain>string</domain>
+            <name>Исход</name>
+            <expression>cr.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>lastHospitalRecordId</id>
+            <domain>integer</domain>
+            <expression>
+                (select h1.id from hsp_record h1 join mc_step s1 on s1.id = h1.id
+                 where s1.case_id = step.case_id and not exists
+                (select 1 from hsp_record h2 join mc_step s2 on s2.id = h2.id where s2.case_id = s1.case_id and h2.previous_id = h1.id))
+            </expression>
+        </field>
+
+        <field>
+            <id>isClosed</id>
+            <domain>boolean</domain>
+            <expression>c.closing_step_id is not null</expression>
+        </field>
+
+    </fields>
+
+
+</query>

@@ -1,0 +1,128 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>operation</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hospital.md_srv_rendered_oper msro
+                join md_srv_rendered msr on msr.id = msro.service_id
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join mc_case c on c.id = msr.case_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+
+                where msro.state_id != 4 and :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(msro)
+                from hospital.md_srv_rendered_oper msro
+                join md_srv_rendered msr on msr.id = msro.service_id
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join mc_case c on c.id = msr.case_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+
+                where msro.state_id != 4 and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>operationJournalId</id>
+            <domain>integer</domain>
+            <expression>msro.id</expression>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>extract(year from AGE(NOW(), i.birth_dt))</expression>
+        </field>
+
+        <field>
+            <id>uid.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>c.id</expression>
+        </field>
+        <field>
+            <id>uid.uid</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                '№' ||coalesce(c.uid, '') || '  Открыт:' || coalesce(to_char(c.create_date, 'dd.mm.yyyy'), '')
+            </expression>
+        </field>
+
+        <field>
+            <id>surgery.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>s.id</expression>
+        </field>
+        <field>
+            <id>surgery.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>coalesce(s.code || ' ' || s.name, s.name)</expression>
+        </field>
+        <!--<field>-->
+            <!--<id>date_surgery</id>-->
+            <!--<domain>date</domain>-->
+            <!--<display/>-->
+            <!--<expression>ssr.bdate</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>date_surgery</id>
+            <domain>date</domain>
+            <display/>
+            <expression>ssr.planned_date</expression>
+        </field>
+
+        <field>
+            <id>urgency</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(case when msr.is_urgent is true then 'срочная' else 'плановая' end)</expression>
+        </field>
+
+        <field>
+            <id>diagnosis</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(select md.name from mc_diagnosis mcd
+                left join md_diagnosis md on md.id = mcd.diagnos_id
+                where mcd.id = c.main_diagnos_id)</expression>
+        </field>
+
+        <field>
+            <id>controlSavingDone</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression> false
+            </expression>
+        </field>
+
+    </fields>
+
+
+</query>

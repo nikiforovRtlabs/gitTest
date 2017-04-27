@@ -1,0 +1,563 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>receipt_journal</id>-->
+    <name>Рецепт на молочную кухню</name>
+    <object-id>receipt</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from receipt.receipt r
+                join receipt.receipt_type rt on rt.id=r.type_id
+                join receipt.baby_food_receipt bfr on bfr.id = r.id
+
+                join public.pim_employee_position pep on pep.id = r.employee_position_id
+                join public.pim_employee pe on pe.id = pep.employee_id
+                join public.pim_individual docpi on docpi.id = pe.individual_id
+
+                join public.pim_individual pi on pi.id = r.patient_id
+                join public.pim_party_address ppa on ppa.party_id = pi.id
+                join public.address_element_data aed on aed.id = ppa.addr_id
+
+                join public.pim_department pd on pd.id = bfr.kitchen_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from receipt.receipt r
+                join receipt.receipt_type rt on rt.id=r.type_id
+                join receipt.baby_food_receipt bfr on bfr.id = r.id
+
+                join public.pim_employee_position pep on pep.id = r.employee_position_id
+                join public.pim_employee pe on pe.id = pep.employee_id
+                join public.pim_individual docpi on docpi.id = pe.individual_id
+
+                join public.pim_individual pi on pi.id = r.patient_id
+                join public.pim_party_address ppa on ppa.party_id = pi.id
+                join public.address_element_data aed on aed.id = ppa.addr_id
+
+                join public.pim_department pd on pd.id = bfr.kitchen_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <display/>
+            <expression>r.id</expression>
+            <filters>
+                <filter type="eq" filter-field="id">
+                    :expression = :id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <name>МО</name>
+            <display/>
+            <expression>r.clinic_id</expression>
+            <filters>
+                <filter type="eq" filter-field="clinic.id">
+                    :expression = :clinic.id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>rt.id</expression>
+            <!--<filters>-->
+            <!--<filter type="eq" filter-field="type.id">-->
+            <!--:expression = :type.id-->
+            <!--</filter>-->
+            <!--</filters>-->
+        </field>
+        <field>
+            <id>type.name</id>
+            <domain>string</domain>
+            <name>Тип рецепта</name>
+            <display/>
+            <expression>rt.name</expression>
+        </field>
+
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <name>Серия</name>
+            <display/>
+            <expression>r.series</expression>
+            <filters>
+                <filter type="eq" filter-field="series">
+                    :expression = :series
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>num</id>
+            <domain>string</domain>
+            <name>Номер</name>
+            <display/>
+            <expression>r.num</expression>
+            <filters>
+                <filter type="eq" filter-field="num">
+                    :expression = :num
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>issue_dt</id>
+            <domain>date</domain>
+            <name>Дата выписки</name>
+            <display/>
+            <expression>r.issue_dt</expression>
+            <filters>
+                <filter type="eq" filter-field="issue_dt">
+                    :expression = :issue_date
+                </filter>
+                <filter type="more" filter-field="isdt.begin">
+                    :expression >= :isdt.begin
+                </filter>
+                <filter type="less" filter-field="isdt.end">
+                    <![CDATA[
+                        :expression <= :isdt.end
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>isdt.begin</id>
+            <domain>date</domain>
+        </field>
+        <field>
+            <id>isdt.end</id>
+            <domain>date</domain>
+        </field>
+
+        <field>
+            <id>issue_date</id>
+            <domain>string</domain>
+            <name>Дата выписки</name>
+            <display/>
+            <expression>to_char(r.issue_dt,'DD.MM.YYYY')</expression>
+        </field>
+
+        <field>
+            <id>employeeId</id>
+            <domain>integer</domain>
+            <name>Назначивший врач</name>
+            <display/>
+            <expression>r.employee_position_id</expression>
+        </field>
+
+        <field>
+            <id>employee.id</id>
+            <domain>integer</domain>
+            <name>Назначивший врач</name>
+            <display/>
+            <expression>r.employee_position_id</expression>
+            <filters>
+                <filter type="eq" filter-field="employee.id">
+                    :expression = :employee.id
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>employee.fio</id>
+            <domain>string</domain>
+            <name>Назначивший врач</name>
+            <display/>
+            <expression>
+                docpi.surname||' '||left(initcap(docpi.name),1)||'. '||left(initcap(docpi.patr_name),1)
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <name>Пациент</name>
+            <display/>
+            <expression>r.patient_id</expression>
+            <filters>
+                <filter type="eq" filter-field="patient.id">
+                    :expression = :patient.id
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <display/>
+            <expression>pi.surname || ' ' || pi.name || ' ' || pi.patr_name</expression>
+        </field>
+        <field>
+            <id>birth_dt</id>
+            <domain>date</domain>
+            <name>Дата рождения</name>
+            <display/>
+            <expression>pi.birth_dt</expression>
+            <filters>
+                <filter type="eq" filter-field="birth_dt">
+                    :expression = :birth_dt
+                </filter>
+                <filter type="more" filter-field="bdt.begin">
+                    :expression >= :bdt.begin
+                </filter>
+                <filter type="less" filter-field="bdt.end">
+                    <![CDATA[
+                        :expression <= :bdt.end
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>bdt.begin</id>
+            <domain>date</domain>
+        </field>
+        <field>
+            <id>bdt.end</id>
+            <domain>date</domain>
+        </field>
+        <field>
+            <id>month_age</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                cast(case
+                when (date_part('day',r.issue_dt)>=date_part('day',pi.birth_dt) or date_part('day',pi.birth_dt + 1)=1) then 0 else -1 end
+                +(date_part('year',r.issue_dt)-date_part('year',pi.birth_dt))*12
+                +(date_part('month',r.issue_dt)-date_part('month',pi.birth_dt)) as integer)
+            </expression>
+            <filters>
+                <filter type="more" filter-field="ageCategory.begin_age">
+                    :expression >= :ageCategory.begin_age
+                </filter>
+                <filter type="less" filter-field="ageCategory.end_age">
+                    :ageCategory.end_age >= :expression
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>ageCategory.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                (select mbfac.id
+                from md_baby_food_age_category mbfac where cast(case
+                when (date_part('day',r.issue_dt)>=date_part('day',pi.birth_dt) or date_part('day',pi.birth_dt + 1)=1) then 0 else -1 end
+                +(date_part('year',r.issue_dt)-date_part('year',pi.birth_dt))*12
+                +(date_part('month',r.issue_dt)-date_part('month',pi.birth_dt)) as integer) between mbfac.begin_age and mbfac.end_age limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>age</id>
+            <domain>string</domain>
+            <name>Возраст</name>
+            <display/>
+            <expression>
+                <![CDATA[
+                    CASE when (DATE_PART('year', r.issue_dt)- DATE_PART('year', pi.birth_dt)
+                                - (CASE TO_CHAR(r.issue_dt, 'MMDD') < TO_CHAR(pi.birth_dt, 'MMDD') WHEN TRUE THEN 1 ELSE 0 END)) <= 0
+                        THEN
+                            case when (to_char(r.issue_dt, 'YYYY') <= to_char(pi.birth_dt, 'YYYY')) and
+                            (date_part('month', r.issue_dt) - date_part('month',pi.birth_dt)
+                            -(CASE TO_CHAR(r.issue_dt, 'DD') < TO_CHAR(pi.birth_dt, 'DD') WHEN TRUE THEN 1 ELSE 0 END) <= 0)
+                                then cast(r.issue_dt - pi.birth_dt as varchar) ||'д'
+                                else cast(12 + date_part('month',r.issue_dt) - date_part('month',pi.birth_dt)
+                                             - (CASE TO_CHAR(r.issue_dt, 'DD') < TO_CHAR(pi.birth_dt, 'DD') WHEN TRUE THEN 1 ELSE 0 END) as varchar)
+                                 ||'м '||CAST(date_part('day', r.issue_dt) - date_part('day',pi.birth_dt) as varchar) ||'д'
+                            end
+                        ELSE
+                            cast(date_part('year', r.issue_dt) - date_part('year', pi.birth_dt)
+                                 - (case to_char(r.issue_dt, 'MMDD') < to_char(pi.birth_dt, 'MMDD') WHEN TRUE THEN 1 ELSE 0 END) as varchar)||
+                            case when
+                                  right(cast(date_part('year', r.issue_dt) - date_part('year', pi.birth_dt)
+                                 - (case to_char(r.issue_dt, 'MMDD') < to_char(pi.birth_dt, 'MMDD') WHEN TRUE THEN 1 ELSE 0 END) as varchar), 1) in ('1','2','3','4')
+                                then 'г '
+                                else 'л '
+                            end||
+                            (case when date_part('month', r.issue_dt) - date_part('month',pi.birth_dt)
+                             - (case to_char(r.issue_dt, 'DD') < to_char(pi.birth_dt, 'DD') WHEN TRUE THEN 1 ELSE 0 END) < 0
+                                    then cast(12 + cast(date_part('month', r.issue_dt) - date_part('month',pi.birth_dt) as integer)- (case to_char(r.issue_dt, 'DD') < to_char(pi.birth_dt, 'DD') WHEN TRUE THEN 1 ELSE 0 END) as varchar(2)) ||'м '
+                                    else cast(date_part('month', r.issue_dt) - date_part('month',pi.birth_dt)
+                                              -(case to_char(r.issue_dt, 'DD') < to_char(pi.birth_dt, 'DD') WHEN TRUE THEN 1 ELSE 0 END) as varchar(2)) ||'м '
+                                end )||
+                            (case when (date_part('day', r.issue_dt) - date_part('day',pi.birth_dt)) <=0
+                                then
+                                    CAST(date_part('day',r.issue_dt -(r.issue_dt - interval '1 month'))
+                                                         - date_part('day',pi.birth_dt)
+                                                         + date_part('day', r.issue_dt) as varchar)||'д'
+                                else
+                                    CAST(date_part('day', r.issue_dt) - date_part('day',pi.birth_dt) as varchar) ||'д'
+
+                            end)
+                    END
+                    ]]>
+            </expression>
+        </field>
+        <field>
+            <id>ageCategory.begin_age</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>ageCategory.end_age</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>address.id</id>
+            <domain>integer</domain>
+            <name>Домашний адрес</name>
+            <display/>
+            <expression>ppa.addr_id</expression>
+        </field>
+        <field>
+            <id>address.displayName</id>
+            <domain>string</domain>
+            <name>Домашний адрес</name>
+            <display/>
+            <expression>aed.search_name</expression>
+        </field>
+
+        <field>
+            <id>sign</id>
+            <domain>integer</domain>
+            <name>Признак рецепта</name>
+            <display/>
+            <expression>r.sign_id</expression>
+        </field>
+        <field>
+            <id>cito</id>
+            <domain>boolean</domain>
+            <name>r.cito</name>
+            <expression>r.cito</expression>
+            <filters>
+                <filter type="eq" filter-field="cito">
+                    :expression = :cito
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <name>Заболевание</name>
+            <display/>
+            <expression>r.diagnosis_id</expression>
+            <filters>
+                <filter type="eq" filter-field="diagnosis.id">
+                    :expression = :diagnosis.id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>validity.id</id>
+            <domain>integer</domain>
+            <name>Срок действия</name>
+            <display/>
+            <expression>r.validity_id</expression>
+            <filters>
+                <filter type="eq" filter-field="validity.id">
+                    :expression = :validity.id
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>canceled</id>
+            <domain>boolean</domain>
+            <name>Признак аннулирован</name>
+            <display/>
+            <expression>r.canceled</expression>
+            <filters>
+                <filter type="eq" filter-field="canceled">
+                    :expression = :canceled
+                </filter>
+            </filters>
+        </field>
+
+
+        <field>
+            <id>benefit_definition.id</id>
+            <domain>integer</domain>
+            <name>Код категории</name>
+            <display/>
+            <expression>bfr.benefit_definition_id</expression>
+            <filters>
+                <filter type="eq" filter-field="benefit_definition.id">
+                    :expression = :benefit_definition.id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>kitchen.id</id>
+            <domain>integer</domain>
+            <name>Пункт ДМК</name>
+            <display/>
+            <expression>bfr.kitchen_id</expression>
+            <filters>
+                <filter type="eq" filter-field="kitchen.id">
+                    :expression = :kitchen.id
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>kitchen.name</id>
+            <domain>string</domain>
+            <name>Пункт ДМК</name>
+            <display/>
+            <expression>pd.name</expression>
+            <!--<filters>-->
+            <!--<filter type="eq" filter-field="kitchen.id">-->
+            <!--:expression = :kitchen.id-->
+            <!--</filter>-->
+            <!--</filters>-->
+        </field>
+
+        <field>
+            <id>begin_dt</id>
+            <domain>date</domain>
+            <name>Действует с</name>
+            <display/>
+            <expression>bfr.begin_dt</expression>
+            <filters>
+                <filter type="eq" filter-field="begin_dt">
+                    :expression = :begin_dt
+                </filter>
+                <filter type="more" filter-field="validit.begin">
+                    :expression >= :validit.begin
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>end_dt</id>
+            <domain>date</domain>
+            <name>Действует по</name>
+            <display/>
+            <expression>bfr.end_dt</expression>
+            <filters>
+                <filter type="eq" filter-field="end_dt">
+                    :expression = :end_dt
+                </filter>
+                <filter type="less" filter-field="validit.end">
+                    <![CDATA[
+                        :expression <= :validit.end
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>validit.begin</id>
+            <domain>date</domain>
+        </field>
+        <field>
+            <id>validit.end</id>
+            <domain>date</domain>
+        </field>
+
+        <!--дополнительные поля по пациенту-->
+
+        <!--СНИЛС-->
+        <field>
+            <id>snils</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select code
+                from public.pim_indiv_code
+                where indiv_id = pi.id
+                and type_id = (select id from public.pim_code_type where upper(trim(code)) = 'SNILS')
+                )
+            </expression>
+        </field>
+        <!--Полис ОМС-->
+        <field>
+            <id>OMS</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select case when doc.series is not null
+                then doc.series||' '
+                else ''
+                end ||doc.number
+                ||' ('||coalesce(po.short_name,full_name)||')'
+                from public.pim_individual_doc doc
+                left join public.pim_organization po on po.id = doc.issuer_id
+                join public.pim_doc_type dt on dt.id = doc.type_id
+                where doc.indiv_id = pi.id
+                and doc.type_id in (select id from public.pim_doc_type
+                where is_contract_permitted is true
+                and (now() >= from_dt or from_dt is null)
+                and (to_dt > now() or to_dt is null)
+                order by priority
+                )
+                order by dt.priority
+                limit 1
+                )
+            </expression>
+        </field>
+        <!--Свидетельство о Рождении-->
+        <field>
+            <id>birth_doc</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select case when series is not null
+                then series||' '
+                else ''
+                end ||number
+                from public.pim_individual_doc
+                where indiv_id = pi.id
+                and type_id = (select id from public.pim_doc_type
+                where upper(trim(code)) in ('BIRTH','BIRTHZAGRAN')
+                and (now() >= from_dt or from_dt is null)
+                and (to_dt > now() or to_dt is null)
+                order by id
+                limit 1
+                )
+                )
+            </expression>
+        </field>
+        <!--Номер амбулаторной карты-->
+        <field>
+            <id>number_attach</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select number_attach
+                from public.pci_patient_reg
+                where patient_id = pi.id
+                and state_id = 1
+                and (now() >= reg_dt or reg_dt is null)
+                and (unreg_dt > now() or unreg_dt is null)
+                order by reg_dt desc
+                limit 1
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>canCreateBenefitReceipt</id>
+            <domain>boolean</domain>
+            <expression>(case when (select count(peptpr.*) from pim_empl_posit_to_prefer_recipe peptpr where now()::date
+                >= peptpr.begin_date::date and (peptpr.end_date is null or peptpr.end_date::date >= now()::date)
+                and peptpr.employee_position_id = r.employee_position_id) > 0 then true else false end)
+            </expression>
+            <display/>
+        </field>
+    </fields>
+</query>

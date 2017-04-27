@@ -1,0 +1,171 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+
+    <object-id>patient_to_group</object-id>
+    <name>patient</name>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from pim_individual i
+                join pci_patient p on p.id = i.id
+                left join pim_gender g on i.gender_id = g.id
+                where exists(
+                SELECT 1
+                FROM pim_indiv_code c JOIN pim_code_type ct ON ct.id = c.type_id
+                WHERE c.indiv_id = i.id AND ct.code = 'UID'
+                and not (:mo.id is null and :distinct.id is null and :org.id is null and :ageFrom is null and :ageTo is null and :gend.id is null)
+                ) AND :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(p)
+                from pim_individual i
+                join pci_patient p on p.id = i.id
+                left join pim_gender g on i.gender_id = g.id
+                where exists(
+                SELECT 1
+                FROM pim_indiv_code c JOIN pim_code_type ct ON ct.id = c.type_id
+                WHERE c.indiv_id = i.id AND ct.code = 'UID'
+                and not (:mo.id is null and :distinct.id is null and :org.id is null and :ageFrom is null and :ageTo is null and :gend.id is null)
+                ) AND :where
+            </n2o:count-query>
+            <n2o:alias>i</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <expression>i.id</expression>
+            <domain>integer</domain>
+            <display>i.id</display>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>displayName</id>
+            <name>ФИО</name>
+            <domain>string</domain>
+            <expression>concat(i.surname||' ',i.name||' ',i.patr_name)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>birthDt</id>
+            <name>Дата рождения</name>
+            <domain>string</domain>
+            <expression>to_char(i.birth_dt, 'DD.MM.YYYY')</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>gend.id</id>
+            <domain>integer</domain>
+            <expression>:gend.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="gend.id">g.id = :gend.id</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>gender.id</id>
+            <domain>integer</domain>
+            <expression>g.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>gender.name</id>
+            <name>Пол</name>
+            <domain>string</domain>
+            <expression>g.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>age</id>
+            <name>Возраст</name>
+            <expression>
+                calculate_age(i.birth_dt, i.death_dt::date, i.age_year, i.age_month, i.age_day)
+            </expression>
+            <domain>string</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>mo.id</id>
+            <domain>integer</domain>
+            <expression>:mo.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="mo.id">
+                     <![CDATA[
+                        exists(
+                        SELECT 1 FROM pci_patient_reg ppr
+                        WHERE (ppr.unreg_dt is null or ppr.unreg_dt <= current_date) and ppr.clinic_id = :mo.id
+                          AND ppr.patient_id = i.id and (:district.id is null or ppr.district_id = :district.id )limit 1)
+                     ]]>
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>district.id</id>
+            <domain>integer</domain>
+            <expression>:district.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>:org.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="org.id">
+                    exists(Select 1 from pci_patient_job ppj WHERE organization_id = :org.id AND ppj.patient_id = i.id
+                    AND (ppj.to_dt is null or ppj.to_dt >= current_date ) limit 1)
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>ageFrom</id>
+            <domain>integer</domain>
+            <expression>:ageFrom</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="ageFrom">
+                    <![CDATA[
+                    (i.birth_dt is not null and ((
+                   EXTRACT(YEAR FROM (AGE(coalesce(i.death_dt, current_date),i.birth_dt))) >= :ageFrom)))
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>ageTo</id>
+            <domain>integer</domain>
+            <expression>:ageTo</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="ageTo">
+                    <![CDATA[
+                    (i.birth_dt is not null and ((
+                   EXTRACT(YEAR FROM (AGE(coalesce(i.death_dt, current_date),i.birth_dt)))  <= :ageTo)))
+                        ]]>
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>group_id</id>
+            <domain>integer</domain>
+            <expression>:group_id</expression>
+            <display/>
+        </field>
+    </fields>
+</query>

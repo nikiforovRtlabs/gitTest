@@ -1,0 +1,243 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>dAccountCase</object-id>
+    <name>dAccountCase</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from public.mc_case c
+                join d_accounting.account_case ac on ac.case_id=c.id
+                left join public.mc_diagnosis mcd on mcd.id=c.main_diagnos_id
+                left join public.md_diagnosis dd on dd.id=mcd.diagnos_id
+                left join public.mc_stage dst on dst.id=mcd.stage_id
+                left join public.mc_diagnosis_type dt on dt.id=mcd.type_id
+                left join public.mc_step st on st.id=c.closing_step_id
+                left join public.mc_case_type ct on ct.id=c.case_type_id
+                left join public.fin_funding_source_type ff on ff.id=c.funding_id
+                left join public.mc_case_init_goal ig on ig.id=c.init_goal_id
+                left join public.mc_repeat_count rc on rc.id=c.repeat_count_id
+                left join public.mc_care_regimen cr on cr.id=c.care_regimen_id
+                left join public.mc_care_level cl on cl.id=c.care_level_id
+                where ct.case_mode_id=1 and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(c)
+                from public.mc_case c
+                join d_accounting.account_case ac on ac.case_id=c.id
+                left join public.mc_diagnosis mcd on mcd.id=c.main_diagnos_id
+                left join public.md_diagnosis dd on dd.id=mcd.diagnos_id
+                left join public.mc_stage dst on dst.id=mcd.stage_id
+                left join public.mc_diagnosis_type dt on dt.id=mcd.type_id
+                left join public.mc_step st on st.id=c.closing_step_id
+                left join public.mc_case_type ct on ct.id=c.case_type_id
+                left join public.fin_funding_source_type ff on ff.id=c.funding_id
+                left join public.mc_case_init_goal ig on ig.id=c.init_goal_id
+                left join public.mc_repeat_count rc on rc.id=c.repeat_count_id
+                left join public.mc_care_regimen cr on cr.id=c.care_regimen_id
+                left join public.mc_care_level cl on cl.id=c.care_level_id
+                where ct.case_mode_id=1 and :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+        </field>
+        <field>
+            <id>number</id>
+            <name>Номер случая</name>
+            <expression>c.uid</expression>
+        </field>
+        <field>
+            <id>create_date</id>
+            <name>Дата создания случая</name>
+            <domain>date</domain>
+            <expression>c.create_date</expression>
+        </field>
+        <field>
+            <id>vrach.employee_position_id</id>
+            <name>Врач</name>
+            <domain>integer</domain>
+            <expression>
+                (SELECT epos.id FROM public.mc_step step
+                JOIN public.sr_res_group res ON res.id = step.res_group_id
+                JOIN public.pim_employee_position epos ON epos.id = res.responsible_id
+                JOIN public.pim_employee empl ON empl.id = epos.employee_id
+                JOIN public.pim_individual ind ON ind.id = empl.individual_id
+                WHERE step.case_id = c.id
+                ORDER BY step.admission_date
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>vrach.name</id>
+            <name>Врач</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name)) FROM public.mc_step step
+                JOIN public.sr_res_group res ON res.id = step.res_group_id
+                JOIN public.pim_employee_position epos ON epos.id = res.responsible_id
+                JOIN public.pim_employee empl ON empl.id = epos.employee_id
+                JOIN public.pim_individual ind ON ind.id = empl.individual_id
+                WHERE step.case_id = c.id
+                ORDER BY step.admission_date
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>case_diagnos.id</id>
+            <domain>integer</domain>
+            <expression>mcd.id</expression>
+        </field>
+        <field>
+            <id>main_diagnos.id</id>
+            <domain>integer</domain>
+            <expression>dd.id</expression>
+        </field>
+        <field>
+            <id>main_diagnos.caption</id>
+            <name>Диагноз</name>
+            <domain>string</domain>
+            <expression>(select get_diagnosis_full_name(mcd.id))</expression>
+        </field>
+        <field>
+            <id>closing_step.id</id>
+            <domain>integer</domain>
+            <expression>c.closing_step_id</expression>
+        </field>
+        <field>
+            <id>closing_step.date</id>
+            <name>Дата закрытия</name>
+            <domain>date</domain>
+            <expression>st.outcome_date</expression>
+        </field>
+        <field>
+            <id>account.id</id>
+            <domain>integer</domain>
+            <expression>ac.account_id</expression>
+        </field>
+        <field>
+            <id>account.fio</id>
+            <domain>string</domain>
+            <expression>(select initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name))
+                from d_accounting.account d_ac
+                left join public.pim_indiv_code inc on inc.code = d_ac.patient_uid and
+                inc.type_id = (select ctype.id from pim_code_type ctype where ctype.code = 'UID' limit 1)
+                left join public.pim_individual ind on ind.id=inc.indiv_id
+                where d_ac.id=ac.account_id)</expression>
+        </field>
+        <field>
+            <id>account.patient.id</id>
+            <domain>integer</domain>
+            <expression>(select inc.indiv_id from d_accounting.account d_ac
+                join public.pim_indiv_code inc on inc.code = d_ac.patient_uid and
+                inc.type_id = (select ctype.id from pim_code_type ctype where ctype.code = 'UID' limit 1)
+                where d_ac.id=ac.account_id)</expression>
+        </field>
+        <field>
+            <id>stage.id</id>
+            <domain>integer</domain>
+            <expression>dst.id</expression>
+        </field>
+        <field>
+            <id>stage.name</id>
+            <domain>string</domain>
+            <name>Этап установления</name>
+            <expression>dst.name</expression>
+        </field>
+        <field>
+            <id>closeCase</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>c.closing_step_id is not null</search>
+        </field>
+        <field>
+            <id>case_type.id</id>
+            <domain>integer</domain>
+            <expression>ct.id</expression>
+        </field>
+        <field>
+            <id>case_type.name</id>
+            <domain>string</domain>
+            <name>Тип случая</name>
+            <expression>ct.name</expression>
+        </field>
+        <field>
+            <id>funding.id</id>
+            <domain>integer</domain>
+            <expression>ff.id</expression>
+        </field>
+        <field>
+            <id>funding.name</id>
+            <domain>string</domain>
+            <name>Вид финансирования</name>
+            <expression>ff.name</expression>
+        </field>
+        <field>
+            <id>init_goal.id</id>
+            <domain>integer</domain>
+            <expression>ig.id</expression>
+        </field>
+        <field>
+            <id>init_goal.name</id>
+            <domain>string</domain>
+            <name>Цель первичного обращения</name>
+            <expression>ig.name</expression>
+        </field>
+        <field>
+            <id>repeat_count.id</id>
+            <domain>integer</domain>
+            <expression>rc.id</expression>
+        </field>
+        <field>
+            <id>repeat_count.name</id>
+            <domain>string</domain>
+            <name>Обращение в текущем году</name>
+            <expression>rc.name</expression>
+        </field>
+        <field>
+            <id>care_regimen.id</id>
+            <domain>integer</domain>
+            <expression>cr.id</expression>
+        </field>
+        <field>
+            <id>care_regimen.name</id>
+            <domain>string</domain>
+            <name>Условия оказания</name>
+            <expression>cr.name</expression>
+        </field>
+        <field>
+            <id>care_level.id</id>
+            <domain>integer</domain>
+            <expression>cl.id</expression>
+        </field>
+        <field>
+            <id>care_level.name</id>
+            <domain>string</domain>
+            <name>Условия оказания</name>
+            <expression>cl.name</expression>
+        </field>
+        <field>
+            <id>visit_exists</id>
+            <domain>boolean</domain>
+            <expression>(select exists(select 1 from mc_step where case_id = c.id))</expression>
+        </field>
+        <field>
+            <id>isInReestr</id>
+            <domain>integer</domain>
+            <expression>(select count(*) from fin_bill_spec_item fi
+                join md_srv_rendered srv on fi.service_id=srv.id
+                where srv.case_id = c.id)</expression>
+        </field>
+        <field>
+            <id>activeTreatmentPlan</id>
+            <domain>integer</domain>
+            <expression>(select t.id from d_accounting.treatment_plan t where t.case_id=c.id and t.fact_end_dt is null limit 1)</expression>
+        </field>
+    </fields>
+</query>

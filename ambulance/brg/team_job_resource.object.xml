@@ -1,0 +1,350 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>team_job_resource</id>-->
+    <name>Наряд на работы</name>
+    <actions>
+        <action id="create" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    select amb.add_res_team_job_resourse (
+                    :team_job
+                    ,amb.insert_into_md_ambulance_change (:xdate,:org,:dep)
+                    ,:resource
+                    ,coalesce(:role,:emprole,:trrole)
+                    ,coalesce(:workplace,:epl,:tpl)
+                    ,:job
+                    ,case when (:is_head is null or :is_head = false) then false else true end
+                    ,coalesce(cast(:planned_bdate as timestamp WITHOUT TIME ZONE),cast(:plbd as timestamp WITHOUT TIME ZONE))
+                    ,coalesce(cast(:planned_edate as timestamp WITHOUT TIME ZONE),cast(:pled as timestamp WITHOUT TIME ZONE))
+                    ,:reg
+                    ,:desk);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <!--<param name="change.id" mapping="['change']" domain="integer"/>-->
+                <!--,coalesce(:role,:emprole,:trrole)-->
+                <param name="data" mapping="['xdate']" domain="date"/>
+                <param name="station.id" mapping="['org']" domain="integer" value="#{org.id}"/>
+                <param name="substation.id" mapping="['dep']" domain="integer"/>
+                <param name="team_job.id" mapping="['team_job']" domain="integer"/>
+                <param name="resource.id" mapping="['resource']" domain="integer"/>
+                <param name="res_role.id" mapping="['role']" domain="integer"/>
+                <param name="template_employer.role_id" mapping="['emprole']" domain="integer"/>
+                <param name="template_transport.role_id" mapping="['trrole']" domain="integer"/>
+                <param name="workplace" mapping="['workplace']" domain="string"/>
+                <param name="template_employer.work_place" mapping="['epl']" domain="string"/>
+                <param name="template_transport.work_place" mapping="['tpl']" domain="string"/>
+                <param name="job_kind.id" mapping="['job']" domain="integer"/>
+                <param name="is_head" mapping="['is_head']" domain="boolean"/>
+                <param name="planned_bdate" mapping="['planned_bdate']" domain="date"/>
+                <param name="planned_edate" mapping="['planned_edate']" domain="date"/>
+
+                <param name="planned_bdate2" mapping="['plbd']" domain="date"/>
+                <param name="planned_edate2" mapping="['pled']" domain="date"/>
+                <param name="regemployee.id" mapping="['reg']" domain="integer" value="#{emplPos.id?}"/>
+                <param name="desk.id" mapping="['desk']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+            <validations activate="blackList">
+                <validation ref-id="isPlannedBDate"/>
+                <validation ref-id="isPlannedEDate"/>
+                <validation ref-id="isPlannedDate"/>
+            </validations>
+        </action>
+        <action id="update" name="Изменить" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    update amb.sr_res_team_job_resourse
+                       set team_job_id = :team_job
+                         , resource_id = :resource
+                         , workplace = :workplace
+                         , job_kind_id = :job
+                         , is_head = case
+                                       when (:is_head is null or :is_head = false) then false
+                                       else true
+                                     end
+                         , planned_bdate = cast(:planned_bdate as timestamp WITHOUT TIME ZONE)
+                         , planned_edate = cast(:planned_edate as timestamp WITHOUT TIME ZONE)
+                         , bdate = :bdate
+                         , edate = :edate
+                         , desk_id = :desk
+                     where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <!--<param name="change.id" mapping="['change']" domain="integer"/>-->
+                <param name="team_job.id" mapping="['team_job']" domain="integer"/>
+                <param name="resource.id" mapping="['resource']" domain="integer"/>
+                <param name="workplace" mapping="['workplace']" domain="string"/>
+                <param name="job_kind.id" mapping="['job']" domain="integer"/>
+                <param name="is_head" mapping="['is_head']" domain="boolean"/>
+                <param name="planned_bdate" mapping="['planned_bdate']" domain="date"/>
+                <param name="planned_edate" mapping="['planned_edate']" domain="date"/>
+                <param name="bdate" mapping="['bdate']" domain="date"/>
+                <param name="edate" mapping="['edate']" domain="date"/>
+                <param name="desk.id" mapping="['desk']" domain="integer"/>
+            </in-parameters>
+            <validations activate="blackList">
+                <validation ref-id="isPlannedBDate"/>
+                <validation ref-id="isPlannedEDate"/>
+                <validation ref-id="isPlannedDate"/>
+            </validations>
+        </action>
+        <action id="timeupdate" name="Изменить" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    update amb.sr_res_team_job_resourse
+                       set planned_edate = coalesce(cast(:planned_edate as timestamp WITHOUT TIME ZONE)
+                         ,cast(:pled as timestamp WITHOUT TIME ZONE))
+                         ,bdate = :bdate
+                         ,edate = :edate
+                         , desk_id = :desk
+                     where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="planned_edate" mapping="['planned_edate']" domain="date"/>
+                <param name="bdate" mapping="['bdate']" domain="date"/>
+                <param name="edate" mapping="['edate']" domain="date"/>
+                <param name="desk.id" mapping="['desk']" domain="integer"/>
+            </in-parameters>
+        </action>
+        <action id="delete" form-submit-label="Удаление">
+            <invocation>
+                <sql:sql>
+                    delete from amb.sr_res_team_job_resourse where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" domain="integer" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить ресурс из наряда?</confirmation-text>
+            <success-text>Ресурс успешно удален.</success-text>
+        </action>
+        <action id="ready" name="Подписка">
+            <invocation>
+                <sql:sql>
+                    update amb.sr_res_team_job_resourse set bdate = now() where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+        <action id="close" name="Закончить смену">
+            <invocation>
+                <sql:sql>
+                    update amb.sr_res_team_job_resourse set edate = now() where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+        <action id="deviation" name="Отклонение">
+            <invocation>
+                <sql:sql>
+                    <!--update amb.sr_res_team_job_resourse set deviation_id = :dev,replacement_id = :repl,deviation_registrator_id = :dreg where id = :id;-->
+                    select amb.team_job_resource_deviation (:id,:repl,:dev,:dreg);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="job_deviation.id" mapping="['dev']" domain="integer"/>
+                <param name="replacement.id" mapping="['repl']" domain="integer"/>
+                <param name="devregemployee.id" mapping="['dreg']" domain="integer" value="#{emplPos.id}"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <condition id="isPlannedBDate" level="error">
+            <message>Дата начала наряда плановое должна находиться в диапазоне начала/окончания смены бригады</message>
+            <expression on="planned_bdate,team_job.from_dt,team_job.to_dt">
+                <![CDATA[
+                (moment(team_job.from_dt, 'DD.MM.YYYY HH:mm') <= moment(planned_bdate, 'DD.MM.YYYY HH:mm') && moment(team_job.to_dt, 'DD.MM.YYYY HH:mm') >= moment(planned_bdate, 'DD.MM.YYYY HH:mm'))
+                ]]>
+            </expression>
+        </condition>
+        <condition id="isPlannedEDate" level="error">
+            <message>Дата окончания наряда плановое должна находиться в диапазоне начала/окончания смены бригады</message>
+            <expression on="planned_edate,team_job.to_dt,team_job.from_dt">
+                <![CDATA[
+                (moment(team_job.to_dt, 'DD.MM.YYYY HH:mm') >= moment(planned_edate, 'DD.MM.YYYY HH:mm') && moment(team_job.from_dt, 'DD.MM.YYYY HH:mm') <= moment(planned_edate, 'DD.MM.YYYY HH:mm'))
+                ]]>
+            </expression>
+        </condition>
+        <condition id="isPlannedDate" level="error">
+            <message>Дата начала наряда плановое должна быть раньше даты окончания наряда плановое</message>
+            <expression on="planned_edate,planned_bdate">
+                <![CDATA[
+                (moment(planned_edate, 'DD.MM.YYYY HH:mm') >= moment(planned_bdate, 'DD.MM.YYYY HH:mm'))
+                ]]>
+            </expression>
+        </condition>
+
+        <!--todo возможны проблемы с валидацией позже-->
+        <constraint id="checkUniqueTeamJobWorkplace" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*) from amb.sr_res_team_job_resourse
+                    where
+                    <!--change_id = :change-->
+                    (select from_data from amb.md_ambulance_change where id = change_id) = :xdate
+                    and team_job_id = :team_job
+                    and workplace = :workplace
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <!--<param name="change.id" mapping="['change']" domain="integer"/>-->
+                <param name="data" mapping="['xdate']" domain="date"/>
+                <param name="team_job.id" mapping="['team_job']" domain="integer"/>
+                <param name="workplace" mapping="['workplace']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Наряд для выбранного рабочего места в бригаде уже составлен</message>
+        </constraint>
+
+        <constraint id="checkReplacement" level="error">
+            <invocation>
+                <sql:sql>
+                    select amb.team_job_deviation_validation(:repl);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <!--<param name="team_job.id" mapping="['team_job']" domain="integer"/>-->
+                <!--<param name="res_kind.id" mapping="['reskind']" domain="integer"/>-->
+                <!--<param name="edate" mapping="['edate']" domain="date"/>-->
+                <param name="replacement.id" mapping="['repl']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>При выборе этого сотрудника бригада, в которой он находиться в наряде будет расформирована</message>
+        </constraint>
+
+        <!--Занятость ресурса в нарядах на выбранный интервал дат и смену (смена определяется текущей датой)-->
+        <constraint id="checkSUB" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    SELECT count(*)
+                    FROM amb.sr_res_team_job_resourse
+                    WHERE (select from_data from amb.md_ambulance_change where id = change_id) = :xdate
+                    AND resource_id = :resource
+                    AND (
+                        ((coalesce(bdate, planned_bdate) <= cast(:planned_bdate as timestamp) and coalesce(edate, planned_edate) >= cast(:planned_bdate as timestamp))
+                        or(coalesce(bdate, planned_bdate) <= cast(:planned_edate as timestamp) and coalesce(edate, planned_edate) >= cast(:planned_edate as timestamp)))
+                        OR
+                        ((coalesce(bdate,planned_bdate) between cast(:planned_bdate as timestamp) and cast(:planned_edate as timestamp) - CAST('1 second' as interval))
+                        or (coalesce(edate,planned_edate) between cast(:planned_bdate as timestamp) + CAST('1 second' as interval) and cast(:planned_edate as timestamp)))
+                    )
+                    AND (:id is null or id != :id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="data" mapping="['xdate']" domain="date"/>
+                <param name="resource.id" mapping="['resource']" domain="integer"/>
+                <param name="planned_bdate" mapping="['planned_bdate']" domain="date"/>
+                <param name="planned_edate" mapping="['planned_edate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Наряд на сотрудника в выбранную смену уже составлен</message>
+        </constraint>
+
+        <constraint id="checkSubstitute" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*)
+                    from amb.sr_res_team_job_resourse
+                    where (select from_data from amb.md_ambulance_change where id = change_id) = :xdate
+                    and resource_id = :resource
+                    and (
+                    coalesce(bdate,planned_bdate) between cast(:planned_bdate as timestamp) and cast(:planned_edate as timestamp) - CAST('1 second' as interval)
+					or
+					coalesce(edate,planned_edate) between cast(:planned_bdate as timestamp) + CAST('1 second' as interval) and cast(:planned_edate as timestamp)
+					)
+                    ]]>
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="data" mapping="['xdate']" domain="date"/>
+                <param name="replacement.id" mapping="['resource']" domain="integer"/>
+                <param name="planned_bdate" mapping="['planned_bdate']" domain="date"/>
+                <param name="planned_edate" mapping="['planned_edate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Наряд на сотрудника в выбранную смену уже составлен</message>
+        </constraint>
+
+        <constraint id="checkINjob" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    SELECT count(*)
+                    FROM amb.sr_res_team_job_resourse
+                    WHERE resource_id = :resource
+                    AND (bdate is not null AND edate is null)
+                    AND (
+                    coalesce(bdate) BETWEEN cast(:planned_bdate as timestamp) AND cast(:planned_edate as timestamp) - CAST('1 second' as interval)
+					OR
+					coalesce(planned_edate) BETWEEN cast(:planned_bdate as timestamp) + CAST('1 second' as interval) AND cast(:planned_edate as timestamp)
+					) AND (:id is null OR id != :id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="data" mapping="['xdate']" domain="date"/>
+                <param name="resource.id" mapping="['resource']" domain="integer"/>
+                <param name="planned_bdate" mapping="['planned_bdate']" domain="date"/>
+                <param name="planned_edate" mapping="['planned_edate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Ресурс ещё в работе</message>
+        </constraint>
+
+        <constraint id="checkJob" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    SELECT count(*)
+                    FROM amb.sr_res_team_job_resourse
+                    WHERE (SELECT count(*) FROM amb.md_ambulance_change WHERE id = change_id AND state <> 2) > 0
+                    AND resource_id = :resource
+                    AND (
+                    coalesce(bdate,planned_bdate) BETWEEN cast(:planned_bdate as timestamp) AND cast(:planned_edate as timestamp) - CAST('1 second' as interval)
+					OR
+					coalesce(edate,planned_edate) BETWEEN cast(:planned_bdate as timestamp) + CAST('1 second' as interval) AND cast(:planned_edate as timestamp)
+					) AND (:id is null OR id != :id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="data" mapping="['xdate']" domain="date"/>
+                <param name="replacement.id" mapping="['resource']" domain="integer"/>
+                <param name="planned_bdate" mapping="['planned_bdate']" domain="date"/>
+                <param name="planned_edate" mapping="['planned_edate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Нельзя выбрать даннного сотрудника, так как он ещё в работе</message>
+        </constraint>
+        <condition id="nullChange" level="error">
+            <message></message>
+            <expression on="change">
+                change == null
+            </expression>
+        </condition>
+    </validations>
+</object>

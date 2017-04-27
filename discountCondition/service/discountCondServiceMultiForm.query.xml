@@ -1,0 +1,116 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>discountCond</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.sr_service s
+                left join public.sr_srv_category cat on cat.id = s.category_id
+                left join public.sr_srv_type typ on typ.id = s.type_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from public.sr_service s
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>code</id>
+            <name>Код</name>
+            <domain>string</domain>
+            <expression>s.code</expression>
+            <search>upper(:expression) like '%'||upper(:code)||'%'</search>
+        </field>
+
+        <field>
+            <id>name</id>
+            <name>Наименование</name>
+            <domain>string</domain>
+            <expression>s.name</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>discountCond.org.id</id>
+            <domain>integer</domain>
+            <name>МО</name>
+            <expression>s.org_id</expression>
+            <search>(:expression = :discountCond.org.id)</search>
+        </field>
+
+        <field>
+            <id>discountCond.id</id>
+            <domain>integer</domain>
+            <expression>:discountCond.id</expression>
+        </field>
+
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>s.type_id = :type.id</search>
+        </field>
+
+        <field>
+            <id>type.name</id>
+            <domain>string</domain>
+            <name>Тип услуги</name>
+            <expression>typ.name</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>category.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>s.category_id = :category.id</search>
+        </field>
+
+        <field>
+            <id>category.name</id>
+            <domain>string</domain>
+            <name>Категория услуги</name>
+            <expression>cat.name</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>choiceFilter</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search filter-field="choice*.id" type="in">
+                (('added' in (:choice*.id)  and s.id in           (select rel.sr_service_id from fin_discount_cond_srv_rel rel where rel.discount_cond_id = :discountCond.id)) or
+                ('besidesAdded' in (:choice*.id)  and s.id not in (select rel.sr_service_id from fin_discount_cond_srv_rel rel where rel.discount_cond_id = :discountCond.id)))
+            </search>
+        </field>
+
+        <field>
+            <id>createOrDeleteDiscountCondServices</id>
+            <domain>boolean</domain>
+            <name> </name>
+            <expression>(s.id in (select rel.sr_service_id from fin_discount_cond_srv_rel rel where rel.discount_cond_id = :discountCond.id))</expression>
+        </field>
+
+        <field>
+            <id>relation.id</id>
+            <domain>integer</domain>
+            <expression>(select rel.id from fin_discount_cond_srv_rel rel where rel.discount_cond_id = :discountCond.id and rel.sr_service_id = s.id)</expression>
+            <search unavailable="true"/>
+        </field>
+
+    </fields>
+</query>

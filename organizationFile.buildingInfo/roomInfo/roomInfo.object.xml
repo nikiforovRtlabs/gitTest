@@ -1,0 +1,534 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Помещение</name>
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into pim_room(
+                      id,
+                      type_id,
+                      code,
+                      name,
+                      department_id,
+                      building_id,
+                      floor_id,
+                      parent_room_id,
+                      from_dt,
+                      to_dt )
+                    values
+                      (nextval('pim_room_seq'),
+                      :type_id,
+                      :code,
+                      :name,
+                      :department_id,
+                      :building_id,
+                      :floor_id,
+                      :parent_room_id,
+                      :from_dt,
+                      :to_dt );
+
+                    insert into md_room (id, post_id)
+                    values (currval('pim_room_seq'), :post_id );
+
+                    insert into pha_room (id)
+                    values (currval('pim_room_seq'));
+
+                    /* Если была установлен параметр "Является ресурсом", то необходимо создать элементарный ресурс */
+                    INSERT INTO sr_resource  (id)
+                      SELECT nextval('sr_resource_seq')
+                      WHERE :is_resource;
+
+                    INSERT INTO pim_room_resource (id, room_id)
+                      select currval('sr_resource_seq'), currval('pim_room_seq')
+                      WHERE :is_resource;
+
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="room_type.id" mapping="['type_id']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="department.id" mapping="['department_id']" domain="integer"/>
+                <param name="building.id" mapping="['building_id']" domain="integer"/>
+                <param name="floor.id" mapping="['floor_id']" domain="integer"/>
+                <param name="post.id" mapping="['post_id']" domain="integer"/>
+                <param name="parent_room.id" mapping="['parent_room_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <param name="is_resource" mapping="['is_resource']" domain="boolean"/>
+
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Помещение "{name}" успешно сохранено в системе.
+            </success-text>
+        </action>
+
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update pim_room set
+                      type_id = :type_id,
+                      code = :code,
+                      name = :name,
+                      department_id = :department_id,
+                      building_id = :building_id,
+                      floor_id = :floor_id,
+                      parent_room_id = :parent_room_id,
+                      from_dt = :from_dt,
+                      to_dt = :to_dt
+                    where id = :id;
+
+                    insert into md_room (id) select :id
+                    WHERE not exists (select id from md_room where id = :id);
+                    update md_room set post_id = :post_id where id = :id;
+
+                    insert into pha_room (id) select :id
+                    WHERE not exists (select id from pha_room where id = :id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="room_type.id" mapping="['type_id']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="department.id" mapping="['department_id']" domain="integer"/>
+                <param name="building.id" mapping="['building_id']" domain="integer"/>
+                <param name="floor.id" mapping="['floor_id']" domain="integer"/>
+                <param name="post.id" mapping="['post_id']" domain="integer"/>
+                <param name="parent_room.id" mapping="['parent_room_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="updateTechnicalInfo" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_room set
+                      floor_area = :floor_area
+                    where id = :id;
+
+                    insert into md_room (id)
+                      select :id
+                      WHERE not exists (select id from md_room where id = :id);
+
+                    with updates_pha_room as (
+                      update pha_room set
+                        danger_category_id = :danger_category_id,
+                        wall_area = :wall_area,
+                        ceiling_area = :ceiling_area,
+                        furniture_area = :furniture_area,
+                        equipment_area = :equipment_area,
+                        toilet_sink_quantity = :toilet_sink_quantity,
+                        bathroom_quantity = :bathroom_quantity,
+                        shower_quantity = :shower_quantity,
+                        sink_quantity = :sink_quantity,
+                        balcony_quantity = :balcony_quantity,
+                        kitchen_quantity = :kitchen_quantity,
+                        room_quantity = :room_quantity,
+                        window_view = :window_view
+                      where id = :id
+                    returning id )
+                    insert into pha_room(
+                      id,
+                      danger_category_id,
+                      wall_area,
+                      ceiling_area,
+                      furniture_area,
+                      equipment_area,
+                      toilet_sink_quantity,
+                      bathroom_quantity,
+                      shower_quantity,
+                      sink_quantity,
+                      balcony_quantity,
+                      kitchen_quantity,
+                      room_quantity,
+                      window_view)
+                    select
+                      :id,
+                      :danger_category_id,
+                      :wall_area,
+                      :ceiling_area,
+                      :furniture_area,
+                      :equipment_area,
+                      :toilet_sink_quantity,
+                      :bathroom_quantity,
+                      :shower_quantity,
+                      :sink_quantity,
+                      :balcony_quantity,
+                      :kitchen_quantity,
+                      :room_quantity,
+                      :window_view
+                    where not exists(select 1 from updates_pha_room);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="danger_category.id" mapping="['danger_category_id']" domain="integer"/>
+                <param name="floor_area" mapping="['floor_area']" domain="numeric"/>
+                <param name="wall_area" mapping="['wall_area']" domain="numeric"/>
+                <param name="ceiling_area" mapping="['ceiling_area']" domain="numeric"/>
+                <param name="furniture_area" mapping="['furniture_area']" domain="numeric"/>
+                <param name="equipment_area" mapping="['equipment_area']" domain="numeric"/>
+                <param name="toilet_sink_quantity" mapping="['toilet_sink_quantity']" domain="integer"/>
+                <param name="bathroom_quantity" mapping="['bathroom_quantity']" domain="integer"/>
+                <param name="shower_quantity" mapping="['shower_quantity']" domain="integer"/>
+                <param name="sink_quantity" mapping="['sink_quantity']" domain="integer"/>
+                <param name="balcony_quantity" mapping="['balcony_quantity']" domain="integer"/>
+                <param name="kitchen_quantity" mapping="['kitchen_quantity']" domain="integer"/>
+                <param name="room_quantity" mapping="['room_quantity']" domain="integer"/>
+                <param name="window_view" mapping="['window_view']" domain="string"/>
+
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Помещение "{name}" успешно обновлено.
+            </success-text>
+        </action>
+        
+        <action id="updateWardInfo">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="ACTION" out-parameters-context-type="TASK" next-task-id="2">
+                            <wf:note>Обновление палаты</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    update pim_room set
+                                      gender_id = :gender_id,
+                                      age_group_id = :age_group_id
+                                    where id = :id;
+
+                                    with updates_md_room as (
+                                      update md_room set
+                                        regimen_id = :regimen_id,
+                                        comfort_level_id = :comfort_level_id,
+                                        kind_id = :kind_id,
+                                        pit = :pit,
+                                        cell_count = :cell_count,
+                                        cell_count_extra = :cell_count_extra
+                                      where id = :id
+                                      returning id )
+                                    insert into md_room(
+                                      id,
+                                      regimen_id,
+                                      comfort_level_id,
+                                      kind_id,
+                                      pit,
+                                      cell_count,
+                                      cell_count_extra)
+                                    select
+                                      :id,
+                                      :regimen_id,
+                                      :comfort_level_id,
+                                      :kind_id,
+                                      :pit,
+                                      :cell_count,
+                                      :cell_count_extra
+                                    where not exists(select 1 from updates_md_room);
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0]"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:service-task id="2" in-parameters-context-type="ACTION" out-parameters-context-type="TASK">
+                            <wf:note>
+                                Определяем, нужно ли добавлять койки?
+                                Возможно добавить, если факт. кол-во используемых обычных коек меньше планируемой нормы обычных коек или
+                                если факт. кол-во используемых дополнительных коек меньше планируемой нормы дополнительных коек.
+                                И обязательно, чтобы тип помещения был - палата.
+                            </wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                   <![CDATA[
+                                    select
+
+                                    (select type_id from pim_room where id = :id) = 3
+
+                                    AND
+
+                                    (
+
+                                    (select count(mb.room_id)
+                                    from md_bed mb where mb.room_id = :id and
+                                    (mb.from_dt is null or CURRENT_DATE >= mb.from_dt) and
+                                    (mb.to_dt is null or mb.to_dt >= CURRENT_DATE) and
+                                    COALESCE(mb.additional_bed, false) ) < (select coalesce(cell_count_extra,0) from  md_room where id = :id)
+
+                                    OR
+
+                                    (select count(mb.room_id)
+                                    from md_bed mb where mb.room_id = :id and
+                                    (mb.from_dt is null or CURRENT_DATE >= mb.from_dt) and
+                                    (mb.to_dt is null or mb.to_dt >= CURRENT_DATE) and
+                                    not COALESCE(mb.additional_bed, false) ) < (select coalesce(cell_count,0) from  md_room where id = :id)
+
+                                    )
+                                    ]]>
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="true" next-task-id="3"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:user-task id="3"
+                                      template="stocks/n2o/ext/workflow/beds.add.notify.html">
+                            <wf:note>Спросить у пользователя, нужно ли создавать койки</wf:note>
+                            <wf:description>Количество коек меньше введенного значения. Добавить койки?</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Да" next-task-id="4"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="4" in-parameters-context-type="ACTION" out-parameters-context-type="TASK">
+                            <wf:note>
+                                Определяем профиль
+                            </wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    <![CDATA[
+
+                                    select (
+                                      case
+
+                                      /* Нет активных профилей - сообщить об ошибке */
+                                      when (
+                                        select get_active_department_profile_count(:department_id)
+                                      ) = 0 AND (
+                                        select get_active_room_profile_count(:id)
+                                      ) = 0 then 0
+
+                                      /* Необходимо создать койки с единственным активным профилем помещения */
+                                      when (
+                                        select get_active_room_profile_count(:id)
+                                      ) = 1 then 1
+
+                                      /* Необходимо выбрать профиль из списка активных профилей помещения */
+                                      when (
+                                        select get_active_room_profile_count(:id)
+                                      ) > 1 then 2
+
+                                      /* Необходимо создать койки с единственным активным профилем подразделения */
+                                      when (
+                                        select get_active_department_profile_count(:department_id)
+                                      ) = 1 then 3
+
+                                      /* Необходимо выбрать профиль из списка активных профилей подразделения */
+                                      when (
+                                        select get_active_department_profile_count(:department_id)
+                                      ) > 1 then 4
+
+                                      else 0
+                                      end
+                                    )
+                                    ]]>
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="0" next-task-id="5"/> <!-- Нет активных профилей - сообщить об ошибке -->  <!-- Выбираем профиль из списка активных профилей помещений -->
+                                <wf:result value="1" next-task-id="6"/> <!-- Создаем койки с единственным активным профилем помещения -->
+                                <wf:result value="2" next-task-id="7"/> <!-- Выбираем профиль из списка активных профилей помещений -->
+                                <wf:result value="3" next-task-id="8"/> <!-- Необходимо создать койки с единственным активным профилем подразделения -->
+                                <wf:result value="4" next-task-id="9"/> <!-- Выбираем профиль из списка активных профилей подразделения -->
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:user-task id="5" show-cancel-button="false"
+                                      template="stocks/n2o/ext/workflow/active.profiles.not.found.notify.html">
+                            <wf:note>Ошибка, не найден активный профиль коек</wf:note>
+                            <wf:description>Не удается установить профиль коек. Заполните профиль в отделении или помещении!</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Ок" next-task-id=""/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="6" in-parameters-context-type="ACTION" out-parameters-context-type="TASK" next-task-id="20">
+                            <wf:note>
+                                Выбрать единственный активный профиль помещения и передать его в функцию создания коек
+                            </wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    <![CDATA[
+                                        select id
+                                            from md_profile mrp
+                                            where exists (
+                                                select id
+                                                from md_room_profile
+                                                where room_id = :id and profile_id = mrp.id and
+                                                (from_dt isnull or from_dt <= current_date) and
+                                                (to_dt isnull or to_dt >= current_date)
+                                            )
+                                    ]]>
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_profile_id" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:service-task id="8" in-parameters-context-type="ACTION" out-parameters-context-type="TASK" next-task-id="20">
+                            <wf:note>
+                                Выбрать единственный активный профиль подразделения и передать его в функцию создания коек
+                            </wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    <![CDATA[
+                                        select id
+                                            from md_profile mrp
+                                            where exists (
+                                                select id
+                                                from md_department_profile
+                                                where department_id = :department_id and profile_id = mrp.id and
+                                                (from_dt isnull or from_dt <= current_date) and
+                                                (to_dt isnull or to_dt >= current_date)
+                                            )
+                                    ]]>
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_profile_id" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:service-task id="7" next-task-id="15" in-parameters-context-type="ACTION">
+                            <wf:note>Получаем список активных профилей помещения</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    <![CDATA[
+                                    select mrp.id as id, mrp.name as name from md_profile mrp
+                                        where exists (
+                                            select id
+                                            from md_room_profile
+                                            where room_id = :id and profile_id = mrp.id and
+                                            (from_dt isnull or from_dt <= current_date) and
+                                            (to_dt isnull or to_dt >= current_date)
+                                        )
+                                    ]]>
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="[0]"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:service-task id="9" next-task-id="15" in-parameters-context-type="ACTION">
+                            <wf:note>Получаем список активных профилей подразделения</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    <![CDATA[
+                                    select mrp.id as id, mrp.name as name from md_profile mrp
+                                        where exists (
+                                            select id
+                                            from md_department_profile
+                                            where department_id = :department_id and profile_id = mrp.id and
+                                            (from_dt isnull or from_dt <= current_date) and
+                                            (to_dt isnull or to_dt >= current_date)
+                                        )
+                                    ]]>
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="[0]"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="15" template="stocks/n2o/ext/workflow/profiles.list.html"
+                                      use-wf-context="true">
+                            <wf:title>Выбор профиля</wf:title>
+                            <wf:description>Выберите профиль для новых коек</wf:description>
+                            <wf:choices>
+                                <wf:choice title="Выбрать" next-task-id="20"/>
+                            </wf:choices>
+                        </wf:user-task>
+
+                        <wf:service-task id="20" in-parameters-context-type="JOIN">
+                            <wf:note>Отправка запроса на добавление коек</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                   select create_lacking_beds(:id,:wf_profile_id::integer);
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="wf_profile_id" mapping="['wf_profile_id']"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="regimen.id" mapping="['regimen_id']" domain="integer"/>
+                <param name="comfort_level.id" mapping="['comfort_level_id']" domain="integer"/>
+                <param name="kind.id" mapping="['kind_id']" domain="integer"/>
+                <param name="gender.id" mapping="['gender_id']" domain="integer"/>
+                <param name="age_group.id" mapping="['age_group_id']" domain="integer"/>
+                <param name="pit" mapping="['pit']" domain="boolean"/>
+                <param name="cell_count" mapping="['cell_count']" domain="integer"/>
+                <param name="cell_count_extra" mapping="['cell_count_extra']" domain="integer"/>
+                <param name="department.id" mapping="['department_id']" domain="integer"/> <!-- just for check -->
+
+
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from pha_room where id = :id;
+                    delete from md_room where id = :id;
+                    delete from public.pim_room where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что помещение "{name}" должно быть удалено?
+            </confirmation-text>
+            <success-text>
+                Помещение "{name}" успешно удалено.
+            </success-text>
+        </action>
+
+        <action id="deleteRoomResource" form-submit-label="Удалить ресурс" name="Удалить ресурс">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_room_resource where id = :resource_id;
+                    delete from public.sr_resource where id = :resource_id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="resource_id" mapping="['resource_id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что ресурс должен быть удален?
+            </confirmation-text>
+            <success-text>
+                Ресурс успешно удален.
+            </success-text>
+        </action>
+    </actions>
+
+</object>

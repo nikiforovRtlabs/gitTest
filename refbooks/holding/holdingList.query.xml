@@ -1,0 +1,154 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>holding</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.holding h
+                left outer join inventory.commodity_group cgroup on h.commodity_group_id=cgroup.id
+                left outer join inventory.inn inn on inn.id=h.inn_id
+                left outer join pim_organization org on org.id=h.org_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(h)
+                from inventory.holding h
+                left outer join inventory.commodity_group cgroup on h.commodity_group_id=cgroup.id
+                left outer join inventory.inn inn on inn.id=h.inn_id
+                left outer join pim_organization org on org.id=h.org_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>h</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <name>Код</name>
+        </field>
+        <field>
+            <id>commonPrototype.id</id>
+            <domain>integer</domain>
+            <expression>h.prototype_id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>h.name</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>latinName</id>
+            <domain>string</domain>
+            <name>Латинское</name>
+            <expression>h.latin_name</expression>
+        </field>
+        <field>
+            <id>inn.name</id>
+            <domain>string</domain>
+            <name>МНН</name>
+            <expression>inn.name_rus</expression>
+        </field>
+        <field>
+            <id>inn.id</id>
+            <domain>integer</domain>
+            <expression>inn.id</expression>
+            <search>:expression= :inn.id</search>
+        </field>
+        <field>
+            <id>comGroup.name</id>
+            <domain>string</domain>
+            <name>Группа ТМЦ</name>
+            <expression>cgroup.name</expression>
+        </field>
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>cgroup.id</expression>
+        </field>
+        <field>
+            <id>comGroups*.id</id>
+            <domain>integer[]</domain>
+            <search>cgroup.id in (:comGroups*.id)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>org.name</id>
+            <domain>string</domain>
+            <name>Организация</name>
+            <expression>org.short_name</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>string</domain>
+            <name>Организация</name>
+            <expression>org.id</expression>
+            <search value="#{org.id?}">(:expression = :org.id or :expression is null)</search>
+        </field>
+        <field>
+            <id>isCommon</id>
+            <domain>boolean</domain>
+            <name>Общий</name>
+            <expression>org.id is null</expression>
+        </field>
+        <field>
+            <id>vital</id>
+            <domain>boolean</domain>
+            <name>ЖВНЛП</name>
+            <expression>is_vital</expression>
+            <search>:expression = :vital</search>
+        </field>
+        <field>
+            <id>accounting</id>
+            <domain>boolean</domain>
+            <name>ПКУ</name>
+            <expression>is_accounting</expression>
+            <search>:expression = :accounting</search>
+        </field>
+        <field>
+            <id>guaranty</id>
+            <domain>boolean</domain>
+            <name>ПГГ</name>
+            <expression>is_guaranty</expression>
+            <search>:expression = :guaranty</search>
+        </field>
+        <field>
+            <id>ven.id</id>
+            <domain>integer</domain>
+            <expression>ven</expression>
+        </field>
+        <field>
+            <id>atcs*.id</id>
+            <domain>integer[]</domain>
+            <search>exists (select 1 from inventory.holding_atc a where holding_id=h.id and a.atc_id in (:atcs*.id))</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>pharmGroups*.id</id>
+            <domain>integer[]</domain>
+            <search>exists (select 1 from inventory.holding_pharm_group  where holding_id=h.id and pharm_group_id in (:pharmGroups*.id))</search>
+            <display unavailable="true"/>
+        </field>
+       <field>
+           <id>officialLists*.id</id>
+           <domain>integer[]</domain>
+           <search>exists (select 1 from inventory.holding_official_list where holding_id=h.id and official_list_id in (:officialLists*.id))</search>
+           <display unavailable="true"/>
+       </field>
+        <field>
+            <id>modifCode</id>
+            <domain>string</domain>
+            <display>(select coalesce(:modifCode,''))</display>
+            <search>
+                exists(select 1 from inventory.hold_modif hm where upper(hm.code) like '%'||upper(:modifCode)||'%' and hm.holding_id = h.id and
+                (hm.org_owner_id is null or hm.org_owner_id = :org.id ))
+            </search>
+        </field>
+    </fields>
+</query>

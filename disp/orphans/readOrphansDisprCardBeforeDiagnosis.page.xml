@@ -1,0 +1,202 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+    <name>Диагноз</name>
+    <object-id>orphansDisprCardDiagnosis</object-id>
+    <layout>n2o/layout/single</layout>
+    <containers>
+        <container id="main" place="single">
+            <wgt:form customize="jsp" src="n2o/widgets/custom/readDiagnosisBeforeOrphans">
+                <wgt:id>disprCardDiagnosis</wgt:id>
+                <wgt:query-id>orphansDisprCardDiagnosis</wgt:query-id>
+                <!--<wgt:default-values-query-id>disprCardDiagnosisDef</wgt:default-values-query-id>-->
+                <wgt:name>Диагноз</wgt:name>
+                <fs:field-set field-label-location="top" header="none">
+                    <fs:row>
+                        <ctrl:hidden id="copied" default-value="false"/>
+                        <ctrl:select id="diagnosisType" label="Вид" required="true" css-class="n2o-label-4 n2o-control-4" readonly="true">
+                            <ctrl:query query-id="disprCardDiagnosisDT" label-field-id="name" value-field-id="id" />
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="copied">copied == false</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:select>
+                        <ctrl:classifier id="diagnosis" label="Код МКБ-10" required="true" css-class="n2o-label-9 n2o-control-9" readonly="true">
+                            <ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name"/>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="copied">copied == false</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+                        <ctrl:checkbox id="suspicion" label="Подозрение" css-class="n2o-label-4 n2o-control-4" readonly="true">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="copied">copied == false</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                            <ctrl:set-value-expression on="diagnosis">
+                                if ((diagnosis==null)||(diagnosis &amp;&amp; typeof diagnosis.id== 'undefined' )) null
+                                else throw('!');
+                            </ctrl:set-value-expression>
+                        </ctrl:checkbox>
+                        <ctrl:select id="disease" label="Характер заболевания" css-class="n2o-label-8 n2o-control-8" readonly="true">
+                            <ctrl:query query-id="disprCardDiagnosisDis" label-field-id="name" value-field-id="id" />
+                            <ctrl:dependencies >
+                                <ctrl:required-condition on="suspicion,diagnosis">(((typeof suspicion ==
+                                    'undefined')||(suspicion==false)||(suspicion==null))
+                                    &amp;&amp;(( typeof diagnosis != 'undefined' )&amp;&amp;(diagnosis.id!=null)&amp;&amp;(diagnosis.code.indexOf('Z') == -1))
+                                    )
+                                </ctrl:required-condition>
+                                <ctrl:enabling-condition on="copied">copied == false</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                            <ctrl:set-value-expression on="diagnosis" on-load="true" on-non-empty="true">
+                                if ((diagnosis!=null)&amp;&amp;(!diagnosis || typeof diagnosis.code!= 'undefined' )&amp;&amp;(diagnosis.code.indexOf('Z')== 0))
+                                {var o = new Object(); o.id=parseInt(character); o.code = '40'; o.name = 'Прочее (для Z00-Z99)'; o;} else throw '!'
+                            </ctrl:set-value-expression>
+                        </ctrl:select>
+                        <ctrl:date-time id="date" label="Дата установления" css-class="n2o-label-4 n2o-control-4" readonly="true">
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="copied">copied == false</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:date-time>
+
+                        <ctrl:checkbox id="make_d" label="Взят на Д-учет" css-class="n2o-label-4 n2o-control-4" control-style="margin-top: 12px;" readonly="true">
+                        </ctrl:checkbox>
+                        <ctrl:hidden id="id" domain="integer"/>
+                        <ctrl:hidden id="result.id" domain="integer"/>
+                        <ctrl:hidden id="result.case_id" domain="integer"/>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:checkbox id="is_d" label="Состоит на Д-учете" css-class="n2o-label-5 n2o-control-5" readonly="true"/>
+                        <ctrl:checkbox id="is_before_d" label="Состоял ранее на Д-учете" css-class="n2o-label-5 n2o-control-5"/>
+                    </fs:row>
+                </fs:field-set>
+                <fs:field-set field-label-location="top" header="none">
+                    <fs:row>
+                        <ctrl:select id="extra_cons_assigned_type" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="typeTreatment" value-field-id="id" label-field-id="name"/>
+                        </ctrl:select>
+                        <ctrl:select id="extra_cons_assigned_org" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="organ" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="treatment_type2" ref="extra_cons_assigned_type.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="extra_cons_assigned_type">
+                                    (typeof extra_cons_assigned_type != 'undefined') &amp;&amp; (extra_cons_assigned_type != null) &amp;&amp; (extra_cons_assigned_type.id != null)
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:select>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:select id="extra_cons_performed_type" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="typeTreatment" value-field-id="id" label-field-id="name"/>
+                        </ctrl:select>
+                        <ctrl:select id="extra_cons_performed_org" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="organ" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="treatment_type2" ref="extra_cons_performed_type.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="extra_cons_performed_type">
+                                    (typeof extra_cons_performed_type != 'undefined') &amp;&amp; (extra_cons_performed_type != null) &amp;&amp; (extra_cons_performed_type.id != null)
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:select>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:select id="therapy_assigned_type" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="typeTreatment" value-field-id="id" label-field-id="name"/>
+                        </ctrl:select>
+                        <ctrl:select id="therapy_assigned_org" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="organ" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="treatment_type" ref="therapy_assigned_type.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="therapy_assigned_type">
+                                    (typeof therapy_assigned_type != 'undefined') &amp;&amp; (therapy_assigned_type != null) &amp;&amp; (therapy_assigned_type.id != null)
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:select>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:select id="therapy_performed_type" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="typeTreatment" value-field-id="id" label-field-id="name"/>
+                        </ctrl:select>
+                        <ctrl:select id="therapy_performed_org" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="organ" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="treatment_type" ref="therapy_performed_type.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="therapy_performed_type">
+                                    (typeof therapy_performed_type != 'undefined') &amp;&amp; (therapy_performed_type != null) &amp;&amp; (therapy_performed_type.id != null)
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:select>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:select id="rehabilitation_assigned_type" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="typeTreatment" value-field-id="id" label-field-id="name"/>
+                        </ctrl:select>
+                        <ctrl:select id="rehabilitation_assigned_org" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="organ" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="treatment_type" ref="rehabilitation_assigned_type.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="rehabilitation_assigned_type">
+                                    (typeof rehabilitation_assigned_type != 'undefined') &amp;&amp; (rehabilitation_assigned_type != null) &amp;&amp; (rehabilitation_assigned_type.id != null)
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:select>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:select id="rehabilitation_performed_type" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="typeTreatment" value-field-id="id" label-field-id="name"/>
+                        </ctrl:select>
+                        <ctrl:select id="rehabilitation_performed_org" label-style="display: none;" readonly="true">
+                            <ctrl:query query-id="organ" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="treatment_type" ref="rehabilitation_performed_type.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition on="rehabilitation_performed_type">
+                                    (typeof rehabilitation_performed_type != 'undefined') &amp;&amp; (rehabilitation_performed_type != null) &amp;&amp; (rehabilitation_performed_type.id != null)
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:select>
+                    </fs:row>
+                </fs:field-set>
+                <fs:field-set field-label-location="top" header="none">
+                    <fs:row>
+                        <ctrl:select id="therapy_amb_fail" label="Лечение в амб.условиях не выполнено" css-class="n2o-label-8 n2o-control-8" readonly="true">
+                            <ctrl:query query-id="absence_reason"  value-field-id="id" label-field-id="name"/>;
+                        </ctrl:select>
+                        <ctrl:select id="therapy_hos_fail" label="Лечение в стац.условиях не выполнено" css-class="n2o-label-8 n2o-control-8" readonly="true">
+                            <ctrl:query query-id="absence_reason"  value-field-id="id" label-field-id="name"/>;
+                        </ctrl:select>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:select id="rehabilitation_amb_fail" label="Реабилитация в амб.условиях не выполнена" css-class="n2o-label-8 n2o-control-8" readonly="true">
+                            <ctrl:query query-id="absence_reason"  value-field-id="id" label-field-id="name"/>;
+                        </ctrl:select>
+                        <ctrl:select id="rehabilitation_hos_fail" label="Реабилитация в стац.условиях не выполнена" css-class="n2o-label-8 n2o-control-8" readonly="true">
+                           <ctrl:query query-id="absence_reason"  value-field-id="id" label-field-id="name"/>;
+                        </ctrl:select>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:classifier id="recommended_vmp" label="Рекомендованная ВМП" css-class="n2o-label-7 n2o-control-5" readonly="true">
+                            <ctrl:query query-id="resultRecommendedVmp" detail-field-id="id" label-field-id="name" />
+                        </ctrl:classifier>
+                    </fs:row>
+                </fs:field-set>
+            </wgt:form>
+        </container>
+    </containers>
+</page>

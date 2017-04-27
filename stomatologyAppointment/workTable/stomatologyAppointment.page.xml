@@ -1,0 +1,297 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+
+    <object-id>stomatologyAppointment</object-id>
+    <name>Рабочий стол врача/медсестры</name>
+    <layout>stomatology/n2o/layout/workTableLayout</layout>
+    <regions>
+        <region place="resourceFilter" type="none">
+            <container id="resourceFilter" refresh-dependent-container="true">
+                <wgt:edit-form customize="css" src="stomatology/n2o/custom/appointmentList/resourceFilter" css-class="resource-filter">
+                    <wgt:model>query</wgt:model>
+                    <wgt:query-id>stomatologyResourceGroupFilter</wgt:query-id>
+                    <fs:field-set style="padding:0px;">
+                        <ctrl:classifier id="stomResourceGroup" autoselect-first="true" label="Ресурс" required="true">
+                            <ctrl:query query-id="employeeResourceGroup" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="employeePositionId" value="#{emplPos.id}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:update-model target="form" query-id="stomatologyResourceGroupFilterSet" master-field-id="stomResourceGroup.id"
+                                               detail-field-id="stomResourceGroup.id" value-field-id="id"/>
+                            <ctrl:set-value-expression on-load="true">
+                                <![CDATA[
+                                    var o = null;
+                                    if(stomResourceGroup.id == null) {
+                                        o = defaultVal;
+                                    } else {
+                                        o = {'id': stomResourceGroup.id, 'name': stomResourceGroup.name};
+                                    }
+                                    o;
+                                ]]>
+                            </ctrl:set-value-expression>
+                        </ctrl:classifier>
+                    </fs:field-set>
+                </wgt:edit-form>
+                <pre-filters>
+                    <pre-filter field-id="emplPosId" value="#{emplPos.id}"/>
+                </pre-filters>
+            </container>
+        </region>
+        <region place="top">
+            <container id="appointments" depends-on="resourceFilter">
+                <wgt:table master-field-id="stomResourceGroup.id" detail-field-id="resourceGroup.id">
+                    <wgt:name>Записавшиеся на прием</wgt:name>
+                    <wgt:query-id>stomatologyAppointmentMainList</wgt:query-id>
+                    <wgt:size>10</wgt:size>
+                    <wgt:action-menu>
+                        <wgt:group>
+                            <wgt:menu-item id="stomCard" label="СМК" icon="icomoon-book">
+                                <wgt:open-page page-id="stomatologyCard" container-id="personalDataOfThePatient">
+                                    <wgt:pre-filters>
+                                        <wgt:pre-filter field-id="srvRenderedId" ref="id"/>
+                                        <wgt:pre-filter field-id="clinicId" ref="serviceRendered.orgId"/>
+                                        <wgt:pre-filter field-id="employeePosId" ref="employeePosId"/>
+                                    </wgt:pre-filters>
+                                </wgt:open-page>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>hasPrevious == true</wgt:expression>
+                                    </wgt:enabling-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                            <wgt:menu-item id="toPatient" label="Пациент" icon="icomoon-user">
+                                <wgt:a href="/pats/patients/:patient.id:/edit?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html"
+                                       target="newWindow"/>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>patient.id != null</wgt:expression>
+                                    </wgt:enabling-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                        </wgt:group>
+                        <wgt:menu-item id="createAppointment" label="Без записи" context="false"
+                                       color="btn btn-success" icon="icomoon-binoculars">
+                            <wgt:show-modal page-id="createNoRecordStomAppointment" refresh-on-close="true"
+                                            focus-after-submit="true" model="default" width="950px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="resultAdmission" label="Результаты" context="true" color="btn btn-primary"
+                                       icon="icomoon-file-text" key="Enter" default="true">
+                            <wgt:open-page page-id="stomatologyAdmissionMain" master-field-id="serviceRendered.id"
+                                           detail-field-id="id" refresh-on-close="true">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="emplPosRes.id" value="#{emplPosRes.id}"/>
+                                    <wgt:pre-filter field-id="org.id" value="#{org.id}"/>
+                                </wgt:pre-filters>
+                            </wgt:open-page>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>patient.id != null</wgt:expression>
+                                </wgt:enabling-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>appointmentState != 'Отменена'</wgt:expression>
+                                    <wgt:tooltip>Запись отменена</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="cancelVisit" label="Удалить посещение" context="true" icon="icomoon-bin">
+                            <wgt:invoke-action action-id="cancelVisit" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>appointmentState == 'Оказана'</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>caseState != true</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="cancelAppointment" label="Отменить запись" context="true" icon="icomoon-cross">
+                            <wgt:invoke-action action-id="cancelAppointment" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>appointmentState != 'Оказана' &amp;&amp; appointmentId == null &amp;&amp; serviceRendered.id != null
+                                    </wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="cancelNoRecordAppointment" label="Отменить запись" context="true"
+                                       icon="icomoon-cross">
+                            <wgt:show-modal page-id="cancelStomatologyAppointment" master-field-id="id"
+                                            detail-field-id="id" action-id="cancelAppointment"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>appointmentState != 'Оказана' &amp;&amp; appointmentId != null &amp;&amp; serviceRendered.id != null
+                                    </wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>appointmentState != 'Отменена'</wgt:expression>
+                                    <wgt:tooltip>Запись отменена</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="modifyReception" label="Перенести запись" context="true"
+                                       icon="icomoon-undo2">
+                            <!--https://jira.is-mis.ru/browse/RMISDEV-3599-->
+                            <!--<wgt:show-modal page-id="modifyStomatologyReception" action-id="updateReception"
+                                            refresh-on-close="true" master-field-id="serviceRendered.id"
+                                            detail-field-id="id"/>-->
+                            <wgt:a href="${rmis.external.host}/plan/planning?organizationId=:serviceRendered.orgId:&amp;value=:patient.id:&amp;service.id=:serviceRendered.serviceId:&amp;:createCase.resourceGroupId:" target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>patient.id != null &amp;&amp; appointmentId != null &amp;&amp; stepId == null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:group>
+                            <wgt:menu-item id="getPlanedState" label="Вызвать" context="true" color="btn btn-info"
+                                           icon="icomoon-bullhorn">
+                                <wgt:invoke-action action-id="getPlanedState" refresh-after-submit="true"
+                                                   confirmation="false" focus-after-submit="true"/>
+                                <wgt:conditions>
+                                    <wgt:visibility-condition>
+                                        <wgt:expression>appointmentState == 'Ожидает'</wgt:expression>
+                                    </wgt:visibility-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                        </wgt:group>
+                        <wgt:group>
+                            <wgt:menu-item id="getPlanedState2" label="Вызвать" context="true" color="btn btn-info"
+                                           icon="icomoon-bullhorn">
+                                <wgt:invoke-action action-id="getPlanedState" refresh-after-submit="true"
+                                                   confirmation="false" focus-after-submit="true"/>
+                                <wgt:conditions>
+                                    <wgt:visibility-condition>
+                                        <wgt:expression>appointmentState == 'Не явился'</wgt:expression>
+                                    </wgt:visibility-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                        </wgt:group>
+                        <wgt:group>
+                            <wgt:menu-item id="getDidNotComeState" label="Не явился" context="true"
+                                           color="btn btn-danger" icon="icomoon-user-minus">
+                                <wgt:invoke-action action-id="getDidNotComeState" refresh-after-submit="true"
+                                                   confirmation="false" focus-after-submit="true"/>
+                                <wgt:conditions>
+                                    <wgt:visibility-condition>
+                                        <wgt:expression>appointmentState == 'Вызван'</wgt:expression>
+                                    </wgt:visibility-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                        </wgt:group>
+                    </wgt:action-menu>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="cito" width="1%">
+                            <wgt:color color-field-id="citoBadge"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="bdate" format="date DD.MM.YYYY">
+                            <wgt:color color-field-id="appointmentStateColor"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="bdatetime">
+                            <wgt:color color-field-id="appointmentStateColor"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="appointmentState" width="10%" name="Статус">
+                            <wgt:color color-field-id="badge"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="patient.name" width="30%">
+                            <wgt:color color-field-id="appointmentStateColor"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="ticket_number">
+                            <wgt:color color-field-id="appointmentStateColor"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="serviceName"/>
+                        <wgt:column column-field-id="sourceName"/>
+                        <wgt:column column-field-id="phoneNumber"/>
+                    </wgt:columns>
+
+                    <wgt:filters position="top" opened="true">
+                        <ctrl:date-interval id="dt" required="true" label="Дата" format="DD.MM.YYYY" label-style="min-height: 15px;" popup-placement="down,right">
+                            <ctrl:default-model begin="today()" end="today()"/>
+                        </ctrl:date-interval>
+                        <ctrl:checkbox id="appointmentIsNull" label="Не показывать пустые записи" default-value="true"/>
+                    </wgt:filters>
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="bdate" direction="ASC"/>
+                        <wgt:sorting sorting-field-id="bdatetime" direction="ASC"/>
+                    </wgt:sortings>
+                </wgt:table>
+
+                <pre-filters>
+                    <pre-filter field-id="employeePosId" value="#{emplPos.id?}"/>
+                    <!--<pre-filter field-id="isHouseCall" value="false"/>-->
+                </pre-filters>
+            </container>
+        </region>
+
+        <region place="bottom">
+            <container id="cases" depends-on="appointments" refresh-dependent-container="true">
+                <wgt:table detail-field-id="patientId" master-field-id="patient.id">
+                    <wgt:name>Случаи обращения</wgt:name>
+                    <wgt:query-id>patientOpenedStomatologyCase</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="caseIsClosedState"/>
+                        <wgt:column column-field-id="uid" width="10%"/>
+                        <wgt:column column-field-id="caseDate" width="10%"/>
+                        <wgt:column column-field-id="openDoctor.name" width="30%"/>
+                        <wgt:column column-field-id="openDoctorSpeciality.name"/>
+                        <wgt:column column-field-id="mainDiagnosisName" width="30%"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="goCase" label="Информация по случаю" color="group">
+                            <wgt:open-page page-id="resultsAdmissionReadOnly" refresh-on-close="true">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="id" ref="id"/>
+                                </wgt:pre-filters>
+                            </wgt:open-page>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:filters position="top" opened="false">
+                        <ctrl:select-tree id="openDoctorSpeciality" label="Специальность" search="true" ajax="false">
+                            <ctrl:inheritance-nodes query-id="clinicDoctorSpeciality" parent-field-id="parentId"
+                                                    has-children-field-id="hasChildren" search-field-id="name"/>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{spec.id?}</ctrl:value>
+                                <ctrl:value field-id="name">#{spec.name?}</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:select-tree>
+                        <ctrl:classifier id="openDoctor" label="Врач" search-as-you-type="true">
+                            <ctrl:query query-id="clinicDoctor" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="specialityId" ref="openDoctorSpeciality.id"/>
+                                    <ctrl:pre-filter field-id="patientId" ref="patientId"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on="openDoctorSpeciality" on-load="false" on-non-empty="true">null</ctrl:set-value-expression>
+                        </ctrl:classifier>
+                        <ctrl:checkbox id="caseIsClosed" label="Открытые случаи" default-value="true"/>
+                    </wgt:filters>
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="openDate" direction="DESC"/>
+                    </wgt:sortings>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="isHouseCall" ref="createCase.isHouseCall"/>
+                    <pre-filter field-id="resourceGroup.id" ref="createCase.resourceGroupId"/>
+                    <pre-filter field-id="serviceRendered.id" ref="createCase.serviceRenderedId"/>
+                    <pre-filter field-id="serviceRendered.orgId" ref="createCase.serviceRenderedOrgId"/>
+                    <pre-filter field-id="serviceRendered.patientId" ref="createCase.serviceRenderedPatientId"/>
+                    <pre-filter field-id="serviceRendered.resGroupId" ref="createCase.serviceRenderedResGroupId"/>
+                    <pre-filter field-id="serviceRendered.plannedDate" ref="createCase.serviceRenderedPlannedDate"/>
+                    <pre-filter field-id="serviceRendered.resGroupIsSystem"
+                                ref="createCase.serviceRenderedResGroupIsSystem"/>
+                    <pre-filter field-id="appointmentId" ref="createCase.appointmentId"/>
+                    <pre-filter field-id="visitDate" ref="createCase.visitDate"/>
+                    <pre-filter field-id="isState" ref="createCase.isState"/>
+                    <pre-filter field-id="appointment.patientId" ref="createCase.patientId"/>
+                    <pre-filter field-id="doctorId" ref="doctorId"/>
+                </pre-filters>
+            </container>
+        </region>
+    </regions>
+</page>

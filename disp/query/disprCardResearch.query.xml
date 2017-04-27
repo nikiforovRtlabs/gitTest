@@ -1,0 +1,160 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <id>disprCardResearch</id>
+    <name>disprCardResearch</name>
+    <object-id>disprCardResearch</object-id>
+    <execution>
+
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                left join disp.md_dispr_research mdr on mdr.id=mep.id
+                left join disp.md_circulatory_system mcs on mcs.id=mdr.circulatory_system
+                left join disp.md_event_questioning meq on meq.id = mep.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mep)
+                from disp.md_event_patient mep
+                left join disp.md_dispr_research mdr on mdr.id=mep.id
+                left join disp.md_circulatory_system mcs on mcs.id=mdr.circulatory_system
+                left join disp.md_event_questioning meq on meq.id = mep.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+
+       <!-- <n2o:rest>
+            <n2o:query>
+                ${n2o.backend.path}/dispensary/getDisprResearch
+            </n2o:query>
+           &lt;!&ndash; <n2o:query-by-id>
+                http://127.0.0.1:38088/Demo/rest/getDispr?id={id}
+            </n2o:query-by-id>&ndash;&gt;
+            <n2o:response-mapping collection="list" count="count"/>
+            &lt;!&ndash;<n2o:filter param-name="filters" separator=";"/>&ndash;&gt;
+            <n2o:sorting-direction asc="ASC" desc="DESC"/>
+        </n2o:rest>-->
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+            <search>mep.id = :id</search>
+        </field>
+
+        <field>
+            <id>indivId</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indivId</search>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>Integer</domain>
+            <display>mep.event_id</display>
+            <search>mep.event_id = :eventId</search>
+        </field>
+        <field>
+            <id>circulatory_system.id</id>
+            <domain>Integer</domain>
+            <expression>mdr.circulatory_system</expression>
+            <display>case when (mdr.id is not null) then mdr.circulatory_system
+                when (meq.q10=1) then 1
+                else null end</display>
+            <search>mdr.circulatory_system = :circulatory_system.id</search>
+        </field>
+        <field>
+            <id>neoplasm.id</id>
+            <domain>Integer</domain>
+            <expression>mdr.neoplasm</expression>
+            <display>case when (mdr.id is not null) then mdr.neoplasm
+                when (meq.q12=1) then 1
+                else null end</display>
+            <search>mdr.neoplasm = :neoplasm.id</search>
+        </field>
+        <field>
+            <id>has_stenocardia</id>
+            <domain>boolean</domain>
+            <expression>mdr.has_stenocardia</expression>
+            <display>case when (select count(mcd.id) from MC_DIAGNOSIS mcd
+                left join md_diagnosis mdd on mdd.id = mcd.diagnos_id
+                where mcd.case_id = mep.case_id and mcd.is_suspicion = true and mdd.code like 'I20%')>0 then true else false end</display>
+        </field>
+        <field>
+            <id>has_tuberculosis</id>
+            <domain>boolean</domain>
+            <expression>mdr.has_tuberculosis</expression>
+            <display>
+                case when (mdr.id is not null) then mdr.has_tuberculosis
+                when (select count(mcd.id) from MC_DIAGNOSIS mcd
+                left join md_diagnosis mdd on mdd.id = mcd.diagnos_id
+                where (mcd.case_id = mep.case_id) and (mcd.is_suspicion = true) and (
+                mdd.code like 'A15%' or mdd.code like 'A16%' or mdd.code like 'A17%' or mdd.code like 'A18%' or mdd.code like 'A19%' or
+                mdd.code like 'C33%' or mdd.code like 'C34%' or mdd.code like 'J40%' or mdd.code like 'J41%' or mdd.code like 'J42%' or
+                mdd.code like 'J43%' or mdd.code like 'J44%' or mdd.code like 'J45%' or   mdd.code like 'J46%' or   mdd.code like 'J47%'
+                ))>0 then true
+                when (meq.q19=1 or meq.q20=1) then true
+                else false end</display>
+        </field>
+
+        <field>
+            <id>has_non_infectious_disease</id>
+            <domain>boolean</domain>
+            <expression>mdr.has_non_infectious_disease</expression>
+            <display>case when (select count(mcd.id) from MC_DIAGNOSIS mcd
+                left join md_diagnosis mdd on mdd.id = mcd.diagnos_id
+                where (mcd.case_id = mep.case_id) and (mcd.is_suspicion = true) and ((mdd.code not like 'I20%') and
+                ((mdd.code >= 'B99' or 'A00' >=  mdd.code) and mdd.code not like 'B99%'  and mdd.code not like 'A00%') and
+                ((mdd.code >= 'C34' or 'C33' >= mdd.code) and (mdd.code not like 'C34%' and mdd.code not like 'C33%')) and
+                ((mdd.code >= 'J47' or 'J40' >= mdd.code) and mdd.code not like 'J47%' and mdd.code not like 'J40%')))>0 then true else false end</display>
+        </field>
+        <field>
+            <id>has_infectious_disease</id>
+            <domain>boolean</domain>
+            <expression>mdr.has_infectious_disease</expression>
+            <display>case when (select count(mcd.id) from MC_DIAGNOSIS mcd
+                left join md_diagnosis mdd on mdd.id = mcd.diagnos_id
+                where (mcd.case_id = mep.case_id) and (mcd.is_suspicion = true) and (mdd.code >= 'A00' AND 'B99' >= mdd.code or mdd.code like 'A00%' or mdd.code like 'B99%') )>0 then true else false end</display>
+        </field>
+        <field>
+            <id>has_onmk</id>
+            <domain>boolean</domain>
+            <expression>mdr.has_onmk</expression>
+            <display>case when (select count(mcd.id) from MC_DIAGNOSIS mcd
+                left join md_diagnosis mdd on mdd.id = mcd.diagnos_id
+                where (mcd.case_id = mep.case_id) and (mcd.is_suspicion = true) and (mdd.code = 'I63.0' or  mdd.code = 'I61.0' or mdd.code = 'I60.0' or mdd.code = 'I61.0' or
+                mdd.code = 'I67.8' or mdd.code = 'G45.0' or mdd.code = 'I64.0' or mdd.code = 'I67.8'
+                ))>0 then true else false end</display>
+
+        </field>
+        <field>
+            <id>has_go_to_duplex</id>
+            <domain>boolean</domain>
+            <expression>mdr.has_go_to_duplex</expression>
+            <display>case when (mdr.id is not null) then mdr.has_go_to_duplex
+                when (meq.q15=1 or meq.q16=1 or meq.q17=1 or meq.q18=1 or meq.qa12=1 or meq.qa13=1 or meq.qa14=1) then true
+                else false end</display>
+        </field>
+        <field>
+            <id>has_go_to_eso</id>
+            <domain>boolean</domain>
+            <expression>mdr.has_go_to_eso</expression>
+            <display>case when (mdr.id is not null) then mdr.has_go_to_eso
+                when (meq.q21=1 or meq.q22=1 or meq.q25=1) then true
+                else false end
+            </display>
+        </field>
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>(select org_id from disp.md_event me where me.id = mep.event_id)</expression>
+            <display>:expression</display>
+            <search>:expression = :org_id</search>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,268 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+
+    <object-id>patient_vac_list</object-id>
+    <name>patient_vac_list</name>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from vac_inoculation vi
+                JOIN public.pim_indiv_code pic on pic.code = vi.patient_uid and pic.type_id = (select id from public.pim_code_type where upper(code) = upper('UID'))
+                JOIN public.pim_individual pi on pi.id = pic.indiv_id
+                JOIN vac.patient_is_group pig ON pi.id = pig.patient_id AND pig.group_id = :groupId
+
+                JOIN vac_vaccine vv on vv.id = vi.vaccine_id
+                JOIN vac_inoculation_status vis on vis.id = vi.status_id
+                JOIN vac_disease vdis on vdis.id = vv.disease_id
+
+                left join vac_number vn on vn.id = vi.number_id
+                left join vac_inp_type vit on vit.id = vi.inp_type_id
+
+                left join vac_dose vd on vd.id = vi.dose_id
+                left join vac_series vs on vs.id = vi.series_id
+                left join public.pim_gender pg on pg.id = pi.gender_id
+
+                left join vac_dose_type vdt on vdt.id = vd.dose_type_id
+
+                where vi.deleted is false
+                and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from vac_inoculation vi
+                JOIN public.pim_indiv_code pic on pic.code = vi.patient_uid and pic.type_id = (select id from public.pim_code_type where upper(code) = upper('UID'))
+                JOIN public.pim_individual pi on pi.id = pic.indiv_id
+                JOIN vac.patient_is_group pig ON pi.id = pig.patient_id AND pig.group_id = :groupId
+
+                JOIN vac_vaccine vv on vv.id = vi.vaccine_id
+                JOIN vac_inoculation_status vis on vis.id = vi.status_id
+                JOIN vac_disease vdis on vdis.id = vv.disease_id
+
+                left join vac_number vn on vn.id = vi.number_id
+                left join vac_inp_type vit on vit.id = vi.inp_type_id
+
+                left join vac_dose vd on vd.id = vi.dose_id
+                left join vac_series vs on vs.id = vi.series_id
+                left join public.pim_gender pg on pg.id = pi.gender_id
+
+                left join vac_dose_type vdt on vdt.id = vd.dose_type_id
+                where vi.deleted is false
+                and :where
+            </n2o:count-query>
+            <n2o:alias>vi</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>vi.id</expression>
+        </field>
+        <field>
+            <id>individual.id</id>
+            <domain>integer</domain>
+            <expression>pi.id</expression>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>individualFIO</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>concat(pi.surname, ' ', pi.name, ' ', pi.patr_name,' (',to_char(pi.birth_dt,'DD.MM.YYYY'),')')</expression>
+            <search>upper(:expression) like upper('%'||:individual.FIO||'%')</search>
+        </field>
+        <field>
+            <id>vacDate</id>
+            <domain>string</domain>
+            <name>Плановая дата</name>
+            <expression>to_char(vi.date,'DD.MM.YYYY')</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>vacDate.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[
+                   vi.date >= :vacDate.begin
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>vacDate.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[
+                   vi.date <= :vacDate.end
+                ]]>
+            </search>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>vi.date</expression>
+        </field>
+        <field>
+            <id>age</id>
+            <domain>string</domain>
+            <name>Возраст</name>
+            <expression>
+                <![CDATA[
+                case
+                    when pi.birth_dt is null then null
+                    when (vi.date -pi.birth_dt)<0
+                    then (concat(vi.date -pi.birth_dt,'д'))
+                    ELSE
+                         (case
+                               when EXTRACT(YEAR FROM (AGE(vi.date,pi.birth_dt))) != 0
+                               then concat(EXTRACT(YEAR FROM (AGE(vi.date,birth_dt))),
+                                   case
+                                        when(right(EXTRACT(YEAR FROM (AGE(vi.date,birth_dt)))::VARCHAR,1) in ('1','2','3','4')
+                                            and right(EXTRACT(YEAR FROM (AGE(vi.date,birth_dt)))::VARCHAR,2) not in ('11','12','13','14'))
+                                        then 'г ' else 'л '
+                                   end,
+                                   EXTRACT(MONTH FROM (AGE(vi.date,birth_dt))), 'м ', EXTRACT(DAY FROM (AGE(vi.date,birth_dt))),'д')
+                               else (case
+                                         when (EXTRACT(YEAR FROM (AGE(vi.date,birth_dt))) = 0 and EXTRACT(MONTH FROM (AGE(vi.date,birth_dt))) != 0)
+                                         then concat(EXTRACT(MONTH FROM (AGE(vi.date,birth_dt))), 'м ',  EXTRACT(DAY FROM (AGE(vi.date,birth_dt))),'д')
+                                         else concat( EXTRACT(DAY FROM (AGE(vi.date,birth_dt))),'д')
+                                     end)
+                         end)
+                end
+                ]]>
+            </expression>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>disease.id</id>
+            <domain>integer</domain>
+            <name>Инфекция</name>
+            <expression>vdis.id</expression>
+        </field>
+        <field>
+            <id>diseaseLabel</id>
+            <domain>string</domain>
+            <name>Инфекция</name>
+            <expression>vdis.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>number.id</id>
+            <domain>integer</domain>
+            <name>Этап вакцинации</name>
+            <expression>vn.id</expression>
+        </field>
+        <field>
+            <id>numberLabel</id>
+            <domain>string</domain>
+            <name>Этап</name>
+            <expression>vn.label</expression>
+        </field>
+        <field>
+            <id>vaccine.id</id>
+            <domain>integer</domain>
+            <name>Вакцина</name>
+            <expression>vv.id</expression>
+        </field>
+        <field>
+            <id>vaccineLabel</id>
+            <domain>string</domain>
+            <name>Вакцина</name>
+            <expression>vv.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <name>Статус</name>
+            <expression>vis.id</expression>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>statusLabel</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>
+                <![CDATA[
+                 case
+                    when vis.label_code = 'NAZN' and vi.date < current_date then 'Просрочено' ELSE vis.label
+                 end
+               ]]>
+                </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>dose.id</id>
+            <domain>integer</domain>
+            <name>Доза</name>
+            <expression>vd.id</expression>
+        </field>
+        <field>
+            <id>doseLabel</id>
+            <domain>string</domain>
+            <name>Доза</name>
+            <expression>vd.count||vdt.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>inp_type.id</id>
+            <domain>integer</domain>
+            <name>Тип введения</name>
+            <expression>vit.id</expression>
+        </field>
+        <field>
+            <id>inp_typeLabel</id>
+            <domain>string</domain>
+            <name>Тип введения</name>
+            <expression>vit.label</expression>
+        </field>
+
+        <field>
+            <id>groupId</id>
+            <domain>integer</domain>
+            <expression>:groupId</expression>
+        </field>
+
+        <field>
+            <id>columnColor</id>
+            <domain>string</domain>
+            <expression>
+               <![CDATA[
+                 case vis.label_code
+                    when 'NAZN' then case
+                                        when vi.date < current_date
+                                        then 'badge badge-important'
+                                        else 'badge badge-info'
+                                     end
+                    when 'PLAN' then 'badge badge-warning'
+                    when 'FACT' then 'badge badge-success'
+                    when 'OTVOD' then 'badge badge'
+                end
+               ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>nonLate</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[
+                    NOT (vis.label_code = 'NAZN' and vi.date < current_date)
+                ]]>
+            </search>
+        </field>
+
+    </fields>
+
+</query>

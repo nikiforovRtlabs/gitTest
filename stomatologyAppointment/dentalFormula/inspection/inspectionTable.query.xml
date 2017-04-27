@@ -1,0 +1,148 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>inspection</object-id>
+    <name>inspectionTable</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                <![CDATA[
+                select distinct :select
+                FROM stomatology.tooth_disease_tooth tdt
+
+                LEFT JOIN stomatology.tooth t ON tdt.tooth_id = t.id
+                LEFT JOIN stomatology.tooth_dental_formula td ON t.id = td.tooth_id
+
+                LEFT JOIN stomatology.tooth_mobility_log tml ON (tml.id = tdt.mobility_log_id)
+                LEFT JOIN stomatology.tooth_mobility tm ON tml.mobility_id = tm.id
+                LEFT JOIN stomatology.tooth_number tn ON t.tooth_number_id = tn.id
+
+                WHERE :where and tdt.dental_formula_id <= :dentalFormulaId
+                GROUP BY tdt.group_id, tn.name, tm.name, td.dental_formula_id, tm.id,tml.id, t.id,tdt.dental_formula_id
+                order by max(tdt.aud_when_create) DESC
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                <![CDATA[
+                select count(s) from (
+                select distinct tdt.group_id, tn.name, tm.name, t.id, td.dental_formula_id, tm.id
+                FROM stomatology.tooth_disease_tooth tdt
+
+                LEFT JOIN stomatology.tooth t ON tdt.tooth_id = t.id
+                LEFT JOIN stomatology.tooth_dental_formula td ON t.id = td.tooth_id
+
+                LEFT JOIN stomatology.tooth_mobility_log tml ON (tml.id = tdt.mobility_log_id)
+                LEFT JOIN stomatology.tooth_mobility tm ON tml.mobility_id = tm.id
+
+                LEFT JOIN stomatology.tooth_number tn ON t.tooth_number_id = tn.id
+
+                WHERE :where and tdt.dental_formula_id <= :dentalFormulaId
+                GROUP BY tdt.group_id,tn.name, tm.name, t.id, td.dental_formula_id, tm.id) as s
+                 ]]>
+            </n2o:count-query>
+            <n2o:alias>tdt</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <!--<field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>tdt.id</expression>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>-->
+
+        <field>
+            <id>groupId</id>
+            <domain>integer</domain>
+            <expression>tdt.group_id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>numberName</id>
+            <name>Номер зуба</name>
+            <domain>string</domain>
+            <display/>
+            <expression>tn.name</expression>
+        </field>
+
+        <field>
+            <id>whenCreate</id>
+            <name>Дата создания</name>
+            <domain>date</domain>
+            <display/>
+            <expression>MAX(tdt.aud_when_create)</expression>
+        </field>
+
+        <field>
+            <id>diseaseName</id>
+            <name>Заболевания</name>
+            <domain>string</domain>
+            <display/>
+            <expression>(select string_agg(DISTINCT tdn.name, ',') from stomatology.tooth_disease d
+                LEFT JOIN stomatology.tooth_disease_name tdn ON d.name_id = tdn.id left join
+                stomatology.tooth_disease_tooth tdt2 ON tdt2.tooth_disease_id = d.id WHERE tdt2.group_id = tdt.group_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>surfaceName</id>
+            <name>Поверхности</name>
+            <domain>string</domain>
+            <display/>
+            <expression>(select string_agg(DISTINCT s.name, ',') from public.md_tooth_surface s left join
+                stomatology.tooth_disease_tooth tdt1 ON tdt1.surface_id = s.id WHERE tdt1.group_id = tdt.group_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>mobilityName</id>
+            <domain>string</domain>
+            <name>Подвижность</name>
+            <display/>
+            <expression>tm.name</expression>
+        </field>
+
+        <field>
+            <id>tooth.id</id>
+            <domain>integer</domain>
+            <expression>t.id</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>dentalFormulaId</id>
+            <domain>integer</domain>
+            <expression>td.dental_formula_id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="dentalFormulaId">:expression = :dentalFormulaId</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>mobility.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>tm.id</expression>
+        </field>
+
+        <field>
+            <id>tml.id</id>
+            <display/>
+            <domain>integer</domain>
+            <expression>tml.id</expression>
+        </field>
+
+        <field>
+            <id>disease.dentalFormulaId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>tdt.dental_formula_id</expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,497 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0">
+
+    <name>Оборудование</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into pim_equipment_unit (
+                      id,
+                      ownership_pattern_id,
+                      okof_code,
+                      name,
+                      inventory_number,
+                      code,
+                      model,
+                      category_id,
+                      type_id,
+                      manufacturer_id,
+                      country_id,
+                      issue_dt,
+                      warranty_dt,
+                      service_period,
+                      service_measure_id,
+                      contract_id,
+                      source_type_id,
+                      from_dt,
+                      to_dt,
+                      department_id,
+                      building_id,
+                      room_id,
+                      modality_aet,
+                      modality_dicom_id,
+                      worklist_server_group,
+                      org_id)
+                    values (
+                      nextval('pim_equipment_unit_seq'),
+                      :ownership_pattern_id,
+                      :okof_code,
+                      :name,
+                      :inventory_number,
+                      :code,
+                      :model,
+                      :category_id,
+                      :type_id,
+                      :manufacturer_id,
+                      :country_id,
+                      :issue_dt,
+                      :warranty_dt,
+                      :service_period,
+                      :service_measure_id,
+                      :contract_id,
+                      :source_type_id,
+                      :from_dt,
+                      :to_dt,
+                      :department_id,
+                      :building_id,
+                      :room_id,
+                      :modality_aet,
+                      :modality_dicom_id,
+                      :worklist_server_group,
+                      :org_id);
+
+                    /* Если был установлен параметр "Является ресурсом", то необходимо создать элементарный ресурс с типом Оборудование */
+                    insert into sr_resource  (id, res_kind_id)
+                      select nextval('sr_resource_seq'), 2
+                      where :is_resource;
+
+                    insert into pim_equipment_unit_resource (id, equipment_unit_id)
+                      select currval('sr_resource_seq'), currval('pim_equipment_unit_seq')
+                      where :is_resource;
+
+                    insert into pim_equipment_state(
+                      id,
+                      equipment_id,
+                      state_id,
+                      idle_reason_id,
+                      from_dt,
+                      note
+                    )
+                    values(
+                      nextval('pim_equipment_state_seq'),
+                      currval('pim_equipment_unit_seq'),
+                      :status_stock_unit_state_id,
+                      :status_idle_reason_id,
+                      :status_from_dt,
+                      :status_note
+                    )
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <!-- Основные данные -->
+                <param name="ownership_pattern.id" mapping="['ownership_pattern_id']" domain="integer"/>
+                <param name="okof_code" mapping="['okof_code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="inventory_number" mapping="['inventory_number']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="model" mapping="['model']" domain="string"/>
+                <param name="category.id" mapping="['category_id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="manufacturer.id" mapping="['manufacturer_id']" domain="integer"/>
+                <param name="country.id" mapping="['country_id']" domain="integer"/>
+                <param name="issue_dt" mapping="['issue_dt']" domain="date"/>
+                <param name="warranty_dt" mapping="['warranty_dt']" domain="date"/>
+                <param name="service_period" mapping="['service_period']" domain="integer"/>
+                <param name="service_measure.id" mapping="['service_measure_id']" domain="integer"/>
+                <param name="contract.id" mapping="['contract_id']" domain="integer"/>
+                <param name="source_type.id" mapping="['source_type_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <!-- Расположение -->
+                <param name="department.id" mapping="['department_id']" domain="integer"/>
+                <param name="building.id" mapping="['building_id']" domain="integer"/>
+                <param name="room.id" mapping="['room_id']" domain="integer"/>
+                <!-- DICOM -->
+                <param name="modality_aet" mapping="['modality_aet']" domain="string"/>
+                <param name="modality_dicom.id" mapping="['modality_dicom_id']" domain="integer"/>
+                <param name="worklist_server_group" mapping="['worklist_server_group']" domain="string"/>
+                <!-- Является ресурсом -->
+                <param name="is_resource" mapping="['is_resource']" domain="boolean"/>
+                <param name="org.id" mapping="['org_id']" domain="integer" value="#{stocks.orgId}"/>
+                <!-- Статус -->
+                <param name="status.stock_unit_state.id" mapping="['status_stock_unit_state_id']" domain="integer"/>
+                <param name="status.idle_reason.id" mapping="['status_idle_reason_id']" domain="integer"/>
+                <param name="status.from_dt" mapping="['status_from_dt']" domain="date"/>
+                <param name="status.note" mapping="['status_note']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Оборудование "{name}" успешно сохранено в системе.
+            </success-text>
+        </action>
+<!--
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_equipment_unit set
+                      ownership_pattern_id = :ownership_pattern_id,
+                      okof_code = :okof_code,
+                      name = :name,
+                      inventory_number = :inventory_number,
+                      code = :code,
+                      model = :model,
+                      category_id = :category_id,
+                      type_id = :type_id,
+                      manufacturer_id = :manufacturer_id,
+                      country_id = :country_id,
+                      issue_dt = :issue_dt,
+                      warranty_dt = :warranty_dt,
+                      service_period = :service_period,
+                      service_measure_id = :service_measure_id,
+                      contract_id = :contract_id,
+                      source_type_id = :source_type_id,
+                      from_dt = :from_dt,
+                      to_dt = :to_dt,
+                      department_id = :department_id,
+                      building_id = :building_id,
+                      room_id = :room_id,
+                      modality_aet = :modality_aet,
+                      modality_dicom_id = :modality_dicom_id,
+                      worklist_server_group = :worklist_server_group
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                Основные данные --> <!--
+                <param name="ownership_pattern.id" mapping="['ownership_pattern_id']" domain="integer"/>
+                <param name="okof_code" mapping="['okof_code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="inventory_number" mapping="['inventory_number']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="model" mapping="['model']" domain="string"/>
+                <param name="category.id" mapping="['category_id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="manufacturer.id" mapping="['manufacturer_id']" domain="integer"/>
+                <param name="country.id" mapping="['country_id']" domain="integer"/>
+                <param name="issue_dt" mapping="['issue_dt']" domain="date"/>
+                <param name="warranty_dt" mapping="['warranty_dt']" domain="date"/>
+                <param name="service_period" mapping="['service_period']" domain="integer"/>
+                <param name="service_measure.id" mapping="['service_measure_id']" domain="integer"/>
+                <param name="contract.id" mapping="['contract_id']" domain="integer"/>
+                <param name="source_type.id" mapping="['source_type_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                Расположение --> <!--
+                <param name="department.id" mapping="['department_id']" domain="integer"/>
+                <param name="building.id" mapping="['building_id']" domain="integer"/>
+                <param name="room.id" mapping="['room_id']" domain="integer"/>
+                DICOM --> <!--
+                <param name="modality_aet" mapping="['modality_aet']" domain="string"/>
+                <param name="modality_dicom.id" mapping="['modality_dicom_id']" domain="integer"/>
+                <param name="worklist_server_group" mapping="['worklist_server_group']" domain="string"/>
+                Является ресурсом --> <!--
+                <param name="is_resource" mapping="['is_resource']" domain="boolean"/>
+                <param name="org.id" mapping="['org_id']" domain="integer" value="#{stocks.orgId}"/>
+                <param name="id" mapping="['id']" domain="string"/>
+
+                <param name="oru.id" mapping="['unit_id']" domain="integer"/>
+            </in-parameters>
+
+            <validations activate="nothing">
+                <validation ref-id="refFrom_pim_equipment_unit_resource_Exists"/>
+            </validations>
+
+            <success-text>
+                Оборудование "{name}" успешно изменено.
+            </success-text>
+
+        </action>
+-->
+
+        <action id="update">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="ACTION" out-parameters-context-type="TASK" next-task-id="2">
+                            <wf:note>Обновление Оборудования</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    update pim_equipment_unit set
+                                      ownership_pattern_id = :ownership_pattern_id,
+                                      okof_code = :okof_code,
+                                      name = :name,
+                                      inventory_number = :inventory_number,
+                                      code = :code,
+                                      model = :model,
+                                      category_id = :category_id,
+                                      type_id = :type_id,
+                                      manufacturer_id = :manufacturer_id,
+                                      country_id = :country_id,
+                                      issue_dt = :issue_dt,
+                                      warranty_dt = :warranty_dt,
+                                      service_period = :service_period,
+                                      service_measure_id = :service_measure_id,
+                                      contract_id = :contract_id,
+                                      source_type_id = :source_type_id,
+                                      from_dt = :from_dt,
+                                      to_dt = :to_dt,
+                                      department_id = :department_id,
+                                      building_id = :building_id,
+                                      room_id = :room_id,
+                                      modality_aet = :modality_aet,
+                                      modality_dicom_id = :modality_dicom_id,
+                                      worklist_server_group = :worklist_server_group
+                                    where id = :id;
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0]"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:service-task id="2" in-parameters-context-type="ACTION" out-parameters-context-type="TASK">
+                            <wf:note>Определяем, что делать с ресурсом - добавлять или удалять?</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    select COALESCE(:is_resource,false);
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="true" next-task-id="3"/>
+                                <wf:result value="false" next-task-id="4"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:service-task id="3" in-parameters-context-type="ACTION"
+                                         out-parameters-context-type="TASK">
+                            <wf:note>Создать элементарный ресурс, если его еще нет</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    /* Если был установлен параметр "Является ресурсом", то необходимо создать элементарный ресурс с типом Оборудование */
+                                    insert into sr_resource  (id, res_kind_id)
+                                    select nextval('sr_resource_seq'), 2
+                                    where :is_resource and not exists (select * from pim_equipment_unit_resource where equipment_unit_id = :id);
+
+                                    insert into pim_equipment_unit_resource (id, equipment_unit_id)
+                                    select currval('sr_resource_seq'), :id
+                                    where :is_resource and not exists (select * from pim_equipment_unit_resource where equipment_unit_id = :id);
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="null"/>
+                            </wf:out-parameters>
+
+                        </wf:service-task>
+
+                        <wf:service-task id="4" in-parameters-context-type="ACTION"
+                                         out-parameters-context-type="TASK">
+                            <wf:note>Удалить элементарный ресурс, если он существует</wf:note>
+                            <wf:invocation>
+                                <sql:sql>
+                                    WITH deleted_resource AS (
+                                      DELETE FROM pim_equipment_unit_resource
+                                      WHERE equipment_unit_id = :id and not coalesce(:is_resource,false)
+                                    RETURNING *
+                                    )
+                                    DELETE FROM sr_resource
+                                    WHERE id in (select id from deleted_resource);
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="null"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <!-- Основные данные -->
+                <param name="ownership_pattern.id" mapping="['ownership_pattern_id']" domain="integer"/>
+                <param name="okof_code" mapping="['okof_code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="inventory_number" mapping="['inventory_number']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="model" mapping="['model']" domain="string"/>
+                <param name="category.id" mapping="['category_id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="manufacturer.id" mapping="['manufacturer_id']" domain="integer"/>
+                <param name="country.id" mapping="['country_id']" domain="integer"/>
+                <param name="issue_dt" mapping="['issue_dt']" domain="date"/>
+                <param name="warranty_dt" mapping="['warranty_dt']" domain="date"/>
+                <param name="service_period" mapping="['service_period']" domain="integer"/>
+                <param name="service_measure.id" mapping="['service_measure_id']" domain="integer"/>
+                <param name="contract.id" mapping="['contract_id']" domain="integer"/>
+                <param name="source_type.id" mapping="['source_type_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <!-- Расположение -->
+                <param name="department.id" mapping="['department_id']" domain="integer"/>
+                <param name="building.id" mapping="['building_id']" domain="integer"/>
+                <param name="room.id" mapping="['room_id']" domain="integer"/>
+                <!-- DICOM -->
+                <param name="modality_aet" mapping="['modality_aet']" domain="string"/>
+                <param name="modality_dicom.id" mapping="['modality_dicom_id']" domain="integer"/>
+                <param name="worklist_server_group" mapping="['worklist_server_group']" domain="string"/>
+                <!-- Является ресурсом -->
+                <param name="is_resource" mapping="['is_resource']" domain="boolean"/>
+                <param name="org.id" mapping="['org_id']" domain="integer" value="#{stocks.orgId}"/>
+                <param name="id" mapping="['id']" domain="string"/>
+
+            </in-parameters>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_equipment_unit where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="equ.id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что оборудование "{name}" должно быть удалено?
+            </confirmation-text>
+            <success-text>
+                Оборудование "{name}" успешно удалено.
+            </success-text>
+        </action>
+
+        <action id="clone" form-submit-label="Копировать" name="Копировать">
+            <invocation>
+                <n2o:sql>
+                    insert into pim_equipment_unit(
+                      id,
+                      code,
+                      name,
+                      org_id,
+                      model,
+                      modality_aet,
+                      inventory_number,
+                      okof_code,
+                      category_id,
+                      type_id,
+                      manufacturer_id,
+                      country_id,
+                      worklist_server_group,
+                      issue_dt,
+                      department_id,
+                      purchase_dt,
+                      ownership_pattern_id,
+                      warranty_dt,
+                      service_period,
+                      service_measure_id,
+                      building_id,
+                      room_id,
+                      contract_id,
+                      modality_dicom_id,
+                      unit_id,
+                      from_dt,
+                      to_dt,
+                      source_type_id
+                    )select
+                      nextval('pim_equipment_unit_seq'),
+                      code,
+                      name,
+                      org_id,
+                      model,
+                      modality_aet,
+                      inventory_number,
+                      okof_code,
+                      category_id,
+                      type_id,
+                      manufacturer_id,
+                      country_id,
+                      worklist_server_group,
+                      issue_dt,
+                      department_id,
+                      purchase_dt,
+                      ownership_pattern_id,
+                      warranty_dt,
+                      service_period,
+                      service_measure_id,
+                      building_id,
+                      room_id,
+                      contract_id,
+                      modality_dicom_id,
+                      unit_id,
+                      from_dt,
+                      to_dt,
+                      source_type_id
+                    from pim_equipment_unit where id = :id;
+
+                    insert into pim_equipment_state(
+                      id,
+                      from_dt,
+                      equipment_id,
+                      state_id,
+                      idle_reason_id,
+                      note)
+                    select
+                      nextval('pim_equipment_state_seq'),
+                      from_dt,
+                      currval('pim_equipment_unit_seq'),
+                      state_id,
+                      idle_reason_id,
+                      note
+                    from pim_equipment_state where equipment_id = :id order by id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="equ.id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что выбранное оборудование дожно быть скопировано?
+            </confirmation-text>
+            <success-text>
+                Копирование оборудования прошло успешно.
+            </success-text>
+        </action>
+
+        <action id="deleteEquipmentUnitResource" form-submit-label="Удалить ресурс" name="Удалить ресурс">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_equipment_unit_resource where id = :resource_id;
+                    delete from public.sr_resource where id = :resource_id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="resource_id" mapping="['resource_id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что ресурс должен быть удален?
+            </confirmation-text>
+            <success-text>
+                Ресурс успешно удален.
+            </success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="refFrom_pim_equipment_unit_resource_Exists" level="error">
+            <message>Невозможно завершить операцию. Существуют записи ресурсов, которые ссылаются на данную запись.</message>
+            <invocation>
+                <n2o:sql>
+                    select count(1) from pim_equipment_unit_resource eur
+                    where eur.equipment_unit_id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+    </validations>
+
+
+</object>

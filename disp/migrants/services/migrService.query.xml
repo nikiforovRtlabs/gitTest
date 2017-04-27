@@ -1,0 +1,321 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <name>migrInspection</name>
+    <object-id>migrService</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                --left join disp.md_event_service_patient_status mesps on mesps.service_id = mesp.id
+                left join disp.md_event_service_status mess on mess.code = mesp.status
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                left join SR_RES_GROUP msrg on msrg.id = mes.resource_id
+                left join (select ssr.id, msr.case_id, ssr.service_id, ssr.res_group_id, ssr.bdate from MD_SRV_RENDERED msr
+                left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep.case_id and ssr.service_id = mes.service_id
+                left join migr.md_migr_service mest on mest.event_service_patient_id = mesp.id
+                left join SR_RES_GROUP srg on srg.id = ssr.res_group_id
+                left join md_diagnosis mmd on mmd.id = mest.main_diagnosis_id
+                left join mc_disease_type mdt on mdt.id = mest.disease_type_id
+                left join disp.md_event_service_patient_agreement mespa on mespa.service_id = mesp.id
+                left join migr.md_migr_card mc on mc.id = mep.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(1)
+            </n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <expression>mesp.id</expression>
+        </field>
+        <field>
+            <id>idmesp</id>
+            <domain>Integer</domain>
+            <expression>mesp.id</expression>
+            <display>mesp.id</display>
+            <search>mesp.id = :idmesp</search>
+        </field>
+        <field>
+            <id>event_patient_id</id>
+            <domain>Integer</domain>
+            <expression>mep.id</expression>
+            <display>mep.id</display>
+            <search>mep.id</search>
+        </field>
+        <field>
+            <id>case_id</id>
+            <domain>Integer</domain>
+            <expression>mep.case_id</expression>
+            <display>mep.case_id</display>
+            <search>mep.case_id = :case_id</search>
+        </field>
+        <field>
+            <id>ssr_id</id>
+            <domain>Integer</domain>
+            <expression>ssr.id</expression>
+            <display>ssr.id</display>
+            <search>ssr.id = :ssr_id</search>
+        </field>
+        <field>
+            <id>org_id</id>
+            <domain>Integer</domain>
+            <expression>me.org_id</expression>
+            <display>me.org_id</display>
+        </field>
+        <field>
+            <id>service_type_id</id>
+            <domain>Integer</domain>
+            <expression>mes.service_id</expression>
+            <display>mes.service_id</display>
+        </field>
+        <field>
+            <id>service_code</id>
+            <domain>string</domain>
+            <expression>mnds.code</expression>
+            <display>mnds.code</display>
+            <search>mnds.code = :service_code</search>
+        </field>
+        <field>
+            <id>exist_service</id>
+            <domain>integer</domain>
+            <expression>(select 1 from sr_service ss where ss.id = mes.service_id and ss.code='MIG9')</expression>
+            <display>(select 1 from sr_service ss where ss.id = mes.service_id and ss.code='MIG9')</display>
+        </field>
+        <field>
+            <id>emplPos.id</id>
+            <domain>Integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>is_inherit_protocol</id>
+            <domain>boolean</domain>
+            <expression>(select true where
+                exists (select 1 from sr_srv_ehr_opt sseo
+                left join  sr_srv_rendered s on s.service_id=sseo.service_id
+                where s.id=ssr.id and sseo.template is not null))</expression>
+            <display>(select true where
+                exists (select 1 from sr_srv_ehr_opt sseo
+                left join  sr_srv_rendered s on s.service_id=sseo.service_id
+                where s.id=ssr.id and sseo.template is not null))</display>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>Integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>resource.id</id>
+            <domain>Integer</domain>
+            <display>COALESCE(srg.id, msrg.id, (select rg.id from sr_res_group rg join sr_res_group_relationship rgr on rgr.group_id = rg.id
+                join pim_employee_position_resource epr on epr.id = rgr.resource_id
+                join pim_employee_position ep on ep.id = epr.employee_position_id
+                join sr_res_group_service srgs on rg.id = srgs.group_id
+                where ep.id = :emplPos.id and rg.org_id = :org.id
+                and srgs.srv_type_id = mes.service_id and rg.is_system = false limit 1))</display>
+        </field>
+        <field>
+            <id>resource.srg_id</id>
+            <domain>Integer</domain>
+            <display>COALESCE(srg.id, msrg.id, (select rg.id from sr_res_group rg join sr_res_group_relationship rgr on rgr.group_id = rg.id
+                join pim_employee_position_resource epr on epr.id = rgr.resource_id
+                join pim_employee_position ep on ep.id = epr.employee_position_id
+                join sr_res_group_service srgs on rg.id = srgs.group_id
+                where ep.id = :emplPos.id and rg.org_id = :org.id
+                and srgs.srv_type_id = mes.service_id and rg.is_system = false limit 1))</display>
+        </field>
+        <field>
+            <id>resource.name</id>
+            <domain>Integer</domain>
+            <display>COALESCE(srg.name, msrg.name, (select rg.name from sr_res_group rg join sr_res_group_relationship rgr on rgr.group_id = rg.id
+                join pim_employee_position_resource epr on epr.id = rgr.resource_id
+                join pim_employee_position ep on ep.id = epr.employee_position_id
+                join sr_res_group_service srgs on rg.id = srgs.group_id
+                where ep.id = :emplPos.id and rg.org_id = :org.id
+                and srgs.srv_type_id = mes.service_id and rg.is_system = false limit 1))</display>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <expression>COALESCE(ssr.bdate, current_date)</expression>
+            <display>COALESCE(ssr.bdate, current_date)</display>
+        </field>
+        <field>
+            <id>main_diagnosis.id</id>
+            <domain>Integer</domain>
+            <display>mmd.id</display>
+        </field>
+        <field>
+            <id>main_diagnosis.code</id>
+            <domain>string</domain>
+            <display>mmd.code</display>
+        </field>
+        <field>
+            <id>main_diagnosis.name</id>
+            <domain>string</domain>
+            <display>mmd.code || ' ' || mmd.name</display>
+        </field>
+
+        <field>
+            <id>disease.id</id>
+            <domain>Integer</domain>
+            <expression>mdt.id</expression>
+            <display>mdt.id</display>
+            <search>mdt.id = :disease.id</search>
+        </field>
+        <field>
+            <id>degree.id</id>
+            <domain>Integer</domain>
+            <expression>mest.degree_id</expression>
+            <display>mest.degree_id</display>
+            <search>mest.degree_id = :degree.id</search>
+        </field>
+
+        <field>
+            <id>titr</id>
+            <domain>string</domain>
+            <expression>titr</expression>
+            <display>mest.titr</display>
+            <search>mest.titr = :titr</search>
+        </field>
+
+        <field>
+            <id>disease.name</id>
+            <domain>string</domain>
+            <expression>mdt.name</expression>
+            <display>mdt.name</display>
+            <search>mdt.name like '%'||:disease.name||'%'</search>
+        </field>
+        <field>
+            <id>agreeService</id>
+            <domain>boolean</domain>
+            <expression>mespa.agree</expression>
+            <display>mespa.agree</display>
+        </field>
+        <field>
+            <id>is_suspicion</id>
+            <domain>boolean</domain>
+            <display>mest.is_surmise</display>
+        </field>
+        <field>
+            <id>migr_service_id</id>
+            <domain>integer</domain>
+            <display>mest.id</display>
+            <search>mest.id = :migr_service_id</search>
+        </field>
+
+        <field>
+            <id>conclusion</id>
+            <domain>String</domain>
+            <display>mest.conclusion</display>
+        </field>
+        <field>
+            <id>recommendations</id>
+            <domain>String</domain>
+            <display>mest.recommendations</display>
+        </field>
+        <field>
+            <id>result.id</id>
+            <domain>integer</domain>
+            <display>(case (mest.result) when true then 1 when false then 2 else null end)</display>
+        </field>
+        <field>
+            <id>result.code</id>
+            <domain>boolean</domain>
+            <display>mest.result</display>
+        </field>
+        <field>
+            <id>isSecond</id>
+            <domain>boolean</domain>
+            <display>mest.is_second</display>
+        </field>
+        <field>
+            <id>second_org.id</id>
+            <domain>integer</domain>
+            <display>mest.org_id</display>
+        </field>
+        <field>
+            <id>refDate</id>
+            <domain>date</domain>
+            <display>mest.ref_date</display>
+        </field>
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <display>mest.diagnosis_id</display>
+        </field>
+        <field>
+            <id>second_result.id</id>
+            <domain>integer</domain>
+            <display>
+                ( case when (mest.second_result) then 1 else case when (mest.second_result) is false then 2  end end)</display>
+        </field>
+
+        <field>
+            <id>second_result.code</id>
+            <domain>boolean</domain>
+            <display>
+                mest.second_result</display>
+        </field>
+        <field>
+            <id>owner_org_id</id>
+            <domain>integer</domain>
+            <display>me.org_id</display>
+        </field>
+        <field>
+            <id>owner_org</id>
+            <domain>string</domain>
+            <display>(select short_name from pim_organization where id = me.org_id)</display>
+        </field>
+        <field>
+            <id>mespId</id>
+            <domain>integer</domain>
+            <display>mesp.id</display>
+            <search>mesp.id = :mespId</search>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>Integer</domain>
+            <expression>mess.id</expression>
+            <display>mess.id</display>
+            <search>mess.id = :status.id</search>
+        </field>
+        <field>
+            <id>cardStatus</id>
+            <domain>integer</domain>
+            <display>mc.status_id</display>
+        </field>
+        <field>
+            <id>character</id>
+            <domain>Integer</domain>
+            <display>(select id from mc_disease_type where code='40' limit 1)</display>
+            <expression>(select id from mc_disease_type where code='40' limit 1)</expression>
+        </field>
+        <field>
+            <id>card_create_date</id>
+            <domain>date</domain>
+            <display>mc.create_date</display>
+        </field>
+        <field>
+            <id>curr_date</id>
+            <domain>date</domain>
+            <display>current_date</display>
+        </field>
+
+    </fields>
+</query>

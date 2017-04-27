@@ -1,0 +1,309 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hospReferral</object-id>
+    <name>hospReferralList</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_referral r
+                join pci_patient p on p.id = r.patient_id
+                join pim_individual i on i.id = p.id
+
+                left join md_diagnosis mddiag on mddiag.id = r.diagnosis_id
+                left join pim_organization reforg on reforg.id = r.ref_organization_id
+                left join hsp_reservation hr on hr.referral_id = r.id
+                left join mc_case mc on mc.referral_id = r.id
+
+                where r.referral_type_id in (select id from md_referral_type where hsp_rsv_mark is true )
+                and (r.recv_organization_id = :orgId or r.ref_organization_id  = :orgId)
+                and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(r)
+                from md_referral r
+                join pci_patient p on p.id = r.patient_id
+                join pim_individual i on i.id = p.id
+
+                left join md_diagnosis mddiag on mddiag.id = r.diagnosis_id
+                left join pim_organization reforg on reforg.id = r.ref_organization_id
+                left join hsp_reservation hr on hr.referral_id = r.id
+                where r.referral_type_id in (select id from md_referral_type where hsp_rsv_mark is true )
+                and (r.recv_organization_id = :orgId or r.ref_organization_id  = :orgId)
+                and :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>r.id</expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <search value="#{org.id}"/>
+            <expression>:orgId</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+            <search>:expression = :patient.id</search>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>coalesce(i.surname, '') || coalesce(' ' || i.name, '')  || coalesce(' ' || i.patr_name, '')</expression>
+            <sorting>:expression</sorting>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>number</id>
+            <domain>string</domain>
+            <name>Номер</name>
+            <expression>r.order_number</expression>
+            <search>:expression like '%' || :number || '%'</search>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>referralDate</id>
+            <name>Дата</name>
+            <expression>r.referral_date</expression>
+            <search><![CDATA[
+                (:referralDate.begin::date is null and :referralDate.end::date is null or
+                ((:referralDate.begin::date is null or :expression::date >= :referralDate.begin::date) and
+                 (:referralDate.end::date is null or :expression::date <= :referralDate.end::date)
+                ))
+                ]]></search>
+            <sorting>r.referral_date</sorting>
+            <display>:expression::date</display>
+        </field>
+
+        <field>
+            <id>referralDate.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>referralDate.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>referralType.name</id>
+            <domain>string</domain>
+            <name>Вид</name>
+            <expression>(select name from md_referral_type where id = r.referral_type_id)</expression>
+        </field>
+
+        <field>
+            <id>referralType.id</id>
+            <domain>integer</domain>
+            <expression>r.referral_type_id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.name</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <expression>mddiag.code || ' ' || mddiag.name</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>r.diagnosis_id</expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>referralOrganizationRole.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>r.ref_organization_role_id</expression>-->
+        <!--</field>-->
+
+        <field>
+            <id>referralOrganization.id</id>
+            <domain>integer</domain>
+            <expression>r.ref_organization_id</expression>
+        </field>
+
+        <field>
+            <id>isCito</id>
+            <domain>boolean</domain>
+            <name>Cito</name>
+            <expression>r.is_urgent</expression>
+        </field>
+
+        <field>
+            <id>refClinic.name</id>
+            <domain>string</domain>
+            <name>Направил</name>
+            <expression>reforg.short_name</expression>
+        </field>
+
+        <field>
+            <id>refClinic.id</id>
+            <domain>integer</domain>
+            <expression>r.ref_organization_id</expression>
+        </field>
+
+        <field>
+            <id>recvClinic.id</id>
+            <domain>integer</domain>
+            <expression>r.recv_organization_id</expression>
+        </field>
+
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>(case when status_id is null then 0 else r.status_id end)</expression>
+        </field>
+
+        <field>
+            <id>rowTextColor</id>
+            <domain>string</domain>
+            <expression>
+                (case when r.is_urgent is true then 'text-error' else
+                case when r.status_id = 3 then 'muted' end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>rowColor</id>
+            <domain>string</domain>
+            <expression>
+                (case when r.status_id is null or r.status_id = 1 or r.status_id = 2 then 'success' else
+                case when  r.status_id = 3 or status_id = 4 then 'warning' end end)
+            </expression>
+        </field>
+
+        <field>
+            <id>hospToolbarEnabled</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when r.status_id = 3 or r.status_id = 4
+                then false
+                else true
+                end)
+            </expression>
+
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>r.funding_id</expression>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>r.department_id</expression>
+        </field>
+
+        <field>
+            <id>defValueСareProviding</id>
+            <domain>integer</domain>
+            <display>
+                case
+                    when
+                        r.is_urgent is true
+                    then (select id from md_care_providing_form where lower(name) = 'неотложная')
+                    else 3
+                end
+            </display>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>plannedDate</id>
+            <domain>date</domain>
+            <expression>hr.planned_date_from</expression>
+            <search><![CDATA[
+                (:plannedDate.begin::date is null and :plannedDate.end::date is null or
+                ((:plannedDate.begin::date is null or :expression::date >= :plannedDate.begin::date) and
+                 (:plannedDate.end::date is null or :expression::date <= :plannedDate.end::date)
+                ))
+                ]]></search>
+            <sorting>hr.planned_date_from</sorting>
+            <display>:expression::date</display>
+        </field>
+
+        <field>
+            <id>plannedDate.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>plannedDate.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>caseUid</id>
+            <domain>string</domain>
+            <expression>mc.uid</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>mc.id</expression>
+        </field>
+
+        <field>
+            <id>openCasePage</id>
+            <domain>boolean</domain>
+            <expression>
+                (
+                select exists( select hr.id
+                from hsp_record hr
+                inner join mc_step s on s.id = hr.id
+                left join mc_step_result rs on rs.id = s.result_id
+                where (s.case_id = mc.id) and (hr.previous_id is null) and
+                      (
+                      (rs.is_refusal isnull or rs.is_refusal = false) and
+                      not exists( select ihr.id from hsp_record ihr where ihr.previous_id = hr.id  ) and
+                      (mc.closing_step_id is null)
+                      or rs.is_refusal
+                      )
+                ))
+            </expression>
+        </field>
+
+        <field>
+            <id>uidForTitle</id>
+            <domain>string</domain>
+            <expression>coalesce('№' || mc.uid || ',', '')</expression>
+        </field>
+
+        <field>
+            <id>isExecuted</id>
+            <domain>boolean</domain>
+            <expression>(r.status_id = 4)</expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,403 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>receipt</object-id>
+    <name>benefitReceipt</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from receipt.receipt r
+                join receipt.receipt_type rt on rt.id=r.type_id
+                join receipt.benefit_receipt br on br.id = r.id
+                join receipt.receipt_sign rs on rs.id = r.sign_id
+                left join receipt.receipt_implementation_info rii on rii.receipt_id = r.id
+                left join public.pim_employee_position pep on pep.id = r.employee_position_id
+                left join public.pim_employee pe on pe.id = pep.employee_id
+                left join public.pim_individual docpi on docpi.id = pe.individual_id
+                left join public.pim_individual pi on pi.id = r.patient_id
+                left join md_diagnosis md on md.id = r.diagnosis_id
+                left join inventory.inn bi on bi.id = br.inn_id
+                left join inventory.holding invh on invh.id = br.inv_holding_id
+                left join inventory.hold_modif ihm on ihm.id = br.inv_holding_modif_id
+                left join fin_funding_source_type ffst on ffst.id = br.funding_source_type_id
+                left join pci_benefit_definition bpbd on bpbd.id = br.benefit_definition_id
+                left join pci_benefit_type bpbt on bpbt.id = bpbd.benefit_type_id
+                left join receipt.receipt_percent_payment rpp on rpp.id = br.percent_payment_id
+                left join receipt.receipt_validity rv on rv.id = r.validity_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(r)
+                from receipt.receipt r
+                where :where
+                order by :order
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <display/>
+            <expression>r.id</expression>
+            <filters>
+                <filter type="eq" filter-field="id">
+                    :expression = :id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <name>МО</name>
+            <display/>
+            <expression>r.clinic_id</expression>
+            <filters>
+                <filter type="eq" filter-field="clinic.id">:expression = :clinic.id</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>rt.id</expression>
+            <filters>
+                <filter type="eq" filter-field="type.id">:expression = :type.id</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>type.code</id>
+            <domain>string</domain>
+            <name>Код типа рецепта</name>
+            <display/>
+            <expression>rt.code</expression>
+        </field>
+
+        <field>
+            <id>type.name</id>
+            <domain>string</domain>
+            <name>Тип рецепта</name>
+            <display/>
+            <expression>rt.name</expression>
+        </field>
+
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <name>Серия</name>
+            <display/>
+            <expression>r.series</expression>
+            <filters>
+                <filter type="eq" filter-field="series">:expression = :series</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>num</id>
+            <domain>string</domain>
+            <name>Номер</name>
+            <display/>
+            <expression>r.num</expression>
+            <filters>
+                <filter type="eq" filter-field="num">:expression = :num</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>issue_dt</id>
+            <domain>date</domain>
+            <name>Дата выписки</name>
+            <display/>
+            <expression>r.issue_dt</expression>
+            <filters>
+                <!--<filter type="eq" filter-field="issue_dt">:expression = :issue_dt</filter>-->
+                <filter type="more" filter-field="issue_dt.begin">:expression >= :issue_dt.begin</filter>
+                <filter type="less" filter-field="issue_dt.end"><![CDATA[:expression <= :issue_dt.end]]></filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>benefit_definition.id</id>
+            <domain>integer</domain>
+            <name>Льгота</name>
+            <display/>
+            <expression>bpbd.id</expression>
+            <filters>
+                <filter type="eq" filter-field="benefit_definition.id">:expression = :benefit_definition.id</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>benefit_definition.name</id>
+            <domain>string</domain>
+            <name>Льгота</name>
+            <display/>
+            <expression>bpbd.name</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <name>Идентификатор аболевания</name>
+            <display/>
+            <expression>r.diagnosis_id</expression>
+            <filters>
+                <filter type="eq" filter-field="diagnosis.id">:expression = :diagnosis.id</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>diagnosis.name</id>
+            <domain>string</domain>
+            <name>Заболевание</name>
+            <display/>
+            <expression>md.code || ' ' || md.name</expression>
+            <filters>
+                <filter type="eq" filter-field="diagnosis.name">upper(:expression) like '%' || upper(md.code) || '%' || upper(md.name) || '%'</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>fundingSourceType.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>ffst.id</expression>
+            <filters>
+                <filter type="eq" filter-field="funding_source_type.id">:expression = :funding_source_type.id</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>fundingSourceType.name</id>
+            <domain>string</domain>
+            <name>Источник финансирования</name>
+            <display/>
+            <expression>ffst.name</expression>
+        </field>
+
+        <field>
+            <id>percentPayment.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>rpp.id</expression>
+        </field>
+
+        <field>
+            <id>percentPayment.name</id>
+            <domain>string</domain>
+            <name>Процент оплаты</name>
+            <display/>
+            <expression>rpp.name</expression>
+        </field>
+
+        <field>
+            <id>validity.id</id>
+            <domain>integer</domain>
+            <name>Срок действия</name>
+            <display/>
+            <expression>r.validity_id</expression>
+            <filters>
+                <filter type="eq" filter-field="validity.id">:expression = :validity.id</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>validity.name</id>
+            <domain>string</domain>
+            <name>Срок действия</name>
+            <display/>
+            <expression>rv.name</expression>
+        </field>
+
+        <field>
+            <id>medicineType.id</id>
+            <domain>string</domain>
+            <name>Препарат</name>
+            <display/>
+            <expression>(case when br.inn_id is null then 2 else 1 end)</expression>
+        </field>
+
+        <field>
+            <id>benefit_inn.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>bi.id</expression>
+        </field>
+
+        <field>
+            <id>benefit_inn.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>bi.name_rus</expression>
+        </field>
+
+        <field>
+            <id>benefit_holding.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>invh.id</expression>
+        </field>
+
+        <field>
+            <id>benefit_holding.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>invh.name</expression>
+        </field>
+
+        <field>
+            <id>inv_holding_modif.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>ihm.id</expression>
+        </field>
+
+        <field>
+            <id>inv_holding_modif.name</id>
+            <domain>string</domain>
+            <name>Форма выпуска</name>
+            <display/>
+            <expression>ihm.name</expression>
+        </field>
+
+        <field>
+            <id>dosage</id>
+            <domain>string</domain>
+            <name>Дозировка</name>
+            <display/>
+            <expression>br.dosage</expression>
+        </field>
+
+        <field>
+            <id>quantity</id>
+            <domain>integer</domain>
+            <name>Количество</name>
+            <display/>
+            <expression>br.quantity</expression>
+        </field>
+
+        <field>
+            <id>use_method</id>
+            <domain>string</domain>
+            <name>Способ применения</name>
+            <display/>
+            <expression>br.use_method</expression>
+        </field>
+
+        <field>
+            <id>employee.id</id>
+            <domain>integer</domain>
+            <name>Назначивший врач</name>
+            <display/>
+            <expression>r.employee_position_id</expression>
+            <filters>
+                <filter type="eq" filter-field="employee.id">:expression = :employee.id</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>decision</id>
+            <domain>boolean</domain>
+            <name>Наличие решения ВК</name>
+            <display/>
+            <expression>(br.commission_protocol_num is not null or br.commission_protocol_dt is not null)</expression>
+        </field>
+
+        <field>
+            <id>decisionNumber</id>
+            <domain>string</domain>
+            <name>Номер решения ВК</name>
+            <display/>
+            <expression>br.commission_protocol_num</expression>
+        </field>
+
+        <field>
+            <id>decisionDate</id>
+            <domain>date</domain>
+            <name>Дата решения ВК</name>
+            <display/>
+            <expression>br.commission_protocol_dt</expression>
+        </field>
+
+        <field>
+            <id>employee.fio</id>
+            <domain>string</domain>
+            <name>Назначивший врач</name>
+            <display/>
+            <expression>docpi.surname||' '||left(initcap(docpi.name),1)||'. '||left(initcap(docpi.patr_name),1)</expression>
+        </field>
+
+        <field>
+            <id>sign.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>rs.id</expression>
+        </field>
+
+        <field>
+            <id>sign.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>rs.name</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <name>Пациент</name>
+            <display/>
+            <expression>r.patient_id</expression>
+            <filters>
+                <filter type="eq" filter-field="patient.id">:expression = :patient.id</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <display/>
+            <expression>pi.surname || ' ' || pi.name || ' ' || pi.patr_name</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>r.case_id</expression>
+        </field>
+
+        <field>
+            <id>stepId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>r.step_id</expression>
+        </field>
+
+        <field>
+            <id>snmp_age</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                <![CDATA[
+                (case
+                    when pi.birth_dt isnull or r.issue_dt isnull or pi.birth_dt > r.issue_dt then ''
+                    when date_part('year', age(r.issue_dt, pi.birth_dt) ) >= 3 then date_part('year', age(r.issue_dt, pi.birth_dt) ) || ' л.'
+                    when date_part('year', age(r.issue_dt, pi.birth_dt) ) >= 1 then date_part('year', age(r.issue_dt, pi.birth_dt) ) || ' л. ' || (case when date_part('month', age(r.issue_dt, pi.birth_dt) ) = 0 then '' else date_part('month', age(r.issue_dt, pi.birth_dt)) || ' мес.' end )
+                    when date_part('month', age(r.issue_dt, pi.birth_dt) ) >= 1 then date_part('month', age(r.issue_dt, pi.birth_dt) ) || ' мес. '
+                    else date_part('day', age(r.issue_dt, pi.birth_dt )) || ' дн.'
+                end)
+                ]]>
+            </expression>
+        </field>
+
+    </fields>
+</query>

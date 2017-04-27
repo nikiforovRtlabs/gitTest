@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>addr_elem</id>-->
+    <name>Вид Адрес</name>
+    <object-id>addr_data</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query> select :select
+                from address_element ae
+                join address_element_type aet on aet.id = ae.type_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from address_element ae
+                join address_element_type aet on aet.id = ae.type_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ae</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>ae.id</expression>
+        </field>
+        <field>
+            <id>search_name</id>
+            <domain>string</domain>
+            <name>Улица</name>
+            <expression>
+                (select lower(t.name)||' '||e.name
+                    from address_element e
+                    join address_element_type t on t.id = e.type_id
+                    where e.id = :addr_parent)
+                ||
+                case when ae.parent_id not in (:addr_parent)
+                    then
+                        ', '||(select lower(t1.name)||' '||e1.name
+                                    from address_element e1
+                                    join address_element_type t1 on t1.id = e1.type_id
+                                    where e1.id = ae.parent_id)
+                    else ''
+                end
+                ||', '||lower(aet.name)||' '||ae.name
+            </expression>
+            <search>upper(:expression) like upper('%'||:search_name||'%')</search>
+            <sorting>ae.name</sorting>
+        </field>
+
+        <field>
+            <id>addr_parent</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+            <search value="#{addr_parent?}">
+                <!--(select path from address_element_data where id = cast(:addr_parent as integer)) @> aed.path-->
+                ((ae.parent_id = cast(:addr_parent as integer) and ae.level_id = 6)
+                or ae.parent_id in (select id from address_element where parent_id = cast(:addr_parent as integer) and level_id = 5))
+
+            </search>
+        </field>
+    </fields>
+</query>

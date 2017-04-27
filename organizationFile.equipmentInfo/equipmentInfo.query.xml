@@ -1,0 +1,432 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>equipmentInfo</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from pim_equipment_unit equ
+                left join pim_equipment_source_type pest on pest.id = equ.source_type_id
+                left join address_element addr on addr.id = equ.country_id
+                left join pim_building bld on bld.id = equ.building_id
+                left join fin_contract fic on fic.id = equ.contract_id
+                left join pim_department dep on dep.id = equ.department_id
+                left join pim_equipment_category ecat on ecat.id = equ.category_id
+                left join pim_equipment_modality emod on emod.id = equ.modality_dicom_id
+                left join pim_equipment_type eqtyp on eqtyp.id = equ.type_id
+                left join pim_organization mnf on mnf.id = equ.manufacturer_id
+                left join cmn_measure mes on mes.id = equ.service_measure_id
+                left join pim_organization org on org.id = equ.org_id
+                left join pim_ownership_pattern own on own.id = equ.ownership_pattern_id
+                left join pim_room room on room.id = equ.room_id
+                left join pim_org_unit oru on oru.id = equ.unit_id
+                left join ( select equipment_unit_id, count(*)
+                            from pim_equipment_unit_resource
+                            group by equipment_unit_id) res on res.equipment_unit_id=equ.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(equ)
+                from pim_equipment_unit equ
+                left join address_element addr on addr.id = equ.country_id
+                left join pim_building bld on bld.id = equ.building_id
+                left join fin_contract fic on fic.id = equ.contract_id
+                left join pim_department dep on dep.id = equ.department_id
+                left join pim_equipment_category ecat on ecat.id = equ.category_id
+                left join pim_equipment_modality emod on emod.id = equ.modality_dicom_id
+                left join pim_equipment_type eqtyp on eqtyp.id = equ.type_id
+                left join pim_organization mnf on mnf.id = equ.manufacturer_id
+                left join cmn_measure mes on mes.id = equ.service_measure_id
+                left join pim_organization org on org.id = equ.org_id
+                left join pim_ownership_pattern own on own.id = equ.ownership_pattern_id
+                left join pim_room room on room.id = equ.room_id
+                left join pim_org_unit oru on oru.id = equ.unit_id
+                left join ( select equipment_unit_id, count(*)
+                            from pim_equipment_unit_resource
+                            group by equipment_unit_id) res on res.equipment_unit_id=equ.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>equ</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>equ.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>equ.id</id>
+            <domain>integer</domain>
+            <expression>equ.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>org.id</expression>
+            <filters>
+                <filter type="eq" filter-field="org.id" default-value="#{stocks.orgId}">org.id = :org.id</filter>
+            </filters>
+            <display/>
+        </field>
+        <field>
+            <id>org.name</id>
+            <domain>string</domain>
+            <expression>org.short_name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>address.id</id>
+            <domain>integer</domain>
+            <expression>addr.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>purchase_dt</id>
+            <domain>date</domain>
+            <expression>equ.purchase_dt</expression>
+            <display/>
+        </field>
+        <field>
+            <id>oru.id</id>
+            <domain>integer</domain>
+            <expression>oru.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>id_name</id>
+            <domain>string</domain>
+            <expression> format('%s~%s %s', equ.id, equ.name, equ.model) </expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>dicom</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[
+                   (coalesce(equ.modality_aet,'') <> '' or coalesce(emod.name,'') <> '' or coalesce(equ.worklist_server_group,'')<>'')
+                ]]>
+            </expression>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>dicom_string</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[
+                   (concat_ws(',', (case when coalesce(equ.modality_aet,'')<>'' then equ.modality_aet end), (case when coalesce(emod.name,'') <> '' then emod.name end), (case when coalesce(equ.worklist_server_group,'')<>'' then equ.worklist_server_group end) ) )
+                ]]>
+            </expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>stock_unit_state.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select sus.id
+                from pim_equipment_state pes, pim_stock_unit_state sus
+                where pes.equipment_id = equ.id and pes.state_id = sus.id
+                order by pes.from_dt desc limit 1)
+            </expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>stock_unit_state.name</id>
+            <domain>string</domain>
+            <expression>
+                (select sus.name
+                from pim_equipment_state pes, pim_stock_unit_state sus
+                where pes.equipment_id = equ.id and pes.state_id = sus.id
+                order by pes.from_dt desc limit 1)
+            </expression>
+            <display/>
+        </field>
+        <field>
+            <id>activity.id</id>
+            <domain>integer</domain>
+            <expression>1=1</expression>
+            <filters auto-generate="true">
+                <filter type="eq" filter-field="activity.id"><![CDATA[
+                    (case
+                      when :activity.id = 1 then (equ.to_dt isnull or equ.to_dt >= current_date)
+                      when :activity.id = 2 then (equ.to_dt notnull and equ.to_dt < current_date)
+                      when :activity.id = 3 then true
+                     end)
+                    ]]>
+                </filter>
+            </filters>
+            <display/>
+        </field>
+        <!-- Основные данные -->
+        <field>
+            <id>ownership_pattern.id</id>
+            <domain>integer</domain>
+            <expression>own.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>ownership_pattern.name</id>
+            <domain>string</domain>
+            <expression>own.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>okof_code</id>
+            <domain>string</domain>
+            <expression>equ.okof_code</expression>
+            <display/>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>equ.name</expression>
+            <filters>
+                <filter type="eq" filter-field="name">trim(upper(equ.name)) like trim(upper('%'||:name||'%'))</filter>
+            </filters>
+            <display/>
+        </field>
+        <field>
+            <id>inventory_number</id>
+            <domain>string</domain>
+            <expression>equ.inventory_number</expression>
+            <display/>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <expression>equ.code</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>model</id>
+            <domain>string</domain>
+            <expression>equ.model</expression>
+            <display/>
+        </field>
+        <field>
+            <id>category.id</id>
+            <domain>integer</domain>
+            <expression>ecat.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>category.name</id>
+            <domain>string</domain>
+            <expression>ecat.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>type.id</id>
+            <domain>integer</domain>
+            <expression>eqtyp.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>type.name</id>
+            <domain>string</domain>
+            <expression>eqtyp.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>manufacturer.id</id>
+            <domain>integer</domain>
+            <expression>mnf.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>manufacturer.name</id>
+            <domain>string</domain>
+            <expression>coalesce(mnf.short_name, mnf.full_name)</expression>
+            <display/>
+        </field>
+        <field>
+            <id>country.id</id>
+            <domain>integer</domain>
+            <expression>addr.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>issue_dt</id>
+            <domain>date</domain>
+            <expression>equ.issue_dt</expression>
+            <display/>
+        </field>
+        <field>
+            <id>warranty_dt</id>
+            <domain>date</domain>
+            <expression>equ.warranty_dt</expression>
+            <display/>
+        </field>
+        <field>
+            <id>service_period</id>
+            <domain>integer</domain>
+            <expression>equ.service_period</expression>
+            <display/>
+        </field>
+        <field>
+            <id>service_measure.id</id>
+            <domain>integer</domain>
+            <expression>mes.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>service_measure.name</id>
+            <domain>string</domain>
+            <expression>mes.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>contract.id</id>
+            <domain>integer</domain>
+            <expression>fic.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>contract.name</id>
+            <domain>string</domain>
+            <expression>fic.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>contract.number</id>
+            <domain>string</domain>
+            <expression>fic.number</expression>
+            <display/>
+        </field>
+        <field>
+            <id>source_type.id</id>
+            <domain>integer</domain>
+            <expression>pest.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>source_type.name</id>
+            <domain>string</domain>
+            <expression>pest.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <expression>equ.from_dt</expression>
+            <display/>
+        </field>
+        <field>
+            <id>to_dt</id>
+            <domain>date</domain>
+            <expression>equ.to_dt</expression>
+            <display/>
+        </field>
+        <!-- Расположение -->
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>dep.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>department.name</id>
+            <domain>string</domain>
+            <expression>dep.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>building.id</id>
+            <domain>integer</domain>
+            <expression>bld.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>building.name</id>
+            <domain>string</domain>
+            <expression>bld.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>room.id</id>
+            <domain>integer</domain>
+            <expression>room.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>room.name</id>
+            <domain>string</domain>
+            <expression>room.name</expression>
+            <display/>
+        </field>
+        <!-- DICOM -->
+        <field>
+            <id>modality_aet</id>
+            <domain>string</domain>
+            <expression>equ.modality_aet</expression>
+            <display/>
+        </field>
+        <field>
+            <id>modality_dicom.id</id>
+            <domain>integer</domain>
+            <expression>emod.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>modality_dicom.name</id>
+            <domain>string</domain>
+            <expression>emod.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>worklist_server_group</id>
+            <domain>string</domain>
+            <expression>equ.worklist_server_group</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>resource_id</id>
+            <domain>integer</domain>
+            <expression>(select id from pim_equipment_unit_resource where equipment_unit_id = equ.id limit 1)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>is_resource</id>
+            <domain>boolean</domain>
+            <expression>exists(select id from pim_equipment_unit_resource where equipment_unit_id = equ.id limit 1)</expression>
+            <filters>
+                <filter type="eq" filter-field="is_resource">
+                    :expression = :is_resource
+                </filter>
+            </filters>
+            <display/>
+        </field>
+
+        <field>
+            <id>has_group_resource</id>
+            <domain>integer</domain>
+            <expression>
+                exists(
+                  select srgr.id
+                    from sr_res_group_relationship srgr
+                    where srgr.resource_id = (select id from pim_equipment_unit_resource where equipment_unit_id = equ.id limit 1) )
+            </expression>
+            <display/>
+        </field>
+    </fields>
+</query>

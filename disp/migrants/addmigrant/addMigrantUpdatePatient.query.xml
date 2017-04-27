@@ -1,0 +1,147 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>addMigrantUpdatePatient</name>
+    <object-id>addMigrant</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from pim_individual i
+                left join pci_patient p on i.id = p.id
+                left join pim_gender g on i.gender_id = g.id
+                left join md_soc_group sg on sg.id = p.social_group_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(i)
+                from pim_individual i
+                left join pci_patient p on i.id = p.id
+                left join pim_gender g on i.gender_id = g.id
+                left join md_soc_group sg on sg.id = p.social_group_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>i</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display>i.id</display>
+            <search>i.id = :patient.id</search>
+        </field>
+        <field>
+            <id>name</id>
+            <name>Имя по-русски</name>
+            <domain>String</domain>
+            <display>i.name</display>
+        </field>
+        <field>
+            <id>surname</id>
+            <name>Фамилия по-русски</name>
+            <domain>String</domain>
+            <display>i.surname</display>
+        </field>
+        <field>
+            <id>patrname</id>
+            <name>Отчество по-русски</name>
+            <domain>String</domain>
+            <display>i.patr_name</display>
+        </field>
+        <field>
+            <id>gender</id>
+            <name>Пол</name>
+            <domain>string</domain>
+            <display>g.name</display>
+        </field>
+        <field>
+            <id>birthday</id>
+            <name>Дата рождения</name>
+            <domain>string</domain>
+            <display>to_char(i.birth_dt, 'DD.MM.YYYY')</display>
+        </field>
+        <field>
+            <id>maritalStatus</id>
+            <name>Семейное положение</name>
+            <domain>string</domain>
+            <display><![CDATA[
+                    (select ms.name from pim_marital_status ms join pim_indiv_marital_status ims on ims.status_id = ms.id
+                where ims.individual_id = i.id and (from_dt is null or from_dt <= current_date) and (to_dt is null or to_dt >= current_date) limit 1)
+            ]]></display>
+        </field>
+        <field>
+            <id>socialStatus</id>
+            <name>Соц. положение</name>
+            <domain>string</domain>
+            <display>sg.name</display>
+        </field>
+        <field>
+            <id>citizenship</id>
+            <name>Гражданство</name>
+            <domain>string</domain>
+            <display>(select nc.name from pim_citizenship c join ns_country nc on c.country_id = nc.id where c.individual_id = i.id limit 1)</display>
+        </field>
+        <field>
+            <id>registerAddress</id>
+            <name>Адрес регистрации</name>
+            <domain>String</domain>
+            <display>adr__get_search_name(
+                (select ae.id from pim_party_address ppa
+                left join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                left join pim_address_type pat on pat.id = ppatat.address_type_id
+                left join address_element ae on ae.id = ppa.addr_id
+                where pat.code = 'REGISTER' and ppa.party_id = i.id limit 1))</display>
+        </field>
+        <field>
+            <id>doc1</id>
+            <domain>string</domain>
+            <display>case exists(select 1
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where dt.code = '9' and id.indiv_id = i.id and is_active = true limit 1)
+                when true then (select concat_ws('/', dt.name, concat_ws('_', id.series, id.number), concat_ws('_', to_char(id.issue_dt, 'DD.MM.YYYY'), to_char(id.expire_dt, 'DD.MM.YYYY')), coalesce((select o.short_name from pim_organization o where o.id = id.issuer_id), id.issuer_text))
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where dt.code = '9' and id.indiv_id = i.id and is_active = true limit 1)
+                else (select concat_ws('/', dt.name, concat_ws('_', id.series, id.number), concat_ws('_', to_char(id.issue_dt, 'DD.MM.YYYY'), to_char(id.expire_dt, 'DD.MM.YYYY')), coalesce((select o.short_name from pim_organization o where o.id = id.issuer_id), id.issuer_text))
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where id.indiv_id = i.id and is_active = true order by priority limit 1)
+                end
+            </display>
+        </field>
+        <field>
+            <id>doc2</id>
+            <name>Документ 2</name>
+            <domain>string</domain>
+            <display>
+                case exists(select 1
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where dt.code = '9' and id.indiv_id = i.id and is_active = true limit 1)
+                when true then (select concat_ws('/', dt.name, concat_ws('_', id.series, id.number), concat_ws('_', to_char(id.issue_dt, 'DD.MM.YYYY'), to_char(id.expire_dt, 'DD.MM.YYYY')), coalesce((select o.short_name from pim_organization o where o.id = id.issuer_id), id.issuer_text))
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where id.indiv_id = i.id and is_active = true and dt.code != '9' order by priority limit 1)
+                else (select concat_ws('/', dt.name, concat_ws('_', id.series, id.number), concat_ws('_', to_char(id.issue_dt, 'DD.MM.YYYY'), to_char(id.expire_dt, 'DD.MM.YYYY')), coalesce((select o.short_name from pim_organization o where o.id = id.issuer_id), id.issuer_text))
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where id.indiv_id = i.id and is_active = true order by priority offset 1 limit 1)
+                end
+            </display>
+        </field>
+        <field>
+            <id>workplace</id>
+            <name>Место работы</name>
+            <domain>string</domain>
+            <display>(select coalesce(o.short_name, o.full_name) from pci_patient_job pj
+                join pci_organization_type ot on pj.organization_type_id = ot.id and ot.id = 1
+                join pim_organization o on pj.organization_id = o.id
+                where pj.patient_id = i.id
+                order by coalesce(pj.is_main_job,false) desc
+                limit 1)
+            </display>
+        </field>
+    </fields>
+</query>

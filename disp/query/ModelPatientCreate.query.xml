@@ -1,0 +1,95 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <name>Люди</name>
+    <object-id>modelPatient</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_model_patient mmp
+                left join md_soc_group msg on msg.id = mmp.soc_group_id
+                left join disp.md_model_patient_base mmpb on mmpb.model_id = mmp.id
+                left join pim_gender pg on pg.id = mmpb.gender_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mmp)
+                from disp.md_model_patient mmp
+                left join md_soc_group msg on msg.id = mmp.soc_group_id
+                left join disp.md_model_patient_base mmpb on mmpb.model_id = mmp.id
+                left join pim_gender pg on pg.id = mmpb.gender_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mmp</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <expression>mmp.id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>String</domain>
+            <expression>mmp.name</expression>
+            <search>upper(mmp.name) like '%'||upper(:name)||'%'</search>
+            <name>Наименование</name>
+        </field>
+        <field>
+            <id>gender</id>
+            <name>Пол</name>
+            <domain>string</domain>
+            <display>(select array_to_json(array_agg(row_to_json(cat)))
+                from (select g.id from disp.md_model_patient_base mmpb
+                join pim_gender g on g.id = mmpb.gender_id
+                where mmpb.model_id = mmp.id) as cat)</display>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>socGroup.name</id>
+            <name>Пол</name>
+            <domain>String</domain>
+            <expression>msg.name</expression>
+            <name>Соц.группа</name>
+        </field>
+        <field>
+            <id>socGroup.id</id>
+            <domain>Integer</domain>
+            <expression>msg.id</expression>
+        </field>
+        <field>
+            <id>age</id>
+            <domain>String</domain>
+            <expression>(select mmpb1.age from disp.md_model_patient_base mmpb1 where mmpb1.model_id = mmp.id limit 1)</expression>
+            <name>Возраст</name>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>base_model.id</id>
+            <domain>integer</domain>
+            <name>Базовая модель</name>
+            <expression>(case mmp.base when true then 1 else 2 end)</expression>
+        </field>
+        <field>
+            <id>base_model_bool</id>
+            <domain>boolean</domain>
+            <name>Базовая</name>
+            <expression>mmp.base</expression>
+        </field>
+        <field>
+            <id>genderFilter.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>exists(select 1 from disp.md_model_patient_base pb where pb.gender_id = :genderFilter.id and pb.model_id = mmp.id)</search>
+        </field>
+        <field>
+            <id>model_org.id</id>
+            <domain>integer</domain>
+            <expression>mmp.org_id</expression>
+        </field>
+    </fields>
+</query>

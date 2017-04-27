@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <!--<id>contract</id>-->
+    <name>Договор</name>
+    <object-id>pm_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from fin_contract fc
+                where (not is_executed) and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from fin_contract fc
+                where (not is_executed) and :where
+            </n2o:count-query>
+            <n2o:alias>fc</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>fc.id</expression>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>string</domain>
+            <name>Номер</name>
+            <expression>fc.number</expression>
+            <search>upper(fc.number) like upper(:number||'%')</search>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Договор</name>
+            <expression>fc.number||' от '||to_char(fc.date,'dd.mm.yyyy')</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>string</domain>
+            <name>Дата договора</name>
+            <expression>to_char(fc.date,'dd-mm-yyyy')</expression>
+        </field>
+        <field>
+            <id>finType</id>
+            <domain>integer</domain>
+            <expression>fc.financing_type_id</expression>
+            <search>(:expression = :finType or :expression is NULL)</search>
+        </field>
+
+        <field>
+            <id>payerId</id>
+            <domain>integer</domain>
+            <expression>(select coalesce(fcr.individual_id, fcr.organization_id) from fin_contractor fcr where fcr.contract_id = fc.id and fcr.role_id = 1)</expression>
+            <search>:payerId in (:expression)</search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>(select coalesce(fcr.individual_id, fcr.organization_id) from fin_contractor fcr where fcr.contract_id = fc.id and fcr.role_id = 2)</expression>
+            <search>:orgId in (:expression)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>periodTo</id>
+            <domain>date</domain>
+            <expression>LEAST(fc.termination_date, fc.period)</expression>
+            <search>(:expression &lt; :periodTo or coalesce(:expression) is null)</search>
+        </field>
+    </fields>
+</query>

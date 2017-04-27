@@ -1,0 +1,1262 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:info="http://n2oapp.net/framework/config/schema/info-panel-widget-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns="http://n2oapp.net/framework/config/schema/page-1.0">
+
+    <object-id>stomatologyAdmission</object-id>
+    <layout>stomatology/n2o/layout/resultAdmissionMainLayout</layout>
+    <name>Результаты приема</name>
+    <regions>
+        <region place="top" type="none">
+            <container id="personalDataOfThePatient">
+                <info:form master-field-id="id" detail-field-id="id" css-class="infoPanel">
+                    <info:query-id>stomatologyPersonalDataOfThePatient</info:query-id>
+                    <info:edit/>
+                    <info:info-panel id="patient" show-personal-data="true" show-medical-data="true" readonly="true">
+                    </info:info-panel>
+                </info:form>
+            </container>
+        </region>
+        <region place="stomCardLink"  type="none">
+            <container id="stomCardLink"  depends-on="admissionCase">
+                <wgt:form master-field-id="id" detail-field-id="id">
+                    <wgt:query-id>stomatologyCardLink</wgt:query-id>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="stomCard" context="true" label="Стоматологическая карта">
+                            <wgt:open-page page-id="stomatologyCard" container-id="personalDataOfThePatient">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="caseOpenDate" ref="mcCase.caseOpenDate"/>
+                                    <wgt:pre-filter field-id="srvRenderedId" ref="id"/>
+                                    <wgt:pre-filter field-id="clinicId" ref="clinicId"/>
+                                    <wgt:pre-filter field-id="employeePosId" ref="employeePosId"/>
+                                </wgt:pre-filters>
+                            </wgt:open-page>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>hasPrevious == true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+            </container>
+        </region>
+        <region place="center" type="none">
+            <container id="admissionCase" depends-on="personalDataOfThePatient" opened="false"
+                       refresh-dependent-container="true">
+                <wgt:edit-form detail-field-id="id" master-field-id="id" css-class="admissionCase">
+                    <wgt:name>Случай</wgt:name>
+                    <!--<wgt:model>default</wgt:model>-->
+                    <wgt:query-id>stomatologyAdmissionMainPage</wgt:query-id>
+                    <wgt:default-values-query-id>stomatologyAdmissionMainPage</wgt:default-values-query-id>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createVisit" label="Сохранить" color="btn btn-primary">
+                            <wgt:invoke-action action-id="createVisitAndResultAdmission"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>mcCaseId == null &amp;&amp; mcCase.newCase == false</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCaseStateFin == false</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="createNewCase" label="Сохранить" color="btn btn-primary">
+                            <wgt:invoke-action action-id="createNewCaseAndStomatologyAdmission"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>mcCaseId == null &amp;&amp; mcCase.newCase == true</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCaseStateFin == false</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="updateCase" label="Сохранить" color="btn btn-primary">
+                            <wgt:invoke-action action-id="updateCaseAndResultAdmission" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>mcCaseId != null &amp;&amp; mcCaseId == mcCase.id</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCaseStateFin == false</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="rewriteCase" label="Сохранить" color="btn btn-primary">
+                            <wgt:invoke-action action-id="rewriteCase"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>mcCaseId != null &amp;&amp; mcCaseId != mcCase.id</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCaseStateFin == false</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="planing" label="Запись на повторный прием" color="group">
+                            <wgt:a href="${rmis.external.host}/plan/planning?organizationId=:patient.orgId:&amp;value=:patient.id:&amp;service.id=:serviceId:&amp;:resourceGroupId:"
+                                   target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>mcCaseId != null &amp;&amp; mcCaseId == mcCase.id</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="closeCase" label="Закрыть случай">
+                            <wgt:show-modal page-id="stomatologyCloseCaseForm" master-field-id="step.id"
+                                            detail-field-id="id"
+                                            refresh-on-close="true" after-submit="closeModal">
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isCaseStateFin == false</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>mcCaseId != null &amp;&amp; mcCaseId == mcCase.id</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="reopenCase" label="Открыть случай">
+                            <wgt:invoke-action action-id="reopenCase"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isCaseStateFin == true</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>mcCaseId != null &amp;&amp; mcCaseId == mcCase.id</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>caseCheckNotOpen != true</wgt:expression>
+                                    <wgt:tooltip>Переоткрыть случай невозможно, по нему сформирован счет-реестр
+                                    </wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="goCase" label="Информация по случаю" color="group">
+                            <wgt:open-page page-id="stomatologyAdmission" master-field-id="id" detail-field-id="id"
+                                           refresh-on-close="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>mcCaseId != null &amp;&amp; mcCaseId == mcCase.id</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Отчеты" id="print" context="true" icon="icomoon-printer">
+                            <wgt:a href="${rmis.report.birt.url}/run?__report=TAP_2015.rptdesign&amp;:ticketIdForReport:&amp;user_id=:resultAdmission.patientId:&amp;visit_id=:step.id:&amp;__format=pdf"
+                                   target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>mcCaseId != null &amp;&amp; mcCaseId == mcCase.id</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="patientCardPlace" icon="icomoon-clock" type="icon" color="addCardPlace">
+                            <wgt:show-modal page-id="patientCardPlace" master-field-id="patientId"
+                                            detail-field-id="patientId" refresh-on-close="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="addCardPlace" icon="icomoon-floppy-disk" type="icon" label="Сохранить"
+                                       color="addCardPlace">
+                            <wgt:invoke-action action-id="addCardPlace" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>((placeOld != place.id) || (placeEmpl != employeePosId)) || placeOld
+                                        == null
+                                    </wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <fs:field-set>
+                        <fs:row style="float: right; position: relative; bottom: 42px; right:39px;">
+                            <ctrl:classifier id="place" search-as-you-type="true" label="АМК" css-class="place"
+                                             control-style="margin-right: 40px; border-top-width: 0px; width:180px">
+                                <ctrl:query query-id="clinicCardPlace" label-field-id="name" value-field-id="id"/>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="isCardPlaceCheckError" side="server"/>
+                                </ctrl:validations>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <!--поле необходимое для того чтобы выбирать значение по дефолту-->
+                            <ctrl:classifier id="mcCaseHidden" label="Случай обслуживания" visible="false">
+                                <ctrl:query query-id="patientStomatologyCase" label-field-id="name" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="patientId" ref="patient.id"/>
+                                        <ctrl:pre-filter field-id="caseClosing" type="isNull"/>
+                                        <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:update-model query-id="patientStomatologyCase" master-field-id="mcCaseHidden.id"
+                                                   detail-field-id="id" target="field">
+                                </ctrl:update-model>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="mcCase" label="Случай обращения" search-as-you-type="true"
+                                             required="true"
+                                             control-style="width:405px;"
+                                             label-style="font-weight:bold; text-decoration: underline;">
+                                <ctrl:query query-id="patientStomatologyCase" label-field-id="name" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="patientId" ref="patient.id"/>
+                                        <ctrl:pre-filter field-id="caseClosing" type="isNull"/>
+                                        <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        isCaseStateFin != true
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                                <ctrl:actions>
+                                    <ctrl:button label="Новый случай">
+                                        <ctrl:set-value-expression>
+                                            var o = {
+                                            id: null,
+                                            name: 'Новый случай',
+                                            caseOpenDate: mcCaseDef.caseOpenDate,
+                                            fundingSourceType: mcCaseDef.fundingSourceType,
+                                            caseType: mcCaseDef.caseType,
+                                            careRegimen: mcCaseDef.careRegimen,
+                                            careLevel: mcCaseDef.careLevel,
+                                            openMoreInfo: true,
+                                            firstVisitDate: mcCaseDef.caseOpenDate,
+                                            caseInitGoal: mcCaseDef.caseInitGoal,
+                                            careProvidingForm: mcCaseDef.careProvidingForm,
+                                            careProvisionCondition: mcCaseDef.careProvisionCondition,
+                                            isNewCheck: !mcCase.isNewCheck,
+                                            newCase: true
+                                            }
+                                            o
+                                        </ctrl:set-value-expression>
+                                        <ctrl:dependencies>
+                                            <ctrl:enabling-condition>
+                                                mcCaseId == null &amp;&amp; mcCaseHidden.id == null
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                </ctrl:actions>
+                                <ctrl:set-value-expression on-non-empty="false">
+                                    <![CDATA[
+                                if (mcCaseHidden.id == null && mcCase.name == null){
+                                    var o = {
+                                                id: null,
+                                                name: 'Новый случай',
+                                                caseOpenDate: mcCaseDef.caseOpenDate,
+                                                fundingSourceType: mcCaseDef.fundingSourceType,
+                                                caseType: mcCaseDef.caseType,
+                                                careRegimen: mcCaseDef.careRegimen,
+                                                careLevel: mcCaseDef.careLevel,
+                                                openMoreInfo: true,
+                                                firstVisitDate: mcCaseDef.caseOpenDate,
+                                                caseInitGoal: mcCaseDef.caseInitGoal,
+                                                careProvidingForm: mcCaseDef.careProvidingForm,
+                                                careProvisionCondition: mcCaseDef.careProvisionCondition,
+                                                isNewCheck: !mcCase.isNewCheck,
+                                                newCase: true
+                                    }
+                                    o;
+                                } else {
+                                    if(mcCase.id == null && mcCaseHidden.name != null){
+                                        mcCaseHidden;
+                                    }else{
+                                        mcCase;
+                                    }
+                                }
+
+                                ]]>
+                                </ctrl:set-value-expression>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="caseDateCheck" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:classifier>
+                            <ctrl:checkbox id="mcCase.openMoreInfo" label="Параметры случая" label-style="width:0px"
+                                           control-style="margin-left:0px;">
+                                <ctrl:set-value if="mcCaseId != null" then="false"/>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        mcCase.caseOpenDate != null &amp;&amp;
+                                        mcCase.fundingSourceType != null &amp;&amp; mcCase.caseType != null &amp;&amp;
+                                        mcCase.careRegimen != null &amp;&amp; mcCase.caseInitGoal != null
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:checkbox>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:date-time id="mcCase.caseOpenDate" required="true"
+                                            dependency-condition="mcCase.openMoreInfo == true">
+                            </ctrl:date-time>
+                            <ctrl:classifier id="mcCase.fundingSourceType" label="Вид финансирования"
+                                             search-as-you-type="true" required="true"
+                                             dependency-condition="mcCase.openMoreInfo == true" depends-on="mcCase">
+                                <ctrl:query query-id="stomatologyFundingSourceType" label-field-id="name"
+                                            value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="clinicId" ref="clinicId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:update-model query-id="stomatologyFundingSourceType" master-field-id="mcCase.fundingSourceType.id"
+                                                   detail-field-id="id" target="field"/>
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                    <ctrl:property key="floppy-position" value="right"/>
+                                </ctrl:properties>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="mcCase.caseType" label="Вид случая" search-as-you-type="true"
+                                             dependency-condition="mcCase.openMoreInfo == true" required="true">
+                                <ctrl:query query-id="caseType" label-field-id="name" value-field-id="id"/>
+                                <ctrl:update-model query-id="caseType" master-field-id="mcCase.caseType.id" detail-field-id="id" target="field"/>
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                    <ctrl:property key="floppy-position" value="right"/>
+                                </ctrl:properties>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="mcCase.careRegimen" label="Условия оказания" search-as-you-type="true"
+                                             required="true" dependency-condition="mcCase.openMoreInfo == true">
+                                <ctrl:query query-id="careRegimen" label-field-id="name" value-field-id="id"/>
+                                <ctrl:update-model query-id="careRegimen" master-field-id="mcCase.careRegimen.id" detail-field-id="id" target="field"/>
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                    <ctrl:property key="floppy-position" value="right"/>
+                                </ctrl:properties>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="mcCase.careProvidingForm" label="Форма оказания МП"
+                                             search-as-you-type="true"
+                                             dependency-condition="mcCase.openMoreInfo == true">
+                                <ctrl:query query-id="careProvidingForm" label-field-id="name" value-field-id="id"/>
+                                <ctrl:update-model query-id="careProvidingForm" master-field-id="mcCase.careProvidingForm.id" detail-field-id="id" target="field"/>
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                    <ctrl:property key="floppy-position" value="right"/>
+                                </ctrl:properties>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="mcCase.caseInitGoal" label="Цель обращения" search-as-you-type="true"
+                                             dependency-condition="mcCase.openMoreInfo == true" required="true">
+                                <ctrl:query query-id="initGoal" label-field-id="name" value-field-id="id"/>
+                                <ctrl:update-model query-id="initGoal" master-field-id="mcCase.caseInitGoal.id" detail-field-id="id" target="field"/>
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                    <ctrl:property key="floppy-position" value="right"/>
+                                </ctrl:properties>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="mcCase.careLevel" label="Уровень мед. помощи"
+                                             search-as-you-type="true"
+                                             dependency-condition="mcCase.openMoreInfo == true">
+                                <ctrl:query query-id="careLevel" label-field-id="name" value-field-id="id"/>
+                                <ctrl:update-model query-id="careLevel" master-field-id="mcCase.careLevel.id" detail-field-id="id" target="field"/>
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                    <ctrl:property key="floppy-position" value="right"/>
+                                </ctrl:properties>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="mcCase.careProvisionCondition" label="Режим лечения"
+                                             search-as-you-type="true"
+                                             dependency-condition="mcCase.openMoreInfo == true">
+                                <ctrl:query query-id="careProvisionCondition" label-field-id="name"
+                                            value-field-id="id"/>
+                                <ctrl:update-model query-id="careProvisionCondition"
+                                                   master-field-id="mcCase.careProvisionCondition.id"
+                                                   detail-field-id="id" target="field"/>
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                    <ctrl:property key="floppy-position" value="right"/>
+                                </ctrl:properties>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="referral" label="Направление" search-as-you-type="true"
+                                             dependency-condition="mcCase.openMoreInfo == true &amp;&amp; mcCaseId == null">
+                                <ctrl:query query-id="referralQ" label-field-id="name" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="patientId" ref="patient.id"/>
+                                        <ctrl:pre-filter field-id="isImplemented" value="true"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="mcCase.paymentMethod" label="Способ оплаты" search-as-you-type="true"
+                                             depends-on="mcCase.careRegimen" dependency-condition="mcCase.openMoreInfo == true">
+                                <ctrl:query query-id="paymentMethod" label-field-id="name" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="careRegimenId" ref="careRegimenHiddenId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:update-model query-id="paymentMethod" master-field-id="mcCase.paymentMethod.id"
+                                                   detail-field-id="id" target="field"/>
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                    <ctrl:property key="floppy-position" value="right"/>
+                                </ctrl:properties>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                    <!--поля ТАП-->
+                    <fs:field-set header="line">
+                        <fs:row>
+                            <ctrl:output-text id="visit" label="Посещение"
+                                              label-style="font-weight:bold; text-decoration: underline;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:date-time id="visitDateTime" format="DD.MM.YYYY" label="Дата посещения"
+                                            required="true">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="visitDateCheck" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:date-time>
+                            <ctrl:date-time id="visitDateTime" format="HH:mm" label="Время начала" required="true" css-class="time_interval">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="visitTimeCheck" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:date-time>
+                            <ctrl:date-time id="visitEndTime" format="HH:mm" label="Время окончания" required="true" css-class="time_interval">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="visitTimeCheck" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:date-time>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="profile" label="Профиль" search-as-you-type="true" required="true">
+                                <ctrl:query query-id="clinicProfile" label-field-id="name" value-field-id="id"/>
+                                <ctrl:update-model query-id="clinicProfilePlain" master-field-id="profile.id" detail-field-id="id" target="field"/>
+                                <ctrl:set-value-expression on="mcCase.isNewCheck" on-load="true">
+                                    <![CDATA[
+                                        if(mcCase.id == null){
+                                        mcCaseDef.profile; } else {
+                                        profile;
+                                        }
+                                    ]]>
+                                </ctrl:set-value-expression>
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                    <ctrl:property key="floppy-position" value="right"/>
+                                </ctrl:properties>
+                            </ctrl:classifier>
+                            <ctrl:hidden id="doctor.resourceId">
+                                <ctrl:set-value-expression>
+                                    emplPos.resourceId
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+                            <!--<ctrl:classifier id="doctor" label="Врач:" search-as-you-type="true" required="true">
+                                <ctrl:query query-id="stomatologReferral" label-field-id="refDoctor"
+                                            value-field-id="resourceId">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="orgId" ref="clinicId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+
+                                <ctrl:set-value-expression on="doctor" on-non-empty="false">
+                                    var o = new Object();
+                                    o.refDoctor = emplPos.name;
+                                    o.resourceId = emplPos.resourceId;
+                                    o;
+                                </ctrl:set-value-expression>
+
+                            </ctrl:classifier>-->
+                            <ctrl:classifier id="visitPlace" label="Место обслуживания" search-as-you-type="true"
+                                             required="true">
+                                <ctrl:query query-id="visitPlace" label-field-id="name" value-field-id="id"/>
+                                <ctrl:update-model query-id="visitPlace" master-field-id="visitPlace.id" detail-field-id="id" target="field"/>
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                    <ctrl:property key="floppy-position" value="right"/>
+                                </ctrl:properties>
+                                <ctrl:set-value-expression on="mcCase.isNewCheck" on-load="true">
+                                    <![CDATA[
+                                        if(mcCase.newCase == true){
+                                        mcCaseDef.visitPlace; } else {
+                                        visitPlace;
+                                        }
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="mes" label="МЭС" search-as-you-type="true" depends-on="finalDiagnosis.id">
+                                <ctrl:query query-id="stomatology_mes" label-field-id="name" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                                        <ctrl:pre-filter field-id="diagnosisId" ref="finalDiagnosis.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="service" label="Услуга" search-as-you-type="true" required="true">
+                                <ctrl:query query-id="srStomatologyService" label-field-id="name" value-field-id="id"/>
+                                <ctrl:update-model query-id="srStomatologyService" master-field-id="service.id" detail-field-id="id" target="field"/>
+                                <ctrl:properties>
+                                    <ctrl:property key="floppy" value="true"/>
+                                    <ctrl:property key="floppy-position" value="right"/>
+                                </ctrl:properties>
+                                <ctrl:set-value-expression on="mcCase.isNewCheck" on-load="true">
+                                    <![CDATA[
+                                        if(mcCase.newCase == true){
+                                        mcCaseDef.service; } else {
+                                        service;
+                                        }
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="medicalStuff" label="Ср. мед. персонал" search-as-you-type="true">
+                                <ctrl:query query-id="srMedStuff" label-field-id="name" value-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="orgId" ref="serviceRendered.orgId"/>
+                                        <ctrl:pre-filter field-id="notEndDate" value="true"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:input-text id="countCul" label="Всего УЕТ по посещению" readonly="true"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:checkbox id="viewed" label="Осмотрено" label-style="display:none;"
+                                           control-style="width:50px; position:"/>
+                            <ctrl:checkbox id="needed" label="Нуждалось" label-style="display:none;"
+                                           control-style="width:50px; position:"/>
+                            <ctrl:checkbox id="sanitized" label="Санировано" label-style="display:none;"
+                                           control-style="width:50px; position:"/>
+                            <ctrl:checkbox id="initiatior" label="Актив" label-style="display:none;"
+                                           control-style="width:50px; position:"/>
+                        </fs:row>
+                    </fs:field-set>
+                </wgt:edit-form>
+            </container>
+        </region>
+        <region place="lastVisitCenter" type="none">
+            <container id="lastVisit" depends-on="admissionCase" refresh-dependent-container="true">
+                <wgt:edit-form detail-field-id="id" master-field-id="mcCase.id" style="height: 0px;">
+                    <wgt:query-id>patientOpenedStomatologyCause</wgt:query-id>
+                    <wgt:model>query-or-default</wgt:model>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="latVisit" icon="icomoon-history" type="icon" color="lastVisitCenter"
+                                       label="Заполнить из последнего">
+                            <wgt:invoke-action action-id="createCopyLastVisit" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>mcCaseId == null &amp;&amp; lastVisitId != null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:edit-form>
+                <pre-filters>
+                    <pre-filter field-id="serviceRendered.id" ref="serviceRendered.id"/>
+                    <pre-filter field-id="serviceRendered.orgId" ref="serviceRendered.orgId"/>
+                    <pre-filter field-id="serviceRendered.patientId" ref="serviceRendered.patientId"/>
+                    <pre-filter field-id="serviceRendered.resGroupId" ref="serviceRendered.resGroupId"/>
+                    <pre-filter field-id="serviceRendered.plannedDate" ref="serviceRendered.plannedDate"/>
+                    <pre-filter field-id="serviceRendered.resGroupIsSystem" ref="serviceRendered.resGroupIsSystem"/>
+                    <pre-filter field-id="appointmentId" ref="appointmentId"/>
+                    <pre-filter field-id="visitDate" ref="visitDateTime"/>
+                    <pre-filter field-id="doctorId" ref="resultAdmission.doctorId"/>
+                    <pre-filter field-id="resourceGroup.id" ref="resourceGroup.id"/>
+                    <pre-filter field-id="mcCaseId" ref="mcCaseId"/>
+                </pre-filters>
+            </container>
+        </region>
+        <region place="bottom-right-tab-dental-formula" type="none">
+            <container id="dental-formula" depends-on="admissionCase" opened="false" refresh-dependent-container="true">
+                <wgt:edit-form master-field-id="dentalFormulaId" detail-field-id="id" customize="jsp"
+                               src="stomatology/n2o/layout/dentalFormulaForm">
+                    <wgt:model>query</wgt:model>
+                    <wgt:query-id>dentalFormula</wgt:query-id>
+                    <wgt:name>Стоматологическая формула</wgt:name>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="inspection" label="Заполнить" context="false">
+                            <wgt:show-modal page-id="inspection" master-field-id="id" action-id="create"
+                                            refresh-on-close="true"
+                                            detail-field-id="dentalFormulaId" width="850px" model="query"
+                                            page-name=" Заполнение осмотра "/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Сохранить" context="true">
+                            <wgt:invoke-action action-id="update" confirmation="false"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                    <fs:field-set>
+                        <ctrl:custom label="Зубная формула" id="toothList" src="stomatology/n2o/custom/tooths/tooths">
+                            <ctrl:properties>
+                                <ctrl:property key="backendServicesPath"
+                                               value="${rmis.system.backend.url}/stomatology/dentalFormula"/>
+
+                                <ctrl:property key="createDiagnosisModalPath"
+                                               value="stomatology.stomatologyAppointment.appointments.resultAdmission.diagnosis.createDiagnosis"/>
+                                <ctrl:property key="createDiagnosisModalFieldId" value="tooth"/>
+                                <ctrl:property key="createDiagnosisModalFieldQueryUrlTpl"
+                                               value="data?queryId=tooth&amp;size=0&amp;filter.dentalFormulaId=widgetMasterFieldId"/>
+
+                                <ctrl:property key="createToothTherapyModalFieldId" value="tooth"/>
+                                <ctrl:property key="createToothTherapyModalFieldQueryUrlTpl"
+                                               value="data?queryId=tooth&amp;size=0&amp;filter.dentalFormulaId=widgetMasterFieldId"/>
+
+                                <ctrl:property key="createToothServicesModalPath"
+                                               value="stomatology.stomatologyAppointment.appointments.resultAdmission.servicesAndProtocols.createToothService"/>
+                                <ctrl:property key="createToothServicesModalFieldId" value="tooth"/>
+                                <ctrl:property key="createToothServicesModalFieldQueryUrlTpl"
+                                               value="data?queryId=tooth&amp;size=0&amp;filter.dentalFormulaId=widgetMasterFieldId"/>
+                            </ctrl:properties>
+                        </ctrl:custom>
+                        <ctrl:text-area id="complaints" label="Жалобы" rows="4"/>
+                        <ctrl:text-area id="anamnesis" label="Анамнез" rows="4"/>
+                        <ctrl:classifier id="occlusion" label="Прикус" required="false" search-as-you-type="true">
+                            <ctrl:query query-id="occlusion" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:text-area id="condition" rows="4"
+                                        label="Состояние слизистой оболочки полости рта, десен, альвеолярных отростков и неба"/>
+                        <ctrl:text-area id="note" label="Дополнительные сведения" rows="4"/>
+                    </fs:field-set>
+                </wgt:edit-form>
+                <pre-filters>
+                    <pre-filter field-id="id" ref="dentalFormulaId"/>
+                </pre-filters>
+            </container>
+        </region>
+        <!--<region place="bottom-right-tab-TAP" type="none">
+            <container id="protocol" depends-on="servicesAndProtocols">
+                <wgt:custom src="ehr/widget/protocol" master-field-id="renderedId" detail-field-id="id">
+                    <wgt:query-id>sr_srv_rendered_protocol</wgt:query-id>
+                    <wgt:name>Протокол</wgt:name>
+                    <wgt:properties>
+                        <wgt:property key="object-type" value="service"/>
+                    </wgt:properties>
+                </wgt:custom>
+            </container>
+        </region>-->
+        <region place="bottom-right-tab-services" type="none">
+            <container id="servicesAndProtocols" depends-on="admissionCase" refresh-dependent-container="true">
+                <!--<wgt:table master-field-id="dentalFormulaId" detail-field-id="dentalFormulaId" css-class="tap">-->
+                <wgt:table master-field-id="resultAdmission.id" detail-field-id="visit.id" css-class="tap">
+                    <wgt:name>Услуги/Протоколы</wgt:name>
+                    <wgt:query-id>toothService</wgt:query-id>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createToothService" label="Добавить" icon="icon-plus"
+                                       color="btn btn-primary" context="false">
+                            <wgt:show-modal page-id="toothService" refresh-on-close="true"
+                                            focus-after-submit="true" action-id="createToothService"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCaseState != true</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="updateToothService" label="Внести результат" context="true">
+                            <wgt:open-page page-id="toothServiceEdit" refresh-on-close="true"
+                                           focus-after-submit="true" action-id="updateToothService" after-submit="edit">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="dentalFormulaId" ref="dentalFormulaId"/>
+                                </wgt:pre-filters>
+                            </wgt:open-page>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteToothService" label="Удалить" icon="icomoon-bin"
+                                       context="true">
+                            <wgt:invoke-action action-id="deleteToothService" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isNotDelete != true</wgt:expression>
+                                    <wgt:tooltip>Сначала удалите дочерние услуги!</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isResult != true</wgt:expression>
+                                    <wgt:tooltip>Сначала удалите результаты</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isAppointment != true</wgt:expression>
+                                    <wgt:tooltip>Обязательная услуга</wgt:tooltip>
+                                </wgt:enabling-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCaseState != true</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <!-- <wgt:group>
+                             <wgt:menu-item id="serviceResult" label="Результат" icon="icomoon-aid-kit">
+                                 <wgt:show-modal page-id="clinicResultService" refresh-on-close="true"
+                                                 master-field-id="renderedId" detail-field-id="renderedId"/>
+                             </wgt:menu-item>
+                         </wgt:group>-->
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="serviceName"/>
+                        <wgt:column column-field-id="tooth.name"/>
+                        <wgt:column column-field-id="quantity"/>
+                        <wgt:column column-field-id="totalCost"/>
+                        <wgt:column column-field-id="cul"/>
+                        <wgt:column column-field-id="funding.name"/>
+                        <wgt:column column-field-id="bdate"/>
+                        <wgt:column column-field-id="resGroup.name"/>
+                    </wgt:columns>
+                    <pre-filters>
+                        <pre-filter field-id="dentalFormulaId" ref="dentalFormulaId"/>
+                    </pre-filters>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="dentalFormulaId" ref="dentalFormulaId"/>
+                    <pre-filter field-id="isRendered" value="true"/>
+                    <pre-filter field-id="isCaseState" ref="resultAdmission.isCaseState"/>
+                </pre-filters>
+            </container>
+        </region>
+        <region place="bottom-right-tab-diagnosis" type="none">
+            <container id="diagnosis" depends-on="admissionCase" refresh-dependent-container="true">
+                <wgt:table master-field-id="dentalFormulaId" detail-field-id="dentalFormulaId" css-class="tap">
+                    <wgt:name>Диагноз</wgt:name>
+                    <wgt:query-id>stomatologyDiagnosis</wgt:query-id>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createDiagnosis" label="Добавить" icon="icon-plus"
+                                       color="btn btn-primary" context="false">
+                            <wgt:show-modal page-id="stomatologyDiagnosis" action-id="createDiagnosis"
+                                            refresh-on-close="true" width="600px"
+                                            after-submit="closeModal">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="diagnosis"><![CDATA[null]]></wgt:pre-filter>
+                                    <wgt:pre-filter field-id="stg"><![CDATA[null]]></wgt:pre-filter>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCaseState != true</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="updateDiagnosis" label="Изменить" context="true">
+                            <wgt:show-modal page-id="stomatologyDiagnosisEdit" action-id="updateDiagnosis" model="query"
+                                            refresh-on-close="true" width="600px">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="dentalFormulaId" ref="dentalFormulaId"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteDiagnosis" label="Удалить" icon="icomoon-bin"
+                                       context="true">
+                            <wgt:invoke-action action-id="deleteDiagnosis" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCaseState != true</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="tooth.name"/>
+                        <wgt:column column-field-id="toothSurface.name"/>
+                        <wgt:column column-field-id="diagnosisTypeName"/>
+                        <wgt:column column-field-id="stage.name"/>
+                        <wgt:column column-field-id="diagnosis.name"/>
+                        <wgt:column column-field-id="stg.name"/>
+                    </wgt:columns>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="id" type="isNotNull"/>
+                    <pre-filter field-id="isCaseState" ref="resultAdmission.isCaseState"/>
+                    <pre-filter field-id="mcCase" ref="resultAdmission.mcCaseId"/>
+                    <pre-filter field-id="patient.id" ref="resultAdmission.patientId"/>
+                    <pre-filter field-id="resGroup.name" ref="resultAdmission.resGroupName"/>
+                    <pre-filter field-id="resGroup.id" ref="resultAdmission.doctorId"/>
+                    <pre-filter field-id="mainDiagnosis.id" ref="resultAdmission.caseMainDiagnosisId"/>
+                    <pre-filter field-id="org.id" ref="resultAdmission.orgId"/>
+                    <pre-filter field-id="visit.id" ref="step.id"/>
+                </pre-filters>
+            </container>
+        </region>
+        <region place="bottom-right-tab-tooth-material" type="none">
+            <container id="tooth-material" opened="true" depends-on="admissionCase">
+                <wgt:table css-class="tap" master-field-id="dentalFormulaId" detail-field-id="dentalFormulaId">
+                    <wgt:name>Расходные матреиалы</wgt:name>
+                    <wgt:query-id>toothMaterial</wgt:query-id>
+                    <wgt:size>5</wgt:size>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createToothMaterial" label="Добавить" icon="icon-plus"
+                                       color="btn btn-primary" context="false">
+                            <wgt:show-modal page-id="toothMaterial" action-id="createToothMaterial"
+                                            refresh-on-close="true" width="600px"
+                                            master-field-id="dentalFormulaId" detail-field-id="dentalFormulaId"
+                                            after-submit="closeModal"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCaseState != true</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="createToothMaterialCopy" label="Копировать" icon="glyphicons glyphicons-duplicate"
+                                       context="true">
+                            <wgt:show-modal page-id="toothMaterial" action-id="createToothMaterialCopy"
+                                            refresh-on-close="true" width="600px" model="copy"
+                                            master-field-id="id" detail-field-id="id"
+                                            after-submit="closeModal"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCaseState != true</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="updateToothMaterial" label="Изменить" context="true">
+                            <wgt:show-modal page-id="toothMaterial"
+                                            action-id="updateToothMaterial"
+                                            refresh-on-close="true" width="600px" model="query"
+                                            master-field-id="id" detail-field-id="id"
+                                            after-submit="closeModal"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteToothMaterial" label="Удалить" icon="icomoon-bin"
+                                       context="true">
+                            <wgt:invoke-action action-id="deleteToothMaterial" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isCaseState != true</wgt:expression>
+                                    <wgt:tooltip>Случай закрыт</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="holdModif.name"/>
+                        <wgt:column column-field-id="amount"/>
+                        <wgt:column column-field-id="measure.name"/>
+                        <wgt:column column-field-id="toothNumbersString"/>
+                    </wgt:columns>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="isCaseState" ref="resultAdmission.isCaseState"/>
+                </pre-filters>
+            </container>
+        </region>
+        <region place="bottom-right-tab-referral" type="list">
+            <container id="referral" depends-on="admissionCase" opened="true">
+                <wgt:table master-field-id="resultAdmission.patientId" detail-field-id="patientId" css-class="tap">
+                    <wgt:name>Направления</wgt:name>
+                    <wgt:size>5</wgt:size>
+                    <wgt:query-id>stomatologyReferral</wgt:query-id>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="createReferral" label="Добавить" icon="icon-plus"
+                                       color="btn btn-primary">
+                            <wgt:sub-menu>
+                                <wgt:menu-item id="createlaboratoryReferral"
+                                               label="направление на лабораторные исследования" context="false">
+                                    <wgt:show-modal page-id="laboratoryResearch" action-id="save"
+                                                    master-field-id="patientId" detail-field-id="patient.id"
+                                                    refresh-on-close="true" model="default">
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="caseId" ref="caseId"/>
+                                            <wgt:pre-filter field-id="stepId" ref="stepId"/>
+                                        </wgt:pre-filters>
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="createClinicReferral" label="направление на услуги" context="false">
+                                    <wgt:open-page page-id="clinicReferral" master-field-id="patientId"
+                                                   detail-field-id="patientId" focus-after-submit="true"
+                                                   refresh-on-close="true">
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="stepId" ref="stepId"/>
+                                            <wgt:pre-filter field-id="diagnosis" ref="referralDiagnosis"/>
+                                            <wgt:pre-filter field-id="initialIsFinanceTypeControl" value="false"/>
+                                        </wgt:pre-filters>
+                                    </wgt:open-page>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="hospReferral" label="направление на госпитализацию" context="false">
+                                    <wgt:show-modal page-id="hospitalReferralFromStomatology" master-field-id="patientId"
+                                                    detail-field-id="patient.id"
+                                                    refresh-on-close="true" focus-after-submit="true">
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="referralOrganization.id" value="#{org.id?}"/>
+                                            <wgt:pre-filter field-id="referralDepartment.id" value="#{dep.id?}"/>
+                                            <wgt:pre-filter field-id="referralEmployee.id" value="#{emplPos.id?}"/>
+                                            <wgt:pre-filter field-id="referralDiagnosis" ref="referralDiagnosis"/>
+                                            <wgt:pre-filter field-id="stepId" ref="stepId"/>
+                                        </wgt:pre-filters>
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="updateReferral" label="Изменить" context="true">
+                            <wgt:open-page page-id="clinicReferral" model="query" refresh-on-close="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>is_laboratoryReferral == false &amp;&amp; is_hospitalReferral !=
+                                        true
+                                    </wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="updateLaboratoryReferral" label="Изменить" context="true">
+                            <wgt:show-modal page-id="laboratoryResearch" model="query" refresh-on-close="true"  action-id="save"   master-field-id="id" detail-field-id="id"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>is_laboratoryReferral == true &amp;&amp; is_hospitalReferral !=
+                                        true
+                                    </wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="updateHospitalReferral" label="Изменить" context="true">
+                            <wgt:show-modal page-id="hospitalReferralFromStomatology" model="query" refresh-on-close="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>is_hospitalReferral == true</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteReferral" label="Удалить" icon="icomoon-bin"
+                                       context="true">
+                            <wgt:invoke-action action-id="deleteReferral" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status != true</wgt:expression>
+                                    <wgt:tooltip>Направление "исполнено"</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:group>
+                            <wgt:menu-item label="Печать" id="print" context="true" icon="icomoon-printer">
+                                <wgt:a href="${rmis.report.birt.url}/run?__report=:reportName:&amp;referral_id=:id:&amp;user_id=:patientId:&amp;visit_id=:stepId:&amp;__format=pdf"
+                                       target="newWindow"/>
+                            </wgt:menu-item>
+                        </wgt:group>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="name" name="Номер направления" width="140px"/>
+                        <wgt:column column-field-id="referralTypeName" name="Вид направления"/>
+                        <wgt:column column-field-id="date" name="Дата направления" width="120px"/>
+                        <wgt:column column-field-id="status" name="Исполнено" width="80px">
+                            <wgt:checkbox/>
+                        </wgt:column>
+                        <wgt:column column-field-id="recvOrg.name" name="В МО"/>
+                        <wgt:column column-field-id="recvDepartment.name" name="В отделение"/>
+                        <wgt:column column-field-id="recvDoctor.name" name="К врачу"/>
+                        <wgt:column column-field-id="diagnosis.name" name="Диагноз"/>
+                        <wgt:column column-field-id="isUrgent" name="Срочно" width="80px">
+                            <wgt:checkbox/>
+                        </wgt:column>
+                        <wgt:column column-field-id="service" name="Услуга"/>
+                    </wgt:columns>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="caseId" ref="resultAdmission.mcCaseId"/>
+                    <pre-filter field-id="referralDiagnosis.id" ref="resultAdmission.mdMainDiagnosisId"/>
+                    <pre-filter field-id="stepId" ref="resultAdmission.id"/>
+                    <!--<pre-filter field-id="isUrgent" value="false"/>-->
+                </pre-filters>
+            </container>
+
+
+            <container id="pre-entry" depends-on="referral" opened="true">
+                <wgt:table master-field-id="patientId" detail-field-id="patientId" css-class="tap">
+                    <wgt:name>Предварительная запись</wgt:name>
+                    <wgt:size>5</wgt:size>
+                    <wgt:query-id>clinicPreEntry</wgt:query-id>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="planing" label="Предв.запись" icon="icon-plus"
+                                       color="btn btn-primary" context="false">
+                            <wgt:a href="${rmis.external.host}/plan/planning?organizationId=:recvOrgId:&amp;value=:patientId:&amp;service.id=:referralServiceId:&amp;referralId=:referralId:&amp;:resourceGroupId:&amp;backUrl=%2F"
+                                   target="newWindow"/>
+                        </wgt:menu-item>
+                        <wgt:group>
+                            <wgt:menu-item label="Печать" id="print" context="true" icon="icomoon-printer">
+                                <wgt:a href="${rmis.report.birt.url}/run?__report=Talon_form_025-4_y88_50.rptdesign&amp;ticketId=:id:&amp;__format=pdf"
+                                       target="newWindow"/>
+                            </wgt:menu-item>
+                        </wgt:group>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="ticketNumber" name="Номер талона" width="10%"/>
+                        <wgt:column column-field-id="bDate" name="Дата" width="10%"/>
+                        <wgt:column column-field-id="bTime" name="Время" width="10%"/>
+                        <wgt:column column-field-id="service" name="Услуга"/>
+                        <wgt:column column-field-id="executor" name="Специалист"/>
+                    </wgt:columns>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="status" value="true"/>
+                    <pre-filter field-id="orgId" ref="org.id"/>
+                    <pre-filter field-id="resourceGroupId" ref="admissionCase.resourceGroupId"/>
+                    <pre-filter field-id="recvOrgId" ref="recvOrg.id"/>
+                    <pre-filter field-id="referralId" ref="id"/>
+                    <pre-filter field-id="referralServiceId" ref="referralServiceId"/>
+                </pre-filters>
+            </container>
+        </region>
+
+        <region place="bottom-right-tab-prescription" type="none">
+            <container id="prescription" depends-on="admissionCase">
+                <wgt:table master-field-id="resultAdmission.id" detail-field-id="stepId" css-class="tap">
+                    <wgt:name>Назначения</wgt:name>
+                    <wgt:query-id>stomatologyPrescriptionList</wgt:query-id>
+                    <wgt:size>5</wgt:size>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="viewPrescription" label="Просмотр" context="true">
+                            <wgt:show-modal page-id="prescriptionFormStomatology" width="600px" focus-after-submit="true"
+                                            refresh-on-close="true" page-name="Назначение. Просмотр"/>
+                        </wgt:menu-item>
+                        <wgt:group>
+                            <wgt:menu-item id="createPrescription" label="Добавить" icon="icon-plus" context="false"
+                                           color="btn btn-primary">
+                                <wgt:show-modal page-id="prescriptionFormEditStomatology" width="600px" refresh-on-close="true"
+                                                focus-after-submit="true"  action-id="createPrescription" page-name="Назначение. Создание">
+                                    <wgt:pre-filters>
+                                        <wgt:pre-filter field-id="stepId" ref="visit.id"/>
+                                        <wgt:pre-filter field-id="doctorId" value="#{emplPosRes.id}"/>
+                                    </wgt:pre-filters>
+                                </wgt:show-modal>
+                            </wgt:menu-item>
+                            <wgt:menu-item id="updatePrescription" label="Изменить" context="true">
+                                <wgt:show-modal page-id="prescriptionFormEditStomatology" width="600px" refresh-on-close="true"
+                                                focus-after-submit="true" action-id="updatePrescription" page-name="Назначение. Редактирование">
+                                    <wgt:pre-filters>
+                                        <wgt:pre-filter field-id="resourceGroup.id" ref="resourceGroup.id"/>
+                                    </wgt:pre-filters>
+                                </wgt:show-modal>
+
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>statusId == 1 || statusId == 2</wgt:expression>
+                                    </wgt:enabling-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                            <wgt:menu-item id="deletePrescription" label="Удалить" context="true">
+                                <wgt:invoke-action action-id="deletePrescription"/>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>statusId == 1 || statusId == 2</wgt:expression>
+                                    </wgt:enabling-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                        </wgt:group>
+                        <wgt:group>
+                            <wgt:menu-item id="confirmPrescription" label="Подтвердить" context="true">
+                                <wgt:invoke-action action-id="confirmPrescription"/>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>statusId == 1</wgt:expression>
+                                    </wgt:enabling-condition>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>service.id != null</wgt:expression>
+                                        <wgt:tooltip>Не выбрана услуга</wgt:tooltip>
+                                    </wgt:enabling-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                            <wgt:menu-item id="cancelPrescription" label="Отменить" context="true">
+                                <wgt:show-modal page-id="cancelPrescriptionStomatology" action-id="cancelPrescription"/>
+                                <wgt:conditions>
+                                    <wgt:enabling-condition>
+                                        <wgt:expression>statusId == 3</wgt:expression>
+                                    </wgt:enabling-condition>
+                                </wgt:conditions>
+                            </wgt:menu-item>
+                        </wgt:group>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="service.prescriptionName" name="Назначение"/>
+                        <wgt:column column-field-id="periodInterval" name="Период (дни)" width="25%"/>
+                        <wgt:column column-field-id="prescriptionCount" name="Количество"/>
+                        <wgt:column column-field-id="periodicity.name" name="Периодичность"/>
+                        <wgt:column column-field-id="visitTerm.name" name="Условия"/>
+                        <wgt:column column-field-id="status" name="Статус"/>
+                    </wgt:columns>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="caseId" ref="resultAdmission.mcCaseId"/>
+                    <pre-filter field-id="patientId" ref="resultAdmission.patientId"/>
+                    <pre-filter field-id="resourceGroup.id" ref="resourceGroup.id"/>
+                </pre-filters>
+            </container>
+        </region>
+
+        <region place="bottom-right-tab-receipt" type="none">
+            <container id="receiptList" depends-on="admissionCase">
+                <wgt:table master-field-id="resultAdmission.id" detail-field-id="step.id" css-class="tap">
+                    <wgt:name>Рецепты</wgt:name>
+                    <wgt:query-id>generalReceiptList</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="issue_dt"/>
+                        <wgt:column column-field-id="type.name"/>
+                        <wgt:column column-field-id="name"/>
+                        <wgt:column column-field-id="form_type.name"/>
+                        <wgt:column column-field-id="dosage"/>
+                        <wgt:column column-field-id="use_method"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="add" label="Добавить" icon="icon-plus">
+                            <wgt:sub-menu>
+                                <wgt:menu-item id="createGeneral" label="Обычный" context="false">
+                                    <wgt:show-modal page-id="generalReceiptForm" action-id="createGeneral"
+                                                    refresh-on-close="true">
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="patient.id" ref="patient.id"/>
+                                            <wgt:pre-filter field-id="caseId" ref="caseId"/>
+                                            <wgt:pre-filter field-id="stepId" ref="stepId"/>
+                                            <wgt:pre-filter field-id="diagnosis.id" ref="diagnosis.id"/>
+                                        </wgt:pre-filters>
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="generalReceiptForm" action-id="updateGeneral" refresh-on-close="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" context="true" label="Удалить" icon="glyphicon glyphicon-remove">
+                            <wgt:invoke-action action-id="deleteGeneral" confirmation="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Печать" id="print" context="true" icon="icomoon-printer">
+                            <wgt:a href="${rmis.report.birt.url}/run?__report=n2o/148-1-U-88.rptdesign&amp;receipt_id=:id:&amp;__format=pdf"
+                                   target="newWindow"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="patient.id" ref="serviceRendered.patientId"/>
+                    <pre-filter field-id="diagnosis.id" ref="resultAdmission.mdMainDiagnosisId"/>
+                    <pre-filter field-id="caseId" ref="mcCaseId"/>
+                    <pre-filter field-id="stepId" ref="step.id"/>
+                </pre-filters>
+            </container>
+        </region>
+        <region place="bottom-right-tab-sickList" type="none">
+            <container id="sickList" depends-on="admissionCase">
+                <wgt:table master-field-id="resultAdmission.mcCaseId" detail-field-id="caseId" css-class="tap">
+                    <wgt:name>Листы нетрудоспособности</wgt:name>
+                    <wgt:size>5</wgt:size>
+                    <wgt:query-id>clinicSickList</wgt:query-id>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="add" label="Добавить" icon="icon-plus" color="btn btn-primary">
+                            <wgt:sub-menu>
+                                <wgt:menu-item id="createSickList" label="Лист нетрудоспособности" context="false">
+                                    <wgt:show-modal
+                                            page-id="sicksheet"
+                                            page-name="Создание листа нетрудоспособности"
+                                            container-id="main"
+                                            action-id="createOrUpdateSickSheet"
+                                            master-field-id="caseId"
+                                            detail-field-id="mcase.id"
+                                            refresh-on-close="true"
+                                            width="780px">
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="requestSickList" label="Заявка" context="false">
+                                    <wgt:show-modal page-id="requestSickList" action-id="requestSickList"
+                                                    model="default" refresh-on-close="true"/>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="updateSickList" label="Изменить" context="true">
+                            <wgt:show-modal
+                                    page-id="sicksheet"
+                                    page-name="Изменение листа нетрудоспособности"
+                                    container-id="main"
+                                    action-id="createOrUpdateSickSheet"
+                                    refresh-on-close="true"
+                                    width="780px"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>code != null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="deleteSickList" label="Удалить" icon="icomoon-bin"
+                                       context="true">
+                            <wgt:invoke-action action-id="deleteSickList" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="code" name="Номер ЛН"/>
+                        <wgt:column column-field-id="issueDt" name="Дата выдачи"/>
+                        <wgt:column column-field-id="type.name" name="Тип ЛН"/>
+                        <wgt:column column-field-id="state.name" name="Статус"/>
+                        <wgt:column column-field-id="periodDt" name="Дата закрытия"/>
+                        <wgt:column column-field-id="disabilityReason.name" name="Причина"/>
+                    </wgt:columns>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="patientId" ref="resultAdmission.patientId"/>
+                    <pre-filter field-id="patientName" ref="resultAdmission.patientName"/>
+                    <pre-filter field-id="mdMainDiagnosisId" ref="resultAdmission.mdMainDiagnosisId"/>
+                </pre-filters>
+            </container>
+        </region>
+        <region place="bottom-right-tab-cert" type="none">
+            <container id="cert" depends-on="admissionCase">
+                <wgt:table master-field-id="resultAdmission.mcCaseId" detail-field-id="mcase.id" css-class="tap">
+                    <wgt:query-id>clinicCertList</wgt:query-id>
+                    <wgt:size>20</wgt:size>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="view" label="Просмотр" context="true">
+                            <wgt:show-modal page-id="certByCase"
+                                            container-id="main"
+                                            refresh-on-close="true"
+                                            width="40%"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="createCert" label="Выдать справку" context="false">
+                            <wgt:show-modal action-id="createCert"
+                                            page-id="certByCaseAdd"
+                                            page-name="Справка о стоимости услуг"
+                                            refresh-on-close="true"
+                                            width="40%">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="patient.id" ref="patientId"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="createRefusal" label="Зарегистрировать отказ" context="false">
+                            <wgt:show-modal action-id="createRefusal"
+                                            page-id="certByCaseAdd"
+                                            page-name="Отказ от справки о стоимости услуг"
+                                            refresh-on-close="true"
+                                            width="40%">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="patient.id" ref="patientId"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="annule" label="Аннулировать" context="true">
+                            <wgt:invoke-action action-id="annule" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!annuled</wgt:expression>
+                                    <wgt:tooltip>Аннулировать</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="cancelAnnuled" label="Отменить аннулирование" context="true">
+                            <wgt:invoke-action action-id="cancelAnnuled" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>annuled</wgt:expression>
+                                    <wgt:tooltip>Отменить аннулирование</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="number" width="10%"/>
+                        <wgt:column column-field-id="creationDate" width="10%" format="date DD.MM.YYYY"/>
+                        <wgt:column column-field-id="employeeIssued.name"/>
+                        <wgt:column column-field-id="receiver.name"/>
+                        <wgt:column column-field-id="refused" width="10%" tooltip-field-id="refusedIconName">
+                            <wgt:icon icon-field-id="refusedIcon"/>
+                        </wgt:column>
+                        <wgt:column column-field-id="annuled" width="10%">
+                            <wgt:icon icon-field-id="annuledIcon"/>
+                        </wgt:column>
+                    </wgt:columns>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="mcaseIsNotNull" type="isNotNull"/>
+                    <pre-filter field-id="patientId" ref="resultAdmission.patientId"/>
+                </pre-filters>
+            </container>
+        </region>
+    </regions>
+</page>

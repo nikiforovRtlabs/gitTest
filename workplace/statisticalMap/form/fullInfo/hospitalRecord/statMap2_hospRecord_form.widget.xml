@@ -1,0 +1,340 @@
+<form xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+          xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+          xmlns:fs2="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+          detail-field-id="id" master-field-id="id"
+          src="hospital/n2o/custom/custom" customize="css">
+    
+    <query-id>statMap2_hospRecord_form</query-id>
+    <name>Движение по отделениям</name>
+    <default-values-query-id>statMap2_hospRecord_create_form_default_val</default-values-query-id>
+    <action-menu>
+        <menu-item id="update" label="Изменить" default="true">
+            <go-edit action-id="update"/>
+        </menu-item>
+    </action-menu>
+
+    <edit after-submit="closeModal">
+        <invoke-action action-id="create"/>
+        <invoke-action action-id="update"/>
+    </edit>
+
+    <fs2:field-set field-label-location="left">
+
+        <!--<ctrl:input-text id="case.id"/>-->
+        <!--<ctrl:input-text id="case.patient.id"/>-->
+        <ctrl:output-text id="previous.name" dependency-condition="previous.name != null"
+                          label="Предыдущее отделение:" control-style="min-width:220px;width:100%;max-width:400px;"/>
+
+        <fs2:row>
+            <ctrl:date-time id="admissionDate" label="Дата поступления" format="DD.MM.YYYY HH:mm"
+                            required="true">
+                <ctrl:validations>
+                    <ctrl:validation ref-id="checkAdmissionOutcomeDates" side="client"/>
+                    <ctrl:validation ref-id="checkOutcomeDateInPreviousAndAdmissionInCurrent"/>
+                    <ctrl:validation ref-id="checkAdmissionDateInPreviousAndAdmissionInCurrent"/>
+                </ctrl:validations>
+            </ctrl:date-time>
+            <ctrl:date-time id="outcomeDate" label="Дата выписки" format="DD.MM.YYYY HH:mm" required="true">
+                <ctrl:validations>
+                    <ctrl:validation ref-id="checkAdmissionOutcomeDates" side="client"/>
+                    <ctrl:validation ref-id="checkAdmissionDateInNextAndOutcomeInCurrent"/>
+                </ctrl:validations>
+            </ctrl:date-time>
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="stepDepartment" label="Отделение" search-as-you-type="true"
+                             required="true">
+                <ctrl:query query-id="hosp_clinicalOrResuscitDepartmentByOrgWithProfile" value-field-id="id"
+                            label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="organizationId" ref="organizationId"/>
+                        <ctrl:pre-filter field-id="date" ref="admissionDate" reset-mode="off"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="careRegimen" label="Условия оказания" search-as-you-type="true"
+                             required="true"  depends-on="stepDepartment">
+                <ctrl:query query-id="hosp_careRegimen" value-field-id="id" label-field-id="name" master-field-id="id" detail-field-id="depId"/>
+                <ctrl:set-value-expression on="stepDepartment.id">if (typeof id == 'undefined' || id == null) callQuery(); else throw new Error();</ctrl:set-value-expression>
+            </ctrl:classifier>
+
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="profile" label="Профиль" search-as-you-type="true"
+                             required="true" depends-on="stepDepartment">
+                <ctrl:query query-id="hosp_profile" value-field-id="id" label-field-id="name"
+                            master-field-id="id" detail-field-id="departmentId"/>
+                <ctrl:set-value-expression>
+                    <![CDATA[if(stepDepartment != null && stepDepartment.profile.id != null) stepDepartment.profile; else throw '!';]]>
+                </ctrl:set-value-expression>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="bedProfile" label="Профиль койки" search-as-you-type="true"
+                             depends-on="profile"  autoselect-alone="true" required="true">
+                <ctrl:query query-id="hosp_bedProfile" value-field-id="id" label-field-id="name"
+                            master-field-id="id" detail-field-id="profileId"/>
+            </ctrl:classifier>
+        </fs2:row>
+
+        <fs2:row>
+
+            <ctrl:classifier id="doctor" label="Лечащий врач" depends-on="stepDepartment"
+                             search-as-you-type="true">
+                <ctrl:query query-id="hosp_resourceEmployeePositionResource" value-field-id="id"
+                            label-field-id="name"
+                            master-field-id="id" detail-field-id="depId"/>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="financialType" label="Вид оплаты" required="true"
+                             search-as-you-type="true">
+                <ctrl:query query-id="hosp_financialTypeByOrg" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="organizationId" ref="organizationId"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>!!initialIsFinanceTypeControl != true</ctrl:enabling-condition>
+                </ctrl:dependencies>
+                <ctrl:set-value-expression on-load="true">
+                    <![CDATA[
+                    if(financialType.id == null || financialType.name == null){
+                        initialFundingSourceType
+                    } else {
+                        financialType
+                    }
+                ]]>
+                </ctrl:set-value-expression>
+            </ctrl:classifier>
+
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="diagnosis" label="Диагноз по МКБ" search-as-you-type="true">
+                <ctrl:query query-id="dAccountDiagnosis" value-field-id="id" label-field-id="name"/>
+            </ctrl:classifier>
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="attr[0]" label="Характеристика 1" search-as-you-type="true" required="true"
+                             dependency-condition="[1, 2, 3, 4, 5, 6].indexOf(diagnosis.count_attr) !== -1" >
+                <ctrl:show-modal page-id="dAccountDiagnosisAttr" result-container-id="value"
+                                 label-field-id="name"
+                                 value-field-id="id" master-field-id="diagnosis.attr[0].f1" detail-field-id="id"
+                                 container-id="character">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="id" ref="diagnosis.attr[0].f1" />
+                        <ctrl:pre-filter field-id="diagnosis_id" ref="diagnosis.id" container-id="value"/>
+                    </ctrl:pre-filters>
+                </ctrl:show-modal>
+                <ctrl:set-value-expression>
+                    if(typeof attributes != 'undefined' &amp;&amp; attributes != null &amp;&amp; attributes.length > 0){
+                    var o = new Object();
+                    o.id = attributes[0].f1;
+                    o.name = attributes[0].f2;
+                    o;
+                    }
+                </ctrl:set-value-expression>
+            </ctrl:classifier>
+            <ctrl:classifier id="attr[1]" label="Характеристика 2" search-as-you-type="true" required="true"
+                             dependency-condition="[2, 3, 4, 5, 6].indexOf(diagnosis.count_attr) !== -1" >
+                <ctrl:show-modal page-id="dAccountDiagnosisAttr" result-container-id="value"
+                                 label-field-id="name"
+                                 value-field-id="id" master-field-id="diagnosis.attr[1].f1" detail-field-id="id"
+                                 container-id="character">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="id" ref="diagnosis.attr[1].f1"/>
+                        <ctrl:pre-filter field-id="diagnosis_id" ref="diagnosis.id" container-id="value"/>
+                    </ctrl:pre-filters>
+                </ctrl:show-modal>
+                <ctrl:set-value-expression>
+                    if(typeof attributes != 'undefined' &amp;&amp; attributes != null &amp;&amp; attributes.length > 1){
+                    var o = new Object();
+                    o.id = attributes[1].f1;
+                    o.name = attributes[1].f2;
+                    o;
+                    }
+                </ctrl:set-value-expression>
+            </ctrl:classifier>
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="attr[2]" label="Характеристика 3" search-as-you-type="true" required="true"
+                             dependency-condition="[3, 4, 5, 6].indexOf(diagnosis.count_attr) !== -1" >
+                <ctrl:show-modal page-id="dAccountDiagnosisAttr" result-container-id="value"
+                                 label-field-id="name"
+                                 value-field-id="id" master-field-id="diagnosis.attr[2].f1" detail-field-id="id"
+                                 container-id="character">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="id" ref="diagnosis.attr[2].f1"/>
+                        <ctrl:pre-filter field-id="diagnosis_id" ref="diagnosis.id" container-id="value"/>
+                    </ctrl:pre-filters>
+                </ctrl:show-modal>
+                <ctrl:set-value-expression>
+                    if(typeof attributes != 'undefined' &amp;&amp; attributes != null &amp;&amp; attributes.length > 2){
+                    var o = new Object();
+                    o.id = attributes[2].f1;
+                    o.name = attributes[2].f2;
+                    o;
+                    }
+                </ctrl:set-value-expression>
+            </ctrl:classifier>
+            <ctrl:classifier id="attr[3]" label="Характеристика 4" search-as-you-type="true" required="true"
+                             dependency-condition="[4, 5, 6].indexOf(diagnosis.count_attr) !== -1" >
+                <ctrl:show-modal page-id="dAccountDiagnosisAttr" result-container-id="value"
+                                 label-field-id="name"
+                                 value-field-id="id" master-field-id="diagnosis.attr[3].f1" detail-field-id="id"
+                                 container-id="character">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="id" ref="diagnosis.attr[3].f1"/>
+                        <ctrl:pre-filter field-id="diagnosis_id" ref="diagnosis.id" container-id="value"/>
+                    </ctrl:pre-filters>
+                </ctrl:show-modal>
+                <ctrl:set-value-expression>
+                    if(typeof attributes != 'undefined' &amp;&amp; attributes != null &amp;&amp; attributes.length > 3){
+                    var o = new Object();
+                    o.id = attributes[3].f1;
+                    o.name = attributes[3].f2;
+                    o;
+                    }
+                </ctrl:set-value-expression>
+            </ctrl:classifier>
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="attr[4]" label="Характеристика 5" search-as-you-type="true" required="true"
+                             dependency-condition="[5, 6].indexOf(diagnosis.count_attr) !== -1" >
+                <ctrl:show-modal page-id="dAccountDiagnosisAttr" result-container-id="value"
+                                 label-field-id="name"
+                                 value-field-id="id" master-field-id="diagnosis.attr[4].f1" detail-field-id="id"
+                                 container-id="character">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="id" ref="diagnosis.attr[4].f1"/>
+                        <ctrl:pre-filter field-id="diagnosis_id" ref="diagnosis.id" container-id="value"/>
+                    </ctrl:pre-filters>
+                </ctrl:show-modal>
+                <ctrl:set-value-expression>
+                    if(typeof attributes != 'undefined' &amp;&amp; attributes != null &amp;&amp; attributes.length > 4){
+                    var o = new Object();
+                    o.id = attributes[4].f1;
+                    o.name = attributes[4].f2;
+                    o;
+                    }
+                </ctrl:set-value-expression>
+            </ctrl:classifier>
+            <ctrl:classifier id="attr[5]" label="Характеристика 6" search-as-you-type="true" required="true"
+                             dependency-condition="[6].indexOf(diagnosis.count_attr) !== -1" >
+                <ctrl:show-modal page-id="dAccountDiagnosisAttr" result-container-id="value"
+                                 label-field-id="name"
+                                 value-field-id="id" master-field-id="diagnosis.attr[5].f1" detail-field-id="id"
+                                 container-id="character">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="id" ref="diagnosis.attr[5].f1"/>
+                        <ctrl:pre-filter field-id="diagnosis_id" ref="diagnosis.id" container-id="value"/>
+                    </ctrl:pre-filters>
+                </ctrl:show-modal>
+                <ctrl:set-value-expression>
+                    if(typeof attributes != 'undefined' &amp;&amp; attributes != null &amp;&amp; attributes.length > 5){
+                    var o = new Object();
+                    o.id = attributes[5].f1;
+                    o.name = attributes[5].f2;
+                    o;
+                    }
+                </ctrl:set-value-expression>
+            </ctrl:classifier>
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="stepResult" required="true" label="Результат госпитализации" search-as-you-type="true"
+                             depends-on="careRegimen">
+                <ctrl:query query-id="hosp_stepResult" value-field-id="id" label-field-id="name"
+                            detail-field-id="regimenId" master-field-id="id"/>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="outcome" label="Исход госпитализации" search-as-you-type="true"
+                             depends-on="stepResult" required="true">
+                <ctrl:query query-id="hosp_stepCareResultByStepResult" value-field-id="id" label-field-id="name"
+                            detail-field-id="stepResultId" master-field-id="id"/>
+            </ctrl:classifier>
+        </fs2:row>
+
+        <fs2:row>
+
+            <ctrl:classifier id="finalDiagnosis" label="Заключительный диагноз" search-as-you-type="true" dependency-condition="typeof stepResult != 'undefined' &amp;&amp; stepResult.closed == true">
+                <ctrl:query query-id="hosp_diagnosisWithCodeNameSearch" value-field-id="id" label-field-id="name"/>
+                <ctrl:set-value-expression on-load="false">
+                    if(typeof stepResult != 'undefined' &amp;&amp; stepResult != null &amp;&amp; stepResult.closed == true
+                            &amp;&amp; typeof diagnosis != 'undefined' &amp;&amp; diagnosis != null &amp;&amp; diagnosis.id != null)
+                        diagnosis; else null;
+                </ctrl:set-value-expression>
+            </ctrl:classifier>
+
+            <ctrl:input-text id="missedDaysAmount" label="Пропущено дней" 
+                             dependency-condition="careRegimen.id == 3 || careRegimen.id == 4">
+                <ctrl:set-value-expression>if(careRegimen == null || careRegimen.id != 3 &amp;&amp; careRegimen.id != 4) null; else missedDaysAmount;</ctrl:set-value-expression>
+            </ctrl:input-text>
+
+        </fs2:row>
+    </fs2:field-set>
+
+    <fs2:field-set field-label-location="left" label="Стандарты" header="line">
+
+        <fs2:row>
+            <ctrl:classifier id="standard" label="Код стандарта" search-as-you-type="true">
+                <ctrl:query query-id="hosp_standard" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="patientId" ref="case.patient.id"/>
+                        <ctrl:pre-filter field-id="diagnosisId" ref="diagnosis.id"/>
+                        <ctrl:pre-filter field-id="careRegimenId" ref="careRegimen.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="mes" label="МЭС:" search-as-you-type="true">
+                <ctrl:query query-id="hosp_mes" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="organizationId" ref="organizationId"/>
+                        <ctrl:pre-filter field-id="diagnosisId" ref="diagnosis.id"/>
+                        <ctrl:pre-filter field-id="regimenId" ref="careRegimen.id"/>
+                        <ctrl:pre-filter field-id="ageGroupId" ref="ageGroupId"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="csg" label="Код КСГ" search-as-you-type="true">
+                <ctrl:query query-id="hosp_csg" value-field-id="id" label-field-id="name"/>
+            </ctrl:classifier>
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="vmp" label="ВМП:" search-as-you-type="true">
+                <ctrl:query query-id="hosp_vmp" value-field-id="id" label-field-id="name"/>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="vmpMethod" label="Метод ВМП:" search-as-you-type="true"
+                             depends-on="vmp">
+                <ctrl:query query-id="hosp_vmpMethod" value-field-id="id" label-field-id="name"
+                            master-field-id="id" detail-field-id="vmpTypeId"/>
+            </ctrl:classifier>
+        </fs2:row>
+
+        <fs2:row>
+            <ctrl:classifier id="deviationReason" label="Причина отклонения от стандарта" search-as-you-type="true" >
+                <ctrl:query query-id="hosp_deviationReason" value-field-id="id" label-field-id="name"/>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="mesQualityCriterion" label="Критерий качества МЭС" search-as-you-type="true" >
+                <ctrl:query query-id="hosp_mes_quality_criterion" value-field-id="id" label-field-id="name"/>
+            </ctrl:classifier>
+        </fs2:row>
+
+    </fs2:field-set>
+
+</form>
+
+

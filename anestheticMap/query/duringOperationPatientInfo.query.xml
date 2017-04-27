@@ -1,0 +1,333 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>duringOperationForm</object-id>
+    <name>duringOperationPatientInfo</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from hospital.basic_data_anesthetic_map bdam
+                left join hospital.patient_before_procedure pbp on bdam.id=pbp.id
+                left join hospital.prescription p on pbp.anesthetic_id=p.id
+                join hospital.md_srv_rendered_oper msro on msro.id=bdam.md_srv_rendered_oper_id
+                join md_srv_rendered msr on msr.id = msro.service_id
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join mc_case c on c.id = msr.case_id
+                join pci_patient pp on pp.id = c.patient_id
+                join pim_individual i on i.id = pp.id
+                <!--left join hospital.prescription p on pbp.premedication_id=p.id-->
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(pbp)
+                from hospital.basic_data_anesthetic_map bdam
+                left join hospital.patient_before_procedure pbp on bdam.id=pbp.id
+                left join hospital.prescription p on pbp.anesthetic_id=p.id
+                join hospital.md_srv_rendered_oper msro on msro.id=bdam.md_srv_rendered_oper_id
+                join md_srv_rendered msr on msr.id = msro.service_id
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join mc_case c on c.id = msr.case_id
+                join pci_patient pp on pp.id = c.patient_id
+                join pim_individual i on i.id = pp.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pbp</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>msCaseClosingStepId</id>
+            <domain>integer</domain>
+            <expression>
+                c.closing_step_id
+            </expression>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pbp.id</expression>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>anestheticMapId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>bdam.id</expression>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>operationJournalId</id>
+            <domain>integer</domain>
+            <expression>msro.id</expression>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pp.id</expression>
+        </field>
+        <field>
+            <id>patientName</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>i.surname||' '||i.name|| ' '||i.patr_name</expression>
+        </field>
+
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>extract(year from AGE(NOW(), i.birth_dt))</expression>
+        </field>
+
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <display/>
+            <expression>c.uid</expression>
+        </field>
+
+        <field>
+            <id>height</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>bdam.height</expression>
+        </field>
+
+        <field>
+            <id>weight</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>bdam.weight</expression>
+        </field>
+
+        <field>
+            <id>bloodGroup</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>(select mrbg.code from md_rh_blood_group mrbg where id=bdam.blood_group_id)</expression>
+        </field>
+
+        <!--<field>-->
+        <!--<id>surgery.id</id>-->
+        <!--<domain>integer</domain>-->
+        <!--<display/>-->
+        <!--<expression>s.id</expression>-->
+        <!--</field>-->
+        <field>
+            <id>surgery</id>
+            <domain>string</domain>
+            <display/>
+            <expression>coalesce(s.code || ' ' || s.name, s.name)</expression>
+        </field>
+
+        <field>
+            <id>date_surgery</id>
+            <domain>string</domain>
+            <display/>
+            <expression>to_char(ssr.planned_date, 'DD.MM.YYYY')</expression>
+        </field>
+
+        <field>
+            <id>urgency</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(case when msr.is_urgent is true then 'срочная' else 'плановая' end)</expression>
+        </field>
+
+        <field>
+            <id>diagnosis</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(select md.name from mc_diagnosis mcd
+                left join md_diagnosis md on md.id = mcd.diagnos_id
+                where mcd.id = c.main_diagnos_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>severity</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(select msl.name from mc_severity_level msl
+                where msl.id = pbp.severity_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>consciousness</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(select pc.name from hospital.patient_consciousness pc
+                where pc.id = pbp.consciousness_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>pressure</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pbp.high_pressure||'/'||pbp.low_pressure</expression>
+        </field>
+
+        <field>
+            <id>pulseRate</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pbp.pulse_rate</expression>
+        </field>
+
+        <field>
+            <id>breathRate</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pbp.breath_rate</expression>
+        </field>
+
+        <field>
+            <id>temperature</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pbp.temperature</expression>
+        </field>
+
+        <field>
+            <id>anesthesiaType</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(select mat.name from mc_anesthesia_type mat where mat.id=pbp.anesthesia_type_id)</expression>
+        </field>
+
+        <field>
+            <id>anesthetic</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                (select(
+                select string_agg( h.name
+                || coalesce(', ' || trim(to_char((phold.count * phold.hold_dose_value)::numeric, 'FM9999990.999'), '.')
+                || coalesce(' ' || dm.name,''), ''), ' + ')
+
+                as name_holding
+                from hospital.prescription_holding phold
+                join inventory.holding h on h.id = phold.holding_id
+                left join inventory.form_type ft on ft.id = phold.hold_form_type_id
+                left join cmn_measure dm on dm.id = phold.hold_dose_measure_id
+                left join cmn_measure cm on cm.id = phold.hold_con_measure_id
+                left join cmn_measure mnei on mnei.id = phold.hold_mnei_id
+                where phold.prescription_id = pbp.anesthetic_id)||(', ')||
+                (select distinct(mar.full_name) from public.md_administration_route mar
+                left join hospital.prescription p on p.administration_route_id= mar.id
+                left join hospital.prescription_holding phold on phold.prescription_id=p.id where phold.prescription_id
+                = pbp.anesthetic_id))
+
+
+            </expression>
+        </field>
+        <field>
+            <id>beginDateTime</id>
+            <domain>string</domain>
+            <display/>
+            <expression>to_char(pbp.begin_date, 'DD.MM.YYYY')||' '||to_char(pbp.begin_time,'HH24:MI')</expression>
+        </field>
+
+        <field>
+            <id>anesthesiaRisk</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(select rs.full_name from hospital.risk_surgery rs
+                where rs.id=pbp.anesthesia_risk_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>premedication</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                <!--(select p.name_holding from hospital.prescription p where p.id = a.premedication_id)-->
+                (select(
+                select string_agg( h.name
+                || coalesce(', ' || trim(to_char((phold.count * phold.hold_dose_value)::numeric, 'FM9999990.999'), '.')
+                || coalesce(' ' || dm.name,''), ''), ' + ')
+
+                as name_holding
+                from hospital.prescription_holding phold
+                join inventory.holding h on h.id = phold.holding_id
+                left join inventory.form_type ft on ft.id = phold.hold_form_type_id
+                left join cmn_measure dm on dm.id = phold.hold_dose_measure_id
+                left join cmn_measure cm on cm.id = phold.hold_con_measure_id
+                left join cmn_measure mnei on mnei.id = phold.hold_mnei_id
+                where phold.prescription_id = pbp.premedication_id)||(', ')||
+                (select distinct(mar.full_name) from public.md_administration_route mar
+                left join hospital.prescription p on p.administration_route_id= mar.id
+                left join hospital.prescription_holding phold on phold.prescription_id=p.id where phold.prescription_id
+                = pbp.premedication_id)||(', ')||
+                (select distinct(pp.name) from hospital.prescription_periodicity pp
+                left join hospital.prescription p on p.periodicity_id= pp.id
+                where p.id
+                = pbp.premedication_id)||(', ')||
+                ( select p.period_end_dt::date-p.period_begin_dt::date+1 from hospital.prescription p where
+                p.id=pbp.premedication_id)||(' дн.'))
+            </expression>
+        </field>
+
+        <field>
+            <id>anesthesiolog</id>
+            <domain>string</domain>
+            <display/>
+            <expression>( select (coalesce(i.surname, '') ||
+                coalesce(' ' || substring(i.name for 1) || '.', '') ||
+                coalesce(' ' || substring(i.patr_name for 1) || '.', ''))
+                from pim_employee_position_resource r
+                inner join pim_employee_position pos on r.employee_position_id = pos.id
+                join pim_employee empl on pos.employee_id = empl.id
+                join pim_individual i on empl.individual_id = i.id
+                where r.id = pbp.anesthesiolog_id
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>anesthesist</id>
+            <domain>string</domain>
+            <display/>
+            <expression>( select (coalesce(i.surname, '') ||
+                coalesce(' ' || substring(i.name for 1) || '.', '') ||
+                coalesce(' ' || substring(i.patr_name for 1) || '.', ''))
+                from pim_employee_position_resource r
+                inner join pim_employee_position pos on r.employee_position_id = pos.id
+                join pim_employee empl on pos.employee_id = empl.id
+                join pim_individual i on empl.individual_id = i.id
+                where r.id = pbp.anesthesist_id
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>backendServicesPath</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(select '${rmis.system.backend.url}')</expression>
+        </field>
+
+        <field>
+            <id>ishideConclusion</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>1</expression>
+        </field>
+
+    </fields>
+</query>

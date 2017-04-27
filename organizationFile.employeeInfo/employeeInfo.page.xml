@@ -1,0 +1,372 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-patient-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+    <object-id>employeeInfo</object-id>
+    <layout>stocks/n2o/ext/layout/employeeInfoLayout</layout>
+    <name>Сотрудники</name>
+    <regions>
+        <region place="top" type="none">
+            <container id="employeeList" refresh-dependent-container="true">
+                <wgt:table>
+                    <wgt:name>Сотрудники</wgt:name>
+                    <wgt:query-id>employeeInfo</wgt:query-id>
+                    <wgt:size>5</wgt:size>
+                    <wgt:columns>
+                        <wgt:column column-field-id="fio" name="Фио"/>
+                        <wgt:column column-field-id="number1" name="Табельный номер"/>
+                        <wgt:column column-field-id="is_resource" name="Является ресурсом">
+                            <wgt:icon>
+                                <wgt:switch>
+                                    <wgt:case value="true">icon-ok</wgt:case>
+                                </wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+                        <wgt:column column-field-id="pref_prescription" name="Право выдачи льготного рецепта">
+                            <wgt:icon>
+                                <wgt:switch>
+                                    <wgt:case value="true">icon-ok</wgt:case>
+                                </wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Создать" context="false" id="create">
+                            <wgt:show-modal model="default" page-id="employeeCreate" width="780px" container-id="employee-form-main" action-id="employeeCreate"
+                                            refresh-on-close="true" focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="delete">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:filters opened="true">
+
+                        <ctrl:input-text id="surname" label="Фамилия"/>
+                        <ctrl:input-text id="first_name" label="Имя"/>
+                        <ctrl:input-text id="patr_name" label="Отчество"/>
+                        <ctrl:classifier id="dep" label="Подразделение" search-as-you-type="true">
+                            <ctrl:query query-id="stocks_department_unit" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org_id" value="#{stocks.orgId}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="poscat" label="Категория персонала" search-as-you-type="true">
+                            <ctrl:query query-id="stocks_position_category" value-field-id="id" label-field-id="name">
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="ems" label="Специальность"  search-as-you-type="true">
+                            <ctrl:query query-id="stocks_speciality" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="employment_type" label="Вид занятости" search-as-you-type="true">
+                            <ctrl:query query-id="stocks_employment_type" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="pos_type" label="Тип должности" search-as-you-type="true">
+                            <ctrl:query query-id="stocks_pos_type" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:input-text id="pos_name" label="Должность: поиск"/>
+                        <ctrl:classifier id="roleEstablishedPost" label="Должность: по штатному расписанию" label-style="font-size:12px;" search-as-you-type="true">
+                            <ctrl:query query-id="establishedPost" value-field-id="id" label-field-id="pos_name"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="role" label="Должность: прототип должности" search-as-you-type="true">
+                            <ctrl:query query-id="stocks_position_role" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:select id="employee_status" label="Статус">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Работает"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Уволен"}</ctrl:option>
+                                <ctrl:option>{"id":3, "name":"Все"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                                <ctrl:value field-id="name">Работает</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:select>
+                        <ctrl:checkbox id="is_resource" label="Является ресурсом" />
+                        <ctrl:checkbox id="pref_prescription" label="Право выписки льготных рецептов" />
+                    </wgt:filters>
+
+                </wgt:table>
+            </container>
+        </region>
+        <region place="bottom" type="tabs">
+
+            <container id="mainDummy">
+                <wgt:custom src="n2o/widgets/dummy">
+                    <wgt:name>Основные данные</wgt:name>
+                    <wgt:query-id>home</wgt:query-id>
+                    <wgt:properties>
+                        <wgt:property key="src" value="home/home.html"/>
+                    </wgt:properties>
+                </wgt:custom>
+            </container>
+
+            <container id="educationList" depends-on="employeeList" refresh-dependent-container="true">
+                <wgt:table  detail-field-id="emp.id" master-field-id="emp.id">
+                    <wgt:query-id>educationInfo</wgt:query-id>
+                    <wgt:size>100</wgt:size>
+                    <wgt:name>Образование</wgt:name>
+                    <wgt:columns>
+                        <!--
+                        <wgt:column column-field-id="pee.id" width="60px"/>
+                        <wgt:column column-field-id="emp.id" width="60px"/>
+                        <wgt:column column-field-id="emp_cert.id" width="60px"/>
+                         -->
+                        <wgt:column column-field-id="edl.name" name="Уровень образования" width="110px"/>
+                        <wgt:column column-field-id="edu_type.name" name="Вид образования" width="90px"/>
+                        <wgt:column column-field-id="year" width="50px"/>
+                        <wgt:column column-field-id="issue_dt" width="70px"/>
+                        <wgt:column column-field-id="series" width="70px"/>
+                        <wgt:column column-field-id="number" width="70px"/>
+                        <!--<wgt:column column-field-id="from_dt" name="Дата начала" width="90px"/>-->
+                        <!--<wgt:column column-field-id="pee.to_dt" name="Дата окончания" width="90px"/>-->
+                        <wgt:column column-field-id="edu_org.name" name="Учебное заведение"/>
+                        <wgt:column column-field-id="qual_cat.name" name="Квалификационная категория" width="100px"/>
+                        <wgt:column column-field-id="spec.name" name="Специальность"/>
+                        <!--<wgt:column column-field-id="series_name" name="Цикл"/>-->
+                        <!--<wgt:column column-field-id="diploma_spec.name" name="Специальность по диплому" width="100px"/>-->
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Создать" context="false" id="create">
+                            <wgt:show-modal page-id="educationInfo" width="40%" container-id="main" action-id="create"
+                                            refresh-on-close="true" detail-field-id="emp.id" master-field-id="emp.id" focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Изменить" context="true" id="update">
+                            <wgt:show-modal page-id="educationInfo" container-id="main" width="40%" action-id="update"
+                                            refresh-on-close="true" detail-field-id="pee.id" master-field-id="pee.id" focus-after-submit="true">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="delete">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+
+            <container id="specialityList" depends-on="employeeList" refresh-dependent-container="true">
+                <wgt:table  detail-field-id="emp.id" master-field-id="emp.id">
+                    <wgt:query-id>specialityInfo</wgt:query-id>
+                    <wgt:size>100</wgt:size>
+                    <wgt:name>Специальности</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="ems.name" name="Наименование" width="50%"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Добавить" context="false" id="create">
+                            <wgt:show-modal page-id="specialityInfo" width="40%" container-id="main" action-id="create"
+                                            refresh-on-close="true" detail-field-id="emp.id" master-field-id="emp.id" focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Изменить" context="true" id="update">
+                            <wgt:show-modal page-id="specialityInfo" container-id="main" width="40%" action-id="update"
+                                            refresh-on-close="true" detail-field-id="pts.id" master-field-id="pts.id" focus-after-submit="true">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="delete">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+
+            <container id="positionsDummy">
+                <wgt:custom src="n2o/widgets/dummy">
+                    <wgt:name>Должности</wgt:name>
+                    <wgt:query-id>home</wgt:query-id>
+                    <wgt:properties>
+                        <wgt:property key="src" value="home/home.html"/>
+                    </wgt:properties>
+                </wgt:custom>
+            </container>
+
+            <container id="nonpaymentsDummy">
+                <wgt:custom src="n2o/widgets/dummy">
+                    <wgt:name>Невыплаты</wgt:name>
+                    <wgt:query-id>home</wgt:query-id>
+                    <wgt:properties>
+                        <wgt:property key="src" value="home/home.html"/>
+                    </wgt:properties>
+                </wgt:custom>
+            </container>
+
+            <container id="honourList" depends-on="employeeList" refresh-dependent-container="true">
+                <wgt:table  detail-field-id="emp.id" master-field-id="emp.id">
+                    <wgt:query-id>honourInfo</wgt:query-id>
+                    <wgt:size>100</wgt:size>
+                    <wgt:name>Награды и звания</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="name" name="Наименование награды (звания)"/>
+                        <wgt:column column-field-id="reward_nomination.name" name="Номинация"/>
+                        <wgt:column column-field-id="code" name="Номер"/>
+                        <wgt:column column-field-id="reward_date" name="Дата"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Создать" context="false" id="create">
+                            <wgt:show-modal page-name="Награда (Звание)" page-id="honourInfo" width="40%" container-id="main" action-id="create"
+                                            refresh-on-close="true" detail-field-id="emp.id" master-field-id="emp.id" focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Изменить" context="true" id="update">
+                            <wgt:show-modal page-id="honourInfo" container-id="main" width="40%" action-id="update"
+                                            refresh-on-close="true" detail-field-id="reward.id" master-field-id="reward.id" focus-after-submit="true">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="delete">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+
+            <container id="replacementList" depends-on="employeeList" refresh-dependent-container="true">
+                <wgt:table  detail-field-id="emp.id" master-field-id="emp.id">
+                    <wgt:query-id>replacementInfo</wgt:query-id>
+                    <wgt:size>20</wgt:size>
+                    <wgt:name>Замещения</wgt:name>
+                    <wgt:columns>
+                        <!--
+                        <wgt:column column-field-id="emp.id" width="60px"/>
+                        <wgt:column column-field-id="erp.id" width="60px"/>
+                        -->
+                        <wgt:column column-field-id="fio_replaced" name="Кого замещает"/>
+                        <wgt:column column-field-id="pos.name" name="Должность замещаемого"/>
+                        <wgt:column column-field-id="from_dt" name="Дата начала"/>
+                        <wgt:column column-field-id="to_dt" name="Дата окончания"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Создать" context="false" id="create">
+                            <wgt:show-modal page-id="replacementInfo" width="40%" container-id="main" action-id="create"
+                                            refresh-on-close="true" detail-field-id="emp.id" master-field-id="emp.id" focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Изменить" context="true" id="update">
+                            <wgt:show-modal page-id="replacementInfo" container-id="main" width="40%" action-id="update"
+                                            refresh-on-close="true" detail-field-id="erp.id" master-field-id="erp.id" focus-after-submit="true">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="delete">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+
+        </region>
+
+        <region place="nonpayment1" type="list">
+            <container id="tripPeriodsContainer" depends-on="employeeList">
+                <wgt:table ref-id="tripPeriods" master-field-id="emp.id" detail-field-id="employee_id" />
+            </container>
+        </region>
+
+        <region place="nonpayment2" type="list">
+            <container id="nonpaymentContainer" depends-on="employeeList">
+                <wgt:table ref-id="nonpayment" master-field-id="emp.id" detail-field-id="employee_id" />
+            </container>
+        </region>
+
+        <region place="nonpayment3" type="list">
+            <container id="workedTimeContainer" depends-on="employeeList">
+                <wgt:table ref-id="workedTime" master-field-id="emp.id" detail-field-id="employee_id" />
+            </container>
+        </region>
+
+        <region place="mainData" type="none">
+            <container id="employeeMainInfo" depends-on="employeeList" refresh-dependent-container="true">
+                <wgt:form detail-field-id="id" master-field-id="id" >
+                    <wgt:name>Основные данные</wgt:name>
+                    <wgt:query-id>employeeInfo</wgt:query-id>
+
+                    <fs:field-set >
+                        <fs:row>
+                        <ctrl:input-text label="Фамилия" id="emp_surname" required="true" label-style="width:100px;" control-style="width:180px;"/>
+                        <ctrl:input-text label="Имя" id="emp_name" required="true" label-style="width:40px;" control-style="width:180px;"/>
+                        <ctrl:input-text label="Отчество" id="emp_patr_name" required="true" label-style="width:120px;" control-style="width:180px;"/>
+                        </fs:row>
+                    <fs:row>
+                        <ctrl:date-time  label="Дата рождения" id="emp_birth" format="DD.MM.YYYY" control-style="width:180px;" label-style="width:100px;"/>
+                        <ctrl:classifier label="Пол" id="emp_gender" required="true" control-style="width:180px;" label-style="width:40px;">
+                            <ctrl:query query-id="stocks_gender" value-field-id="id" label-field-id="name" />
+                        </ctrl:classifier>
+                        <ctrl:input-text label="Табельный номер" length="255" id="number1" required="false" control-style="width:180px;"  label-style="width:120px;"/>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:input-text id="note" label="Информация" length="1000" label-style="width:100px;"/>
+                        <ctrl:classifier id="pec" label="Отношение к военной службе" label-style="width:200px;" search-as-you-type="true">
+                            <ctrl:query query-id="stocks_employee_callup" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        </fs:row>
+                    </fs:field-set>
+
+                    <wgt:edit after-submit="edit" refresh-after-submit="true" >
+                        <wgt:invoke-action action-id="updateEmployeeIndividual" />
+                    </wgt:edit>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="save" label="Изменить">
+                            <wgt:go-edit action-id="updateEmployeeIndividual"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                </wgt:form>
+            </container>
+        </region>
+        
+        <region place="positionList" type="list">
+            <container id="positionList" depends-on="employeeList" refresh-dependent-container="true">
+                <wgt:table ref-id="positionList" detail-field-id="emp.id" master-field-id="emp.id"/>
+            </container>
+        </region>
+
+        <region place="groupResourcesList" type="list">
+            <container id="groupResourcesList" depends-on="positionList" refresh-dependent-container="true" dependency-condition="positionList.is_resource">
+                <wgt:table ref-id="srResourceGroup" detail-field-id="resource_id" master-field-id="resource_id"/>
+            </container>
+        </region>
+
+        <region place="mainImage" type="none">
+            <container id="graphicalPreviewContainer" depends-on="mainImageControlsContainer" refresh-dependent-container="true">
+                <wgt:form src="stocks/n2o/ext/widgets/imagePreviewPerson/imagePreviewPerson" customize="jsp"
+                          detail-field-id="id" master-field-id="id">
+                    <wgt:query-id>previewImagePerson</wgt:query-id>
+                    <fs:field-set>
+                        <ctrl:hidden id="id"/>
+                        <ctrl:input-text id="url" css-class="person-image-url" visible="false">
+                        </ctrl:input-text>
+                    </fs:field-set>
+                    <wgt:properties>
+                        <wgt:property key="baseContext" value="${rmis.system.frontend.url}"/>
+                    </wgt:properties>
+                </wgt:form>
+            </container>
+        </region>
+
+        <region place="mainImageControls" type="none">
+            <container id="mainImageControlsContainer" depends-on="employeeList" refresh-dependent-container="true">
+                <wgt:table master-field-id="id" detail-field-id="id" src="stocks/n2o/ext/widgets/imagePreviewPerson/mainImageControls"
+                           css-class="image-person-controls-widget" customize="css">
+
+                    <wgt:query-id>employeeId</wgt:query-id>
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Загрузить фотографию" context="false" id="addImage">
+                            <wgt:show-modal page-id="graphicalDataFormPerson"
+                                            container-id="main" action-id="save" refresh-on-close="true"
+                                            master-field-id="id" detail-field-id="id" width="600px" refresh-after-submit="true">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label=" Перейти в карточку" context="true" id="redirect" >
+                            <wgt:open-page page-id="patient"  detail-field-id="id" master-field-id="ind_id"/>
+                        </wgt:menu-item>
+
+                        
+                    </wgt:action-menu>
+
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>
+

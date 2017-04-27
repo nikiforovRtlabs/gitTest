@@ -1,0 +1,142 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>returnSpec</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from(
+                select ss.funding_source_id fundSourceId, b.hold_modif_id holdModifId, ss.id storeSupId, b.expire_dt expireDt,
+                b.hold_producer_id producerId, b.id batchId, ss.price price, b.series series,
+                inventory.get_batch_mnei_quantity(ss.id,ss.act_balance_mnei,:docDate::date) mneiQuantity,
+                coalesce(hm.mnei_count_in_sec_pk,1) mneiCountInSecPk, inventory.get_unit_name_by_flag_of_modif(hm.price_unit_flag,hm.id) unit,
+                inventory.get_batch_mnei_quantity(ss.id,ss.act_balance_mnei,:docDate::date)  actualBalanceMnei,
+                (select cm.mnemocode from cmn_measure cm where cm.id=hm.mnei_id) mnei,coalesce(hm.mnei_count_in_extra_pk,1) mneiCountInExtraPack,
+                coalesce(hm.extra_count_in_sec_pk,1) extraCountInSecPack, hm.price_unit_flag priceUnitFlag
+                from inventory.batch b
+                left outer join inventory.hold_modif hm on hm.id=b.hold_modif_id
+                left outer join inventory.store_supply ss on ss.batch_id=b.id
+                left outer join inventory.holding h on h.id = hm.holding_id) spec
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select 1</n2o:count-query>
+            <n2o:alias>spec</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fundSourceId</expression>
+        </field>
+        <field>
+            <id>modif.id</id>
+            <domain>integer</domain>
+            <expression>holdModifId</expression>
+        </field>
+        <field>
+            <id>storeSupply.id</id>
+            <domain>integer</domain>
+            <expression>storeSupId</expression>
+            <search>:expression = :storeSupply.id</search>
+        </field>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <expression>series</expression>
+        </field>
+        <field>
+            <id>expireDt</id>
+            <domain>date</domain>
+            <expression>expireDt</expression>
+        </field>
+        <field>
+            <id>producer.id</id>
+            <domain>integer</domain>
+            <expression>producerId</expression>
+        </field>
+        <field>
+            <id>batch.id</id>
+            <domain>integer</domain>
+            <expression>batchId</expression>
+        </field>
+        <field>
+            <id>priceWithVat</id>
+            <domain>string</domain>
+            <name>Цена за ед.</name>
+            <expression>price</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>string</domain>
+            <expression>mneiQuantity/mneiCountInSecPk</expression>
+        </field>
+        <field>
+            <id>mneiCountInSecPk</id>
+            <domain>string</domain>
+            <expression>mneiCountInSecPk</expression>
+        </field>
+        <field>
+            <id>mneiQuantity</id>
+            <domain>integer</domain>
+            <expression>mneiQuantity</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>unit</id>
+            <domain>string</domain>
+            <expression>unit</expression>
+        </field>
+        <field>
+            <id>actualBalanceMnei</id>
+            <domain>string</domain>
+            <expression>actualBalanceMnei</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>actualBalanceArr</id>
+            <domain>string</domain>
+            <expression>actualBalanceMnei/mneiCountInSecPk</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>docDate</id>
+            <domain>date</domain>
+            <expression>(select :docDate::date)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>mnei</id>
+            <domain>string</domain>
+            <expression>mnei</expression>
+        </field>
+        <field>
+            <id>mneiCountInExtraPack</id>
+            <domain>integer</domain>
+            <expression>mneiCountInExtraPack</expression>
+        </field>
+        <field>
+            <id>extraCountInSecPack</id>
+            <domain>integer</domain>
+            <expression>extraCountInSecPack</expression>
+        </field>
+        <field>
+            <id>priceUnitFlag.id</id>
+            <domain>integer</domain>
+            <expression>priceUnitFlag</expression>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>1</expression>
+        </field>
+        <field>
+            <id>amountWithVat</id>
+            <domain>string</domain>
+            <expression>price*(mneiQuantity/mneiCountInSecPk)</expression>
+        </field>
+    </fields>
+</query>

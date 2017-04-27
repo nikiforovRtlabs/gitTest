@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>services</id>
+    <name>services</name>
+
+    <validations>
+        <constraint id="checkUniqModel" level="warning">
+            <invocation>
+                <sql:sql>
+                    select count(*) from disp.md_event_service mes
+                    left join disp.md_event_service_model mesm on mesm.event_service_id = mes.id
+                    where mes.event_id = CAST(:eid as integer) and mesm.model_id = CAST(:mid as integer)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="model.id" mapping="['mid']" domain="integer"/>
+                <param name="eventId" mapping="['eid']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Данная модель уже прикреплена к одной из услуг. После выполнения действия появится дубликат.</message>
+        </constraint>
+    </validations>
+
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sp:stored-procedure name="disp.addServiceToEvent" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="org.id" mapping="[0]"/>
+                <param name="service.id" mapping="[1]"/>
+                <param name="resource.id" mapping="[2]"/>
+                <param name="eventId" mapping="[3]" domain="integer"/>
+                <param name="priority.id" mapping="[4]"/>
+                <param name="districtCheck" mapping="[5]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['result']"/>
+            </out-parameters>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sp:stored-procedure name="disp.editServiceToEvent" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]"/>
+                <param name="org.id" mapping="[1]"/>
+                <param name="service.id" mapping="[2]"/>
+                <param name="resource.srg_id" mapping="[3]"/>
+                <param name="eventId" mapping="[4]" domain="integer"/>
+                <param name="priority.id" mapping="[5]"/>
+                <param name="districtCheck" mapping="[6]"/>
+                <param name="ignoreService" mapping="[7]"/>
+                <param name="is_mobile_medical_teams" mapping="[8]"/>
+                <param name="required" mapping="[9]"/>
+                <param name="order" mapping="[10]"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    delete from disp.md_event_service where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>
+        <action id="attachModel" name="Задать модель">
+            <invocation>
+                <sp:stored-procedure name="disp.attachModelToService" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="model.id" mapping="[0]" domain="integer"/>
+                <param name="eventId" mapping="[1]" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+</object>

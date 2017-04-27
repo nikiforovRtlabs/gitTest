@@ -1,0 +1,230 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>discount</name>
+
+    <actions>
+        <action id="read">
+            <invocation/>
+        </action>
+
+
+        <action id="save" name="Добавить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/payment/discount
+                </rest:rest>
+            </invocation>
+
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="beginDate" mapping="['beginDate']" domain="date"/>
+                <param name="endDate" mapping="['endDate']" domain="date"/>
+                <param name="priority" mapping="['priority']" domain="integer"/>
+                <param name="domain.id" mapping="['domainId']" domain="integer"/>
+                <param name="fundingSourceType.id" mapping="['fundingSourceTypeId']" domain="integer"/>
+                <param name="group.id" mapping="['groupId']" domain="integer"/>
+                <param name="groupPriority" mapping="['groupPriority']" domain="integer"/>
+                <param name="type.id" mapping="['typeId']" domain="integer"/>
+                <param name="org.id" mapping="['organizationId']" domain="integer"/>
+                <param name="pricingCatId.id" mapping="['pricingCategoryId']" domain="integer"/>
+                <param name="value" mapping="['value']" domain="numeric"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <success-text>Скидка/наценка {name} сохранена</success-text>
+
+            <validations activate="whiteList">
+                <validation ref-id="checkPriorityUnique"/>
+                <validation ref-id="checkGroupPriorityUnique"/>
+            </validations>
+
+        </action>
+
+        <action id="delete" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/payment/discount
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить скидку/наценку {name} ?
+            </confirmation-text>
+            <success-text>Скидка/наценка {name} удалена</success-text>
+
+            <validations activate="whiteList">
+                <validation ref-id="checkDiscountRelations"/>
+            </validations>
+        </action>
+
+
+        <action id="createOrDeleteDiscountServices" name="Добавить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/payment/discount/service
+                </rest:rest>
+            </invocation>
+
+            <in-parameters>
+                <param name="relation.id" mapping="['id']" domain="integer"/>
+                <param name="id" mapping="['serviceId']" domain="integer"/>
+                <param name="discount.id" mapping="['discountId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <success-text>Услуги сохранены</success-text>
+
+            <validations activate="nothing"/>
+
+        </action>
+
+        <action id="deleteDiscountService" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/payment/discount/service
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить услугу(и) ?
+            </confirmation-text>
+            <success-text>Услуга удалена</success-text>
+
+            <validations activate="nothing"/>
+
+        </action>
+
+
+        <action id="createOrDeleteDiscountConditions" name="Добавить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/payment/discount/condition_rel
+                </rest:rest>
+            </invocation>
+
+            <in-parameters>
+                <param name="relation.id" mapping="['id']" domain="integer"/>
+                <param name="id" mapping="['conditionId']" domain="integer"/>
+                <param name="discount.id" mapping="['discountId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <success-text>Условие предоставления сохранено</success-text>
+
+            <validations activate="nothing"/>
+
+        </action>
+
+        <action id="deleteDiscountCondition" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/payment/discount/condition_rel
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить условие(я) ?
+            </confirmation-text>
+            <success-text>Условие предоставления удалено</success-text>
+
+            <validations activate="nothing"/>
+
+        </action>
+
+    </actions>
+
+        <validations>
+            <constraint id="checkPriorityUnique" level="error">
+                <invocation>
+                    <sql:sql>
+                        <![CDATA[
+                        select count(1) from public.fin_discount doc
+                        where (:id is null or doc.id != :id) and doc.priority = :priority and
+                              doc.organization_id = :organizationId and
+                              doc.begin_date < coalesce(:endDate, doc.begin_date + 1) and
+                              (doc.end_date is null or doc.end_date > :beginDate)
+                              ]]>
+                    </sql:sql>
+                </invocation>
+                <in-parameters>
+                    <param name="id" mapping="['id']"/>
+                    <param name="priority" mapping="['priority']"/>
+                    <param name="beginDate" mapping="['beginDate']"/>
+                    <param name="endDate" mapping="['endDate']"/>
+                    <param name="org.id" mapping="['organizationId']" domain="integer"/>
+                </in-parameters>
+                <result expression="[0][0][0] == 0"/>
+                <message>Невозможно завершить операцию. Приоритет скидки/наценки в рамках указанного периода не уникален.</message>
+            </constraint>
+
+            <constraint id="checkGroupPriorityUnique" level="error">
+                <invocation>
+                    <sql:sql>
+                        <![CDATA[
+                        select count(1) from public.fin_discount doc
+                        where (:id is null or doc.id != :id) and :groupPriority is not null and :groupId is not null and
+                        doc.organization_id = :organizationId and
+                        doc.group_priority = :groupPriority and
+                        doc.group_id = :groupId and
+                        doc.begin_date < coalesce(:endDate, doc.begin_date + 1) and
+                        (doc.end_date is null or doc.end_date > :beginDate)
+                        ]]>
+                    </sql:sql>
+                </invocation>
+                <in-parameters>
+                    <param name="id" mapping="['id']"/>
+                    <param name="group.id" mapping="['groupId']"/>
+                    <param name="groupPriority" mapping="['groupPriority']"/>
+                    <param name="beginDate" mapping="['beginDate']"/>
+                    <param name="endDate" mapping="['endDate']"/>
+                    <param name="org.id" mapping="['organizationId']" domain="integer"/>
+                </in-parameters>
+                <result expression="[0][0][0] == 0"/>
+                <message>Невозможно завершить операцию. Приоритет группы скидки/наценки в рамках указанного периода не уникален.</message>
+            </constraint>
+
+            <constraint id="checkDiscountRelations" level="error">
+                <invocation>
+                    <sql:sql>
+                        <![CDATA[
+                        select (select count(1) from public.fin_discount_card card where card.discount_id = :id)
+                        ]]>
+                    </sql:sql>
+                </invocation>
+                <in-parameters>
+                    <param name="id" mapping="['id']"/>
+                </in-parameters>
+                <result expression="[0][0][0] == 0"/>
+                <message>Удаление не возможно, в БД есть связанные документы</message>
+            </constraint>
+
+            <condition id="checkPriority" level="error">
+               <message>Значение некорректное. Значение должно быть натуральным числом.</message>
+               <expression on="priority">(priority > 0) &amp;&amp; ((priority % 1) == 0)</expression>
+            </condition>
+
+            <condition id="checkGroupPriority" level="error">
+              <message>Значение некорректное. Значение должно быть натуральным числом.</message>
+              <expression on="groupPriority">(groupPriority > 0) &amp;&amp; ((groupPriority % 1) == 0)</expression>
+            </condition>
+
+            <condition id="checkValue" level="error">
+                <message>Значение некорректное. Значение должно положительным числом.</message>
+                <expression on="value">value >= 0</expression>
+            </condition>
+
+    </validations>
+
+</object>

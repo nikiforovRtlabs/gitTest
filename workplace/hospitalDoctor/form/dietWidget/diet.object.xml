@@ -1,0 +1,137 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Диета</name>
+
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:rest method="POST" >
+                    <n2o:query>${n2o.backend.path}/hospital/diet/create</n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="case.id" mapping="['caseId']" domain="integer"/>
+                <param name="diet.id" mapping="['dietId']"/>
+                <param name="dateFrom" mapping="['beginDate']" domain="date"/>
+                <param name="dateTo" mapping="['endDate']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="dateOneDaySave"/>
+            </validations>
+        </action>
+
+        <action id="update" name="Сохранить">
+            <invocation>
+                <n2o:rest method="POST" >
+                    <n2o:query>${n2o.backend.path}/hospital/diet/update</n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="caseId" mapping="['caseId']" domain="integer"/>
+                <param name="diet.id" mapping="['dietId']" domain="integer"/>
+                <param name="dateFrom" mapping="['beginDate']" domain="date"/>
+                <param name="dateTo" mapping="['endDate']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="caseId" mapping="['caseId']"/>
+            </out-parameters>
+            <validations activate="all"/>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from mc_case_diet where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="noteLength" level="error">
+            <message>Указанный комментарий превышает максимальный размер в 256 символов</message>
+            <expression on="note">
+                <![CDATA[(note!= null && note.length < 256) || (note == null)]]>
+            </expression>
+        </condition>
+
+        <condition id="todate_gt_fromdate" level="error">
+            <message>Дата окончания диеты не может быть ранее даты начала диеты.</message>
+            <expression on="dateTo"><![CDATA[
+                (typeof dateTo == 'undefined') || (dateTo == null)
+                || (moment(dateTo, 'DD.MM.YYYY').diff(moment(dateFrom, 'DD.MM.YYYY')) == 0)
+                || (moment(dateTo, 'DD.MM.YYYY').diff(moment(dateFrom, 'DD.MM.YYYY')) >= 0)
+            ]]></expression>
+        </condition>
+
+        <constraint id="dateOneDay" level="error">
+            <message>Диета пересекается.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    SELECT
+                    CASE WHEN :endDate::date is null then 0
+                        else
+                            CASE WHEN (DATE_PART('day', :endDate:: DATE) - DATE_PART('day', :beginDate:: DATE)) <= 1
+                              THEN 0
+                               ELSE
+                                count(1)
+                               END
+                        end
+                    FROM mc_case_diet
+                    WHERE case_id = :caseId AND (:beginDate :: DATE <= to_dt AND :endDate :: DATE >= from_dt) and id != :id
+                    AND :beginDate :: DATE != to_dt AND :endDate :: DATE != from_dt
+                 ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="case.id" mapping="['caseId']" domain="integer"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="dateFrom" mapping="['beginDate']" domain="date"/>
+                <param name="dateTo" mapping="['endDate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="dateOneDaySave" level="error">
+            <message>Диета пересекается.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    SELECT
+                    CASE WHEN :endDate::date is null then 0
+                        else
+                            CASE WHEN (DATE_PART('day', :endDate:: DATE) - DATE_PART('day', :beginDate:: DATE)) <= 1
+                              THEN 0
+                               ELSE
+                                count(1)
+                               END
+                        end
+                    FROM mc_case_diet
+                    WHERE case_id = :caseId AND (:beginDate :: DATE <= to_dt AND :endDate :: DATE >= from_dt)
+                    AND :beginDate :: DATE != to_dt AND :endDate :: DATE != from_dt
+                 ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="case.id" mapping="['caseId']" domain="integer"/>
+                <param name="dateFrom" mapping="['beginDate']" domain="date"/>
+                <param name="dateTo" mapping="['endDate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+</object>

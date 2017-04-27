@@ -1,0 +1,150 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-2.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0">
+    <name>toothDiseaseDictionary</name>
+
+    <actions>
+        <action id="create" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    <rest:query>
+                        ${n2o.backend.path}/stomatology/disease/add
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="name.id" mapping="['idName']" domain="integer"/>
+                <param name="color.id" mapping="['idColor']" domain="integer"/>
+                <param name="surf*.id" mapping="['surfaceIdList']" domain="integer[]"/>
+                <param name="priority" mapping="['priority']" domain="integer"/>
+                <param name="prot*.id" mapping="['prototypeIdList']" domain="integer[]"/>
+                <param name="diagn*.id" mapping="['diagnosisIdList']" domain="integer[]"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkName"/>
+            </validations>
+            <success-text>Запись добавлена</success-text>
+        </action>
+        <action id="update">
+            <invocation>
+                <rest:rest method="PUT">
+                    <rest:query>
+                        ${n2o.backend.path}/stomatology/disease/update/{id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name.id" mapping="['idName']" domain="integer"/>
+                <param name="color.id" mapping="['idColor']" domain="integer"/>
+                <param name="surf*.id" mapping="['surfaceIdList']" domain="integer[]"/>
+                <param name="priority" mapping="['priority']" domain="integer"/>
+                <param name="prot*.id" mapping="['prototypeIdList']" domain="integer[]"/>
+                <param name="diagn*.id" mapping="['diagnosisIdList']" domain="integer[]"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="existedSurfaceDeleted"/>
+                <validation ref-id="existedPrototypeDeleted"/>
+                <validation ref-id="existedDiagnosisDeleted"/>
+            </validations>
+            <success-text>Запись изменена</success-text>
+            <fail-text>Операция не может быть выполнена. Есть связанные данные.</fail-text>
+        </action>
+        <action id="delete">
+            <invocation>
+                <rest:rest method="DELETE">
+                    <rest:query>
+                        ${n2o.backend.path}/stomatology/disease/delete/{id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы действительно хотите удалить заболевание зуба?</confirmation-text>
+            <success-text>Запись удалена</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="toothDiseaseExists"/>
+            </validations>
+            <fail-text>Операция не может быть выполнена. Есть связанные данные.</fail-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkName" level="error">
+            <expression on="name"><![CDATA[(isName != null)]]></expression>
+            <message>Добавлены все наименования заболеваний!</message>
+        </condition>
+        <condition id="isNumberPriority" level="error">
+            <message>Значение должно быть числовым и не меньше "1".</message>
+            <expression on="priority">
+                <![CDATA[(typeof priority == 'undefined') || (priority == null) || (/^[1-9]*$/.test(priority) == true)]]></expression>
+        </condition>
+        <constraint id="toothDiseaseExists" level="error">
+            <message>Операция не может быть выполнена. Есть связанные данные.</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from stomatology.tooth_disease_tooth where tooth_disease_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="existedSurfaceDeleted" level="error">
+            <message>Есть связанные данные. Возмжно только добавить поверхность</message>
+            <invocation>
+                <sql:sql>
+                    select
+                    (select count(1) from stomatology.tooth_disease_tooth where tooth_disease_id = :id),
+                    count(*),
+                    (select count(*) from stomatology.tooth_disease_md_tooth_surface where tooth_disease_id = :id),
+                    (select count(*) from md_tooth_surface where id = any (string_to_array(trim(both '[]' from :surfaceIdList),','):: int[]))
+                    from stomatology.tooth_disease_md_tooth_surface tdts
+                    where tdts.tooth_disease_id = :id and tdts.md_tooth_surface_id != all (string_to_array(trim(both '[]' from :surfaceIdList),','):: int[])
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="surf*.id" mapping="['surfaceIdList']" domain="integer[]"/>
+            </in-parameters>
+            <result expression="([0][0][0] == 0 || [0][0][1] == 0) &amp;&amp; [0][0][2] &lt;= [0][0][3]"/>
+        </constraint>
+        <constraint id="existedPrototypeDeleted" level="error">
+            <message>Есть связанные данные. Возмжно только добавить прототип</message>
+            <invocation>
+                <sql:sql>
+                    select count(*),
+                    (select count(*) from stomatology.tooth_disease_sr_srv_prototype tdssp where tdssp.tooth_disease_id = :id),
+                    (select count(*) from sr_srv_prototype where id = any (string_to_array(trim(both '[]' from :prototypeIdList),','):: int[]))
+                    from stomatology.tooth_disease_sr_srv_prototype tdssp1
+                    where tdssp1.tooth_disease_id = :id and tdssp1.sr_srv_prototype_id != all (string_to_array(trim(both '[]' from :prototypeIdList),','):: int[])
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="prot*.id" mapping="['prototypeIdList']" domain="integer[]"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0 &amp;&amp; [0][0][1] &lt;= [0][0][2]"/>
+        </constraint>
+        <constraint id="existedDiagnosisDeleted" level="error">
+            <message>Есть связанные данные. Возмжно только добавить диагноз</message>
+            <invocation>
+                <sql:sql>
+                    select count(*),
+                    (select count(*) from stomatology.tooth_disease_md_diagnosis tdts where tooth_disease_id = :id),
+                    (select count(*) from md_diagnosis where id = any (string_to_array(trim(both '[]' from :diagnosisIdList),','):: int[]))
+                    from stomatology.tooth_disease_md_diagnosis tdd
+                    where tdd.tooth_disease_id = :id and tdd.md_diagnosis_id != all (string_to_array(trim(both '[]' from :diagnosisIdList),','):: int[])
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="diagn*.id" mapping="['diagnosisIdList']" domain="integer[]"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0 &amp;&amp; [0][0][1] &lt;= [0][0][2]"/>
+        </constraint>
+    </validations>
+</object>

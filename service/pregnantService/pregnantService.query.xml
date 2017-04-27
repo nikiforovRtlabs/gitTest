@@ -1,0 +1,187 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>pregnantService</object-id>
+    <name>partographPregrantService_def</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                <![CDATA[
+                select :select
+                from md_srv_rendered msr
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join sr_srv_type st on st.id = s.type_id
+                join mc_case c on c.id = msr.case_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position_resource epr on epr.employee_position_id = rg.responsible_id
+                left join motherhood.mh_pregnant_map mpm on mpm.patient_id = p.id and ssr.planned_date >= mpm.reg_dt and (mpm.unreg_dt is null or ssr.planned_date <= mpm.unreg_dt)
+                left join motherhood.mh_pregnant_outcome mpo on mpo.service_id = msr.id
+                where :where
+                order by :order
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                <![CDATA[
+                select count(1)
+                from md_srv_rendered msr
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join mc_case c on c.id = msr.case_id
+                join sr_service s on s.id = ssr.service_id
+                join sr_srv_type st on st.id = s.type_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position_resource epr on epr.employee_position_id = rg.responsible_id
+                left join motherhood.mh_pregnant_map mpm on mpm.patient_id = p.id and ssr.planned_date >= mpm.reg_dt and (mpm.unreg_dt is null or ssr.planned_date <= mpm.unreg_dt)
+                left join motherhood.mh_pregnant_outcome mpo on mpo.service_id = msr.id
+                where :where
+                ]]>
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>msr.id</expression>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <expression>
+                <![CDATA[
+                    concat(i.surname,' ', i.name,' ', i.patr_name,
+                            (case when i.birth_dt is not null then ' (' || to_char(i.birth_dt, 'DD.MM.YYYY') || ') ' end))
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>i.id</expression>
+        </field>
+
+        <field>
+            <id>pregnantAge</id>
+            <domain>integer</domain>
+            <expression>
+                <![CDATA[
+                      coalesce(mpo.pregnant_age, trunc(date_part('day', current_date::timestamp  - mpm.reg_dt::timestamp)/7) + mpm.pregnant_age)
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>ssr.service_id</expression>
+        </field>
+
+        <field>
+            <id>service.name</id>
+            <domain>string</domain>
+            <expression>concat(s.code, ' ', s.name)</expression>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>msr.step_id</expression>
+        </field>
+
+        <field>
+            <id>regDate</id>
+            <domain>date</domain>
+            <expression>coalesce(ssr.bdate + coalesce(ssr.begin_time, '00:00'), ssr.planned_date +
+                coalesce(planned_time, '00:00'))
+            </expression>
+        </field>
+
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>ssr.funding_id</expression>
+        </field>
+
+        <field>
+            <id>stepId</id>
+            <domain>integer</domain>
+            <expression>msr.step_id</expression>
+        </field>
+
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>epr.id</expression>
+        </field>
+
+        <field>
+            <id>resourceGroupId</id>
+            <domain>integer</domain>
+            <expression>rg.id</expression>
+        </field>
+
+        <field>
+            <id>outcomeId</id>
+            <domain>integer</domain>
+            <expression>mpo.id</expression>
+        </field>
+
+        <field>
+            <id>regNumber</id>
+            <domain>integer</domain>
+            <expression>mpo.reg_number</expression>
+        </field>
+
+        <field>
+            <id>anhydrousInterval.begin</id>
+            <domain>date</domain>
+            <expression>mpo.start_anhydrous_dt</expression>
+        </field>
+
+        <field>
+            <id>anhydrousInterval.end</id>
+            <domain>date</domain>
+            <expression>mpo.end_anhydrous_dt</expression>
+        </field>
+
+        <field>
+            <id>isSurgery</id>
+            <domain>boolean</domain>
+            <expression>mpo.is_surgery</expression>
+        </field>
+
+        <field>
+            <id>hasChild</id>
+            <domain>boolean</domain>
+            <expression>(select exists(select 1 from motherhood.mh_pregnant_outcome_child cc where
+                cc.pregnant_outcome_id = mpo.id))
+            </expression>
+        </field>
+
+        <field>
+            <id>isFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>c.is_finance_type_control</expression>
+        </field>
+    </fields>
+</query>

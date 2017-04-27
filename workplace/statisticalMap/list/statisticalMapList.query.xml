@@ -1,0 +1,333 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>statisticalMap</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from mc_case c
+                join mc_case_type ct on ct.id = c.case_type_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+                left join fin_funding_source_type fin on fin.id = c.funding_id
+                left join mc_diagnosis on mc_diagnosis.id = c.main_diagnos_id
+                left join md_diagnosis on md_diagnosis.id = mc_diagnosis.diagnos_id
+
+                left join mc_step ls on ls.id = c.closing_step_id
+                left join mc_step_result lsr on lsr.id = ls.result_id
+                left join mc_step_care_result lscr on lscr.id = ls.outcome_id
+
+                where ct.case_mode_id = 2 and :where
+                order by :order, c.id
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(c)
+                from mc_case c
+                join mc_case_type ct on ct.id = c.case_type_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+                left join fin_funding_source_type fin on fin.id = c.funding_id
+                left join mc_diagnosis on mc_diagnosis.id = c.main_diagnos_id
+                left join md_diagnosis on md_diagnosis.id = mc_diagnosis.diagnos_id
+
+                left join mc_step ls on ls.id = c.closing_step_id
+                left join mc_step_result lsr on lsr.id = ls.result_id
+                left join mc_step_care_result lscr on lscr.id = ls.outcome_id
+
+                where ct.case_mode_id = 2 and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+            <search>:expression = :clinicId</search>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>id</name>
+            <expression>c.id</expression>
+        </field>
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <name>Номер случая</name>
+            <expression>c.uid</expression>
+            <search>:expression like '%' || :uid || '%'</search>
+            <sorting>:expression</sorting>
+        </field>
+
+        <!--Случай. пациент-->
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+            <search>:expression = :patient.id</search>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>concat(i.surname || ' ', i.name || ' ' , i.patr_name)</expression>
+            <sorting>:expression</sorting>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>uidForTitle</id>
+            <domain>string</domain>
+            <expression>coalesce('№' || c.uid || ',', '')</expression>
+        </field>
+
+        <!--Возраст пациента-->
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <name>Возраст</name>
+            <expression>extract(year from AGE(NOW(), i.birth_dt))</expression>
+        </field>
+
+        <!--Дата поступления в первую ЗОГ-->
+        <field>
+            <id>admissionDate</id>
+            <domain>date</domain>
+            <name>Дата поступления</name>
+            <expression>c.open_date</expression>
+            <search><![CDATA[
+                (:admissionDate.begin::date is null and :admissionDate.end::date is null or
+                ((:admissionDate.begin::date is null or coalesce(c.open_date, c.create_date) >= :admissionDate.begin) and
+                 (:admissionDate.end::date is null or coalesce(c.open_date, c.create_date) <= :admissionDate.end)))
+                ]]></search>
+            <sorting>coalesce(c.open_date, c.create_date)</sorting>
+        </field>
+
+        <field>
+            <id>admissionDate.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>admissionDate.begin</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <!--Дата выбытия из последней ЗОГ-->
+        <field>
+            <id>outcomeDate</id>
+            <domain>date</domain>
+            <name>Дата выписки</name>
+            <expression>c.close_date</expression>
+            <search><![CDATA[
+                (:outcomeDate.begin::date is null and :outcomeDate.end::date is null or
+                ((:outcomeDate.begin::date is null or c.close_date >= :outcomeDate.begin) and
+                 (:outcomeDate.end::date is null or c.close_date <= :outcomeDate.end)
+                ))
+                ]]></search>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>outcomeDate.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>outcomeDate.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <!--Койко-дней-->
+        <field>
+            <id>bedDaysAmount</id>
+            <domain>integer</domain>
+            <name>Койко-дней</name>
+            <expression>(select get_bed_day_amount_n2o(c.id))</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <!--Случай. Вид финансирования-->
+        <field>
+            <id>financialType.id</id>
+            <domain>integer</domain>
+            <expression>fin.id</expression>
+            <search>:expression = :financialType.id</search>
+        </field>
+
+        <field>
+            <id>financialType.name</id>
+            <domain>string</domain>
+            <name>Оплата</name>
+            <expression>fin.name</expression>
+            <sorting>:expression</sorting>
+            <search unavailable="true"/>
+        </field>
+
+        <!--Случай. Основной диагноз-->
+        <field>
+            <id>diagnosis</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <expression>md_diagnosis.code</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <!--Результат госпитализации-->
+        <field>
+            <id>result.name</id>
+            <name>Результат госпитализации</name>
+            <expression>lsr.name</expression>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>result.id</id>
+            <domain>integer</domain>
+            <expression>ls.result_id</expression>
+        </field>
+
+        <!--Исход госпитализации-->
+        <field>
+            <id>outcome</id>
+            <name>Исход госпитализации</name>
+            <expression>lscr.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <!--Случай (закрытый, открытый)-->
+        <field>
+            <id>caseState.id</id>
+            <domain>integer</domain>
+            <expression>c.closing_step_id</expression>
+            <search>(:caseState.id = 1 and :expression is null or :caseState.id = 2 and :expression is not null)</search>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <search filter-field="department*.id" type="in">
+                exists(select 1 from hsp_record r join mc_step s on s.id = r.id
+                where s.case_id = c.id and r.previous_id is not null and r.department_id in (:department*.id))
+            </search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>hasBill.id</id>
+            <domain>integer</domain>
+            <expression>
+                <![CDATA[
+                (select case when max(bsi.id) is not null then 1 else 2 end from fin_bill_spec_item bsi
+                join fin_bill b on b.id = bsi.bill_id
+                join md_srv_rendered msr on msr.id = bsi.service_id
+                where b.status_id <> 0 and msr.case_id = c.id
+                )]]>
+            </expression>
+            <search>:expression=:hasBill.id</search>
+        </field>
+
+        <field>
+            <id>chooseCases.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[
+                (:chooseCases.id = 1 and
+                exists(select 1 from hsp_record rec
+                inner join mc_step step on step.id = rec.id and step.case_id = c.id and rec.previous_id is null
+                inner join mc_step_result result on result.id = step.result_id and result.is_refusal is true)
+                or
+                :chooseCases.id = 2 and
+                (select count(1) from mc_step step where step.case_id = c.id) > 1)
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>address</id>
+            <domain>string</domain>
+            <name>Адрес</name>
+            <expression>(select adr__get_element_as_text(
+                (select pa.addr_id from pim_party_address pa
+                inner join pim_party_addr_to_addr_type patat on pa.party_id = i.id and patat.party_address_id = pa.id and patat.address_type_id = 4
+                limit 1), '(1,n,1)(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)'))
+            </expression>
+        </field>
+
+        <!--Профиль койки-->
+        <field>
+            <id>bedProfile.id</id>
+            <domain>integer</domain>
+            <search filter-field="bedProfile*.id" type="in">
+               exists (select 1 from hsp_record r join mc_step s on s.id = r.id where s.case_id = c.id and r.bed_profile_id in (:bedProfile*.id))
+            </search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>regimen.id</id>
+            <domain>integer</domain>
+            <expression>( select ss.regimen_id
+                from hsp_record hrr
+                inner join mc_step ss on hrr.id = ss.id and ss.case_id = c.id
+                where not exists(select 1 from hsp_record h2 inner join mc_step s2 on s2.id = h2.id where s2.case_id = ss.case_id and h2.previous_id = hrr.id)
+                order by hrr.id desc limit 1)
+            </expression>
+        </field>
+
+        <!--отображать только те случаи, где в любом из ЗОГ есть КСГ из фильтра-->
+        <field>
+            <id>csg.id</id>
+            <domain>integer</domain>
+            <name>КСГ</name>
+            <display unavailable="true"/>
+            <search>(:csg.id is null or
+                exists (select 1
+                from md_clinical_statistical_group g
+                join mc_step s on g.id = s.csg_id and s.case_id = c.id
+                join hsp_record hr on hr.id= s.id
+                where g.id = :csg.id)
+                )
+            </search>
+        </field>
+
+        <!--отображать только те случаи, где в любом из ЗОГ есть ВМП из фильтра-->
+        <field>
+            <id>vmp.id</id>
+            <domain>integer</domain>
+            <name>ВМП</name>
+            <display unavailable="true"/>
+            <search>(:vmp.id is null or
+                exists (select 1
+                from mc_step s
+                join hsp_record hr on hr.id= s.id
+                where s.case_id = c.id
+                and s.vmp_type_id = :vmp.id)
+                )
+            </search>
+        </field>
+
+    </fields>
+
+
+</query>

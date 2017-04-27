@@ -1,0 +1,138 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>returnSpec</name>
+    <object-id>returnSpec</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select from
+                (select  spec.id id, spec.document_id docId,spec.store_sup_id storeSupId,spec.hold_modif_id modifId,p.hold_producer_id producerId,
+                p.series series, p.expire_dt expireDt, ss.funding_source_id fundSourceId,spec.quantity quantity,spec.mnei_quantity mneiQuantity,
+                (select inventory.get_batch_mnei_quantity(ss.id,ss.act_balance_mnei,doc.int_doc_dt)) actualBalanceMnei, coalesce(hm.mnei_count_in_sec_pk,1) mneiCountInSecPk,
+                hm.extra_pack_unit_id extraPackUnitId,hm.mnei_id mneiId,hm.sec_pack_unit_id secPackUnitId,
+                spec.amount amount, spec.price price, hm.price_unit_flag priceUnitFlag, spec.status_id statusId
+
+                from inventory.return_doc_spec spec
+                left outer join inventory.return_document rd on spec.document_id= rd.id
+                inner join inventory.document doc on doc.id=rd.id
+                left outer join inventory.store_supply ss on spec.store_sup_id=ss.id
+                left outer join inventory.batch p on p.id=ss.batch_id
+                left outer join inventory.holding_producer prod on prod.id=p.hold_producer_id
+                left outer join inventory.hold_modif hm on hm.id=spec.hold_modif_id) spec
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select 1</n2o:count-query>
+            <n2o:alias>spec</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>doc.id</id>
+            <domain>integer</domain>
+            <expression>docId</expression>
+        </field>
+        <field>
+            <id>storeSupply.id</id>
+            <domain>integer</domain>
+            <expression>storeSupId</expression>
+        </field>
+        <field>
+            <id>modif.id</id>
+            <domain>integer</domain>
+            <expression>modifId</expression>
+        </field>
+        <field>
+            <id>producer.id</id>
+            <domain>integer</domain>
+            <expression>producerId</expression>
+        </field>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <expression>series</expression>
+        </field>
+        <field>
+            <id>expireDt</id>
+            <domain>date</domain>
+            <expression>expireDt</expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fundSourceId</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>string</domain>
+            <expression>quantity</expression>
+        </field>
+        <field>
+            <id>mneiQuantity</id>
+            <domain>integer</domain>
+            <expression>mneiQuantity</expression>
+        </field>
+        <field>
+            <id>actualBalanceMnei</id>
+            <domain>string</domain>
+            <expression>actualBalanceMnei</expression>
+        </field>
+        <field>
+            <id>actualBalanceArr</id>
+            <domain>string</domain>
+            <expression>actualBalanceMnei/mneiCountInSecPk</expression>
+        </field>
+        <field>
+            <id>mneiCountInSecPk</id>
+            <domain>string</domain>
+            <expression>mneiCountInSecPk</expression>
+        </field>
+        <field>
+            <id>amountWithVat</id>
+            <domain>string</domain>
+            <expression>amount</expression>
+        </field>
+        <field>
+            <id>priceWithVat</id>
+            <domain>string</domain>
+            <expression>price</expression>
+        </field>
+        <field>
+            <id>priceUnitFlag.id</id>
+            <domain>integer</domain>
+            <expression>priceUnitFlag</expression>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>statusId</expression>
+        </field>
+        <field>
+            <id>unit</id>
+            <domain>string</domain>
+            <expression>(case when priceUnitFlag=2
+                then (select c.name from cmn_measure c where c.id=secPackUnitId)
+                else
+                case when priceUnitFlag=1
+                then (select c.name from cmn_measure c where c.id=extraPackUnitId)
+                else (select c.name from cmn_measure c where c.id=mneiId)
+                end
+                end)</expression>
+        </field>
+        <field>
+            <id>mnei</id>
+            <domain>string</domain>
+            <expression>(select mnemocode from cmn_measure where id= mneiId)</expression>
+        </field>
+        <field>
+            <id>isExecuted</id>
+            <domain>boolean</domain>
+            <expression>statusId=2</expression>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>departmentsTree</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <sql:sql>
+                    INSERT INTO pim_department(id, name, code, parent_id, type_id, kind_id, from_dt, to_dt, org_id)
+                    VALUES ( nextval('dc_departament_seq'),:name, :code, :parent_id, :type_id, :kind_id, :from_dt,
+                    :to_dt, :org_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="org_id" mapping="['org_id']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="parent.id" mapping="['parent_id']" domain="integer"/>
+                <param name="department_kind.oid" mapping="['kind_id']" domain="integer"/>
+                <param name="department_type.oid" mapping="['type_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="oid" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Подразделение "{name}" успешно добавлено.
+            </success-text>
+        </action>
+
+        <action id="delete">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="ACTION">
+                            <wf:invocation>
+                                <sql:sql>
+                                    select exists
+                                    (select 1 from list_table_column_input_references_detail('public', 'pim_department', 'id', :id)
+                                    dept(schema_name VARCHAR, table_name VARCHAR, table_description TEXT, count INTEGER)
+                                    where count > 0)
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="id" mapping="['id']" domain="integer"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                            <wf:results>
+                                <wf:result value="true" next-task-id="2"/>
+                                <wf:result value="false" next-task-id="4"/>
+                            </wf:results>
+                        </wf:service-task>
+
+                        <wf:service-task id="2" in-parameters-context-type="ACTION" next-task-id="3">
+                            <wf:invocation>
+                                <sql:sql>
+                                    SELECT string_agg(schema_name || '.' || table_name, ', ')
+                                    FROM list_table_column_input_references_detail('public', 'pim_department', 'id',
+                                    :id)
+                                    DEPT(schema_name VARCHAR, table_name VARCHAR, table_description TEXT, count INTEGER)
+                                    where count > 0
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="id" mapping="['id']" domain="integer"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters>
+                                <param name="wf_data" mapping="[0][0][0]"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+
+                        <wf:user-task id="3" template="stocks/n2o/ext/workflow/wf_message.html" use-wf-context="true"
+                                       show-cancel-button="true">
+                            <wf:title>Предупреждение</wf:title>
+                            <wf:description>Удаление невозможно. Данное подразделение имеет связь со следующими таблицами</wf:description>
+                            <wf:choices/>
+                        </wf:user-task>
+
+                        <wf:service-task id="4" in-parameters-context-type="ACTION">
+                            <wf:invocation>
+                                <sql:sql>
+                                    delete from pim_department where id = :id;
+                                </sql:sql>
+                            </wf:invocation>
+                            <wf:in-parameters>
+                                <param name="id" mapping="['id']" domain="integer"/>
+                            </wf:in-parameters>
+                            <wf:out-parameters/>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы действительно хотите удалить подразделение "{name}" ?
+            </confirmation-text>
+            <success-text>
+                Подразделение "{name}" успешно удалено.
+            </success-text>
+        </action>
+    </actions>
+</object>

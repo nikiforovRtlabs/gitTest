@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>eventServiceProtocolPathology</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from disp.event_service_protocol_pathology es
+                left join disp.event_service_protocol esp on  es.protocol_field_id=esp.id
+                left join disp.event_service_protocol_condition ec on ec.id = es.condition_id
+                left join (select (foo.o -> 'id')::varchar as id, (foo.o -> 'name')::varchar as name, foo.id as protocol from
+                (select id, (json_array_elements(values))::json as o from disp.event_service_protocol) as foo) as nv
+                on nv.id = es.value and es.protocol_field_id=nv.protocol
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(es) from disp.event_service_protocol_pathology es
+                left join disp.event_service_protocol esp on  es.protocol_field_id=esp.id
+                left join disp.event_service_protocol_condition ec on ec.id = es.condition_id
+                left join (select (foo.o -> 'id')::varchar as id, (foo.o -> 'name')::varchar as name, foo.id as protocol from
+                (select id, (json_array_elements(values))::json as o from disp.event_service_protocol) as foo) as nv
+                on nv.id = es.value and es.protocol_field_id=nv.protocol
+                where :where
+            </n2o:count-query>
+            <n2o:alias>es</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <display>es.id</display>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>protocol.codename</id>
+            <domain>string</domain>
+            <name>Параметр</name>
+            <display>esp.code||' - '||esp.label</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>protocol.id</id>
+            <domain>integer</domain>
+            <expression>protocol_field_id</expression>
+        </field>
+        <field>
+            <id>cond.id</id>
+            <domain>integer</domain>
+            <expression>ec.id</expression>
+        </field>
+        <field>
+            <id>cond.name</id>
+            <domain>string</domain>
+            <name>Условие</name>
+            <expression>ec.condition</expression>
+            <search>lower(:expression) like lower('%||:cond.name||%')</search>
+        </field>
+        <field>
+            <id>values.id</id>
+            <domain>integer</domain>
+            <expression>nv.id</expression>
+        </field>
+        <field>
+            <id>values.name</id>
+            <domain>string</domain>
+            <expression>nv.name</expression>
+            <display>:expression</display>
+            <sorting>:expression</sorting>
+            <name>Значение</name>
+        </field>
+    </fields>
+</query>

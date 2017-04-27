@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>examinationCard</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from qos_examination_card qec
+                    LEFT JOIN mc_case mc ON qec.case_id = mc.id
+                    LEFT JOIN qos_exam_card_template qect ON qect.id = qec.template_id
+                    LEFT JOIN qos_exam_card_control_level qeccl ON qeccl.id = qec.control_level_id
+                    LEFT JOIN pci_patient p on p.id = mc.patient_id
+                    LEFT JOIN pim_individual i on i.id = p.id
+                    LEFT JOIN sr_resource sr ON qec.resource_id = sr.id
+                    LEFT JOIN pim_employee_position_resource pepr ON sr.id = pepr.id
+                    LEFT JOIN pim_employee_position pep ON pepr.employee_position_id = pep.id
+                    LEFT JOIN pim_employee pe ON pep.employee_id = pe.id
+                    LEFT JOIN pim_individual pi ON pe.individual_id = pi.id
+                    LEFT JOIN pim_position pp on pep.position_id = pp.id
+                    LEFT JOIN pim_position_name ppn on pp.id = ppn.position_id
+                where case when qec.resource_id is not null then pepr.id is not null else true end and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(qec)
+                from qos_examination_card qec
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>qec.id</expression>
+        </field>
+        <field>
+            <id>case</id>
+            <domain>string</domain>
+            <expression>
+                concat(mc.uid, ', ', mc.open_date || ', ',
+                i.surname, ' ', substring(i.name for 1) || '.', substring(i.patr_name for 1) || '.')
+            </expression>
+        </field>
+        <field>
+            <id>controlLevel</id>
+            <domain>string</domain>
+            <expression>qeccl.name</expression>
+        </field>
+        <field>
+            <id>template</id>
+            <domain>string</domain>
+            <expression>qect.name</expression>
+        </field>
+        <field>
+            <id>resource</id>
+            <domain>string</domain>
+            <expression>
+                concat(coalesce(NULLIF(ppn.name,''), NULLIF(pp.name, '')) || ' ',
+                pi.surname || ' ', substring(pi.name for 1) || '.', substring(pi.patr_name for 1) || '.')
+            </expression>
+        </field>
+        <field>
+            <id>qualityLevel</id>
+            <domain>string</domain>
+            <expression>qec.quality_level</expression>
+        </field>
+        <field>
+            <id>recommendations</id>
+            <domain>string</domain>
+        </field>
+    </fields>
+</query>

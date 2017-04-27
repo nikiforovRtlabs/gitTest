@@ -1,0 +1,225 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>medicalServiceRendered</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_srv_rendered msr
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join sr_srv_type st on st.id = s.type_id
+                join mc_case c on c.id = msr.case_id
+                left join motherhood.mh_pregnant_outcome mpo on mpo.service_id = msr.id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual i on i.id = e.individual_id
+                left join md_appointment a on a.srv_rendered_id = ssr.id
+                left join md_appointment_state ast on ast.id = a.state_id
+                left join hsp_record r on r.id = msr.step_id
+                left join pim_department d on d.id = r.department_id
+                where (st.is_physical is false or st.is_physical is null) and
+                (prescription_id is null or :createdByPrescription is true) and :where
+                order by :order, msr.id
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from md_srv_rendered msr
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join sr_srv_type st on st.id = s.type_id
+                join mc_case c on c.id = msr.case_id
+                left join motherhood.mh_pregnant_outcome mpo on mpo.service_id = msr.id
+                left join sr_res_group rg on rg.id = ssr.res_group_id
+                left join pim_employee_position ep on ep.id = rg.responsible_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual i on i.id = e.individual_id
+                left join md_appointment a on a.srv_rendered_id = ssr.id
+                left join md_appointment_state ast on ast.id = a.state_id
+                left join hsp_record r on r.id = msr.step_id
+                left join pim_department d on d.id = r.department_id
+                where (st.is_physical is false or st.is_physical is null) and
+                (prescription_id is null or :createdByPrescription is true) and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>msr.id</expression>
+        </field>
+
+        <field>
+            <id>isOperation</id>
+            <domain>boolean</domain>
+            <expression>st.is_surgery is true</expression>
+        </field>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>msr.case_id</expression>
+            <search>:expression = :case.id</search>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Услуга</name>
+            <expression>coalesce(s.code || ' ' || s.name, s.name)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>plannedDate</id>
+            <domain>date</domain>
+            <name>Дата планирования</name>
+            <expression>ssr.planned_date + coalesce(ssr.planned_time, '00:00')</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>renderedDate</id>
+            <domain>date</domain>
+            <name>Дата оказания</name>
+            <expression>ssr.bdate + coalesce(ssr.begin_time, '00:00')</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>status</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>coalesce(ast.name, (case when ssr.bdate is null then 'Назначена' else 'Оказана' end))</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>doctor</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <expression> coalesce(i.surname, '') || ' '
+                || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end
+                || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for 1) || '.' end
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>department</id>
+            <domain>string</domain>
+            <name>Отделение</name>
+            <expression>d.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>stepDepartment.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>d.id = :stepDepartment.id</search>
+        </field>
+
+        <field>
+            <id>isPlannedServiceWithoutAppointment</id>
+            <domain>boolean</domain>
+            <expression>(a.id is null and ssr.bdate is null)</expression>
+        </field>
+
+        <field>
+            <id>isCreateByAppointment</id>
+            <domain>integer</domain>
+            <expression>a.id is not null</expression>
+        </field>
+
+
+        <field>
+            <id>appointmentId</id>
+            <domain>integer</domain>
+            <expression>a.id</expression>
+        </field>
+
+        <field>
+            <id>isRendered</id>
+            <domain>boolean</domain>
+            <expression>(ssr.bdate is not null)</expression>
+        </field>
+
+        <field>
+            <id>employeePositionUserId</id>
+            <domain>integer</domain>
+            <expression>rg.responsible_id</expression>
+        </field>
+
+        <field>
+            <id>isCancelAppointment</id>
+            <domain>integer</domain>
+            <expression>a.state_id not in (1,3,4)</expression>
+        </field>
+
+        <field>
+            <id>protocolId</id>
+            <domain>integer</domain>
+            <expression>(select id from md_srv_protocol where srv_rendered_id = ssr.id)</expression>
+        </field>
+
+        <field>
+            <id>user.id</id>
+            <domain>integer</domain>
+            <display value="#{user.id}" unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>printForm</id>
+            <domain>string</domain>
+            <expression>
+                (select coalesce((select case when report_path = '' then null else report_path end from sr_srv_ehr_opt where service_id = s.id limit 1),
+                (select case when value = '' then null else value end  from cmn_setting_value where setting_id = 'cz.atria.ehr.client.EhrProtocolUISettings.defaultReportPath' limit 1),
+                (select case when default_value = '' then null else default_value end from cmn_setting where id = 'cz.atria.ehr.client.EhrProtocolUISettings.defaultReportPath' limit 1),
+                'by_default_A5.rptdesign'
+                ))
+            </expression>
+        </field>
+
+        <field>
+            <id>createdByPrescription</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search value="false" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>isPregnant</id>
+            <domain>boolean</domain>
+            <expression>(case when st.code in ('PHYSIOLOGICAL_BIRTH', 'CAESARIAN') then true else false end)</expression>
+        </field>
+
+        <field>
+            <id>hasChildOrPartogram</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[
+                (case when mpo.id is  null then  false
+                else (SELECT count(*) > 0
+                            FROM list_table_column_input_references_detail('motherhood','mh_pregnant_outcome', 'id', mpo.id)
+                            DEPT(schema_name VARCHAR, table_name VARCHAR, table_description TEXT, count INTEGER))
+                end)
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>byStandard</id>
+            <domain>boolean</domain>
+            <expression>msr.by_standard</expression>
+        </field>
+
+    </fields>
+</query>

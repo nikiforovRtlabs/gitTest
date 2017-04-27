@@ -1,0 +1,93 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>карточка пациента детей-сирот</name>
+
+    <actions>
+        <action id="update" name="Изменить" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">select disp.updateOrphansPatientCard(:id, :category_accounting_child_id,
+                    :location_id, :reason_id, :miss_reason, :bdate, :edate, :education_org_id, :stac_org_id, :indivId)</sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="category_accounting_child.id" mapping="['category_accounting_child_id']" domain="integer"/>
+                <param name="location.id" mapping="['location_id']" domain="integer"/>
+                <param name="reason.id" mapping="['reason_id']" domain="integer"/>
+                <param name="miss_reason" mapping="['miss_reason']" domain="string"/>
+                <param name="bdate" mapping="['bdate']" domain="string"/>
+                <param name="edate" mapping="['edate']" domain="string"/>
+                <param name="education_org.id" mapping="['education_org_id']" domain="integer"/>
+                <param name="stac_org.id" mapping="['stac_org_id']" domain="integer"/>
+                <param name="indivId" mapping="['indivId']" domain="integer"/>
+                <param name="birthday" domain="string"/>
+            </in-parameters>
+            <validations activate="all"/>
+        </action>
+    </actions>
+
+    <validations>
+        <!--<constraint id="checkUniqPatient" level="error">-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--select count(id) from disp.md_event_patient-->
+                    <!--where indiv_id = CAST(:pid as integer) and event_id = CAST(:eid as integer)-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="patient.id" mapping="['pid']" domain="integer"/>-->
+                <!--<param name="eventId" mapping="['eid']" domain="integer"/>-->
+            <!--</in-parameters>-->
+            <!--<result expression="[0][0][0] == 0"/>-->
+            <!--<message>Данный пациент уже присутствует в мероприятие.</message>-->
+        <!--</constraint>-->
+        <constraint id="correctData" level="error">
+            <invocation>
+                <sql:sql>
+                    SELECT cast (:bdate as date)>=cast(:birthday as date )
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="bdate" mapping="['bdate']"/>
+                <param name="birthday" mapping="['birthday']"/>
+            </in-parameters>
+            <result expression="[0][0][0] >= true"/>
+            <message>Дата поступления не может быть раньше даты рождения</message>
+        </constraint>
+
+
+        <constraint id="correctDataEnd" level="error">
+            <invocation>
+                <sql:sql>
+                    SELECT cast(:edate as date) is null or now()>=cast(:edate as date) and cast(:edate as date)>=cast(:bdate as date)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="bdate" mapping="['bdate']"/>
+                <param name="edate" mapping="['edate']"/>
+                <param name="birthday" mapping="['birthday']"/>
+            </in-parameters>
+            <result expression="[0][0][0] >= true"/>
+            <message>Дата выбытия не должна быть раньше даты поступления и позже текущей даты</message>
+        </constraint>
+
+        <constraint id="checkRequiredFields" level="error">
+            <message>Следующие поля обязательны для заполнения: {validation_result}</message>
+            <invocation>
+                <sql:sql>select disp.updateorphanspatientcard_validation(:id);</sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="indivId" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="validation_result" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] == null"/>
+        </constraint>
+    </validations>
+
+</object>

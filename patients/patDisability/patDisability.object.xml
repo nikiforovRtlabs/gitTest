@@ -1,0 +1,170 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        >
+    <!--<id>patDisability</id>-->
+    <name>Инвалидности</name>
+    <actions>
+        <action id="create" name="Создать">
+        <invocation>
+            <n2o:sql>
+                update md_disability set to_dt = :from_date::date - 1 where patient_id = :party_id and to_dt is null;
+
+                insert into public.md_disability (patient_id, disability_type_id, disability_group_id, diagnos_id, doc_number, is_disability_primary, disability_degree, from_dt, to_dt, note, last_examination_dt)
+                values (:party_id, :type, :group, :diagnos, :doc_number, case when :primary::boolean is null then false else :primary::boolean end, :degree, :from_date, :to_date, :note, :last_examination_dt);
+            </n2o:sql>
+        </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['party_id']" domain="integer"/>
+                <param name="type.id" mapping="['type']" domain="integer"/>
+                <param name="group.id" mapping="['group']" domain="integer"/>
+                <param name="diagnosis.id" mapping="['diagnos']" domain="integer"/>
+                <param name="doc_number" mapping="['doc_number']" domain="string"/>
+                <param name="primary" mapping="['primary']" domain="boolean"/>
+                <param name="degree" mapping="['degree']" domain="integer"/>
+                <param name="from_dt" mapping="['from_date']" domain="date"/>
+                <param name="to_dt" mapping="['to_date']" domain="date"/>
+                <param name="last_examination_dt" mapping="['last_examination_dt']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+
+            </in-parameters>
+            <!--<out-parameters>-->
+                <!--<param name="id" mapping="[0][0]" domain="integer"/>-->
+            <!--</out-parameters>-->
+            <success-text>
+                Инвалидность сохранена в системе. Старая закрылась (если была) днем ранее открытия новой.
+            </success-text>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <n2o:sql>
+                    update public.md_disability set
+                    disability_type_id = :type
+                    ,disability_group_id = :group
+                    ,diagnos_id = :diagnos
+                    ,from_dt = :from_date::date
+                    ,to_dt = :to_date::date
+                    ,note = :note::text
+                    ,is_disability_primary = case when :primary::boolean is null then false else :primary::boolean end
+                    ,disability_degree = :degree
+                    ,doc_number = :doc_number::text
+                    ,last_examination_dt = :last_examination_dt::date
+
+                    where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['party_id']" domain="integer"/>
+                <param name="type.id" mapping="['type']" domain="integer"/>
+                <param name="group.id" mapping="['group']" domain="integer"/>
+                <param name="diagnosis.id" mapping="['diagnos']" domain="integer"/>
+                <param name="doc_number" mapping="['doc_number']" domain="string"/>
+                <param name="primary" mapping="['primary']" domain="boolean"/>
+                <param name="degree" mapping="['degree']" domain="integer"/>
+                <param name="from_dt" mapping="['from_date']" domain="date"/>
+                <param name="to_dt" mapping="['to_date']" domain="date"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="last_examination_dt" mapping="['last_examination_dt']" domain="date"/>
+            </in-parameters>
+            <success-text>
+                Измененная льгота сохранена в системе.
+            </success-text>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.md_disability where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="full_name" mapping="['full_name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что инвалидность "{full_name}" должна быть удалена?
+            </confirmation-text>
+            <success-text>
+                Льгота "{full_name}" успешно удалена.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+
+        <condition id="checkDegree" level="error" moment="before-action">
+            <message>Не может быть больше 100</message>
+            <expression on="degree">
+                <![CDATA[
+                  degree > 100 ? false : true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkFromDt" level="error" moment="before-action">
+            <message>Не может быть раньше рождения</message>
+            <expression on="from_dt">
+                <![CDATA[
+                  moment(from_dt, 'DD.MM.YYYY') < moment(patient.birthDate, 'DD.MM.YYYY') ? false : true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkToDt" level="error" moment="before-action">
+            <message>Дата окончания должна быть больше даты начала</message>
+            <expression on="to_dt">
+                <![CDATA[
+                  to_dt == null ? true : moment(from_dt, 'DD.MM.YYYY') >= moment(to_dt, 'DD.MM.YYYY') ? false : true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkToDt18" level="error" moment="before-action">
+            <message>В период действия пациенту не должно исполняться 18 лет</message>
+            <expression on="to_dt">
+                <![CDATA[
+                to_dt == null ? true : {
+                    function m(x){ return moment(x, 'DD.MM.YYYY') }
+                    function d(a){ return m(a).diff(m(patient.birthDate), 'years') }
+                    var a = d(from_dt);
+                    var b = d(to_dt);
+                    a >= 18 || a < 18 && b < 18;
+                }
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="checkUniqueDisability" level="error">
+            <message>Даты действия инвалидности пересекаются с имеющимися записями.</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                    select count(1) as cnt
+                    from md_disability d
+                    where d.patient_id = :party_id
+                    and
+                    (
+                        :from_date::date between d.from_dt and d.to_dt
+                        or
+                        :to_date::date between d.from_dt and d.to_dt
+                    )
+                    and (:id is null or d.id != :id)
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['party_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_date']" domain="date"/>
+                <param name="to_dt" mapping="['to_date']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="cnt" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+    </validations>
+</object>

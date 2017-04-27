@@ -1,0 +1,101 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Обслуживаемое население</name>
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    insert into md_clinic_to_age_group (id, clinic_id, age_group_id, from_dt, to_dt)
+                    values (nextval('md_clinic_to_age_group_id_seq'), :clinic_id, :age_group_id, :from_dt, :to_dt);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="org_id" mapping="['clinic_id']" domain="integer"/>
+                <param name="age.id" mapping="['age_group_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Группа успешно сохранена.
+            </success-text>
+            <validations activate="all">
+                <validation ref-id="clinicToAgeGroupAlreadyExists" />
+            </validations>
+        </action>
+        <action id="update" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    update md_clinic_to_age_group set
+                    clinic_id = :clinic_id,
+                    age_group_id = :age_group_id,
+                    from_dt = :from_dt,
+                    to_dt = :to_dt
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="org_id" mapping="['clinic_id']" domain="integer"/>
+                <param name="age.id" mapping="['age_group_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <success-text>
+                Группа успешно сохранена.
+            </success-text>
+            <validations activate="all">
+                <validation ref-id="clinicToAgeGroupAlreadyExists" />
+            </validations>
+        </action>
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from md_clinic_to_age_group where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что группа должена быть удалена?
+            </confirmation-text>
+            <success-text>
+                Группа успешно удалена.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="clinicToAgeGroupAlreadyExists" level="error">
+            <message>Указанная группа уже существует в заданном интервале времени</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*)
+                    from md_clinic_to_age_group
+                    where
+                        (:id is null or id != :id)
+                        and clinic_id=:clinic_id
+                        and age_group_id=:age_group_id
+                        and
+                         CASE WHEN COALESCE(:from_dt, date '1970-01-01') >= COALESCE(from_dt, date '1970-01-01')
+                         THEN COALESCE(to_dt, date '2070-01-01') >= COALESCE(:from_dt, date '1970-01-01')
+                          ELSE COALESCE(:to_dt, date '2070-01-01') >= COALESCE(from_dt, date '1970-01-01')  END;
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="org_id" mapping="['clinic_id']" domain="integer"/>
+                <param name="age.id" mapping="['age_group_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

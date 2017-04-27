@@ -1,0 +1,134 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>statMap_hospRecord</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from hsp_record rec
+                inner join mc_step step on step.id = rec.id
+                inner join mc_case c on c.id = step.case_id
+                left outer join pim_department dep on dep.id = rec.department_id
+                left outer join fin_funding_source_type fun on fun.id = rec.funding_id
+                left outer join md_profile p on p.id = step.profile_id
+                left outer join mc_diagnosis cd on cd.id = step.main_diagnosis_id
+                left outer join md_diagnosis d on d.id = cd.diagnos_id
+                where dep.type_id !=4 and :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(rec) from hsp_record rec
+                inner join mc_step step on step.id = rec.id
+                inner join mc_case c on c.id = step.case_id
+                left outer join pim_department dep on dep.id = rec.department_id
+                left outer join fin_funding_source_type fun on fun.id = rec.funding_id
+                left outer join md_profile p on p.id = step.profile_id
+                left outer join mc_diagnosis cd on cd.id = step.main_diagnosis_id
+                left outer join md_diagnosis d on d.id = cd.diagnos_id
+                where dep.type_id !=4 and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>id</name>
+            <expression>rec.id</expression>
+            <search>rec.id = :id</search>
+        </field>
+
+        <!--todo: caseId-->
+        <!--todo: Проброс параметра на форму диагноза-->
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>step.case_id</expression>
+            <search>:expression = :case.id</search>
+        </field>
+
+        <!--todo: Проброс параметра на форму диагноза-->
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>c.patient_id</expression>
+        </field>
+
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>admissionDate</id>
+            <domain>date</domain>
+            <name>Дата поступления</name>
+            <expression>step.admission_date</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>outcomeDate</id>
+            <domain>date</domain>
+            <name>Дата выписки(перевода)</name>
+            <expression>step.outcome_date</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>department</id>
+            <domain>string</domain>
+            <name>Отделение</name>
+            <expression>dep.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>profile</id>
+            <domain>string</domain>
+            <name>Профиль</name>
+            <expression>p.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>funding</id>
+            <domain>string</domain>
+            <name>Вид оплаты</name>
+            <expression>fun.name</expression>
+            <expression>fun.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>isLastHospitalRecord</id>
+            <domain>boolean</domain>
+            <expression>
+                rec.id = (select h1.id from hsp_record h1 join mc_step s1 on s1.id = h1.id
+                where s1.case_id = step.case_id and not exists
+                (select 1 from hsp_record h2 join mc_step s2 on s2.id = h2.id where s2.case_id = s1.case_id and h2.previous_id = h1.id) limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>initialFinancialType</id>
+            <domain>object</domain>
+            <expression>:initialFinancialType</expression>
+        </field>
+
+        <field>
+            <id>initialIsFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>:initialIsFinanceTypeControl</expression>
+        </field>
+
+    </fields>
+
+
+</query>

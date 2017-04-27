@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+
+    <name>Событие</name>
+
+    <actions>
+        <action id="create" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    insert into event_handler.event (id, name, table_name, period) values (coalesce(:id, upper(:table_name||'|'||:action)), :name, :table_name, :period);
+
+                    select create_notif_rule(:table_name, :action);
+
+                    select id,name from event_handler.event where id=coalesce(:id, upper(:table_name||'|'||:action));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['id']" domain="string" required="false"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="table.name" mapping="['table_name']" domain="string" required="false"/>
+                <param name="period" mapping="['period']" domain="string" required="false"/>
+                <param name="action.code" mapping="['action']" domain="string" required="false"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[2][0][0]" domain="string"/>
+                <param name="name" mapping="[2][0][1]" domain="string"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="uniqId"/>
+            </validations>
+        </action>
+
+        <action id="update" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    update event_handler.event set name=:name where id=:id;
+                    select id,name from event_handler.event where id=:id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[1][0][0]" domain="string"/>
+                <param name="name" mapping="[1][0][1]" domain="string"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="uniqId" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*) from event_handler.event where upper(id) = upper(:id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['id']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Событие с кодом '{code}' уже существует в системе</message>
+        </constraint>
+    </validations>
+
+
+</object>

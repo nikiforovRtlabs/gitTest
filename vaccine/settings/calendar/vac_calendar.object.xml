@@ -1,0 +1,141 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Календарь вакцинации</name>
+    <actions>
+        <action id="attachSchema" name="Добавить">
+            <invocation>
+                <sql:sql>
+                    INSERT INTO vac.national_calendar__schema (calendar_code, schema_id) VALUES (:calendarCode, :schemaId)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="schema.id" mapping="['schemaId']" domain="integer"/>
+                <param name="calendarCode" mapping="['calendarCode']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="intersectionDiseases"/>
+            </validations>
+        </action>
+        <action id="detachSchema" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    DELETE FROM vac.national_calendar__schema WHERE calendar_code = :calendarCode and schema_id = :schemaId
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['schemaId']" domain="integer"/>
+                <param name="calendarCode" mapping="['calendarCode']" domain="integer"/>
+            </in-parameters>
+        </action>
+        <action id="create" name="Создать календарь вакцинации">
+            <invocation>
+                <sql:sql>
+                    INSERT INTO vac.national_calendar (code, name) VALUES (:code, :name)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="code" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="nonEmptyName"/>
+            </validations>
+        </action>
+        <action id="update" name="Изменить календарь вакцинации">
+            <invocation>
+                <sql:sql>
+                    UPDATE vac.national_calendar SET code = :code, name = :name where code=:oldCode
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['oldCode']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="nonEmptyName"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить календарь вакцинации">
+            <invocation>
+                <sql:sql>
+                    DELETE FROM vac.national_calendar WHERE code=:code
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="nonEmptyName" level="error">
+            <invocation>
+                <sql:sql>
+                    select char_length(trim(:name));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] != 0"/>
+            <message>Недопустимо пустое наименование для календаря</message>
+        </constraint>
+        <constraint id="uniqueName" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1)
+                    from vac.national_calendar
+                    where trim(lower(name)) = trim(lower(:name)) and (code != :code or :code is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['code']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Календарь с таким наименованием уже существует</message>
+        </constraint>
+        <constraint id="uniqueCode" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(1)
+                    from vac.national_calendar
+                    where code = :code and (:oldCode != :code or :oldCode is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['oldCode']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Календарь с таким кодом уже существует</message>
+        </constraint>
+        <constraint id="intersectionDiseases" level="error" moment="before-action">
+            <invocation>
+                <n2o:rest method="POST">
+                    <n2o:query>
+                        ${n2o.backend.path}/vaccine/validation/vac-calendars/{calendarCode}/schemas/{schemaId}/diseases-intersection
+                    </n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="schema.id" mapping="['schemaId']" domain="integer"/>
+                <param name="calendarCode" mapping="['calendarCode']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="message" mapping="['message']"/>
+            </out-parameters>
+            <result expression="['success']"/>
+            <message>{message}</message>
+        </constraint>
+    </validations>
+</object>

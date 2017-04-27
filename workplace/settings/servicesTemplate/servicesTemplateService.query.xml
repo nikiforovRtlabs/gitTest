@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>servicesTemplate</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                with
+                 mp as (select service_type_id, bool_or(is_mandatory) is_mandatory from md_prescription where service_type_id is not null group by service_type_id),
+                 mp2 as (select prototype_id, bool_or(is_mandatory) is_mandatory from md_prescription where prototype_id is not null group by prototype_id)
+                select :select
+                from services_template_service sts
+                join sr_service s on s.id = sts.service_id
+                left join schedule_selection_type sst on sst.id = sts.schedule_selection_type_id
+                left join mp ON s.id = mp.service_type_id
+                left join mp2 ON s.prototype_id = mp2.prototype_id
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from services_template_service sts
+                join sr_service s on s.id = sts.service_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>sts</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>sts.id</expression>
+        </field>
+
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <expression>s.code</expression>
+            <name>Код</name>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>s.name</expression>
+            <name>Наименование</name>
+        </field>
+
+        <field>
+            <id>selectionType</id>
+            <domain>string</domain>
+            <expression>sst.name</expression>
+            <name>Тип подбора</name>
+        </field>
+
+        <field>
+            <id>templateId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>sts.template_id = :templateId</search>
+        </field>
+
+        <field>
+            <id>isMandatory</id>
+            <domain>boolean</domain>
+            <name>Обязательность</name>
+            <expression>
+                coalesce(mp.is_mandatory, mp2.is_mandatory, false)
+            </expression>
+        </field>
+
+    </fields>
+</query>

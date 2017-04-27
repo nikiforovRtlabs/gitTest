@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>modelPatientBase</name>
+
+    <actions>
+        <action id="add" name="Добавить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    insert into disp.md_model_patient_base (id, gender_id, age, model_id)
+                        values (nextval('disp.md_model_patient_base_id_seq'), :genderId, :age,
+                                CAST(:modelId as INT));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="gender.id" mapping="['genderId']"/>
+                <param name="age" mapping="['age']"/>
+                <param name="modelId" mapping="['modelId']"/>
+                <param name="base_model.id" mapping="['baseModel']"/>
+            </in-parameters>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    update disp.md_model_patient_base set gender_id=:genderId, age=:age
+                        where id=:id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="gender.id" mapping="['genderId']"/>
+                <param name="age" mapping="['age']"/>
+                <param name="base_model.id" mapping="['baseModel']"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    delete from disp.md_model_patient_base where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="base_model.id" mapping="['baseModel']"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="ageCorrect" level="error">
+            <message>Поле "Исполняется в год мероприятия" содержит недопустимое значение : "{value}"</message>
+            <invocation>
+                <sql:sql>
+                    select disp.validateModelAge(:age::text);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="age" mapping="['age']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="value" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0]=='true'"/>
+        </constraint>
+    </validations>
+</object>

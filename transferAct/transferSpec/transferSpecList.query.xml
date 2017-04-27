@@ -1,0 +1,205 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>transferSpec</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.exp_spec es
+                left outer join inventory.hold_modif hm on es.hold_modif_id=hm.id
+                left outer join inventory.funding_source fs on fs.id=es.fund_source_id
+                left outer join inventory.batch batch on batch.id= es.batch_id
+                left outer join inventory.holding_producer prod on prod.id =batch.hold_producer_id
+                left outer join pim_organization org on org.id=prod.org_id
+                left join  inventory.document doc on doc.id=es.doc_id
+                left join  inventory.exp_invoice inv on doc.id=inv.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(es)
+                from inventory.exp_spec es
+                left outer join inventory.hold_modif hm on es.hold_modif_id=hm.id
+                left outer join inventory.funding_source fs on fs.id=es.fund_source_id
+                left outer join inventory.batch batch on batch.id= es.batch_id
+                left outer join inventory.holding_producer prod on prod.id =batch.hold_producer_id
+                left outer join pim_organization org on org.id=prod.org_id
+                left join  inventory.document doc on doc.id=es.doc_id
+                left join  inventory.exp_invoice inv on doc.id=inv.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>es</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>doc.id</id>
+            <domain>integer</domain>
+            <expression>es.doc_id</expression>
+            <search>:expression = :doc.id</search>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>es.fund_source_id</expression>
+        </field>
+        <field>
+            <id>sendStore.id</id>
+            <domain>integer</domain>
+            <expression>inv.send_store_id</expression>
+        </field>
+        <field>
+            <id>recStore.id</id>
+            <domain>integer</domain>
+            <expression>inv.rec_store_id</expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <name>Финансирование</name>
+            <expression>fs.name</expression>
+        </field>
+        <field>
+            <id>modif.name</id>
+            <domain>string</domain>
+            <name>Наименование ЛС и ИМН</name>
+            <expression>hm.name</expression>
+        </field>
+        <field>
+            <id>modif.id</id>
+            <domain>integer</domain>
+            <expression>hm.id</expression>
+        </field>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <name>Серия</name>
+            <expression>batch.series</expression>
+        </field>
+        <field>
+            <id>expireDate</id>
+            <domain>date</domain>
+            <name>Срок годности</name>
+            <expression>batch.expire_dt</expression>
+        </field>
+        <field>
+            <id>executedExpOprDate</id>
+            <domain>date</domain>
+            <expression>es.exec_exp_dt</expression>
+        </field>
+        <field>
+            <id>amountWithVat</id>
+            <domain>string</domain>
+            <name>Сумма</name>
+            <expression>es.amount_vat</expression>
+        </field>
+        <field>
+            <id>priceWithVat</id>
+            <domain>string</domain>
+            <name>Цена</name>
+            <expression>es.price_vat</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>string</domain>
+            <expression>es.quantity</expression>
+            <name>Отпущено</name>
+        </field>
+        <field>
+            <id>quantityUnit.name</id>
+            <domain>string</domain>
+            <name>Ед.изм.</name>
+            <expression>
+                (case when hm.price_unit_flag=2 then (select mes.mnemocode from cmn_measure mes where mes.id =hm.sec_pack_unit_id)
+                else
+                case when hm.price_unit_flag=1 then (select mes.mnemocode from cmn_measure mes where mes.id =hm.extra_pack_unit_id)
+                else
+                (select mes.mnemocode from cmn_measure mes where mes.id =hm.mnei_id)
+                end
+                end
+                )
+            </expression>
+        </field>
+        <field>
+            <id>isExecuted</id>
+            <domain>string</domain>
+            <expression>(case when es.status_exp_id=1 then 'false' else 'true' end)</expression>
+        </field>
+        <field>
+            <id>isExecutedSimbol</id>
+            <domain>string</domain>
+            <name> </name>
+            <expression>(case when es.status_exp_id=1 then '&#10008;' else '&#10004;' end)</expression>
+        </field>
+        <field>
+            <id>isExecutedColor</id>
+            <domain>string</domain>
+            <expression>
+                (case when (es.status_exp_id=2 and es.status_arr_id=4)
+                then 'success'
+                else
+                case when (es.status_exp_id=2 and es.status_arr_id=3)
+                then 'warning' end
+                end)
+            </expression>
+        </field>
+        <field>
+            <id>isAccepted</id>
+            <domain>string</domain>
+            <expression>(case when es.status_arr_id=4 then 'true' else 'false' end)</expression>
+        </field>
+        <field>
+            <id>isAcceptedSimbol</id>
+            <domain>string</domain>
+            <name> </name>
+            <expression>(case when es.status_arr_id=4 then '&#10004;' end)</expression>
+        </field>
+        <field>
+            <id>statusTooltip</id>
+            <domain>string</domain>
+            <display>
+                case when es.status_exp_id=1 then 'не проведен' else 'проведен' end
+            </display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>arrivalStatusTooltip</id>
+            <domain>string</domain>
+            <display>
+                case when es.status_arr_id=4 then 'принят' else 'не принят' end
+            </display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>docType.name</id>
+            <domain>string</domain>
+            <expression>'EXP_INVOICE'</expression>
+        </field>
+        <field>
+            <id>requestDoc.id</id>
+            <domain>integer</domain>
+            <expression>inv.request_doc_id</expression>
+        </field>
+        <field>
+            <id>requestCount</id>
+            <domain>string</domain>
+            <name>Затребовано</name>
+            <expression>(select rec.quantity from inventory.request_spec rec where id = es.request_spec_id)</expression>
+        </field>
+        <field>
+            <id>producer.name</id>
+            <domain>string</domain>
+            <name>Производитель</name>
+            <expression>coalesce(org.short_name, org.full_name)</expression>
+        </field>
+        <field>
+            <id>specCount</id>
+            <domain>integer</domain>
+            <expression>(select count(es) from inventory.exp_spec es where es.doc_id= :doc.id)</expression>
+            <search unavailable="true"/>
+        </field>
+    </fields>
+</query>

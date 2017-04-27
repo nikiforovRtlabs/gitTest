@@ -1,0 +1,346 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicAppointment</object-id>
+    <name>clinicAppointmentNoRecordList</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from sr_srv_rendered ssr
+                left join md_srv_rendered msr on ( ssr.id = msr.id )
+                left join mc_step ms on ( msr.step_id = ms.id )
+                left join plc_visit pv on ( ms.id = pv.id )
+                left join mc_case_init_goal mcig on ( pv.goal_id = mcig.id )
+                left join pim_individual i on ( ssr.customer_id = i.id )
+                left join pim_party pp on ( i.id = pp.id )
+                left join sr_res_group srg on ( ssr.res_group_id = srg.id )
+                left join md_appointment a on ( ssr.id = a.srv_rendered_id  )
+                where ssr.planned_date is not null and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ssr)
+                from sr_srv_rendered ssr
+                left join sr_res_group srg on ( ssr.res_group_id = srg.id )
+                left join md_appointment a on ( ssr.id = a.srv_rendered_id  )
+                where ssr.planned_date is not null and :where
+            </n2o:count-query>
+            <n2o:alias>ssr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ssr.id</expression>
+        </field>
+
+        <field>
+            <id>outcomeTime</id>
+            <domain>string</domain>
+            <name>Время</name>
+            <expression>to_char(ssr.planned_time, 'HH24:MI')</expression>
+        </field>
+
+        <field>
+            <id>birthDt</id>
+            <domain>string</domain>
+            <name>Дата рождения</name>
+            <expression>to_char(i.birth_dt, 'DD.MM.YYYY')</expression>
+        </field>
+
+        <field>
+            <id>fundingDoc</id>
+            <domain>string</domain>
+            <name>Страховой полис</name>
+            <expression>
+                (select (case when dt.code = 'MHI_UNIFORM' or dt.code = 'MHI_OLDER' then 'ОМС' else (case when dt.code = 'MHI_VOLUNTARY' then
+                'ДМС' else '' end) end)
+                || ' ' || coalesce(pid.series, '') || ' ' ||coalesce(pid.number, '') || ' ' || coalesce(to_char(pid.issue_dt, 'DD.MM.YYYY'), '')
+                from pim_individual_doc pid inner join pim_doc_type dt on pid.type_id = dt.id
+                where pid.indiv_id = i.id and (dt.code = 'MHI_UNIFORM' or  dt.code = 'MHI_OLDER' or dt.code = 'MHI_VOLUNTARY')
+                order by dt.code = 'MHI_UNIFORM' desc, dt.code = 'MHI_OLDER' desc, dt.code = 'MHI_VOLUNTARY' desc limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>addr</id>
+            <domain>string</domain>
+            <name>Адрес</name>
+            <expression>adr__get_element_as_text((select ppad.addr_id
+                from pim_party_address ppad
+                left join pim_party_addr_to_addr_type ppatat on ( ppad.id = ppatat.party_address_id  )
+                left join pim_address_type pat on ( ppatat.address_type_id = pat.id  )
+                where pp.id = ppad.party_id and pat.code = 'ACTUAL' limit 1)
+                ,'(4,s,0)(6,s,0)(7,s,0)(8,s,0)')</expression>
+        </field>
+
+        <field>
+            <id>goal</id>
+            <domain>string</domain>
+            <name>Цель посещения</name>
+            <expression>mcig.name</expression>
+        </field>
+
+        <field>
+            <id>dt</id>
+            <domain>date</domain>
+            <name></name>
+            <display unavailable="true"/>
+            <!--<search><![CDATA[(ssr.bdate >= :dt::date and ssr.bdate < (:dt::date + '1 day'::interval))]]></search>-->
+            <search>ssr.bdate::date = :dt::date</search>
+        </field>
+
+        <field>
+            <id>patient.openDoctorSpecialityDefaultName</id>
+            <domain>string</domain>
+            <expression>
+                (select
+                ps.name
+                from  pim_position pp
+                left join pim_speciality ps on ( pp.speciality_id = ps.id  )
+                where pp.id = :pos.id limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>pos.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+            <search value="#{pos.id?}">true</search>
+            <expression>:pos.id</expression>
+        </field>
+
+        <field>
+            <id>patient.openDoctorSpecialityDefaultId</id>
+            <domain>integer</domain>
+            <expression>
+                (select
+                ps.id
+                from  pim_position pp
+                left join pim_speciality ps on ( pp.speciality_id = ps.id  )
+                where pp.id = :pos.id limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>forContainerRefresh</id>
+            <domain>integer</domain>
+            <search unavailable="true"/>
+            <expression>:dtContext</expression>
+        </field>
+
+        <field>
+            <id>employeePosId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>srg.responsible_id</expression>
+            <search>(:expression = :employeePosId)</search>
+        </field>
+
+        <field>
+            <id>isNoRecord</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when a.id is null then true
+                else false end)
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>ssr.customer_id</expression>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>ФИО</name>
+            <expression>
+                (coalesce(i.surname, '') || ' ' || coalesce(i.name, '') || ' ' || coalesce(i.patr_name, ''))
+            </expression>
+            <search>:expression</search>
+        </field>
+
+        <field>
+            <id>emplContext</id>
+            <domain>integer</domain>
+            <search value="#{emplPos.id?}"/>
+            <expression>:emplContext</expression>
+        </field>
+
+        <field>
+            <id>emplPos</id>
+            <domain>integer</domain>
+            <expression>(select id from pim_employee_position_resource where employee_position_id = :emplContext)</expression>
+        </field>
+
+        <field>
+            <id>newCase</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>(select mp.id from md_profile mp where code='68')</expression>
+        </field>
+
+        <field>
+            <id>caseType.id</id>
+            <domain>integer</domain>
+            <expression>(select mct.id from mc_case_type mct where code='1')</expression>
+        </field>
+
+        <field>
+            <id>initGoal.id</id>
+            <domain>integer</domain>
+            <expression>(select mcig.id from mc_case_init_goal mcig where code='1')</expression>
+        </field>
+
+        <field>
+            <id>careRegimen.id</id>
+            <domain>integer</domain>
+            <expression>(select mcr.id from mc_care_regimen mcr where mcr.code='1')</expression>
+        </field>
+
+        <field>
+            <id>fundingSourceType.id</id>
+            <domain>integer</domain>
+            <expression>(select ffst.id from fin_funding_source_type ffst where ffst.code='OMS')</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.id</id>
+            <domain>integer</domain>
+            <expression>ssr.id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.orgId</id>
+            <domain>integer</domain>
+            <expression>ssr.org_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.patientId</id>
+            <domain>integer</domain>
+            <expression>ssr.customer_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.resGroupId</id>
+            <domain>integer</domain>
+            <expression>ssr.res_group_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.resGroupIsSystem</id>
+            <domain>boolean</domain>
+            <expression>srg.is_system</expression>
+        </field>
+
+        <field>
+            <id>caseBlock</id>
+            <domain>string</domain>
+            <display value="Новый случай"/>
+            <expression>:caseBlock</expression>
+        </field>
+
+        <field>
+            <id>isState</id>
+            <domain>boolean</domain>
+            <expression>ssr.is_rendered</expression>
+        </field>
+
+        <field>
+            <id>appointmentStateColor</id>
+            <domain>string</domain>
+            <expression>(case when ssr.is_rendered = true then 'text-info'
+                else '' end)
+            </expression>
+        </field>
+
+        <!--create case-->
+        <field>
+            <id>createCase.isHouseCall</id>
+            <domain>boolean</domain>
+            <expression>false</expression>
+        </field>
+
+        <field>
+            <id>createCase.resourceGroupId</id>
+            <domain>integer</domain>
+            <expression>srg.id</expression>
+            <search>:expression = :createCase.resourceGroupId</search>
+        </field>
+
+        <field>
+            <id>createCase.profileId</id>
+            <domain>integer</domain>
+            <expression>(select mp.id from md_profile mp where code='1')</expression>
+        </field>
+
+        <field>
+            <id>createCase.serviceRenderedId</id>
+            <domain>integer</domain>
+            <expression>ssr.id</expression>
+        </field>
+
+        <field>
+            <id>createCase.serviceRenderedOrgId</id>
+            <domain>integer</domain>
+            <expression>ssr.org_id</expression>
+        </field>
+
+        <field>
+            <id>createCase.serviceRenderedPatientId</id>
+            <domain>integer</domain>
+            <expression>ssr.customer_id</expression>
+        </field>
+
+        <field>
+            <id>createCase.serviceRenderedResGroupId</id>
+            <domain>integer</domain>
+            <expression>ssr.res_group_id</expression>
+        </field>
+
+        <field>
+            <id>createCase.serviceRenderedResGroupIsSystem</id>
+            <domain>boolean</domain>
+            <expression>(select srgg.is_system from sr_res_group srgg where id = ssr.res_group_id)</expression>
+        </field>
+
+        <field>
+            <id>createCase.appointmentId</id>
+            <domain>integer</domain>
+            <expression>null</expression>
+        </field>
+
+        <field>
+            <id>createCase.isState</id>
+            <domain>boolean</domain>
+            <expression>ssr.is_rendered</expression>
+        </field>
+
+        <field>
+            <id>createCase.patientId</id>
+            <domain>integer</domain>
+            <expression>i.id</expression>
+        </field>
+
+        <field>
+            <id>createCase.visitDate</id>
+            <domain>date</domain>
+            <expression>
+                case when a.id is null then now()
+                else a.bdatetime
+                end
+            </expression>
+        </field>
+
+    </fields>
+</query>

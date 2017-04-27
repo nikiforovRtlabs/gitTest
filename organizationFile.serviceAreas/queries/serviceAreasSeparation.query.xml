@@ -1,0 +1,136 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>serviceAreasSeparation</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_clinic_separation cs
+                left join md_profile p on p.id = cs.profile_id
+                left join md_reg_type rt on rt.id = cs.reg_type_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(cs)
+                from md_clinic_separation cs
+                left join md_profile p on p.id = cs.profile_id
+                left join md_reg_type rt on rt.id = cs.reg_type_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>separation_query</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>oid</id>
+            <domain>integer</domain>
+            <expression>cs.id</expression>
+            <display/>
+            <filters auto-generate="true" />
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>cs.name</expression>
+            <display/>
+            <sorting/>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    upper(:expression) like '%'||upper(:name)||'%'
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>profile.oid</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>profile.name</id>
+            <domain>string</domain>
+            <expression>p.name</expression>
+            <display/>
+            <filters auto-generate="true" />
+        </field>
+        <field>
+            <id>reg_type.oid</id>
+            <domain>integer</domain>
+            <expression>rt.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>reg_type.name</id>
+            <domain>string</domain>
+            <expression>rt.name</expression>
+            <display/>
+            <filters auto-generate="true" />
+        </field>
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <expression>cs.from_dt</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>to_dt</id>
+            <domain>date</domain>
+            <expression>cs.to_dt</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>period.begin</id>
+            <domain>date</domain>
+            <filters>
+                <filter type="eq" filter-field="period.begin">
+                    <![CDATA[
+                    ((cs.from_dt is null and cs.to_dt is null) or
+                     (cs.to_dt is null or cs.to_dt >= :period.begin))
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>period.end</id>
+            <domain>date</domain>
+            <filters>
+                <filter type="eq" filter-field="period.end">
+                    <![CDATA[
+                    ((cs.from_dt is null and cs.to_dt is null) or
+                     (cs.from_dt is null or cs.from_dt <= :period.end))
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>active</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[
+                (cs.from_dt is null and cs.to_dt is null) or
+                ( (cs.to_dt is null or cs.to_dt >= now()::date) and (cs.from_dt is null or cs.from_dt <= (now()::date + 1)) )
+                ]]>
+            </expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>org_id</id>
+            <expression>cs.clinic_id</expression>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="org_id" default-value="#{stocks.orgId}">:expression = :org_id</filter>
+            </filters>
+        </field>
+    </fields>
+</query>

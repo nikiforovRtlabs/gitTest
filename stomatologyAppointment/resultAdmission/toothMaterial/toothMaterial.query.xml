@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>toothMaterial</object-id>
+    <name>toothMaterial</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from stomatology.tooth_material tm
+                left join inventory.commodity_group cg on cg.id = tm.commodity_group_id
+                left join inventory.hold_modif hm on hm.id = tm.hold_modif_id
+                left join public.cmn_measure cm on cm.id = tm.cmn_measure_id
+                left join public.plc_visit pv on pv.dental_formula_id = tm.dental_formula_id
+                left join public.mc_step ms on pv.id = ms.id
+                left join public.mc_case mc on ms.case_id = mc.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(tm) from stomatology.tooth_material tm
+                left join inventory.commodity_group cg on cg.id = tm.commodity_group_id
+                left join inventory.hold_modif hm on hm.id = tm.hold_modif_id
+                left join public.cmn_measure cm on cm.id = tm.cmn_measure_id
+                left join public.plc_visit pv on pv.dental_formula_id = tm.dental_formula_id
+                left join public.mc_step ms on pv.id = ms.id
+                left join public.mc_case mc on ms.case_id = mc.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>tm</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>tm.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>commodityGroup.id</id>
+            <domain>integer</domain>
+            <expression>cg.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>commodityGroup.name</id>
+            <domain>string</domain>
+            <name>Товарная группа</name>
+            <expression>cg.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>holdModif.id</id>
+            <domain>integer</domain>
+            <expression>hm.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>holdModif.name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>hm.name</expression>
+            <display/>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>holdModif.cmnMeasureId</id>
+            <domain>integer</domain>
+            <expression>cm.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>amount</id>
+            <domain>numeric</domain>
+            <name>Количество</name>
+            <expression>tm.amount</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>measure.id</id>
+            <domain>integer</domain>
+            <expression>cm.id</expression>
+            <display></display>
+        </field>
+
+        <field>
+            <id>measure.name</id>
+            <domain>string</domain>
+            <name>Единица измерения</name>
+            <expression>cm.name</expression>
+            <display></display>
+        </field>
+
+        <field>
+            <id>toothNumbersString</id>
+            <domain>string</domain>
+            <name>Номер зуба</name>
+            <expression>
+                (select array_to_string(
+                array(select tnum.name as name from stomatology.tooth_material_tooth tmt
+                join stomatology.tooth t on t.id = tmt.tooth_id
+                left join stomatology.tooth_number tnum on tnum.id = t.tooth_number_id
+                where tmt.tooth_material_id = tm.id order by tnum.name ASC), ', '))
+            </expression>
+            <display/>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>tooth</id>
+            <domain>object[]</domain>
+            <expression>
+                (select array_to_json(array_agg(r)) from (
+                select tmt.tooth_id as id, tnum.name as name from stomatology.tooth_material_tooth tmt
+                join stomatology.tooth t on t.id = tmt.tooth_id
+                left join stomatology.tooth_number tnum on tnum.id = t.tooth_number_id
+                left join stomatology.tooth_name tname on tname.id = tnum.tooth_name_id
+                where tmt.tooth_material_id = tm.id order by tnum.name ASC) r)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>dentalFormulaId</id>
+            <domain>integer</domain>
+            <expression>tm.dental_formula_id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="dentalFormulaId"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>isCaseState</id>
+            <domain>boolean</domain>
+            <expression>(case when mc.closing_step_id is null then false else true end)</expression>
+            <display/>
+        </field>
+
+    </fields>
+</query>

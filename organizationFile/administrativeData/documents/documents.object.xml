@@ -1,0 +1,140 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Документ</name>
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+
+                    INSERT INTO pim_organization_doc( id, type_id, series, "number", sha256, org_id, is_active, work_territory_id)
+                    VALUES (nextval('pim_org_doc_seq'),  :type_id,:series, :number, :sha256,:org_id,:is_active, :address);
+
+                    INSERT INTO pim_org_doc_detail( id, is_active, expire_dt, issue_dt, issuer_text, doc_id)
+                    VALUES (nextval('pim_indiv_doc_detail_seq'), :is_active, :expire_dt, :issue_dt,
+                    COALESCE(:issuer_text,:issuer_text_field), currval('pim_org_doc_seq'));
+
+                    select currval('pim_org_doc_seq');
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="org_id" mapping="['org_id']" domain="integer"/>
+                <param name="doctype.id" mapping="['type_id']" domain="integer"/>
+                <param name="issue_dt" mapping="['issue_dt']" domain="date"/>
+                <param name="expire_from" mapping="['expire_dt']" domain="date"/>
+                <param name="series.value" mapping="['series']" domain="string"/>
+                <param name="number.value" mapping="['number']" domain="string"/>
+                <param name="reg_number" mapping="['sha256']" domain="string"/>
+                <param name="issuer.name" mapping="['issuer_text']" domain="string"/>
+                <param name="issuer_text" mapping="['issuer_text_field']" domain="string"/>
+                <param name="is_active" mapping="['is_active']" domain="boolean"/>
+                <param name="work_territory.id" mapping="['address']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Документ успешно сохранен.
+            </success-text>
+            <validations activate="all"/>
+        </action>
+        <action id="update" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    update pim_organization_doc set
+                    type_id=:type_id,
+                    series=:series,
+                    "number"=:number,
+                    sha256=:sha256,
+                    work_territory_id=:address
+                    where id=:id;
+
+                    with updated as (
+                        update pim_org_doc_detail set
+                        is_active=:is_active,
+                        expire_dt=:expire_dt,
+                        issue_dt=:issue_dt,
+                        issuer_text=:issuer_text,
+                        note=:note,
+                        issuer_id=:issuer_id
+                        where doc_id=:id
+                        returning id
+                    )
+                    INSERT INTO pim_org_doc_detail( id, is_active, expire_dt, issue_dt, issuer_text,  doc_id)
+                    select nextval('pim_indiv_doc_detail_seq'), :is_active, :expire_dt, :issue_dt, :issuer_text, :id
+                    where not exists(select 1 from updated);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="doctype.id" mapping="['type_id']" domain="integer"/>
+                <param name="issue_dt" mapping="['issue_dt']" domain="date"/>
+                <param name="expire_from" mapping="['expire_dt']" domain="date"/>
+                <param name="series.value" mapping="['series']" domain="string"/>
+                <param name="number.value" mapping="['number']" domain="string"/>
+                <param name="reg_number" mapping="['sha256']" domain="string"/>
+                <param name="issuer_text" mapping="['issuer_text']" domain="string"/>
+                <param name="is_active" mapping="['is_active']" domain="boolean"/>
+                <param name="work_territory.id" mapping="['address']" domain="string"/>
+            </in-parameters>
+            <success-text>
+                Документ успешно обновлен.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkNumberFilled"/>
+            </validations>
+        </action>
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from pim_org_doc_detail where doc_id=:id;
+                    delete from pim_organization_doc where id=:id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что документ должен быть удален?
+            </confirmation-text>
+            <success-text>
+                Документ успешно удален.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkIfRecordNotExists" level="error">
+            <invocation>
+                <sql:sql>
+                    select COUNT(*) from pim_organization_doc pod
+                    left join pim_org_doc_detail podd on podd.doc_id=pod.id
+                    where podd.issuer_text = :issuer_text and pod.series = :series and pod.number = :number
+                    and pod.sha256 = :sha256 and podd.issue_dt = :issue_dt
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="issue_dt" mapping="['issue_dt']" domain="date"/>
+                <param name="reg_number" mapping="['sha256']" domain="string"/>
+                <param name="series.value" mapping="['series']" domain="string"/>
+                <param name="number.value" mapping="['number']" domain="string"/>
+                <param name="issuer_text" mapping="['issuer_text']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Невозможно завершить операцию. Запись уже существует в списке.</message>
+        </constraint>
+        <constraint id="checkNumberFilled" level="error">
+            <invocation>
+                <sql:sql>
+                    select (:number is null);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="number.value" mapping="['number']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == false"/>
+            <message>Номер документа не заполнен.</message>
+        </constraint>
+
+
+    </validations>
+</object>

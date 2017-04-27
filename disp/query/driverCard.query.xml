@@ -1,0 +1,671 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <name>driverCard</name>
+    <object-id>driverCard</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from gibdd.md_gibdd_reference mgr
+                left join gibdd.md_gibdd_reference_reference mgrr on mgr.id = mgrr.card_id and mgrr.id = (select max(id) from gibdd.md_gibdd_reference_reference xr where xr.card_id = mgr.id)
+                left join disp.md_event_patient mep on mep.id= mgr.id
+                left join disp.md_event me on me.id = mep.event_id
+                left join pim_individual i on i.id = mep.indiv_id
+                left join pim_gender g on g.id = i.gender_id
+                left join sr_res_group srg on srg.id=mgr.med_commission_res_group_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mgr)
+                from gibdd.md_gibdd_reference mgr
+                left join disp.md_event_patient mep on mep.id= mgr.id
+                left join disp.md_event me on me.id = mep.event_id
+                left join pim_individual i on i.id = mep.indiv_id
+                left join pim_gender g on g.id = i.gender_id
+                left join sr_res_group srg on srg.id=mgr.med_commission_res_group_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mgr</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+
+        <field>
+            <id>gender.name</id>
+            <name>Пол</name>
+            <domain>String</domain>
+            <expression>g.name</expression>
+        </field>
+        <field>
+            <id>refId</id>
+            <domain>integer</domain>
+            <expression>mgrr.id</expression>
+        </field>
+        <field>
+            <id>gender.id</id>
+            <domain>Integer</domain>
+            <expression>g.id</expression>
+        </field>
+        <field>
+            <id>gender.code</id>
+            <domain>string</domain>
+            <expression>g.code</expression>
+        </field>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+            <search>mep.id = :id</search>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>Integer</domain>
+            <display>mep.event_id</display>
+            <search>mep.event_id = :eventId</search>
+        </field>
+        <field>
+            <id>indivId</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indivId</search>
+        </field>
+        <field>
+            <id>fio</id>
+            <domain>String</domain>
+            <expression>concat_ws(' ', i.surname, i.name, i.patr_name)</expression>
+            <display>concat_ws(' ', i.surname, i.name, i.patr_name)</display>
+            <search>upper(concat_ws(' ', i.surname, i.name, i.patr_name)) like '%'||upper(:fio)||'%'</search>
+            <name>ФИО</name>
+            <sorting>concat_ws(' ', i.surname, i.name, i.patr_name)</sorting>
+        </field>
+        <field>
+            <id>birthday</id>
+            <domain>string</domain>
+            <display>to_char(i.birth_dt, 'DD.MM.YYYY')</display>
+            <search>i.birth_dt = :birthday</search>
+            <name>Дата рождения</name>
+            <sorting>i.birth_dt</sorting>
+        </field>
+        <field>
+            <id>passport</id>
+            <domain>string</domain>
+            <display>(select concat_ws(' ', id.series, id.number)
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where dt.code = 'PASSPORT_RUSSIAN_FEDERATION' and id.indiv_id = i.id and is_active = true limit 1)</display>
+            <sorting unavailable="true" />
+        </field>
+        <field>
+            <id>passport_foreign</id>
+            <domain>string</domain>
+            <display>(select concat_ws(' ', id.series, id.number)
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where dt.code = '9' and id.indiv_id = i.id and is_active = true limit 1)</display>
+            <sorting unavailable="true" />
+        </field>
+        <field>
+            <id>residence</id>
+            <domain>string</domain>
+            <display>(select concat_ws(' ', id.series, id.number)
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where dt.code = '11' and id.indiv_id = i.id and is_active = true limit 1)</display>
+            <sorting unavailable="true" />
+        </field>
+
+        <field>
+            <id>medCommission.id</id>
+            <domain>integer</domain>
+            <display>srg.id</display>
+            <expression>srg.id</expression>
+        </field>
+        <field>
+            <id>medCommission.name</id>
+            <domain>string</domain>
+            <display>srg.name</display>
+            <expression>srg.name</expression>
+        </field>
+
+        <field>
+            <id>seriesReference</id>
+            <domain>string</domain>
+            <display>mgrr.series</display>
+            <expression>mgrr.series</expression>
+            <name>Серия справки</name>
+        </field>
+
+        <field>
+            <id>numberReference</id>
+            <domain>string</domain>
+            <display>mgrr.number</display>
+            <expression>mgrr.number</expression>
+            <name>Номер справки</name>
+        </field>
+
+        <field>
+            <id>contraindications</id>
+            <domain>boolean</domain>
+            <display><!--exists(select 1 from gibdd.md_gibdd_service gs
+                left join mc_diagnosis mcd on gs.diagnos_id = mcd.id
+                left join md_diagnosis md on mcd.diagnos_id = md.id
+                where gs.event_patient_id = mep.id
+                and (md.code like 'F00%' or md.code like 'F01%' or md.code like 'F02%'
+                or md.code like 'F03%' or md.code like 'F04%' or md.code like 'F05%'
+                or md.code like 'F06%' or md.code like 'F07%' or md.code like 'F08%'
+                or md.code like 'F09%' or md.code like 'F10%' or md.code like 'F11%'
+                or md.code like 'F12%' or md.code like 'F13%' or md.code like 'F14%'
+                or md.code like 'F15%' or md.code like 'F16%'
+                or md.code like 'F18%' or md.code like 'F19%' or md.code like 'F20%'
+                or md.code like 'F21%' or md.code like 'F22%' or md.code like 'F23%'
+                or md.code like 'F24%' or md.code like 'F25%' or md.code like 'F26%'
+                or md.code like 'F27%' or md.code like 'F28%' or md.code like 'F29%'
+                or md.code like 'F30%' or md.code like 'F31%' or md.code like 'F32%'
+                or md.code like 'F33%' or md.code like 'F34%' or md.code like 'F35%'
+                or md.code like 'F36%' or md.code like 'F37%' or md.code like 'F38%'
+                or md.code like 'F39%'
+                or md.code like 'F70%' or md.code like 'F71%' or md.code like 'F72%'
+                or md.code like 'F73%' or md.code like 'F74%' or md.code like 'F75%'
+                or md.code like 'F76%' or md.code like 'F77%' or md.code like 'F78%'
+                or md.code like 'F79%'
+                or md.code='G40'
+                or md.code='H54.0'))-->
+                mgr.is_contraindications
+            </display>
+            <expression>mgr.is_contraindications
+            </expression>
+            <name>Противопоказания</name>
+        </field>
+
+        <field>
+            <id>indicationsList</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(row_to_json(ol_json)))
+                from (select i.id, i.name from gibdd.md_gibdd_indication i join gibdd.md_gibdd_reference_indication ri on ri.indication_id = i.id where ri.reference_id = mgr.id) as ol_json)
+            </expression>
+        </field>
+
+        <field>
+            <id>special_notes</id>
+            <domain>string</domain>
+            <display>coalesce(mgr.special_notes, (select
+                string_agg(gibdd.md_gibdd_service.special_notes, ',') from gibdd.md_gibdd_service where
+                gibdd.md_gibdd_service.event_patient_id = mep.id))
+            </display>
+            <expression>coalesce(mgr.special_notes, (select
+                string_agg(gibdd.md_gibdd_service.special_notes, ',') from gibdd.md_gibdd_service where
+                gibdd.md_gibdd_service.event_patient_id = mep.id))
+            </expression>
+            <name>Особые отметки</name>
+        </field>
+
+
+        <field>
+            <id>valueA</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 1 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория A</name>
+        </field>
+        <field>
+            <id>valueA1</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 2 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория A1</name>
+        </field>
+        <field>
+            <id>valueB</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 3 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория B</name>
+        </field>
+        <field>
+            <id>valueB1</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 4 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория B1</name>
+        </field>
+        <field>
+            <id>valueBE</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 5 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория BE</name>
+        </field>
+        <field>
+            <id>valueC</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 6 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория C</name>
+        </field>
+
+        <field>
+            <id>valueC1</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 7 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория C1</name>
+        </field>
+        <field>
+            <id>valueCE</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 8 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория CE</name>
+        </field>
+        <field>
+            <id>valueC1E</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 9 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория C1E</name>
+        </field>
+        <field>
+            <id>valueD</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 10 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория D</name>
+        </field>
+        <field>
+            <id>valueD1</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 11 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория D1</name>
+        </field>
+        <field>
+            <id>valueDE</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 12 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория DE</name>
+        </field>
+        <field>
+            <id>valueD1E</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 13 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория D1E</name>
+        </field>
+        <field>
+            <id>valueM</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 14 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория M</name>
+        </field>
+        <field>
+            <id>valueTm</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 15 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория Tm</name>
+        </field>
+
+        <field>
+            <id>valueTb</id>
+            <domain>boolean</domain>
+            <display>(select not EXISTS (
+                select 1 from gibdd.md_gibdd_service_category
+                join gibdd.md_gibdd_service on gibdd.md_gibdd_service_category.gibdd_service_id = gibdd.md_gibdd_service.id
+                where gibdd.md_gibdd_service_category.is_valid = false and
+                gibdd.md_gibdd_service_category.category_id = 16 and
+                gibdd.md_gibdd_service.event_patient_id = mep.id
+                ))
+            </display>
+            <name>Категория Tb</name>
+        </field>
+        <field>
+            <id>categoryA</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=1 )=1
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=1 )=1
+                THEN true else false end
+            </expression>
+            <name>Категория А</name>
+        </field>
+        <field>
+            <id>categoryA1</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=2 )=2
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=2 )=2
+                THEN true else false end
+            </expression>
+            <name>Категория А1</name>
+        </field>
+        <field>
+            <id>categoryB</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=3 )=3
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=3 )=3
+                THEN true else false end
+            </expression>
+            <name>Категория B</name>
+        </field>
+        <field>
+            <id>categoryB1</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=4 )=4
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=4 )=4
+                THEN true else false end
+            </expression>
+            <name>Категория B1</name>
+        </field>
+        <field>
+            <id>categoryBE</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=5 )=5
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=5 )=5
+                THEN true else false end
+            </expression>
+            <name>Категория BE</name>
+        </field>
+        <field>
+            <id>categoryC</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=6 )=6
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=6 )=6
+                THEN true else false end
+            </expression>
+            <name>Категория C</name>
+        </field>
+        <field>
+            <id>categoryC1</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=7 )=7
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=7 )=7
+                THEN true else false end
+            </expression>
+            <name>Категория C1</name>
+        </field>
+        <field>
+            <id>categoryCE</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=8 )=8
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=8 )=8
+                THEN true else false end
+            </expression>
+            <name>Категория CE</name>
+        </field>
+        <field>
+            <id>categoryC1E</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=9 )=9
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=9 )=9
+                THEN true else false end
+            </expression>
+            <name>Категория C1E</name>
+        </field>
+        <field>
+            <id>categoryD</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=10 )=10
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=10 )=10
+                THEN true else false end
+            </expression>
+            <name>Категория D</name>
+        </field>
+        <field>
+            <id>categoryD1</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=11 )=11
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=11 )=11
+                THEN true else false end
+            </expression>
+            <name>Категория D1</name>
+        </field>
+        <field>
+            <id>categoryDE</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=12 )=12
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=12 )=12
+                THEN true else false end
+            </expression>
+            <name>Категория DE</name>
+        </field>
+
+        <field>
+            <id>categoryD1E</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=13 )=13
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=13 )=13
+                THEN true else false end
+            </expression>
+            <name>Категория D1E</name>
+        </field>
+        <field>
+            <id>categoryM</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=14 )=14
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=14 )=14
+                THEN true else false end
+            </expression>
+            <name>Категория M</name>
+        </field>
+        <field>
+            <id>categoryTm</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=15 )=15
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=15 )=15
+                THEN true else false end
+            </expression>
+            <name>Категория Tm</name>
+        </field>
+        <field>
+            <id>categoryTb</id>
+            <domain>boolean</domain>
+            <display>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=16 )=16
+                THEN true else false end
+            </display>
+            <expression>case when( select category_id from gibdd.md_gibdd_reference_category mgrc where
+                mgrc.reference_id=mgr.id and mgrc.category_id=16 )=16
+                THEN true else false end
+            </expression>
+            <name>Категория Tb</name>
+        </field>
+        <field>
+            <id>issued</id>
+            <domain>date</domain>
+            <expression>COALESCE(mgrr.issued_date,current_date)</expression>
+        </field>
+        <field>
+           <id>exp</id>
+           <domain>Date</domain>
+           <display>case when is_contraindications=true then null else (COALESCE(mgrr.exp_date,current_date+integer '730')) end</display>
+           <expression>case when is_contraindications=true then null else (COALESCE(mgrr.exp_date,current_date+integer '730')) end</expression>
+           <name>Годна до</name>
+           <sorting>mgrr.exp_date</sorting>
+       </field>
+
+        <field>
+            <id>voen</id>
+            <domain>string</domain>
+            <display>(select 'Серия: ' || id.series || ', номер: ' || id.number
+                from pim_individual_doc id
+                join pim_doc_type dt on dt.id = id.type_id
+                where dt.code = '17' and id.indiv_id = i.id and is_active = true limit 1)</display>
+            <sorting unavailable="true" />
+        </field>
+
+        <field>
+            <id>registerAddress</id>
+            <domain>String</domain>
+            <display>adr__get_search_name(
+                (select ae.id from pim_party_address ppa
+                left join pim_party_addr_to_addr_type ppatat on ppatat.party_address_id = ppa.id
+                left join PIM_ADDRESS_TYPE pat on pat.id = ppatat.address_type_id
+                left join address_element ae on ae.id = ppa.addr_id
+                where pat.code = 'REGISTER' and ppa.party_id = i.id limit 1))</display>
+            <name>Адрес регистрации</name>
+        </field>
+        <field>
+            <id>statusId</id>
+            <domain>integer</domain>
+            <display>mgr.status</display>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <display>me.org_id</display>
+            <search>me.org_id = :org.id</search>
+        </field>
+    </fields>
+</query>

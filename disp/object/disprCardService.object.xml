@@ -1,0 +1,186 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>disprCardService</id>
+    <name>disprCardService</name>
+
+    <actions>
+        <action id="add" name="Создать">
+            <invocation>
+                <sp:stored-procedure name="disp.addServiceToEvent" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="org.id" mapping="[0]"/>
+                <param name="service.id" mapping="[1]"/>
+                <param name="resource.id" mapping="[2]"/>
+                <param name="eventId" mapping="[3]"/>
+                <param name="priority.id" mapping="[4]"/>
+                <param name="districtCheck" mapping="[5]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['result']"/>
+            </out-parameters>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sp:stored-procedure name="disp.editServiceToEvent" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]"/>
+                <param name="org.id" mapping="[1]"/>
+                <param name="service.id" mapping="[2]"/>
+                <param name="resource.id" mapping="[3]"/>
+                <param name="eventId" mapping="[4]"/>
+                <param name="priority.id" mapping="[5]"/>
+                <param name="districtCheck" mapping="[6]"/>
+            </in-parameters>
+        </action>
+        <action id="clearService" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    select disp.delete_diagnosis(md.id,:caseId) from sr_srv_rendered ssr
+                    JOIN disp.md_dispr_diagnosis_service mdds  ON mdds.service_id = ssr.service_id
+                    JOIN mc_diagnosis md ON md.id = mdds.diagnosis_id
+                    where ssr.id = :ssrId AND md.case_id = :caseId;
+                    select disp.clearService(:service_render_id, :id, :caseId, :eventServiceId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="service.render_id" mapping="['service_render_id']"/>
+                <param name="id" mapping="['id']"/>
+                <param name="caseId" mapping="['caseId']"/>
+                <param name="eventServiceId" mapping="['eventServiceId']"/>
+                <param name="ssr_id" mapping="['ssrId']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="serviceInBill"/>
+                <validation ref-id="serviceInBill2"/>
+                <validation ref-id="notServiceInBillAndNotServiceLastCondition"/>
+                <validation ref-id="notServiceInBillAndServiceLastCondition"/>
+            </validations>
+            <!--<confirmation-text>Услуга {service.name} была оказана, данные об оказании будут утеряны</confirmation-text>-->
+        </action>
+        <action id="denialService" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    select disp.clearService(:service_render_id, :id, :caseId, :eventServiceId);
+                    update disp.md_event_service_patient set status = 2 where id = :id;
+                    update disp.md_event_service_patient_agreement set agree=FALSE, denial=TRUE where id=:agreeid;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="service.render_id" mapping="['service_render_id']"/>
+                <param name="id" mapping="['id']"/>
+                <param name="caseId" mapping="['caseId']"/>
+                <param name="eventServiceId" mapping="['eventServiceId']"/>
+                <param name="agreeId" mapping="['agreeid']"/>
+            </in-parameters>
+            <!--<confirmation-text>Услуга {service.name} была оказана, данные об оказании будут утеряны</confirmation-text>-->
+            <validations activate="whiteList">
+                <validation ref-id="serviceInBill"/>
+                <validation ref-id="serviceInBill2"/>
+                <validation ref-id="notServiceInBillAndNotServiceLastCondition"/>
+                <validation ref-id="notServiceInBillAndServiceLastCondition"/>
+            </validations>
+        </action>
+        <action id="agreeService" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    update disp.md_event_service_patient  set status = 1 where  id = :mespid;
+                    update disp.md_event_service_patient_agreement set agree=TRUE, denial=FALSE where id = :agreeid;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="service.render_id" mapping="['id']"/>
+                <param name="id" mapping="['mespid']"/>
+                <param name="agreeId" mapping="['agreeid']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="serviceInBill"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    delete from disp.md_event_service where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <condition id="correctFormat" level="error" moment="before-action">
+            <expression on="mepId"><![CDATA[(/^[0-9]*$/.test(mepId))]]>
+            </expression>
+            <message>Содержит недопустимые символы.</message>
+        </condition>
+        <condition id="correctFormatBarcode" level="error" moment="before-action">
+            <expression on="barcode"><![CDATA[(/^[0-9]*$/.test(barcode))]]>
+            </expression>
+            <message>Содержит недопустимые символы.</message>
+        </condition>
+
+
+        <condition id="checkBarcodeMepIdPatientId" level="error">
+            <expression on="mepId,barcode,patient">
+                (((typeof barcode != 'undefined') &amp;&amp; (barcode != null) &amp;&amp; (barcode != '')) ||
+                ((typeof mepId != 'undefined') &amp;&amp; (mepId != null) &amp;&amp; (mepId != ''))||
+                ((typeof patient != 'undefined') &amp;&amp; (patient != null) &amp;&amp; (patient.id != null)))
+            </expression>
+            <message>Одно из полей 'Штрихкод пациента'/'Код пациента'/'Пациент' обязательно должно быть заполнено</message>
+        </condition>
+        <constraint id="notServiceInBillAndNotServiceLastCondition" level="warning">
+            <message>Случай пациента закрыт. Процент оказанных услуг будет пересчитан, продолжить?</message>
+            <invocation>
+                <sql:sql>
+                    select disp.service_validate1(:id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="notServiceInBillAndServiceLastCondition" level="warning">
+            <message>Случай будет переоткрыт. Продолжить?</message>
+            <invocation>
+                <sql:sql>
+                    select disp.service_validate2(:id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="serviceInBill" level="error">
+            <message>На случай сформирован счет-реестр, действие запрещено</message>
+            <invocation>
+                <sql:sql>
+                    select disp.service_validate3(:id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="serviceInBill2" level="error">
+            <message>Услуга входит в счет-реестр, действие запрещено</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from fin_bill_spec_item where service_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="service.render_id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

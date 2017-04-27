@@ -1,0 +1,106 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicAppointment</object-id>
+    <name>clinicAppointment</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_referral mr
+                left join md_employee_position mep on ( mr.ref_doctor_id = mep.id )
+                left join pim_employee_position pep on ( mep.id = pep.id )
+                left join pim_employee pe on ( pep.employee_id = pe.id )
+                left join pim_individual pi on ( pe.individual_id = pi.id )
+                left join md_diagnosis md on ( mr.diagnosis_id = md.id )
+                left join md_ref_document_status mrds on ( mr.status_id = mrds.id  )
+                left join pim_organization po on ( mr.ref_organization_id = po.id )
+                left join md_referral_type mrt on ( mr.referral_type_id = mrt.id )
+                where :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(mr) from md_referral mr
+                left join md_ref_document_status mrds on ( mr.status_id = mrds.id  )
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>mr.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Номер</name>
+            <expression>mr.order_number</expression>
+            <search>upper(mr.order_number) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>referralDate</id>
+            <domain>string</domain>
+            <name>Дата</name>
+            <expression>mr.referral_date</expression>
+        </field>
+
+        <field>
+            <id>isUrgent</id>
+            <domain>string</domain>
+            <name>Срочно</name>
+            <expression>mr.is_urgent</expression>
+        </field>
+
+        <field>
+            <id>refDoctor</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <expression>pi.surname ||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)|| '. ' ||
+                pe.note
+            </expression>
+        </field>
+
+        <field>
+            <id>diagnosis</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <expression>md.code || ' ' || md.name</expression>
+        </field>
+
+        <field>
+            <id>service</id>
+            <domain>string</domain>
+            <name>Услуга</name>
+            <expression>
+                array_to_string(array(select ss.name
+                from md_referral_service mrs1
+                join sr_service ss ON ( mrs1.service_id = ss.id  )
+                where mrs1.referral_id = mr.id), '; ')</expression>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <name>Услуга</name>
+            <expression>mr.patient_id</expression>
+        </field>
+
+        <field>
+            <id>isImplemented</id>
+            <domain>boolean</domain>
+            <expression>case when mrds.code = '4' then false else true end</expression>
+        </field>
+
+        <field>
+            <id>refFullName</id>
+            <domain>string</domain>
+            <expression>coalesce(mrt.name || ', ', '') || ' ' || coalesce(mr.order_number || ', ', '') || ' ' || to_char(mr.referral_date, 'dd.mm.yyyy') || ', ' || coalesce(po.full_name, '')</expression>
+        </field>
+
+    </fields>
+</query>

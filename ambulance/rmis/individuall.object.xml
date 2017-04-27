@@ -1,0 +1,118 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <!--<id>individuall</id>-->
+    <name>Индивидуал</name>
+    <scope>ORGANIZATION</scope>
+    <properties>
+        <catalogization>true</catalogization>
+        <customization>true</customization>
+        <logging>true</logging>
+        <processing>true</processing>
+        <reporting>true</reporting>
+    </properties>
+
+    <access-filters>
+        <access-filter id="name" type="list"/>
+        <access-filter id="surname" type="single"/>
+        <access-filter id="birthday" type="interval" domain="Date"/>
+        <access-filter id="gender.id" type="single" domain="integer"/>
+    </access-filters>
+
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sp:stored-procedure name="createindividual" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="surname" mapping="[0]"/>
+                <param name="name" mapping="[1]"/>
+                <param name="patrName" mapping="[2]"/>
+                <param name="birthday" mapping="[3]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['result']"/>
+            </out-parameters>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sp:stored-procedure name="updateindividual" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="surname" mapping="[1]"  />
+                <param name="name" mapping="[2]"/>
+                <param name="patrName" mapping="[3]"/>
+                <param name="birthday" mapping="[4]"/>
+                <param name="id" mapping="[0]"/>
+            </in-parameters>
+            <validations activate="all">
+                <validation ref-id="checkIvanov"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sp:stored-procedure name="deleteindividual" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+        <action id="changeStatusVip">
+            <invocation>
+                <sql:sql>
+                    update pci_patient set vip = :vip where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="vip" mapping="['vip']"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkSurname" level="warning">
+            <expression on="gender,surname"><![CDATA[
+                (gender.id != 2) || (surname == '') ||(surname == null) || (surname.trim().charAt(surname.trim().length - 1) == 'а')
+            ]]>
+            </expression>
+            <message>Женские фамилии чаще всего заканчиваются на 'а'</message>
+        </condition>
+        <condition id="checkIvanov" level="error" check-before-submit="true">
+            <expression>surname != 'Иванов'</expression>
+            <message>Нельзя изменять данные пациента с фамилией 'Иванов'</message>
+        </condition>
+        <condition id="checkAge" level="error">
+            <message>Возрастная группа не соответствует дате рождения</message>
+            <expression on="birthday,ageGroup"><![CDATA[
+                (ageGroup == null) || (birthday == null)
+                || ((ageGroup.min <= new Date().getFullYear() - new Date(birthday.replace(/(\d{2})\.(\d{2})\.(\d{4})/,'$3-$2-$1')).getFullYear())
+                && (ageGroup.max > new Date().getFullYear() - new Date(birthday.replace(/(\d{2})\.(\d{2})\.(\d{4})/,'$3-$2-$1')).getFullYear()));
+            ]]>
+            </expression>
+        </condition>
+        <constraint id="checkUniqueName" level="warning">
+            <invocation>
+                <sql:sql>
+                    select count(1) from pim_individual
+                    where upper(surname) = upper(:surname)
+                      and upper(name) = upper(:name)
+                      and (:id = null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="surname" mapping="['surname']"/>
+                <param name="name" mapping="['name']"/>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Пациент с таким именем и фамилией уже существует в системе</message>
+        </constraint>
+    </validations>
+
+</object>

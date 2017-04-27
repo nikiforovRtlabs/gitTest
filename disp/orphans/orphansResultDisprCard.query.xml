@@ -1,0 +1,177 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <name>orphansResultDisprCard</name>
+    <object-id>orphansResultDisprCard</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                left join disp.md_event me on me.id = mep.event_id
+                left join disp.md_event_type met on met.id = me.event_type
+                left join mc_case mc on mc.id = mep.case_id
+                left join disp.md_disp_orphans_result mdor on mdor.event_patient_id = mep.id and mdor.is_before = false
+                left join mc_health_group mhg on mhg.id = mdor.health_group_id
+                left join disp.md_disp_orphans_vac_patient mdovp on mdovp.id = mdor.vac_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mep)
+                from disp.md_event_patient mep
+                left join disp.md_disp_orphans_result mdor on mdor.event_patient_id = mep.id and mdor.is_before = false
+                left join mc_health_group mhg on mhg.id = mdor.health_group_id
+                left join disp.md_disp_orphans_vac_patient mdovp on mdovp.id = mdor.vac_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>isBefore</id>
+            <domain>boolean</domain>
+            <display>false</display>
+        </field>
+        <!--<field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mdor.id</display>
+            <search>mdor.id = :id</search>
+        </field>-->
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+            <search>mep.id = :id</search>
+        </field>
+        <field>
+            <id>result.id</id>
+            <domain>integer</domain>
+            <display>mdor.id</display>
+        </field>
+        <field>
+            <id>result.case_id</id>
+            <domain>integer</domain>
+            <display>mep.case_id</display>
+        </field>
+        <field>
+            <id>result.indiv_id</id>
+            <domain>integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indivId</search>
+        </field>
+        <field>
+            <id>result.org_id</id>
+            <domain>integer</domain>
+            <display>me.org_id</display>
+            <search>me.org_id = :result.org_id</search>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>Integer</domain>
+            <display>mep.event_id</display>
+            <search>mep.event_id = :eventId</search>
+        </field>
+        <field>
+            <id>indivId</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indivId</search>
+        </field>
+        <field>
+            <id>health_group.id</id>
+            <domain>integer</domain>
+            <display>mhg.id</display>
+        </field>
+        <field>
+            <id>health_group.name</id>
+            <domain>string</domain>
+            <display>mhg.name</display>
+        </field>
+        <field>
+            <id>health_group_physical_education.id</id>
+            <domain>integer</domain>
+            <display>mdor.health_group_physical_education_id</display>
+        </field>
+        <field>
+            <id>recommendation</id>
+            <domain>string</domain>
+            <display>mdor.recommendation</display>
+        </field>
+        <field>
+            <id>already_vac</id>
+            <domain>boolean</domain>
+            <display>mdovp.already_vac</display>
+        </field>
+        <field>
+            <id>vac_mode.id</id>
+            <domain>integer</domain>
+            <display>mdovp.vac_mode_id</display>
+        </field>
+        <field>
+            <id>vac_mode_value.id</id>
+            <domain>integer</domain>
+            <display>mdovp.vac_mode_value_id</display>
+        </field>
+        <field>
+            <id>is_before</id>
+            <domain>boolean</domain>
+            <display>COALESCE(mdor.is_before, FALSE)</display>
+            <search>mdor.is_before = :is_before</search>
+        </field>
+        <field>
+            <id>open_date</id>
+            <domain>date</domain>
+            <display>mc.open_date</display>
+        </field>
+        <field>
+            <id>close_date</id>
+            <domain>date</domain>
+            <display>
+                (case when mdor.health_group_id is null then
+                (select ssr.bdate
+                from disp.md_event_patient mep1
+                left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep1.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+                left join (select ssr.id, msr.case_id, ssr.service_id, ssr.bdate from MD_SRV_RENDERED msr
+                left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep1.case_id and ssr.service_id = mes.service_id
+                where mep1.id = mep.id and mnds.code in ('ОН1.1', 'ДС1.1') limit 1)
+                else (select ms.outcome_date from mc_step ms where ms.id = mc.closing_step_id)
+                end)
+            </display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>end_date</id>
+            <domain>date</domain>
+            <display>me.end_date</display>
+        </field>
+        <field>
+            <id>event_type_code</id>
+            <domain>string</domain>
+            <display>met.code</display>
+        </field>
+        <field>
+            <id>need_new_vac</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(row_to_json(ol_json)))
+                from (select v.id, v.label from disp.md_disp_vaccine_type v join disp.md_disp_orphans_vac_patient_set ov on ov.vac_type_id = v.id where ov.vac_id = mdovp.id) as ol_json)
+            </expression>
+        </field>
+        <field>
+            <id>event_type_id</id>
+            <domain>string</domain>
+            <display>met.id</display>
+        </field>
+        <field>
+            <id>character</id>
+            <domain>Integer</domain>
+            <display>(select id from mc_disease_type where code='40' limit 1)</display>
+            <expression>(select id from mc_disease_type where code='40' limit 1)</expression>
+        </field>
+    </fields>
+</query>

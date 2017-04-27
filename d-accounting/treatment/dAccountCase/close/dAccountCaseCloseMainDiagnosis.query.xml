@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>dAccountCase</object-id>
+    <name>dAccountCaseClose</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.mc_case c inner join mc_diagnosis d on c.main_diagnos_id = d.id
+                    inner join md_diagnosis mkb on mkb.id = d.diagnos_id
+                    left join mc_disease_type dt on dt.id = d.disease_type_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(c)
+                from public.mc_case c inner join mc_diagnosis d on c.main_diagnos_id = d.id
+                    inner join md_diagnosis mkb on mkb.id = d.diagnos_id
+                    left join mc_disease_type dt on dt.id = d.disease_type_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>diagnos.id</id>
+            <domain>integer</domain>
+            <expression>mkb.id</expression>
+        </field>
+        <field>
+            <id>diagnos.name</id>
+            <domain>string</domain>
+            <expression>mkb.code || ' ' || mkb.name</expression>
+        </field>
+        <field>
+            <id>main</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+        </field>
+        <field>
+            <id>diseaseType.id</id>
+            <domain>integer</domain>
+            <expression>dt.id</expression>
+        </field>
+        <field>
+            <id>diseaseType.name</id>
+            <domain>string</domain>
+            <expression>dt.name</expression>
+        </field>
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+        </field>
+        <field>
+            <id>attrFromQuery</id>
+            <domain>object[]</domain>
+            <expression>
+                (WITH r AS (
+                    SELECT da.attr_value_id as id, av.name as name FROM public.mc_diag_attr da inner join md_attr_value av on da.attr_value_id = av.id WHERE da.diagnosis_id = d.id
+                 )
+                 SELECT array_to_json(array_agg(row_to_json(r.*)))
+                 FROM r)
+                <!--(SELECT array_to_json(array_agg(row_to_json(ROW(da.attr_value_id)))) FROM public.mc_diag_attr da WHERE da.diagnosis_id = d.id)-->
+            </expression>
+        </field>
+        <field>
+            <id>attrDiagnos</id>
+            <domain>integer[]</domain>
+            <expression>
+                (SELECT array_to_json(array_agg(row_to_json(ROW(apos.diag_attr_id)))) FROM public.md_attr_pos apos WHERE apos.diagnosis_id = d.diagnos_id)
+            </expression>
+        </field>
+        <field>
+            <id>diagnos.count_attr</id>
+            <name>Диагноз</name>
+            <domain>integer</domain>
+            <expression>
+                (SELECT count(1) FROM public.mc_diag_attr atr WHERE atr.diagnosis_id = d.id)
+            </expression>
+        </field>
+    </fields>
+</query>

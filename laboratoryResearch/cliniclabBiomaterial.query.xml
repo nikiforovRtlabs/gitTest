@@ -1,0 +1,117 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>hosp_lab_dep</id>-->
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.md_clinic_biomaterial mcb
+                join public.md_clinic_biomaterial_for_research mcbfr on mcbfr.clinic_biomaterial_id = mcb.id
+                join public.md_clinic_laboratory_research mclr on mcbfr.clinic_laboratory_research_id = mclr.id
+
+                <!--from public.md_clinic_biomaterial_for_research mcbfr-->
+                <!--join public.md_clinic_laboratory_research mclr on mclr.id = mcbfr.clinic_laboratory_research_id-->
+                <!--join public.md_clinic_biomaterial mcb on mcb.id = mcbfr.clinic_biomaterial_id-->
+                where :where 
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from public.md_clinic_biomaterial mcb
+                join public.md_clinic_biomaterial_for_research mcbfr on mcbfr.clinic_biomaterial_id = mcb.id
+                join public.md_clinic_laboratory_research mclr on mcbfr.clinic_laboratory_research_id = mclr.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mcbfr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>mcb.id</expression>
+            <filters>
+                <filter type="eq" filter-field="id">
+                    :expression = :id
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>research</id>
+            <domain>string</domain>
+            <display/>
+            <expression>:research</expression>
+            <filters>
+                <filter type="eq" filter-field="research">
+                   <![CDATA[
+                   string_to_array(mclr.service_id::text,',')::integer[] && (string_to_array((:research),',')::integer[])
+                   ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>mcb.name</expression>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    upper(:expression) like '%'||upper(:name)||'%'
+                </filter>
+            </filters>
+        </field>
+        <!--<field>-->
+            <!--<id>biomaterial.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<name>Биоматериал по умолчанию</name>-->
+            <!--<display/>-->
+            <!--<expression>mcb.id</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>biomaterial.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<display/>-->
+            <!--<expression>mcb.name</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>organizationId</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display/>-->
+            <!--<expression>mclr.clinic_id</expression>-->
+            <!--<filters>-->
+                <!--<filter type="eq" filter-field="organizationId">-->
+                    <!--:expression = :organizationId-->
+                <!--</filter>-->
+            <!--</filters>-->
+        <!--</field>-->
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <filters>
+                <filter type="eq" filter-field="date">
+                    <![CDATA[
+                    (
+                    mcb.from_dt is null and mcb.to_dt is null or
+                    (mcb.from_dt is null or mcb.from_dt <= to_date(:date, 'yyyy-MM-dd') and
+                    (mcb.to_dt is null or mcb.to_dt >= to_date(:date, 'yyyy-MM-dd'))
+                    )
+                    )
+                    ]]>    
+                </filter>
+            </filters>
+        </field>
+
+        <!--<field>-->
+            <!--<id>service_id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display/>-->
+            <!--<expression>mclr.service_id</expression>-->
+        <!--</field>-->
+    </fields>
+
+</query>

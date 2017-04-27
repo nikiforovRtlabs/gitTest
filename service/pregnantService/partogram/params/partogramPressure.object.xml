@@ -1,0 +1,145 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Пульс и АД</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить" name="Создание">
+            <invocation>
+                <n2o:sql>
+                    insert into motherhood.mh_pregnant_outcome_pressure (time, date, pulse, systolic_pressure,
+                    diastolic_pressure, pregnant_outcome_id)
+                    values (to_timestamp(:time, 'HH24:MI'), :date, :pulse, :systolicPressure, :diastolicPressure,
+                    :pregnantOutcomeId)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="time" mapping="['time']" domain="string"/>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="pregnantOutcomeId" mapping="['pregnantOutcomeId']" domain="integer"/>
+                <param name="pulse" mapping="['pulse']" domain="integer"/>
+                <param name="systolicPressure" mapping="['systolicPressure']" domain="integer"/>
+                <param name="diastolicPressure" mapping="['diastolicPressure']" domain="integer"/>
+            </in-parameters>
+            <success-text>Данные о состоянии пульса и АД на время {time} добавлены.</success-text>
+        </action>
+
+        <action id="update" name="Изменение">
+            <invocation>
+                <n2o:sql>
+                    update motherhood.mh_pregnant_outcome_pressure
+                    set pulse = :pulse,
+                    systolic_pressure = :systolicPressure,
+                    diastolic_pressure = :diastolicPressure,
+                    time = to_timestamp(:time, 'HH24:MI'),
+                    date = :date
+                    where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="time" mapping="['time']" domain="string"/>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="pulse" mapping="['pulse']" domain="integer"/>
+                <param name="systolicPressure" mapping="['systolicPressure']" domain="integer"/>
+                <param name="diastolicPressure" mapping="['diastolicPressure']" domain="integer"/>
+            </in-parameters>
+            <success-text>Данные о состоянии пульса и АД на время {time} обновлены.</success-text>
+        </action>
+
+        <action id="delete" name="Удаление">
+            <invocation>
+                <n2o:sql>
+                    delete from motherhood.mh_pregnant_outcome_pressure where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить данные о состоянии пульса и АД на время {time}?</confirmation-text>
+            <success-text>Данные о состоянии пульса и АД на время {time} удалены.</success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkTime" level="error">
+            <message>Некорректный формат времени.</message>
+            <expression on="time">
+                <![CDATA[
+                    var regex = new RegExp('([0-1][0-9]|2[0-3]):[0-5][0-9]');
+                    var b = true;
+                    if(typeof time != 'undefined' && time != null && time != '')
+                    b = regex.test(time);
+                    b;
+                ]]>
+            </expression>
+        </condition>
+        <constraint id="uniqueTime" level="error">
+            <message>На данное время параметры уже созданы.</message>
+            <invocation>
+                <n2o:sql>
+                    select count(*) from motherhood.mh_pregnant_outcome_pressure
+                    where date + time = cast(:date as date) + :time::time and (:id is null or id != :id)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="time" mapping="['time']"/>
+                <param name="date" mapping="['date']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="assertDate" level="error">
+            <message>
+                Дата и время добавления параметра не могут быть раньше даты и времени оказания услуги.
+            </message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                        select (case when ssr.bdate is null then true
+                            else (case when :time is null then ssr.bdate <= cast(:date as date) else ssr.bdate + ssr.begin_time <= cast(:date as date) + :time::time end) end)
+                        from public.sr_srv_rendered ssr
+                        inner join motherhood.mh_pregnant_outcome mpo on mpo.service_id = ssr.id
+                        where mpo.id = :pregnantOutcomeId
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="time" mapping="['time']" domain="string"/>
+                <param name="pregnantOutcomeId" mapping="['pregnantOutcomeId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+        </constraint>
+
+        <condition id="pulseInterval" level="warning" moment="before-action">
+            <message>Данное значение не будет отражено в партограмме</message>
+            <expression on="pulse"><![CDATA[(pulse >= 60 && pulse <= 180)]]></expression>
+        </condition>
+
+        <condition id="pulseFormat" level="error" moment="before-action">
+            <message>Значение должно быть целым положительным</message>
+            <expression on="pulse"><![CDATA[(/^[0-9]*$/).test(pulse) && pulse >= 0]]></expression>
+        </condition>
+
+        <condition id="systolicPressureInterval" level="warning" moment="before-action">
+            <message>Данное значение не будет отражено в партограмме</message>
+            <expression on="systolicPressure"><![CDATA[(systolicPressure >= 60 && systolicPressure <= 180)]]></expression>
+        </condition>
+
+        <condition id="systolicPressureFormat" level="error" moment="before-action">
+            <message>Значение должно быть целым положительным</message>
+            <expression on="systolicPressure"><![CDATA[(/^[0-9]*$/).test(systolicPressure) && systolicPressure >= 0 ]]></expression>
+        </condition>
+
+        <condition id="diastolicPressureInterval" level="warning" moment="before-action">
+            <message>Данное значение не будет отражено в партограмме</message>
+            <expression on="diastolicPressure"><![CDATA[(diastolicPressure >= 60 && diastolicPressure <= 180)]]></expression>
+        </condition>
+
+        <condition id="diastolicPressureFormat" level="error" moment="before-action">
+            <message>Значение должно быть целым положительным</message>
+            <expression on="diastolicPressure"><![CDATA[(/^[0-9]*$/).test(diastolicPressure) && diastolicPressure >= 0]]></expression>
+        </condition>
+    </validations>
+</object>

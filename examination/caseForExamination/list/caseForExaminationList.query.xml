@@ -1,0 +1,552 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>caseForExamination</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from (select *,
+                        (case when case_type_id = 2
+                            then (select get_bed_day_amount_n2o(id))
+                            else (case when closing_step_id is not null then close_date - open_date else now()::date - open_date end )
+                        end) as duration
+                    from mc_case
+                ) c
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+
+                left join mc_step lastClinicStep on lastClinicStep.case_id = c.id
+                    and lastClinicStep.admission_date + lastClinicStep.admission_time =
+                    (select max(s1.admission_date + s1.admission_time) from mc_step s1
+                    where s1.case_id = c.id) and c.case_type_id = 1
+
+                left join (select s.id, s.case_id, hr.department_id, s.res_group_id
+                    from hsp_record hr
+                    join mc_step s on s.id = hr.id
+                    where not exists (select 1 from hsp_record h2 inner join mc_step s2 on s2.id = h2.id and h2.previous_id = hr.id)
+                    ) lastHspStep on lastHspStep.case_id = c.id and c.case_type_id = 2
+
+                left join mc_step lastStep on (lastStep.id = lastClinicStep.id and c.case_type_id = 1) or (lastStep.id = lastHspStep.id and c.case_type_id = 2)
+                left join sr_res_group lastStepResGroup on lastStepResGroup.id = lastStep.res_group_id
+                left join pim_department lastStepDep on (lastStepDep.id = lastStepResGroup.department_id and c.case_type_id = 1) or (lastStepDep.id = lastHspStep.department_id and c.case_type_id = 2)
+
+                left join mc_diagnosis mcdiag on mcdiag.id = c.main_diagnos_id
+                left join md_diagnosis diag on diag.id = mcdiag.diagnos_id
+
+                left join md_standard stdd on stdd.id = lastStep.standard_id
+                left join (select md_mes, care_regimen_id, max(duration) as duration from mc_mes_duration group by md_mes, care_regimen_id)
+                    mesd on mesd.md_mes = lastStep.mes_id and mesd.care_regimen_id = lastStep.regimen_id
+
+                where :where and c.case_type_id in (1, 2)
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(c)
+                from (select *,
+                        (case when case_type_id = 2
+                            then (select get_bed_day_amount_n2o(id))
+                            else (case when closing_step_id is not null then close_date - open_date else now()::date - open_date end )
+                        end) as duration
+                    from mc_case
+                ) c
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+
+                left join mc_step lastClinicStep on lastClinicStep.case_id = c.id
+                    and lastClinicStep.admission_date + lastClinicStep.admission_time =
+                    (select max(s1.admission_date + s1.admission_time) from mc_step s1
+                    where s1.case_id = c.id) and c.case_type_id = 1
+
+                left join (select s.id, s.case_id, hr.department_id, s.res_group_id
+                from hsp_record hr
+                join mc_step s on s.id = hr.id
+                where not exists (select 1 from hsp_record h2 inner join mc_step s2 on s2.id = h2.id and h2.previous_id = hr.id)
+                ) lastHspStep on lastHspStep.case_id = c.id and c.case_type_id = 2
+
+                left join mc_step lastStep on (lastStep.id = lastClinicStep.id and c.case_type_id = 1) or (lastStep.id = lastHspStep.id and c.case_type_id = 2)
+                left join sr_res_group lastStepResGroup on lastStepResGroup.id = lastStep.res_group_id
+                left join pim_department lastStepDep on (lastStepDep.id = lastStepResGroup.department_id and c.case_type_id = 1) or (lastStepDep.id = lastHspStep.department_id and c.case_type_id = 2)
+
+                left join mc_diagnosis mcdiag on mcdiag.id = c.main_diagnos_id
+                left join md_diagnosis diag on diag.id = mcdiag.diagnos_id
+
+                left join md_standard stdd on stdd.id = lastStep.standard_id
+                left join (select md_mes, care_regimen_id, max(duration) as duration from mc_mes_duration group by md_mes, care_regimen_id)
+                    mesd on mesd.md_mes = lastStep.mes_id and mesd.care_regimen_id = lastStep.regimen_id
+
+                where :where and c.case_type_id in (1, 2)
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+        </field>
+
+        <field>
+            <id>caseType.id</id>
+            <domain>integer</domain>
+            <expression>c.case_type_id</expression>
+        </field>
+
+        <field>
+            <id>caseIds</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search>c.id in (:caseIds)</search>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>openDate</id>
+            <domain>date</domain>
+            <expression>c.open_date</expression>
+            <sorting>:expression</sorting>
+            <search><![CDATA[
+                (:openDate.begin::date is null and :openDate.end::date is null or
+                ((:openDate.begin::date is null or c.open_date >= :openDate.begin) and
+                 (:openDate.end::date is null or c.open_date <= :openDate.end)
+                ))
+                ]]></search>
+        </field>
+
+        <field>
+            <id>openDate.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>openDate.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>closeDate</id>
+            <domain>date</domain>
+            <expression>c.close_date</expression>
+            <sorting>:expression</sorting>
+            <search><![CDATA[
+                (:closeDate.begin::date is null and :closeDate.end::date is null or
+                ((:closeDate.begin::date is null or c.close_date >= :closeDate.begin) and
+                 (:closeDate.end::date is null or c.close_date <= :closeDate.end)
+                ))
+                ]]></search>
+        </field>
+
+        <field>
+            <id>closeDate.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>closeDate.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>notLevelSearch</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search filter-field="notExaminedByLevel.id" type="eq">
+                ( not exists(select id from qos_examination_card where case_id = c.id
+                    and (:notExaminedByLevel.id = 0 or control_level_id = :notExaminedByLevel.id)))
+            </search>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>lastStepDep.id</expression>
+        </field>
+
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                (
+                :doctor.id is null or :doctor.id = (
+                    select epr.id from (
+                        select distinct on (group_id) group_id, resource_id
+                            from sr_res_group_relationship
+                            where role_id = (select id from sr_res_role where code = 'DOCTOR' limit 1)
+                            order by group_id, id
+                        ) as firstDoctorRelation
+                        left join sr_resource srr on srr.id = firstDoctorRelation.resource_id
+                        left join pim_employee_position_resource epr on epr.id = srr.id
+                        where firstDoctorRelation.group_id = lastStepResGroup.id
+                    )
+                )
+            </search>
+        </field>
+
+        <field>
+            <id>diagnos</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search filter-field="diagnosis*.id" type="in">
+                <!--diag.id in (select get_all_diagnosis_children_id_with_current((select array(select id from md_diagnosis where id in (:diagnosis*.id))) :: int[]))-->
+                diag.id in (select get_all_diagnosis_children_id_with_current_(id) from md_diagnosis where id in (:diagnosis*.id))
+            </search>
+        </field>
+
+        <field>
+            <id>result.id</id>
+            <domain>integer</domain>
+            <expression>lastStep.result_id</expression>
+        </field>
+
+        <field>
+            <id>hasFirstLevelCard</id>
+            <domain>boolean</domain>
+            <expression>
+                (select exists(select id from qos_examination_card q where case_id = c.id and q.control_level_id = 1))
+            </expression>
+        </field>
+
+        <field>
+            <id>hasSecondLevelCard</id>
+            <domain>boolean</domain>
+            <expression>
+                (select exists(select id from qos_examination_card q where case_id = c.id and q.control_level_id = 2))
+            </expression>
+        </field>
+
+        <field>
+            <id>hasThirdLevelCard</id>
+            <domain>boolean</domain>
+            <expression>
+                (select exists(select id from qos_examination_card q where case_id = c.id and q.control_level_id = 3))
+            </expression>
+        </field>
+
+        <field>
+            <id>socGroup.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>c.soc_group_id</expression>
+        </field>
+
+        <field>
+            <id>ageGroup.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+                    (i.birth_dt >= (select from_dt from md_age_group where id = :ageGroup.id)
+                    and i.birth_dt <= (select to_dt from md_age_group where id = :ageGroup.id))
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>isOutcomeAndClinicalDiagnosisNotSame</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>(
+                c.case_type_id = 2 and (select diagnos_id from mc_diagnosis where stage_id = 4 and case_id = c.id and is_main = true limit 1) !=
+                (select diagnos_id from mc_diagnosis where stage_id = 3 and is_main = true and step_id = lastHspStep.id limit 1)
+
+                or
+                c.case_type_id = 1 and (select diagnos_id from mc_diagnosis where stage_id = 4 and case_id = c.id and is_main = true limit 1) !=
+                (select diagnos_id from mc_diagnosis where stage_id = 3 and case_id = c.id and is_main = true limit 1)
+                )
+            </search>
+        </field>
+
+        <field>
+            <id>isAdmissionAndClinicalDiagnosisNotSame</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>(
+                c.case_type_id = 2 and (select diagnos_id from mc_diagnosis where stage_id = 2 and is_main = true and step_id =
+                    ( select s1.id from mc_step s1 join hsp_record hr1 on hr1.id = s1.id where s1.case_id = c.id and hr1.previous_id is null limit 1) limit 1) !=
+                (select diagnos_id from mc_diagnosis where stage_id = 3 and is_main = true and step_id = lastHspStep.id limit 1)
+
+                or
+                c.case_type_id = 1 and (select diagnos_id from mc_diagnosis where stage_id = 2 and case_id = c.id and is_main = true limit 1) !=
+                (select diagnos_id from mc_diagnosis where stage_id = 3 and case_id = c.id and is_main = true limit 1)
+                )
+            </search>
+        </field>
+
+        <field>
+            <id>isPathologicalAndClinicalDiagnosisNotSame</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>(
+                c.case_type_id = 2 and (select diagnos_id from mc_diagnosis where stage_id = 5 and case_id = c.id and is_main = true limit 1) !=
+                (select diagnos_id from mc_diagnosis where stage_id = 3 and is_main = true and step_id = lastHspStep.id limit 1)
+                or
+                c.case_type_id = 1 and (select diagnos_id from mc_diagnosis where stage_id = 5 and case_id = c.id and is_main = true limit 1) !=
+                (select diagnos_id from mc_diagnosis where stage_id = 3 and case_id = c.id and is_main = true limit 1)
+                )
+            </search>
+        </field>
+
+        <field>
+        <id>isOperationBeforeAndAfterDiagnosisNotSame</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search>
+                exists(select step.id
+                from md_srv_rendered msr
+                join mc_step step on step.id = msr.step_id
+                join hsp_record hr on hr.id = step.id
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service sr on sr.id = ssr.service_id
+                left join sr_srv_type sst on sst.id = sr.type_id
+
+                join mc_diagnosis diag on diag.step_id = step.id
+
+                left join hsp_record nextHr on nextHr.previous_id = hr.id
+                left join mc_diagnosis nextDiag on nextDiag.step_id = nextHr.id
+
+                where step.case_id = c.id and step.result_id = 5
+                and diag.is_main = true and diag.stage_id = 3
+                and nextDiag.is_main = true and nextDiag.stage_id = 3
+                and diag.diagnos_id != nextDiag.diagnos_id
+                and sst.is_surgery=true)
+            </search>
+        </field>
+        
+        <field>
+            <id>isDosesExceeding</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search> <![CDATA[
+                exists (SELECT  px.id
+                from hospital.prescription px
+                JOIN hospital.prescription_periodicity pp on pp.id = px.periodicity_id
+                JOIN inventory.hold_modif hm on hm.holding_id = px.holding_id
+                JOIN inventory.form_param_value fpv ON fpv.hold_modif_id = hm.id and fpv.form_param_id = 6
+                JOIN inventory.form_param_value fpv2 ON fpv2.hold_modif_id = hm.id and fpv2.form_param_id = 7
+                where  px.patient_id = p.id and px.case_id = c.id and
+                ((px.count * px.hold_dose_value * pp.count) > fpv.value::NUMERIC or
+                (px.count * px.hold_dose_value * pp.count * case when (EXTRACT (day from (px.period_end_dt - px.period_begin_dt))*pp.interval) != 0
+                then  (EXTRACT (day from (px.period_end_dt - px.period_begin_dt))*pp.interval) else 1 end)::NUMERIC > fpv2.value::NUMERIC))
+                        ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>aberrationPercent</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search type="eq" filter-field="aberrationPercent">
+                <![CDATA[ deviation_from_standard_of_care(p.id,c.id) <= :aberrationPercent]]>
+            </search>
+        </field>
+
+        <field>
+            <id>repeatDuringMonths</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                <![CDATA[(
+                    c.repeat_count_id = 2 and
+                    exists(
+                        select c.id
+                        from mc_case c1
+                        join mc_diagnosis mcd1 on mcd1.id = c1.main_diagnos_id
+                        where case_type_id = c.case_type_id
+                        and c1.patient_id = c.patient_id
+                        and mcd1.diagnos_id = diag.id
+
+                        and  c1.close_date < c.open_date
+                        and extract(years from age(c.open_date, c1.close_date)) = 0
+                        and extract(month from age(c.open_date, c1.close_date)) < :repeatDuringMonths
+                    )
+                )]]>
+            </search>
+        </field>
+
+        <field>
+            <id>percentDurationIsMore</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                (c.duration is not null
+                and (stdd.treatment_duration > 0 and ROUND(100 * (c.duration::numeric/stdd.treatment_duration::numeric - 1), 0) >= :percentDurationIsMore
+                or mesd.duration > 0 and ROUND(100 * (c.duration::numeric/mesd.duration::numeric - 1), 0) >= :percentDurationIsMore))
+            </search>
+        </field>
+
+        <field>
+            <id>percentDurationIsLess</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+                (c.duration is not null
+                and (stdd.treatment_duration > 0 and ROUND(100 * (1 - c.duration::numeric/stdd.treatment_duration::numeric), 0) >= :percentDurationIsLess
+                or mesd.duration > 0 and ROUND(100 * (1 - c.duration::numeric/mesd.duration::numeric), 0) >= :percentDurationIsLess))
+            ]]></search>
+        </field>
+
+        <!--Колонки-->
+
+        <field>
+            <id>controlLevel</id>
+            <name>Ступень</name>
+            <domain>string</domain>
+            <expression>
+                (select array_to_string(
+                    array_agg(
+                        coalesce(cl.code, cl.name)
+                        order by cl.id
+                    ), ', ')
+                from qos_examination_card q
+                left join qos_exam_card_control_level cl on cl.id = q.control_level_id
+                where case_id = c.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>
+                concat(
+                    i.surname || ' ',
+                    substring(i.name for 1) || '.', substring(i.patr_name for 1) || '.')
+            </expression>
+            <sorting>upper(i.surname), upper(i.name), upper(i.patr_name)</sorting>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <name>Номер случая</name>
+            <expression>c.uid</expression>
+        </field>
+
+        <field>
+            <id>openDt</id>
+            <domain>date</domain>
+            <name>Открыт</name>
+            <expression>c.open_date</expression>
+        </field>
+
+        <field>
+            <id>closeDt</id>
+            <domain>date</domain>
+            <name>Закрыт</name>
+            <expression>c.close_date</expression>
+        </field>
+
+        <field>
+            <id>duration</id>
+            <domain>integer</domain>
+            <name>Длительность</name>
+            <expression>c.duration</expression>
+        </field>
+
+        <field>
+            <id>stdDuration</id>
+            <domain>integer</domain>
+            <name>Стнд/МЭС длительность</name>
+            <expression>
+                replace(
+                coalesce(trim(to_char(stdd.treatment_duration, 'FM990.99'), '.'), '-')
+                || ' / ' || coalesce(trim(to_char(mesd.duration, 'FM990.99'), '.'), '-')
+                , '- / - ', '')
+            </expression>
+            <sorting>stdd.treatment_duration, mesd.duration</sorting>
+        </field>
+
+        <field>
+            <id>departmentName</id>
+            <domain>string</domain>
+            <name>Отделение</name>
+            <expression>lastStepDep.name</expression>
+        </field>
+
+        <field>
+            <id>doctorName</id>
+            <name>Лечащий врач</name>
+            <domain>string</domain>
+            <expression>
+                (select
+                        concat(ei.surname || ' ', substring(ei.name for 1) || '.', substring(ei.patr_name for 1) || '.')
+                from (
+                    select distinct on (group_id) group_id, resource_id
+                    from sr_res_group_relationship
+                    where role_id = (select id from sr_res_role where code = 'DOCTOR' limit 1)
+                    order by group_id, id
+                ) as firstDoctorRelation
+                left join sr_resource srr on srr.id = firstDoctorRelation.resource_id
+                left join pim_employee_position_resource epr on epr.id = srr.id
+                left join pim_employee_position epos on epos.id = epr.employee_position_id
+                left join pim_employee e on e.id = epos.employee_id
+                left join pim_individual ei on e.individual_id = ei.id
+                where firstDoctorRelation.group_id = lastStepResGroup.id
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>diagnosisName</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <expression>diag.code || ' ' || diag.name</expression>
+        </field>
+
+        <field>
+            <id>diagnosisCode</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <expression>diag.code</expression>
+        </field>
+
+        <field>
+            <id>resultName</id>
+            <domain>string</domain>
+            <name>Результат</name>
+            <expression>(select name from mc_step_result where id = lastStep.result_id)</expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search value="#{org.id?}">c.clinic_id = :orgId</search>
+        </field>
+
+        <field>
+            <id>org</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>name4card</id>
+            <domain>string</domain>
+            <expression>
+                concat(c.uid, ', ', c.open_date || ', ',
+                i.surname, ' ', substring(i.name for 1) || '.', substring(i.patr_name for 1) || '.')
+            </expression>
+        </field>
+
+    </fields>
+
+</query>

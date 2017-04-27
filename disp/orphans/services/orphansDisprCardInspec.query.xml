@@ -1,0 +1,276 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+
+    <id>orphansDisprCardInspec</id>
+    <name>Осмотр детской дисп</name>
+    <object-id>orphansDisprCardInspec</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                left join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join sr_service ss on ss.id=mes.service_id
+
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+
+                left join SR_RES_GROUP msrg on msrg.id = mes.resource_id
+                left join (select ssr.id, msr.case_id, ssr.service_id, ssr.res_group_id, ssr.bdate from MD_SRV_RENDERED msr
+                left join SR_SRV_RENDERED ssr on ssr.id = msr.id) as ssr on ssr.case_id = mep.case_id and ssr.service_id = mes.service_id
+                left join disp.md_disp_orphans_inspec mest on mest.service_id = ssr.id
+                left join SR_RES_GROUP srg on srg.id = ssr.res_group_id
+                left join md_diagnosis mmd on mmd.id = mest.main_diagnos
+                left join mc_disease_type mdt on mdt.id = mest.disease
+                left join disp.md_event_service_patient_agreement mespa on mespa.service_id = mesp.id
+                left join disp.md_disp_orphans_diagnosis_extended mdode on mdode.id = mest.diagnos_id
+                left join MC_DIAGNOSIS mcd on mcd.id = mdode.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(1)
+            </n2o:count-query>
+            <n2o:alias>mep</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <expression>mesp.id</expression>
+        </field>
+        <field>
+            <id>idmesp</id>
+            <domain>Integer</domain>
+            <expression>mesp.id</expression>
+            <display>mesp.id</display>
+            <search>mesp.id = :idmesp</search>
+        </field>
+        <field>
+            <id>event_patient_id</id>
+            <domain>Integer</domain>
+            <expression>mep.id</expression>
+            <display>mep.id</display>
+            <search>mep.id = :event_patient_id</search>
+        </field>
+        <field>
+            <id>case_id</id>
+            <domain>Integer</domain>
+            <expression>mep.case_id</expression>
+            <display>mep.case_id</display>
+            <search>mep.case_id = :case_id</search>
+        </field>
+        <field>
+            <id>ssr_id</id>
+            <domain>Integer</domain>
+            <expression>ssr.id</expression>
+            <display>ssr.id</display>
+            <search>ssr.id = :ssr_id</search>
+        </field>
+        <field>
+            <id>is_inherit_protocol</id>
+            <domain>boolean</domain>
+            <expression>(select true where
+                exists (select 1 from sr_srv_ehr_opt sseo
+                left join  sr_srv_rendered s on s.service_id=sseo.service_id
+                where s.id=ssr.id and sseo.template is not null))</expression>
+            <display>(select true where
+                exists (select 1 from sr_srv_ehr_opt sseo
+                left join  sr_srv_rendered s on s.service_id=sseo.service_id
+                where s.id=ssr.id and sseo.template is not null))</display>
+        </field>
+        <field>
+            <id>org_id</id>
+            <domain>Integer</domain>
+            <expression>me.org_id</expression>
+            <display>me.org_id</display>
+        </field>
+        <field>
+            <id>indiv_id</id>
+            <domain>integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indiv_id</search>
+        </field>
+        <field>
+            <id>service_type_id</id>
+            <domain>Integer</domain>
+            <expression>mes.service_id</expression>
+            <display>mes.service_id</display>
+        </field>
+        <field>
+            <id>service_code</id>
+            <domain>string</domain>
+            <expression>mnds.code</expression>
+            <display>mnds.code</display>
+            <search>mnds.code = :service_code</search>
+        </field>
+        <field>
+            <id>resource.id</id>
+            <domain>Integer</domain>
+            <expression>
+                CASE WHEN mes.district_check=TRUE and srg.id IS NULL THEN COALESCE((select dsrg.id from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                left join SR_RES_GROUP dsrg on dsrg.id = dsrgs.group_id
+                where dppr.patient_id = mep.indiv_id), msrg.id, NULL)
+                WHEN mes.district_check=FALSE or srg.id IS NOT NULL THEN COALESCE(srg.id, msrg.id, NULL)
+                ELSE COALESCE(srg.id, msrg.id, NULL)
+                END
+            </expression>
+            <display>
+                CASE WHEN mes.district_check=TRUE and srg.id IS NULL THEN COALESCE((select dsrg.id from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                left join SR_RES_GROUP dsrg on dsrg.id = dsrgs.group_id
+                where dppr.patient_id = mep.indiv_id), msrg.id, NULL)
+                WHEN mes.district_check=FALSE or srg.id IS NOT NULL THEN COALESCE(srg.id, msrg.id, NULL)
+                ELSE COALESCE(srg.id, msrg.id, NULL)
+                END
+            </display>
+        </field>
+        <field>
+            <id>resource.srg_id</id>
+            <domain>Integer</domain>
+            <expression>
+                CASE WHEN mes.district_check=TRUE and srg.id IS NULL THEN COALESCE((select dsrg.id from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                left join SR_RES_GROUP dsrg on dsrg.id = dsrgs.group_id
+                where dppr.patient_id = mep.indiv_id), msrg.id, NULL)
+                WHEN mes.district_check=FALSE or srg.id IS NOT NULL THEN COALESCE(srg.id, msrg.id, NULL)
+                ELSE COALESCE(srg.id, msrg.id, NULL)
+                END
+            </expression>
+            <display>
+                CASE WHEN mes.district_check=TRUE and srg.id IS NULL THEN COALESCE((select dsrg.id from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                left join SR_RES_GROUP dsrg on dsrg.id = dsrgs.group_id
+                where dppr.patient_id = mep.indiv_id), msrg.id, NULL)
+                WHEN mes.district_check=FALSE or srg.id IS NOT NULL THEN COALESCE(srg.id, msrg.id, NULL)
+                ELSE COALESCE(srg.id, msrg.id, NULL)
+                END
+            </display>
+        </field>
+        <field>
+            <id>resource.name</id>
+            <domain>Integer</domain>
+            <expression>
+                CASE WHEN mes.district_check=TRUE and srg.name IS NULL THEN COALESCE((select dsrg.name from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                left join SR_RES_GROUP dsrg on dsrg.id = dsrgs.group_id
+                where dppr.patient_id = mep.indiv_id), msrg.name, NULL)
+                WHEN mes.district_check=FALSE or srg.name IS NOT NULL THEN COALESCE(srg.name, msrg.name, NULL)
+                ELSE COALESCE(srg.name, msrg.name, NULL)
+                END
+            </expression>
+            <display>
+                CASE WHEN mes.district_check=TRUE and srg.name IS NULL THEN COALESCE((select dsrg.name from pci_patient_reg dppr
+                left join SR_RES_GROUP_DISTRICT dsrgd on dsrgd.district_id = dppr.district_id
+                inner join SR_RES_GROUP_SERVICE dsrgs on dsrgs.group_id = dsrgd.group_id and dsrgs.srv_type_id = mes.service_id
+                left join SR_RES_GROUP dsrg on dsrg.id = dsrgs.group_id
+                where dppr.patient_id = mep.indiv_id), msrg.name, NULL)
+                WHEN mes.district_check=FALSE or srg.name IS NOT NULL THEN COALESCE(srg.name, msrg.name, NULL)
+                ELSE COALESCE(srg.name, msrg.name, NULL)
+                END
+            </display>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <expression>COALESCE(ssr.bdate, current_date)</expression>
+            <display>COALESCE(ssr.bdate, current_date)</display>
+        </field>
+        <field>
+            <id>main_diagnosis.id</id>
+            <domain>Integer</domain>
+            <expression>mmd.id</expression>
+            <display>mmd.id</display>
+            <search>mmd.id = :main_diagnosis.id</search>
+        </field>
+        <field>
+            <id>main_diagnosis.name</id>
+            <domain>string</domain>
+            <expression>mmd.name</expression>
+            <display>mmd.code || ' ' || mmd.name</display>
+            <search>mmd.name like '%'||:main_diagnosis.name||'%'</search>
+        </field>
+        <field>
+            <id>main_diagnosis.code</id>
+            <domain>string</domain>
+            <display>mmd.code</display>
+        </field>
+        <field>
+            <id>disease.id</id>
+            <domain>Integer</domain>
+            <expression>mdt.id</expression>
+            <display>mdt.id</display>
+            <search>mdt.id = :disease.id</search>
+        </field>
+        <field>
+            <id>disease.name</id>
+            <domain>string</domain>
+            <expression>mdt.name</expression>
+            <display>mdt.name</display>
+            <search>mdt.name like '%'||:disease.name||'%'</search>
+        </field>
+        <field>
+            <id>counsel</id>
+            <domain>string</domain>
+            <expression>mest.counsel</expression>
+            <display>mest.counsel</display>
+            <search>mest.counsel like '%'||:counsel||'%'</search>
+        </field>
+        <field>
+            <id>reference</id>
+            <domain>string</domain>
+            <expression>mest.reference</expression>
+            <display>mest.reference</display>
+            <search>mest.reference like '%'||:reference||'%'</search>
+        </field>
+        <field>
+            <id>agreeService</id>
+            <domain>boolean</domain>
+            <expression>mespa.agree</expression>
+            <display>mespa.agree</display>
+        </field>
+        <field>
+            <id>make_d</id>
+            <domain>boolean</domain>
+            <display>CASE WHEN mdode.pci_dispensary_id IS NOT NULL THEN TRUE ELSE FALSE END</display>
+        </field>
+        <field>
+            <id>nosol_registr.id</id>
+            <domain>integer</domain>
+            <display>(select d.nosol_registr_id from pci_dispensary d where d.id = mdode.pci_dispensary_id)</display>
+        </field>
+        <field>
+            <id>is_d</id>
+            <domain>boolean</domain>
+            <name>Д-учет</name>
+            <display>mdode.is_d</display>
+        </field>
+        <field>
+            <id>mdds_id</id>
+            <domain>integer</domain>
+            <display>mdode.id</display>
+        </field>
+        <field>
+            <id>character</id>
+            <domain>Integer</domain>
+            <display>(select id from mc_disease_type where code='40' limit 1)</display>
+            <expression>(select id from mc_disease_type where code='40' limit 1)</expression>
+        </field>
+        <field>
+            <id>is_suspicion</id>
+            <domain>boolean</domain>
+            <display>mcd.is_suspicion</display>
+        </field>
+    </fields>
+</query>

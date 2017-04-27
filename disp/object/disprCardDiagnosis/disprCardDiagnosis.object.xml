@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>disprCardDiagnosis</id>
+    <name>disprCardDiagnosis</name>
+
+    <actions>
+        <action id="add" name="Создать">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    select disp.save_diagnosis(:id, :patientId, :caseId, :serviceId, :diagnosIid, :diseaseTypeId,
+                    :typeId, :suspicion, :make_d, :nosol_registr_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="indiv.id" mapping="['patientId']" domain="integer"/>
+                <param name="indiv.case.id" mapping="['caseId']" domain="integer"/>
+                <param name="indiv.service.id" mapping="['serviceId']" domain="integer"/>
+                <param name="diagnosis.id" mapping="['diagnosIid']" domain="integer"/>
+                <param name="disease.id" mapping="['diseaseTypeId']" domain="integer"/>
+                <param name="diagnosisType.id" mapping="['typeId']" domain="integer"/>
+                <param name="suspicion" mapping="['suspicion']" domain="boolean"/>
+                <param name="make_d" mapping="['make_d']" domain="boolean"/>
+                <param name="nosol_registr.id" mapping="['nosol_registr_id']" domain="integer"/>
+            </in-parameters>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    select disp.save_diagnosis(:id, :patientId, :caseId, :serviceId, :diagnosIid, :diseaseTypeId,
+                    :typeId, :suspicion, :make_d, :nosol_registr_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="indiv.id" mapping="['patientId']" domain="integer"/>
+                <param name="indiv.case.id" mapping="['caseId']" domain="integer"/>
+                <param name="indiv.service.id" mapping="['serviceId']" domain="integer"/>
+                <param name="diagnosis.id" mapping="['diagnosIid']" domain="integer"/>
+                <param name="disease.id" mapping="['diseaseTypeId']" domain="integer"/>
+                <param name="diagnosisType.id" mapping="['typeId']" domain="integer"/>
+                <param name="suspicion" mapping="['suspicion']" domain="boolean"/>
+                <param name="make_d" mapping="['make_d']" domain="boolean"/>
+                <param name="nosol_registr.id" mapping="['nosol_registr_id']" domain="integer"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    select disp.delete_diagnosis(:id, :caseId)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="indiv.case.id" mapping="['caseId']" domain="integer"/>
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="banForTheFinal" level="error">
+            <message>Нельзя добавлять основной диагноз, если у услуги есть заключительный.</message>
+            <invocation>
+                <sql:sql>
+                    select
+                    ((exists(select *
+                    from mc_diagnosis md
+                    join disp.md_dispr_diagnosis_service mdds on md.id = mdds.diagnosis_id
+                    where  mdds.service_id = :serviceId  AND md.case_id = :caseId AND md.stage_id = 4 and (md.id != :id or :id is null)))
+                    and :typeId = 1 )
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="indiv.service.id" mapping="['serviceId']" domain="integer"/>
+                <param name="indiv.case.id" mapping="['caseId']" domain="integer"/>
+                <param name="diagnosisType.id" mapping="['typeId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] != true"/>
+        </constraint>
+    </validations>
+</object>

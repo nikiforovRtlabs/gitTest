@@ -1,0 +1,135 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+
+    <object-id>operation</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>Внести результат</name>
+
+    <regions>
+        <region place="single" type="list">
+            <container id="main">
+                <wgt:form>
+
+                    <wgt:name> </wgt:name>
+                    <wgt:query-id>renderedOperation</wgt:query-id>
+                    <wgt:default-values-query-id>renderedOperation_default</wgt:default-values-query-id>
+
+                    <wgt:edit after-submit="edit" refresh-after-submit="true">
+                        <wgt:invoke-action action-id="renderOperation"/>
+                    </wgt:edit>
+
+                    <fs:field-set field-label-location="top">
+
+                        <fs:row>
+                            <ctrl:output-text id="caseInfo" label="Случай:" label-style="font-weight: bold;"
+                                              control-style="width:600px;"/>
+
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="hospitalRecord" label="Отделение" required="true"
+                                             search-as-you-type="true"
+                                             control-style="width:300px;">
+                                <ctrl:query query-id="hosp_stepDepartment" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="caseId" ref="caseId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:date-time id="renderedDate" format="DD.MM.YYYY HH:mm" label="Дата оказания"
+                                            required="true" default-value="now()" default-time="now()">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="checkRenderedDate" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:date-time>
+
+                            <ctrl:checkbox id="urgent" label="Срочно"/>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="service" label="Операция" search-as-you-type="true" required="true"
+                                             control-style="width:300px;">
+                                <ctrl:query query-id="hosp_operatonService" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="orgId" ref="clinicId"/>
+                                        <ctrl:pre-filter field-id="dt" ref="plannedDate" reset-mode="off"/>
+                                        <ctrl:pre-filter field-id="gender" ref="gender"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="surgeon" label="Хирург" search-as-you-type="true"
+                                             control-style="width:300px;">
+                                <ctrl:query query-id="hosp_surgeonEmployeeResource" value-field-id="id"
+                                            label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                                        <ctrl:pre-filter field-id="serviceId" ref="service.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="operationRoom" label="Операционная" search-as-you-type="true"
+                                             control-style="width:300px;">
+                                <ctrl:query query-id="hosp_operationRoom" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="financialType" label="Вид финансирования" required="true"
+                                             search-as-you-type="true"
+                                             control-style="width:300px;">
+                                <ctrl:query query-id="hosp_financialTypeByOrg" value-field-id="id"
+                                            label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>typeof isFinanceTypeControl == 'undefined' || !isFinanceTypeControl</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="anesthesiaType" label="Анестезия" search-as-you-type="true"
+                                             control-style="width:300px;">
+                                <ctrl:query query-id="hosp_anesthesiaType" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="complicationType" label="Тип осложнения" search-as-you-type="true"
+                                             control-style="width:300px;">
+                                <ctrl:query query-id="hosp_resultServiceType" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="resCategoryCode" value="1"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:input-text id="complicatedValue" label="Осложнение:текст" />
+                        </fs:row>
+
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+
+            <container id="protocol" place="single" depends-on="main" dependency-condition="main.id != null"
+                       refresh-dependent-container="true">
+                <wgt:custom src="ehr/widget/protocol" master-field-id="id" detail-field-id="id">
+                    <wgt:query-id>sr_srv_rendered_protocol</wgt:query-id>
+                    <wgt:name>Протокол</wgt:name>
+                    <wgt:properties>
+                        <wgt:property key="object-type" value="service"/>
+                    </wgt:properties>
+                </wgt:custom>
+            </container>
+        </region>
+    </regions>
+
+</page>

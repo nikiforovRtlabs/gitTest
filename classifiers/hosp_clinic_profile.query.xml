@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from md_profile p
+                LEFT JOIN md_clinic_to_profile cp ON cp.profile_id = p.id AND cp.clinic_id = :orgId
+                LEFT JOIN md_diagnosis_profile dp ON dp.profile_id = p.id AND dp.diagnosis_id = :diagnosId
+                LEFT JOIN md_department_profile depp ON depp.profile_id = p.id AND depp.department_id = :depId
+                WHERE
+                (cp.clinic_id = :orgId OR :orgId IS NULL OR NOT exists(SELECT 1
+                FROM md_clinic_to_profile mdc
+                WHERE mdc.clinic_id = :orgId))
+                AND
+                (dp.diagnosis_id = :diagnosId OR :diagnosId IS NULL
+                OR NOT exists(SELECT 1
+                FROM md_diagnosis_profile md
+                WHERE md.diagnosis_id = :diagnosId))
+                AND
+                (depp.department_id = :depId OR :depId IS NULL
+                OR NOT exists(SELECT 1
+                FROM md_department_profile dep
+                WHERE dep.department_id = :depId)) and :where
+                order by p.id
+            </n2o:items-query>
+            <n2o:count-query>
+                select  count(1) from md_profile p
+                LEFT JOIN md_clinic_to_profile cp ON cp.profile_id = p.id AND cp.clinic_id = :orgId
+                LEFT JOIN md_diagnosis_profile dp ON dp.profile_id = p.id AND dp.diagnosis_id = :diagnosId
+                LEFT JOIN md_department_profile depp ON depp.profile_id = p.id AND depp.department_id = :depId
+                WHERE
+                (cp.clinic_id = :orgId OR :orgId IS NULL OR NOT exists(SELECT 1
+                FROM md_clinic_to_profile mdc
+                WHERE mdc.clinic_id = :orgId))
+                AND
+                (dp.diagnosis_id = :diagnosId OR :diagnosId IS NULL
+                OR NOT exists(SELECT 1
+                FROM md_diagnosis_profile md
+                WHERE md.diagnosis_id = :diagnosId))
+                AND
+                (depp.department_id = :depId OR :depId IS NULL
+                OR NOT exists(SELECT 1
+                FROM md_department_profile dep
+                WHERE dep.department_id = :depId)) and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>p.name</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>cp.clinic_id = :orgId</search>
+        </field>
+
+    </fields>
+
+</query>

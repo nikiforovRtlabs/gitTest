@@ -1,0 +1,232 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>operation</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from (
+                select
+                resourceId,
+                resourceName,
+                queueName,
+                coalesce(
+                (select ' (№' || cs.uid || ', ' || i.surname || ', ' || coalesce(s.code, '') || s.name || ')' as queueName
+                from sr_res_group_relationship rgr
+                join sr_res_group rg on rg.id = rgr.group_id
+                join sr_srv_rendered ssr on ssr.res_group_id = rg.id
+                join sr_service s on s.id = ssr.service_id
+                join md_srv_rendered msr on msr.id = ssr.id
+                join hospital.md_srv_rendered_oper msro on msro.service_id = ssr.id
+                join mc_case cs on cs.id = msr.case_id
+                join pim_individual i on i.id = cs.patient_id
+                where msro.queue = t.queue and rgr.resource_id = resourceId and cs.case_type_id = 2 and ssr.planned_date = :plannedDate limit 1), '') as busyOper,
+                queue,
+                resourceId || '-' || queue as queueResourceId
+                from
+                (
+                select
+                rs.id as resourceId,
+                r.name as resourceName,
+                generate_series(1, rs.power) as queue,
+                'Очередь ' || generate_series(1, rs.power) as queueName
+
+                from sr_resource rs
+                join sr_res_role rl on rl.id = rs.role_id
+                join pim_room_resource rr on rr.id = rs.id
+                join pim_room r on r.id = rr.room_id
+                join pim_department dp on r.department_id = dp.id
+                join pim_organization org on dp.org_id = org.id
+
+                left join sr_resource_service srs on rs.id = srs.resource_id
+                left join  sr_service  s on srs.service_id = s.id
+                where rl.code = 'OPERATING' and org.id = :clinicId and (s.id=:serviceId or s.id is null) and
+                ((rs.id=:operationRoomId and :operationRoomId is not null) or (:operationRoomId is null))
+                )  t
+
+                union
+
+                select
+                rs.id as resourceId,
+                r.name as resourceName,
+                '' as queueName,
+                'Срочно ' ||  ' (№' || cs.uid || ', ' || i.surname || ', ' || coalesce(s.code, '') || s.name || ')' as busyOper,
+                0 as queue,
+                rs.id || '-' || rgr.id as queueResourceId
+                from sr_res_group_relationship rgr
+                join sr_resource rs on rs.id = rgr.resource_id
+                join sr_res_role rl on rl.id = rgr.role_id
+                join pim_room_resource rr on rr.id = rs.id
+                join pim_room r on r.id = rr.room_id
+                join pim_department dp on r.department_id = dp.id
+                join pim_organization org on dp.org_id = org.id
+                join sr_res_group rg on rg.id = rgr.group_id
+                join sr_srv_rendered ssr on ssr.res_group_id = rg.id
+                join sr_service s on s.id = ssr.service_id
+                join md_srv_rendered msr on msr.id = ssr.id
+                join mc_case cs on cs.id = msr.case_id
+                join pim_individual i on i.id = cs.patient_id
+                where msr.is_urgent is true and rl.code = 'OPERATING' and org.id = :clinicId and cs.case_type_id = 2 and ssr.planned_date = :plannedDate
+                and (s.id=:serviceId or s.id is null) and
+                ((rs.id=:operationRoomId and :operationRoomId is not null) or (:operationRoomId is null))
+                order by resourceId, resourceName, queue, queueName
+                ) tt
+            </n2o:items-query>
+
+
+            <n2o:count-query>
+                select count(1) from (
+                select
+                resourceId,
+                resourceName,
+                queueName || coalesce(
+                (select ' (№' || cs.uid || ', ' || i.surname || ', ' || coalesce(s.code, '') || s.name || ')' as queueName
+                from sr_res_group_relationship rgr
+                join sr_res_group rg on rg.id = rgr.group_id
+                join sr_srv_rendered ssr on ssr.res_group_id = rg.id
+                join sr_service s on s.id = ssr.service_id
+                join md_srv_rendered msr on msr.id = ssr.id
+                join hospital.md_srv_rendered_oper msro on msro.service_id = ssr.id
+                join mc_case cs on cs.id = msr.case_id
+                join pim_individual i on i.id = cs.patient_id
+                where msro.queue = t.queue and rgr.resource_id = resourceId and cs.case_type_id = 2 and ssr.planned_date = '09.11.2015'), '') as queueName,
+                queue,
+                resourceId || '-' || queue as queueResourceId
+                from
+                (
+                select
+                rs.id as resourceId,
+                r.name as resourceName,
+                generate_series(1, rs.power) as queue,
+                'Очередь ' || generate_series(1, rs.power) as queueName
+
+                from sr_resource rs
+                join sr_res_role rl on rl.id = rs.role_id
+                join pim_room_resource rr on rr.id = rs.id
+                join pim_room r on r.id = rr.room_id
+                join pim_department dp on r.department_id = dp.id
+                join pim_organization org on dp.org_id = org.id
+                where rl.code = 'OPERATING' and org.id = :clinicId
+                )  t
+
+                union
+
+                select
+                rs.id as resourceId,
+                r.name as resourceName,
+                'Срочно ' ||  ' (№' || cs.uid || ', ' || i.surname || ', ' || coalesce(s.code, '') || s.name || ')' as queueName,
+                0 as queue,
+                rs.id || '-' || rgr.id as queueResourceId
+                from sr_res_group_relationship rgr
+                join sr_resource rs on rs.id = rgr.resource_id
+                join sr_res_role rl on rl.id = rgr.role_id
+                join pim_room_resource rr on rr.id = rs.id
+                join pim_room r on r.id = rr.room_id
+                join pim_department dp on r.department_id = dp.id
+                join pim_organization org on dp.org_id = org.id
+                join sr_res_group rg on rg.id = rgr.group_id
+                join sr_srv_rendered ssr on ssr.res_group_id = rg.id
+                join sr_service s on s.id = ssr.service_id
+                join md_srv_rendered msr on msr.id = ssr.id
+                join mc_case cs on cs.id = msr.case_id
+                join pim_individual i on i.id = cs.patient_id
+                where msr.is_urgent is true and rl.code = 'OPERATING' and org.id = :clinicId and cs.case_type_id = 2 and ssr.planned_date = :plannedDate
+                order by queue
+                ) tt
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>plannedDate</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>operationRoomResourceId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>serviceId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>operationRoomId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>resourceId</id>
+            <domain>integer</domain>
+            <display>resourceId</display>
+        </field>
+
+        <field>
+            <id>resourceName</id>
+            <domain>string</domain>
+            <display>resourceName</display>
+        </field>
+
+        <field>
+            <id>queue</id>
+            <domain>integer</domain>
+            <display>queue</display>
+        </field>
+
+        <field>
+            <id>queueName</id>
+            <domain>string</domain>
+            <display>queueName || busyOper</display>
+        </field>
+
+        <field>
+            <id>queueResourceId</id>
+            <domain>string</domain>
+            <display>queueResourceId</display>
+        </field>
+
+        <field>
+            <id>canResolved</id>
+            <domain>boolean</domain>
+            <expression>(case when busyOper is not null and busyOper != '' then true else false end)</expression>
+        </field>
+
+
+        <field>
+            <id>srvRenderedId</id>
+            <domain>string</domain>
+            <expression>:srvRenderedId</expression>
+        </field>
+
+        <field>
+            <id>srvRenderedOperId</id>
+            <domain>string</domain>
+            <expression>:srvRenderedOperId</expression>
+        </field>
+
+        <field>
+            <id>resGroupId</id>
+            <domain>string</domain>
+            <expression>:resGroupId</expression>
+        </field>
+
+    </fields>
+
+
+</query>

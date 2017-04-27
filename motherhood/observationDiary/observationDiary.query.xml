@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <name>Дневник наблюдений</name>
+    <object-id>pregnant_map</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from sr_srv_rendered a
+                inner join pci_patient p on a.customer_id = p.id
+                inner join motherhood.mh_pregnant_map pm on p.id = pm.patient_id
+                inner join sr_res_group rg on rg.id = a.res_group_id
+                left join pim_employee_position peprg on ( rg.responsible_id = peprg.id )
+                left join pim_employee perg on ( peprg.employee_id = perg.id )
+                left join pim_individual pirg on ( perg.individual_id = pirg.id )
+                inner join md_srv_rendered on md_srv_rendered.id = a.id
+                inner join sr_service on sr_service.id = a.service_id
+                inner join sr_srv_prototype on sr_service.prototype_id = sr_srv_prototype.id
+                inner join pim_organization on sr_service.org_id = pim_organization.id
+                left join mc_step ms on md_srv_rendered.step_id = ms.id
+                where sr_srv_prototype.code in ('B01001004', 'B01001003', 'B01.001.003', 'B01.001.004')
+                and coalesce(a.bdate, a.planned_date) between pm.reg_dt and coalesce(pm.unreg_dt, 'infinity')
+                and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(a)
+                from sr_srv_rendered a
+                inner join pci_patient p on a.customer_id = p.id
+                inner join motherhood.mh_pregnant_map pm on p.id = pm.patient_id
+                inner join sr_res_group rg on rg.id = a.res_group_id
+                left join pim_employee_position peprg on ( rg.responsible_id = peprg.id )
+                left join pim_employee perg on ( peprg.employee_id = perg.id )
+                left join pim_individual pirg on ( perg.individual_id = pirg.id )
+                inner join md_srv_rendered on md_srv_rendered.id = a.id
+                inner join sr_service on sr_service.id = a.service_id
+                inner join sr_srv_prototype on sr_service.prototype_id = sr_srv_prototype.id
+                inner join pim_organization on sr_service.org_id = pim_organization.id
+                left join mc_step ms on md_srv_rendered.step_id = ms.id
+                where sr_srv_prototype.code in ('B01001004', 'B01001003', 'B01.001.003', 'B01.001.004')
+                and coalesce(a.bdate, a.planned_date) between pm.reg_dt and coalesce(pm.unreg_dt, 'infinity')
+                and :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>a.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>serviceName</id>
+            <domain>string</domain>
+            <name>Наименование услуги</name>
+            <expression>sr_service.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>gestation</id>
+            <domain>string</domain>
+            <name>Срок беременности</name>
+            <expression>(case when md_srv_rendered.step_id is not null
+                then motherhood.calculate_weeks_for_service(ms.admission_date, pm.reg_dt, pm.pregnant_age)
+                else motherhood.calculate_weeks_for_service(a.planned_date, pm.reg_dt, pm.pregnant_age) end)</expression>
+            <display/>
+        </field>
+        <field>
+            <id>admissionDate</id>
+            <domain>date</domain>
+            <name>Дата посещений</name>
+            <expression>ms.admission_date</expression>
+            <display/>
+        </field>
+        <field>
+            <id>result</id>
+            <domain>string</domain>
+            <name>Результат</name>
+            <display/>
+            <expression>array_to_string(
+                array(
+                select concat(md1.code||' ', md1.name)
+                from mc_diagnosis md
+                left join md_diagnosis md1 on ( md.diagnos_id = md1.id  )
+                where ms.main_diagnosis_id = md.id
+                union
+                select concat(mr.order_number||' ', mrt.name||' ', ss.name)
+                from   md_referral mr
+                left join md_referral_type mrt on  mr.referral_type_id = mrt.id
+                left join md_referral_service mrs1 on  mrs1.referral_id = mr.id
+                left join sr_service ss on mrs1.service_id = ss.id
+                where mr.step_id = ms.id), '; ')
+            </expression>
+        </field>
+        <field>
+            <id>doctor</id>
+            <domain>string</domain>
+            <name>Исполнитель</name>
+            <display/>
+            <expression>coalesce(pirg.surname|| ' ', '') || coalesce(pirg.name|| ' ', '')
+                || coalesce(pirg.patr_name|| ' ', '') || coalesce(perg.note, '')</expression>
+        </field>
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pim_organization.id</expression>
+        </field>
+        <field>
+            <id>organizationId</id>
+            <domain>integer</domain>
+            <expression>:organizationId</expression>
+            <display default-value="#{org.id}"/>
+        </field>
+        <field>
+            <id>orgName</id>
+            <domain>string</domain>
+            <name>МО</name>
+            <display/>
+            <expression>pim_organization.short_name</expression>
+        </field>
+        <field>
+            <id>isRendered</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(case when a.is_rendered=true then '1' else '0' end)</expression>
+        </field>
+        <field>
+            <id>isRenderedSymbol</id>
+            <domain>string</domain>
+            <display/>
+            <expression>(case when a.is_rendered=true then '&#8195;&#8195;Оказана&#8195;&#8195;' else 'Запланирована' end)</expression>
+        </field>
+        <field>
+            <id>pageName</id>
+            <domain>string</domain>
+            <expression>'#clinic.clinicAppointment.appointments.resultAdmission?personalDataOfThePatient:filter:id='||a.id</expression>
+            <display/>
+        </field>
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>pm.patient_id</expression>
+            <filters>
+                <filter type="eq" filter-field="patientId">
+                    :expression = :patientId
+                </filter>
+            </filters>
+        </field>
+    </fields>
+</query>

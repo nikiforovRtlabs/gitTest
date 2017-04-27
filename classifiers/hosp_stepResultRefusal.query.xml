@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from mc_step_result st
+                left join mc_step_result_to_care_regimen srcr on srcr.step_result_id = st.id
+                where st.is_refusal = true and :where order by id
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from mc_step_result st
+                left join mc_step_result_to_care_regimen srcr on srcr.step_result_id = st.id
+                where st.is_refusal = true and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>st.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>coalesce(st.code || ' ', '') || st.name</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>dt</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+                ((st.from_dt is null or st.from_dt<=to_date(:dt, 'yyyy-MM-dd')) and (st.to_dt is null or st.to_dt>to_date(:dt, 'yyyy-MM-dd')))
+             ]]>
+            </search>
+        </field>
+        <field>
+            <id>regimenId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+                (:regimenId is null or srcr.regimen_id = :regimenId)
+            ]]></search>
+        </field>
+    </fields>
+
+</query>

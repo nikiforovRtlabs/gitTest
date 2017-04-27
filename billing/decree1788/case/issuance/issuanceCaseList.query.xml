@@ -1,0 +1,274 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>certCase</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from mc_case c
+                join fin_funding_source_type fin on fin.id = c.funding_id and fin.code = 'OMS'
+                join mc_case_type case_type on case_type.id = c.case_type_id
+                join mc_case_init_goal init_goal on init_goal.id = c.init_goal_id
+                join pci_patient patient on patient.id = c.patient_id
+                join pim_individual patient_indiv on patient_indiv.id = patient.id
+                left join mc_care_regimen care_reg on care_reg.id = c.care_regimen_id
+                left join mc_step closing_step on closing_step.id = c.closing_step_id
+                left join mc_step_result closing_step_result on closing_step_result.id = closing_step.result_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from mc_case c
+                join fin_funding_source_type fin on fin.id = c.funding_id and fin.code = 'OMS'
+                join mc_case_type case_type on case_type.id = c.case_type_id
+                join mc_case_init_goal init_goal on init_goal.id = c.init_goal_id
+                join pci_patient patient on patient.id = c.patient_id
+                join pim_individual patient_indiv on patient_indiv.id = patient.id
+                left join mc_care_regimen care_reg on care_reg.id = c.care_regimen_id
+                left join mc_step closing_step on closing_step.id = c.closing_step_id
+                left join mc_step_result closing_step_result on closing_step_result.id = closing_step.result_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>x</id>
+            <expression>1</expression>
+        </field>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>id</name>
+            <expression>c.id</expression>
+        </field>
+        <field>
+            <id>careRegimen.id</id>
+            <domain>integer</domain>
+            <expression>c.care_regimen_id</expression>
+            <search>:expression = :careRegimen.id</search>
+        </field>
+        <field>
+            <id>careRegimen.name</id>
+            <domain>string</domain>
+            <expression>care_reg.name</expression>
+            <name>Условия оказания</name>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>caseType.id</id>
+            <domain>integer</domain>
+            <expression>case_type.id</expression>
+            <sorting>:expression = :caseType.id</sorting>
+        </field>
+        <field>
+            <id>caseType.name</id>
+            <domain>string</domain>
+            <name>Вид случая</name>
+            <expression>case_type.name</expression>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>certIssued</id>
+            <domain>boolean</domain>
+            <name>Выдана справка</name>
+            <expression>
+                exists(
+                select 1
+                from mc_case cs
+                join billing.services_cost_certificate cert on cert.case_id = cs.id
+                where cert.case_id = c.id and cert.refused = false and cert.annuled = false
+                limit 1)
+            </expression>
+            <search>:expression = :certIssued</search>
+        </field>
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+            <search value="#{org.id?}">(:expression = :clinicId or :clinicId is null)</search>
+        </field>
+        <field>
+            <id>closedDate</id>
+            <domain>date</domain>
+            <name>Дата закрытия</name>
+            <expression>closing_step.outcome_date</expression>
+            <search>
+                <![CDATA[:expression >= coalesce(:closedDate.begin::date, '-infinity') and
+                         :expression <= coalesce(:closedDate.end::date, 'infinity') ]]></search>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>closedDate.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>closedDate.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select ep.id
+                from sr_res_group rg
+                join pim_employee_position ep on ep.id = rg.responsible_id
+                where rg.id =
+                     (select s.res_group_id
+                      from mc_step s
+                      where s.case_id = c.id
+                      order by s.admission_date desc, s.admission_time desc, s.id desc limit 1))
+            </expression>
+            <search>:expression = :doctor.id</search>
+        </field>
+        <field>
+            <id>doctor.name</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <expression>
+                (select concat(i.surname, ' ' || left(i.name, 1) || '.', ' ' || left(i.patr_name, 1) || '.', ', ' || pp.name)
+                from sr_res_group rg
+                join pim_employee_position ep on ep.id = rg.responsible_id
+                join pim_position pp on pp.id = ep.position_id
+                join pim_employee e on e.id = ep.employee_id
+                join pim_individual i on i.id = e.individual_id
+                where rg.id =
+                     (select s.res_group_id
+                      from mc_step s
+                      where s.case_id = c.id
+                      order by s.admission_date desc, s.admission_time desc, s.id desc limit 1))
+            </expression>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>initGoal.id</id>
+            <domain>integer</domain>
+            <expression>c.init_goal_id</expression>
+            <search>:expression = :initGoal.id</search>
+        </field>
+        <field>
+            <id>initGoal.name</id>
+            <domain>string</domain>
+            <expression>init_goal.name</expression>
+            <name>Цель обращения</name>
+            <search unavailable="true"/>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>issuedAndRefusedFilter*.id</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search>
+                (
+                1 in (:issuedAndRefusedFilter*.id) and exists(
+                select 1
+                from mc_case cs
+                join billing.services_cost_certificate cert on cert.case_id = cs.id
+                where cert.case_id = c.id and cert.refused = false and not cert.annuled
+                limit 1)
+
+                or
+
+                2 in (:issuedAndRefusedFilter*.id) and exists(
+                select 1
+                from mc_case cs
+                join billing.services_cost_certificate cert on cert.case_id = cs.id
+                where cert.case_id = c.id and cert.refused and not cert.annuled
+                limit 1)
+                )
+            </search>
+        </field>
+        <field>
+            <id>mode.id</id>
+            <domain>integer</domain>
+            <expression>closing_step_result.id</expression>
+            <search>(:mode.id = 1 and :expression is not null or :mode.id = 2)</search>
+        </field>
+        <field>
+            <id>openDate</id>
+            <domain>date</domain>
+            <name>Дата открытия</name>
+            <expression>c.open_date</expression>
+            <search type="between">
+                <![CDATA[(:openDate.begin::date is null or :expression >= :openDate.begin) and
+                        (:openDate.end::date is null or :expression <= :openDate.end) ]]>
+            </search>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>openDate.begin</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>openDate.end</id>
+            <domain>date</domain>
+            <search value="null" unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>patient.id</expression>
+            <search>:expression = :patient.id</search>
+        </field>
+        <field>
+            <id>patient.birthDt</id>
+            <domain>date</domain>
+            <name>Дата рождения</name>
+            <expression>patient_indiv.birth_dt</expression>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>patient_indiv.surname || ' ' || patient_indiv.name || ' ' || patient_indiv.patr_name</expression>
+            <sorting>:expression</sorting>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>refusalRegistered</id>
+            <domain>boolean</domain>
+            <name>Зарегистрирован отказ</name>
+            <expression>
+                exists(
+                select 1
+                from mc_case cs
+                join billing.services_cost_certificate cert on cert.case_id = cs.id
+                where cert.case_id = c.id and cert.refused and cert.annuled = false
+                limit 1)
+            </expression>
+            <search>:expression = :refusalRegistered</search>
+        </field>
+        <field>
+            <id>resultName</id>
+            <domain>string</domain>
+            <name>Результат</name>
+            <expression>closing_step_result.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <name>Номер случая</name>
+            <expression>c.uid</expression>
+            <search>:expression like '%' || :uid || '%'</search>
+            <sorting>:expression</sorting>
+        </field>
+    </fields>
+
+</query>

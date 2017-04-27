@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>ambTreatmentTemplate</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select distinct :select from md_standard s
+                left join md_standard_diagnosis sd on s.id = sd.standard_id
+                left join md_standard_patient_age spa on s.id = spa.standard_id
+                left join md_diagnosis fromDiag on fromDiag.id = sd.from_diagnosis_id
+                left join md_diagnosis toDiag on toDiag.id = sd.to_diagnosis_id
+                where s.care_level_id = 2 and s.care_regimen_id = 6 and :where order by s.id
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(s) from md_standard s
+                left join md_standard_diagnosis sd on s.id = sd.standard_id
+                left join md_standard_patient_age spa on s.id = spa.standard_id
+                left join md_diagnosis fromDiag on fromDiag.id = sd.from_diagnosis_id
+                left join md_diagnosis toDiag on toDiag.id = sd.to_diagnosis_id
+                where s.care_level_id = 2 and s.care_regimen_id = 6 and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>s.name</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>careRegimenId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(s.care_regimen_id is null or s.care_regimen_id = :careRegimenId)</search>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(:patientId::int4 is null or s.gender_restriction_id = (select gender_id from pim_individual where id = :patientId))
+                and (:patientId::int4 is null or spa is null or (select extract(year from age(birth_dt)) from pim_individual where id = :patientId::int4)
+                between spa.from_age and spa.to_age)
+            </search>
+        </field>
+
+        <field>
+            <id>diagnosisId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(sd is null or (select code from md_diagnosis where id = :diagnosisId) between fromDiag.code and toDiag.code)</search>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search value="#{org.id?}">(s.clinic_id is null or s.clinic_id = :orgId)</search>
+        </field>
+
+    </fields>
+
+</query>

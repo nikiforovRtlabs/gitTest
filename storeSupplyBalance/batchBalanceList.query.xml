@@ -1,0 +1,199 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>batchBalanceList</name>
+    <object-id>storeSupply</object-id>
+    <execution>
+
+        <n2o:sql>
+            <n2o:items-query><![CDATA[ select :select from
+            (select batch.id batchId,hm.id holdModifId, hm.name holdModifName, hp.id producerId,org.id orgId,ss.id storeSupId,
+                batch.delivery_dt deliveryDate,
+                extract(month from age(batch.expire_dt::date, current_date)) monthOfExpiration,
+                extract(day from age(batch.expire_dt::date, current_date)) dayOfExpiration,
+                extract(year from age(batch.expire_dt::date, current_date)) yearOfExpiration,
+                coalesce(org.short_name, org.full_name) orgName, fs.id fundSourceId,fs.name fundSourceName,
+                ss.store_id storeId,h.commodity_group_id comGroupId, batch.series series, batch.expire_dt expireDate,
+                ss.act_balance_arr quantity, ss.act_balance_mnei mneiQuantity, hm.mnei_id mneiId,hm.price_unit_flag unitFlag, ss.price price
+                from inventory.batch batch
+                left outer join inventory.store_supply ss on ss.batch_id=batch.id
+                left outer join inventory.hold_modif hm on hm.id=batch.hold_modif_id
+                left outer join inventory.holding h on h.id=hm.holding_id
+                left outer join inventory.holding_producer hp on hp.id=batch.hold_producer_id
+                left outer join pim_organization org on org.id=hp.org_id
+                left outer join inventory.funding_source fs on fs.id=ss.funding_source_id
+                where
+                (:storeSupply.expireDate.begin::date is null or batch.expire_dt >= :storeSupply.expireDate.begin::date) and
+                (:storeSupply.expireDate.end::date is null or batch.expire_dt <= :storeSupply.expireDate.end::date) and
+                (:storeSupply.fundSource.id::int is null or fs.id = :storeSupply.fundSource.id::int)
+            ) batch_list
+            where quantity!=0 and :where order by :order ]]>
+            </n2o:items-query>
+            <n2o:count-query><![CDATA[ select count(batch_list) from
+            (select batch.id batchId,
+                hm.id holdModifId, hm.name holdModifName, hp.id producerId,org.id orgId, ss.id storeSupId,
+                coalesce(org.short_name, org.full_name) orgName, fs.id fundSourceId,fs.name fundSourceName,
+                ss.store_id storeId,h.commodity_group_id comGroupId, batch.series series, batch.expire_dt expireDate,
+                ss.act_balance_arr quantity,ss.act_balance_mnei mneiQuantity,hm.mnei_id mneiId, hm.price_unit_flag unitFlag, ss.price price
+                from inventory.batch batch
+                left outer join inventory.store_supply ss on ss.batch_id=batch.id
+                left outer join inventory.hold_modif hm on hm.id=batch.hold_modif_id
+                left outer join inventory.holding h on h.id=hm.holding_id
+                left outer join inventory.holding_producer hp on hp.id=batch.hold_producer_id
+                left outer join pim_organization org on org.id=hp.org_id
+                left outer join inventory.funding_source fs on fs.id=ss.funding_source_id
+                where
+                (:storeSupply.expireDate.begin::date is null or batch.expire_dt >= :storeSupply.expireDate.begin::date) and
+                (:storeSupply.expireDate.end::date is null or batch.expire_dt <= :storeSupply.expireDate.end::date) and
+                (:storeSupply.fundSource.id::int is null or fs.id = :storeSupply.fundSource.id::int)
+            ) batch_list
+            where quantity!=0 and :where ]]>
+            </n2o:count-query>
+            <n2o:alias>batch_list</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>storeSupId</expression>
+        </field>
+        <field>
+            <id>storeSupply.id</id>
+            <domain>string</domain>
+            <expression>CONCAT(storeId,'_',holdModifId)</expression>
+        </field>
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>comGroupId</expression>
+        </field>
+        <field>
+            <id>holdModif.id</id>
+            <domain>integer</domain>
+            <expression>holdModifId</expression>
+        </field>
+        <field>
+            <id>holdModif.name</id>
+            <name>Наименование ЛС и ИМН</name>
+            <domain>string</domain>
+            <expression>holdModifName</expression>
+        </field>     
+        <field>
+            <id>producer.id</id>
+            <domain>integer</domain>
+            <expression>producerId</expression>
+        </field>
+        <field>
+            <id>producer.name</id>
+            <name>Производитель</name>
+            <domain>string</domain>
+            <expression>orgName</expression>
+        </field>
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <name>Серия</name>
+            <expression>series</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <name>Количество</name>
+            <domain>string</domain>
+            <expression>quantity</expression>
+        </field>
+        <field>
+            <id>quantityInfo</id>
+            <name>Количество</name>
+            <domain>string</domain>
+            <expression>
+                case when quantity = mneiQuantity
+                then
+                  trim(to_char(quantity, 'FM9999990.99'), '.')||' '||inventory.get_unit_name_by_flag_of_modif(unitFlag, holdModifId)
+                else
+                  trim(to_char(quantity, 'FM9999990.99'), '.')||' '||inventory.get_unit_name_by_flag_of_modif(unitFlag, holdModifId)
+                ||' ('||trim(to_char(mneiQuantity, 'FM9999990.99'), '.')||' '||(select cm.mnemocode from cmn_measure cm where cm.id=mneiId)||')'
+                end
+            </expression>
+            <sorting>quantity</sorting>
+        </field>
+        <field>
+            <id>price</id>
+            <domain>string</domain>
+            <name>Цена</name>
+            <expression>price</expression>
+        </field>
+        <field>
+            <id>documentLabel</id>
+            <name>Документ прихода</name>
+            <domain>string</domain>
+            <expression>(select concat(SUBSTRING(dt.short_name,1,4) ,'. ',doc.int_doc_number)
+                from inventory.document doc
+                left outer join inventory.arrival_spec s on s.doc_id=doc.id
+                left outer join inventory.document_type dt on doc.int_doc_type_id=dt.id
+                left outer join inventory.store_supply ss on s.store_sup_id=ss.id
+                where ss.batch_id=batchId limit 1)
+            </expression>
+        </field>
+        <field>
+            <id>deliveryDate</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>deliveryDate</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fundSourceId</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <name>Финансирование</name>
+            <domain>string</domain>
+            <expression>fundSourceName</expression>
+        </field>
+        <field>
+            <id>storeSupply.fundSource.id</id>
+            <domain>integer</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>storeSupply.expireDate.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>storeSupply.expireDate.begin</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>expireDate</id>
+            <domain>date</domain>
+            <name>Срок годности</name>
+            <expression>expireDate</expression>
+            <search  unavailable="true"/>
+        </field>
+        <field>
+            <id>periodOfExpiration</id>
+            <name>Период срока годности</name>
+            <domain>string</domain>
+            <expression><![CDATA[(case when yearOfExpiration<0 or monthOfExpiration<0 or (yearOfExpiration=0 and monthOfExpiration = 0 and (dayOfExpiration=0 or dayOfExpiration<0))  then 'text-error'
+            else
+             case when yearOfExpiration= 0 and (monthOfExpiration = 0 or (monthOfExpiration = 1 and dayOfExpiration = 0))
+                  then 'text-info'
+                  else
+                      case when yearOfExpiration= 0 and (monthOfExpiration = 1 or (monthOfExpiration = 2 and dayOfExpiration = 0)) then 'text-success' end
+                  end
+            end)]]>
+            </expression>
+            <search unavailable="true"/>
+        </field>
+    </fields>
+</query>

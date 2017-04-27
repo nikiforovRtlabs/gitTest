@@ -1,0 +1,99 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <object-id>stomatologyDiagnosis</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>Диагноз</name>
+
+    <regions>
+        <region place="single" type="none">
+            <container id="main">
+                <wgt:form>
+                    <wgt:query-id>stomatologyDiagnosis</wgt:query-id>
+                    <wgt:name>Создать</wgt:name>
+                    <fs:field-set>
+                        <ctrl:multi-classifier id="tooth" label="Номер зуба:" required="true"
+                                               control-style="width: 300px;">
+                            <ctrl:query query-id="tooth" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="dentalFormulaId" ref="dentalFormulaId"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:multi-classifier>
+
+                        <ctrl:hidden id="orgId" default-value="#{org.id?}"/>
+                        <ctrl:classifier id="diagnosis" label="Диагноз:" search-are-you-type="true" required="true" control-style="width: 300px;">
+                            <ctrl:query query-id="stomatologyMdDiagnosis" label-field-id="name" value-field-id="id"/>
+                            <ctrl:set-value-expression on-load="true">null</ctrl:set-value-expression>
+                        </ctrl:classifier>
+
+                        <ctrl:multi-classifier id="toothSurfaces" label="Поверхности:" control-style="width: 300px;" depends-on="tooth" dependency-condition="!!tooth &amp;&amp; tooth.length == 1">
+                            <ctrl:query query-id="toothSurface" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="toothNumberIds" ref="tooth*.toothNumberId"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on="diagnosis">null</ctrl:set-value-expression>
+                        </ctrl:multi-classifier>
+
+                        <ctrl:classifier id="toothSurface" label="Поверхность:" control-style="width: 300px;" depends-on="tooth" dependency-condition="!!tooth  &amp;&amp; tooth.length > 1">
+                            <ctrl:query query-id="toothSurface" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="toothNumberIds" ref="tooth*.toothNumberId"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on="diagnosis">null</ctrl:set-value-expression>
+                        </ctrl:classifier>
+
+                        <ctrl:checkbox id="isMainDiagnos" label="Основной" default-value="true"/>
+                        <ctrl:classifier id="diagnosisType" label="Вид:" search-are-you-type="true" required="true"
+                                         dependency-condition="isMainDiagnos != true" control-style="width: 300px;">
+                            <ctrl:query query-id="diagnosisType" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="stage" label="Этап установления:" search-are-you-type="true"
+                                         required="true" control-style="width: 300px;" autoselect-alone="true">
+                            <ctrl:query query-id="diagnosStage" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <fs:row>
+                            <ctrl:checkbox id="diagnosis.isDAccounting" label="Диагноз подлежит Д-учёту"
+                                           readonly="true" depends-on="diagnosis" control-style="display:none;" label-style="width:160px;"/>
+                            <!--<ctrl:output-text id="dAccounting" dependency-condition="diagnosis.isDAccounting == true" control-style="display:none;" label-style="display:none;">-->
+                                <!--<ctrl:actions>-->
+                                    <!--<ctrl:button label="Д-Учет">-->
+                                        <!--<ctrl:a href="${rmis.external.host}/pats/dispensaries/new?external=true&amp;value=:patient.id:&amp;diagnosis.id=:diagnosis.id:&amp;medicalCaseIn.id=:mcCase:&amp;registrationInDate=:bdate:&amp;clinic.id=:orgId:&amp;employeePositionIn.id=:emplContext:"-->
+                                                <!--target="newWindow"/>-->
+                                    <!--</ctrl:button>-->
+                                <!--</ctrl:actions>-->
+                            <!--</ctrl:output-text>-->
+                        </fs:row>
+                        <ctrl:classifier id="diseaseType" label="Характер заболевания:" search-are-you-type="true"
+                                         control-style="width: 300px;">
+                            <ctrl:query query-id="diseaseType" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="injuryType" label="Травма" search-are-you-type="true" control-style="width: 300px;" dependency-condition="diagnosis.isInjury == true">
+                            <ctrl:query query-id="injuryType" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="stg" label="СТГ:" control-style="width: 300px;" autoselect-alone="true" depends-on="diagnosis" dependency-condition="diagnosis != null">
+                            <ctrl:query query-id="stg" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="diagnosisCode" ref="diagnosis.code"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on-invisible="true">null</ctrl:set-value-expression>
+                        </ctrl:classifier>
+                    </fs:field-set>
+                    <fs:field-set header="line">
+                        <ctrl:output-text id="resGroup.name" label="Врач:" control-style="width: 300px;"/>
+                        <ctrl:date-time id="bdate" label="Дата:" format="DD.MM.YYYY" default-value="today()"
+                                        required="true" control-style="width: 300px;"/>
+
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+    </regions>
+
+</page>

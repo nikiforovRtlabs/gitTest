@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>vac_disease</name>
+
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    select vac.create_disease(:code, :label, :e_code, :simple_disease_id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="label" mapping="['label']" domain="string"/>
+                <param name="e_code" mapping="['e_code']" domain="string"/>
+                <param name="simpleDiseases*.id" mapping="['simple_disease_id']" domain="integer[]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+        </action>
+
+        <action id="update" name="Редактировать">
+            <invocation>
+                <sql:sql>
+                    select vac.update_disease(:id, :code, :label, :e_code, :simple_disease_id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="label" mapping="['label']" domain="string"/>
+                <param name="e_code" mapping="['e_code']" domain="string"/>
+                <param name="simpleDiseases*.id" mapping="['simple_disease_id']" domain="integer[]"/>
+            </in-parameters>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from vac_disease2disease where self = :id;
+                    delete from public.vac_disease where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="uniqueCode" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from public.vac_disease
+                    where upper(code) = upper(:code) and (id != :id or :id is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Такой код уже существует</message>
+        </constraint>
+        <condition id="countOfSimpleDisease" level="error">
+            <message>Для группы инфекций необходимо выбрать как минимум 2 простых инфекции</message>
+            <expression>
+                simpleDiseases.length > 1 || simpleDiseases.length == 0 || simpleDiseases == null || typeof simpleDiseases == 'undefined'
+            </expression>
+        </condition>
+        <constraint id="uniqueLabel" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from public.vac_disease
+                    where trim(upper(label)) = trim(upper(:label)) and (id != :id or :id is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="label" mapping="['label']" domain="string"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Такая инфекция уже существует</message>
+        </constraint>
+    </validations>
+
+</object>

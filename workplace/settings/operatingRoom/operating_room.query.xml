@@ -1,0 +1,212 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>operating_room</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.pim_room pr
+                join pim_room_type prt on prt.id = pr.type_id
+
+                left join public.pim_room_resource prr on prr.room_id = pr.id
+                left join public.sr_resource srr on srr.id  = prr.id
+                left join public.sr_res_kind srk on srk.id = srr.res_kind_id
+
+                left join public.pim_department pd on pd.id = pr.department_id
+                left join public.pim_organization po on po.id = pd.org_id
+                left join public.pim_building pb on pb.id = pr.building_id
+                left join pim_building_floor pbf on pbf.id = pr.floor_id
+                left join public.sr_res_role srrr on srrr.id = srr.role_id
+                <!-- pim_room_type.e_code = '6' - 'Операционная'-->
+                <!-- sr_res_kind.e_code = '6' - 'Помещение'-->
+                where prt.e_code = '6' and (srk.e_code = '6' or prr.id is null) and
+                :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(pr)
+                from public.pim_room pr
+                join pim_room_type prt on prt.id = pr.type_id
+
+                left join public.pim_room_resource prr on prr.room_id = pr.id
+                left join public.sr_resource srr on srr.id  = prr.id
+                left join public.sr_res_kind srk on srk.id = srr.res_kind_id
+
+                where prt.e_code = '6' and (srk.e_code = '6' or prr.id is null) and
+                :where
+            </n2o:count-query>
+            <n2o:alias>pr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>pr.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="org.id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>org.name</id>
+            <domain>string</domain>
+            <name>Организация</name>
+            <expression>po.short_name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>pd.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="department.id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>department.name</id>
+            <domain>string</domain>
+            <name>Подразделение</name>
+            <expression>pd.name</expression>
+            <display/>
+        </field>
+        
+        <field>
+            <id>building.id</id>
+            <domain>integer</domain>
+            <expression>pb.id</expression>
+            <display/>
+        </field>
+        
+        <field>
+            <id>building.name</id>
+            <domain>string</domain>
+            <name>Здание</name>
+            <expression>pb.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>floor.id</id>
+            <domain>integer</domain>
+            <expression>pbf.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>floor.name</id>
+            <domain>string</domain>
+            <name>Этаж</name>
+            <expression>pbf.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>roomType.id</id>
+            <domain>integer</domain>
+            <expression>prt.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>roomType.name</id>
+            <domain>string</domain>
+            <name>Вид помещения</name>
+            <expression>prt.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Помещение</name>
+            <expression>pr.name</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="name">upper(:expression) like '%' || upper(:name) || '%'</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>fromDt</id>
+            <domain>date</domain>
+            <name>Дата начала действия</name>
+            <expression>pr.from_dt</expression>
+            <display/>
+            <filters>
+                <filter type="more" filter-field="fromDt">(:expression >= :fromDt or :expression is null)</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>toDt</id>
+            <domain>date</domain>
+            <name>Дата окончания действия</name>
+            <expression>pr.to_dt</expression>
+            <display/>
+            <filters>
+                <filter type="less" filter-field="toDt">(:expression &lt;= :toDt or :expression is null)</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>isResource</id>
+            <domain>boolean</domain>
+            <name>Является ресурсом</name>
+            <expression>
+                (case when (select count(*) from pim_room_resource where id = prr.id) > 0 then true else false end)
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>resourceId</id>
+            <domain>integer</domain>
+            <expression>srr.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>srResRole.id</id>
+            <domain>integer</domain>
+            <expression>srrr.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>srResRole.name</id>
+            <domain>string</domain>
+            <name>Роль</name>
+            <expression>srrr.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>srResPower</id>
+            <domain>integer</domain>
+            <name>Количество очередей</name>
+            <expression>srr.power</expression>
+            <display/>
+        </field>
+
+    </fields>
+</query>

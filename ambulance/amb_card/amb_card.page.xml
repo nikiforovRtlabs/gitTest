@@ -1,0 +1,949 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0"
+      xmlns:ipw="http://n2oapp.net/framework/config/schema/info-panel-widget-1.0">
+    <name>Карта вызова (врача)</name>
+    <object-id>amb_card</object-id>
+    <layout>n2o/layout/single</layout>
+    <regions>
+        <region place="single" type="tabs">
+            <container id="call" place="single">
+                <wgt:form src="ambulance/n2o/custom/amb_card_call" customize="js" css-class="card-from n2o-form">
+                    <wgt:name>Карта вызова (врача)</wgt:name>
+                    <wgt:query-id>amb_card</wgt:query-id>
+                    <wgt:model>query</wgt:model>
+                    <wgt:edit after-submit="edit">
+                        <wgt:invoke-action action-id="update"/>
+                    </wgt:edit>
+                    <fs:field-set field-label-location="left" header="none">
+                        <fs:row>
+                            <ctrl:output-text id="number" label="№" readonly="true" css-class="ambcard-number ambcard-boldtext"/>
+                            <ctrl:classifier id="call_kind" label="Вид" label-style="width:30px;" css-class="ambcard-kind" readonly="true">
+                                <ctrl:query query-id="call_kind" value-field-id="id" label-field-id="code"/>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="call_type" label="Тип" readonly="true" css-class="ambcard-type">
+                                <ctrl:query query-id="call_type" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:output-text id="employee.nameP" readonly="true" css-class="ambcard-remp ambcard-boldtext"/>
+                            <ctrl:output-text id="from_time" label="" css-class="ambcard-receipt_time ambcard-no-label ambcard-boldtext"/>
+                            <ctrl:output-text id="brg.name" label="" css-class="ambcard-brig ambcard-no-label ambcard-boldtext" dependency-condition="emp.id == null"/>
+                            <ctrl:output-text id="emp.res_name" label="" css-class="ambcard-remp ambcard-boldtext" dependency-condition="brg.id == null"/>
+                            <ctrl:output-text id="transmit.name" label="" css-class="ambcard-transmit ambcard-no-label ambcard-boldtext"/>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="line" label="Время (часы, минуты)" field-label-location="top" css-class="ambcard-fstime">
+                        <fs:row>
+                            <ctrl:masked-input id="receipt_time" label="Прием вызова" css-class="ambcard-time" mask="99:99" readonly="true" default-value="00:00"/>
+                            <ctrl:masked-input id="transmit_time" label="Передан бригаде" css-class="ambcard-time" mask="99:99" readonly="true"/>
+                            <ctrl:masked-input id="exit_time" label="Выезд с п/ст" css-class="ambcard-time" mask="99:99"/>
+                            <ctrl:masked-input id="coming_time" label="Прибытие на вызов" css-class="ambcard-time" mask="99:99" required="true"/>
+                            <ctrl:masked-input id="transportation_time" label="Начало трансп-ки" css-class="ambcard-time" mask="99:99"/>
+                            <ctrl:masked-input id="toclinic_time" label="Прибытие в МО" css-class="ambcard-time" mask="99:99"/>
+                            <ctrl:masked-input id="time_toclinic" label="Приём в МО" css-class="ambcard-time" mask="99:99"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:masked-input id="time_transmit" label="Ожидание бригады" css-class="ambcard-time" mask="99:99" readonly="true">
+                                <ctrl:set-value-expression>
+                                    <![CDATA[
+                                        if (moment(transmit_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60 >= 0) (moment(transmit_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60); else 1440 + (moment(transmit_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60)
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+                            <ctrl:masked-input id="time_arrival" label="Доезд до места" css-class="ambcard-time" mask="99:99" readonly="true">
+                                <ctrl:set-value-expression on="coming_time">
+                                    if ((typeof coming_time != 'undefined') &amp;&amp; (coming_time != null) &amp;&amp; (coming_time != '__:__'))
+                                    if (moment(coming_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60 >= 0)) (moment(coming_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60); else 1440 + (moment(coming_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60);
+                                    else '__:__'
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+                            <ctrl:hidden id="timpat">
+                                <ctrl:set-value-expression on="coming_time,time_toclinic,toclinic_time,transportation_time">
+                                    <![CDATA[
+                                        if ((typeof transportation_time != 'undefined')&amp;&amp;(transportation_time != null)&amp;&amp;(transportation_time != '__:__')) (moment(transportation_time,'HH:mm').diff(moment(coming_time,'HH:mm'))/1000/60);
+                                        else if ((typeof toclinic_time != 'undefined')&amp;&amp;(toclinic_time != null)&amp;&amp;(toclinic_time != '__:__')) (moment(toclinic_time,'HH:mm').diff(moment(coming_time,'HH:mm'))/1000/60);
+                                        else if ((typeof time_toclinic != 'undefined')&amp;&amp;(time_toclinic != null)&amp;&amp;(time_toclinic != '__:__')) (moment(time_toclinic,'HH:mm').diff(moment(coming_time,'HH:mm'))/1000/60);
+                                        else (moment(end_time,'HH:mm').diff(moment(coming_time,'HH:mm'))/1000/60)
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+                            <ctrl:masked-input id="time_patient" label="У больного (на месте)" css-class="ambcard-time" mask="99:99" readonly="true">
+                                <ctrl:set-value-expression on="timpat">
+                                    <![CDATA[
+                                        if (timpat >= 0) timpat; else 1440 + timpat;
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+                            <ctrl:masked-input id="end_time" label="Окончание вызова" css-class="ambcard-time" mask="99:99" readonly="true"/>
+                            <ctrl:masked-input id="tosubstation_time" label="Возвращение на п/ст" css-class="ambcard-time" mask="99:99"/>
+                            <ctrl:masked-input id="calltime" label="Длитель- ность" css-class="ambcard-time" mask="99:99" readonly="true">
+                                <ctrl:set-value-expression on="receipt_time,end_time">
+                                    if (moment(end_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60 >= 0) (moment(end_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60); else (1440 + moment(end_time,'HH:mm').diff(moment(receipt_time,'HH:mm'))/1000/60)
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+                            <ctrl:masked-input id="death_time" label="Конст. смерти" css-class="ambcard-time" mask="99:99"/>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set field-label-location="left" css-class="ambcard-fsnotes">
+                        <ctrl:output-text id="notes" readonly="true" label="" label-style="width:0;">
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="checkTime" side="client,server"/>
+                            </ctrl:validations>
+                        </ctrl:output-text>
+                    </fs:field-set>
+                    <fs:field-set header="line" label="Адрес вызова" css-class="ambcard-fsaddress">
+                        <fs:row>
+                            <ctrl:classifier id="call_place" label="Место вызова" css-class="ambcard-address" required="true"
+                                             search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="call_place" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="place_note" label="" css-class="ambcard-address-note" label-style="width:0;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="org" label="Организация" css-class="ambcard-address-org"
+                                             search-as-you-type="true" dependency-condition="(call_place.search == true)">
+                                <ctrl:query query-id="amborg" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="PRId" ref="call_place.PRId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression on="call_place.id" on-load="false" on-non-empty="true">
+                                    if ((call_place.search == true) &amp;&amp; (call_place.id == 13)) {
+                                        var o = new Object();
+                                        o.id = station.id;
+                                        o.name = station.name;
+                                        o.addr = station.addr;
+                                        o.addrname = station.addrname;
+                                        o;
+                                    } else if ((call_place.search == true) &amp;&amp; (call_place.id != 13))
+                                        throw '!'
+                                    else null
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                            <ctrl:hidden id="department">
+                                <ctrl:set-value-expression on="call_place.id" on-load="false" on-non-empty="true">
+                                    if ((call_place.search == true)&amp;&amp;(call_place.id == 13)) {
+                                        var o = new Object();
+                                        o.id = substation.id;
+                                        o.name = substation.name;
+                                        o.addr = substation.addr;
+                                        o.addrname = substation.addrname;
+                                        o;
+                                    } else if ((call_place.search == true) &amp;&amp; (call_place.id != 13))
+                                        throw '!'
+                                    else null
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+
+                            <ctrl:classifier id="department" label="Подразделение" dependency-condition="(call_place.search == true)" css-class="ambcard-address-dep"
+                                             search-as-you-type="true" autoselect-alone="false">
+                                <ctrl:query query-id="ambdep" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="dorgId" ref="org.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression on="org.id" on-load="false" on-non-empty="false">
+                                    if ((call_place.search != true)||(call_place.id != 13)) callQuery(); else throw '!'
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <rc:address id="addr_data" label="Адрес вызова" css-class="ambcard-address-street">
+                                <rc:set-value-expression on="org.id,department.org.id" on-load="false" on-non-empty="true" on-invisible="false">
+                                if ((typeof department != 'undefined') &amp;&amp;(department != null)  &amp;&amp;(department.addr != null))
+                                {
+                                var o = new Object();
+                                o.id = department.addr;
+                                o.displayName = department.addrname;
+                                o;
+                                } else if ((typeof org != 'undefined') &amp;&amp;(org != null) &amp;&amp;(org.addr != null))
+                                {
+                                var o = new Object();
+                                o.id = org.addr;
+                                o.displayName = org.addrname;
+                                o;
+                                } else throw '!';
+                                </rc:set-value-expression>
+                            </rc:address>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="addr_descr" label="Доп. ориентиры" css-class="ambcard-address-street">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="Addrcheck" side="client,server"/>
+                                    <ctrl:validation ref-id="danger" side="client,server"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="none" css-class="ambcard-fscaller">
+                        <fs:row>
+                            <ctrl:classifier id="caller" label="Вызвал" css-class="ambcard-caller" search-as-you-type="true">
+                                <ctrl:query query-id="caller" value-field-id="id" label-field-id="name"/>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">22</ctrl:value>
+                                    <ctrl:value field-id="name">сам(а)</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="caller_note" label="" label-style="width:0;"/>
+                            <ctrl:masked-input id="phone" mask="8(999)999-99-99" default-value="8(843)999-99-99" css-class="ambcard-phone"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="employee_med" label="Сотрудник МО" dependency-condition="(caller.id == 6)" css-class="ambcard-label">
+                                <ctrl:query query-id="employee" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="statId" ref="org.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">#{emplPos.id?}</ctrl:value>
+                                    <ctrl:value field-id="name">#{individual.surname?}</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="line" label="Пациент" field-label-location="left">
+                        <fs:row>
+                            <ctrl:input-text id="indDoc.number" label="Номер документа УДЛ/ОМС" css-class="ambcard-enp"
+                                             label-style="width:200px;"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="individual" label="Пациент" css-class="ambcard-label"
+                                             control-style="width:675px;"
+                                             autoselect-alone="true" search-as-you-type="true">
+                                <ctrl:query query-id="patientsSearch" value-field-id="id" label-field-id="displayName">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="document" ref="indDoc.number"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:show-modal page-id="patientsList" result-container-id="pats" width="42%"/>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="PatUnique" side="client"/>
+                                </ctrl:validations>
+                                <ctrl:actions>
+                                    <ctrl:button icon="icon-plus" type="icon" label="Создать">
+                                        <ctrl:a href="/pats/patients/new?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html"
+                                                target="newWindow"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition>!is_offline</ctrl:visibility-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                    <ctrl:button icon="icon-pencil" type="icon" label="Редактировать">
+                                        <ctrl:a href="/pats/patients/:individual.id:/edit?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html"
+                                                target="newWindow"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:enabling-condition>individual.id != null</ctrl:enabling-condition>
+                                            <ctrl:visibility-condition>!is_offline</ctrl:visibility-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                </ctrl:actions>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="none" css-class="ambcard-fspatientfio" field-label-location="left">
+                        <fs:row>
+                            <ctrl:input-text id="individual.surname" css-class="ambcard-label">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        (typeof individual == 'undefined') || (individual == null) || (individual.id == null) || (individual.can_modif == true)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="individual.name" css-class="ambcard-label">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        (typeof individual == 'undefined') || (individual == null) || (individual.id == null) || (individual.can_modif == true)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="individual.patrName" label="Отчество" css-class="ambcard-label">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        (typeof individual == 'undefined') || (individual == null) || (individual.id == null) || (individual.can_modif == true)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:input-text>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="none" label="" css-class="ambcard-fspatientage" field-label-location="left">
+                        <fs:row>
+                            <ctrl:hidden id="bd">
+                                <ctrl:set-value-expression on="individual" on-load="true" on-non-empty="true"
+                                                           on-invisible="true">
+                                    if ((typeof individual != 'undefined')&amp;&amp;(individual != null)&amp;&amp;(individual.id
+                                    != null)) individual.birthDateWithAge; else null;
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+                            <ctrl:date-time id="individual.birthDate" label="Дата рожд."
+                                            css-class="ambcard-label ambcard-birth_dt">
+                                <ctrl:set-value-expression on="bd" on-load="true" on-non-empty="true"
+                                                           on-invisible="true">
+                                    if ((typeof bd != 'undefined')&amp;&amp;(bd != null))
+                                    moment(bd.substring(0,10),'DD.MM.YYYY').format('DD.MM.YYYY HH:mm')
+                                    ; else throw '!'
+                                </ctrl:set-value-expression>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="checkAge" side="client"/>
+                                </ctrl:validations>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition>
+                                        (typeof individual == 'undefined') || (individual == null) || (individual.id == null) || (individual.can_modif == true)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:date-time>
+                            <ctrl:classifier id="gender" label="Пол" css-class="ambcard-gender">
+                                <ctrl:query query-id="amb_gender" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression on="individual" on-non-empty="true" on-readonly="true">
+                                    <!-- если пациент вернулся с компонента -->
+                                    if ((typeof individual != 'undefined')&amp;&amp;(individual != null)&amp;&amp;(individual.genderId != null)){
+                                        var o = new Object();
+                                        o.id = individual.genderId;
+                                        o.name = individual.genderName;
+                                        o;
+                                    <!-- при удалении пациента через компонент -->
+                                    } else if ((typeof individual == 'undefined')&amp;&amp;(individual == null)&amp;&amp;individual.genderId == null){
+                                        null;
+                                    <!-- при ручном вводе пациента -->
+                                    } else if ((typeof individual != 'undefined')&amp;&amp;(individual != null)&amp;&amp;individual.genderId == null){
+                                        var o = new Object();
+                                        o.id = gender.id;
+                                        o.name = gender.name;
+                                        o;
+                                    }
+                                </ctrl:set-value-expression>
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        ((typeof step_result == 'undefined')||(step_result == null)||(step_result.code== '401')
+                                        ||(step_result.code == '402')||(step_result.code =='403')||(step_result.code == '404')||(step_result.code =='405')||(step_result.code == '406'))
+                                    </ctrl:required-condition>
+                                    <ctrl:enabling-condition>
+                                        (typeof individual == 'undefined') || (individual == null) || (individual.id == null) || (individual.can_modif == true)
+                                    </ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:masked-input id="age_years" label="Возраст" css-class="ambcard-age-y" mask="?999">
+                                <ctrl:set-value-expression on="individual.birthDate" on-load="false" on-non-empty="true">
+                                    <![CDATA[
+                                    if ((typeof individual != 'undefined')&&(individual != null)&&(individual.birthDate != null)){
+                                        var o = call_data;
+                                        var yrs = moment(o, 'DD.MM.YYYY').diff(moment(individual.birthDate, 'DD.MM.YYYY'), 'years');
+                                        if ((yrs >= 1)) yrs;
+                                        else null;
+                                    } else null;
+                                    ]]>
+                                </ctrl:set-value-expression>
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition on="step_result,age_years,age_months,age_days">
+                                        <![CDATA[
+                                        ((typeof age_years =='undefined' || age_years == null || age_years =='') && (typeof age_months =='undefined' || age_months == null || age_months =='') && (typeof age_days =='undefined' || age_days == null || age_days =='')) &&
+                                        ((typeof step_result == 'undefined')||(step_result == null)||(step_result.code == '401')||(step_result.code == '402')||(step_result.code == '403')||(step_result.code == '404')||(step_result.code == '405')||(step_result.code == '406'))
+                                        ]]>
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:masked-input>
+                            <ctrl:masked-input id="age_months" label="л." css-class="ambcard-age" mask="?99">
+                                <ctrl:set-value-expression on="individual.birthDate" on-load="false" on-non-empty="true">
+                                    <![CDATA[
+                                    if((typeof individual != 'undefined')&&(individual != null)&&(individual.birthDate != null)){
+                                        var o = call_data;
+                                        var mes = moment(o, 'DD.MM.YYYY').diff(moment(individual.birthDate, 'DD.MM.YYYY'), 'months');
+                                        var yrs = moment(o, 'DD.MM.YYYY').diff(moment(individual.birthDate, 'DD.MM.YYYY'), 'years');
+
+                                        if  ((yrs < 3) && (mes >= 1) && ((mes - yrs * 12) != 0)){
+                                                if (mes > 11) {(mes - yrs * 12);
+                                                } else {mes;}
+                                        } else null;
+                                    } else null;
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+                            <ctrl:masked-input id="age_days" label="мес." css-class="ambcard-age" mask="?99">
+                                <ctrl:set-value-expression on="individual.birthDate" on-load="false" on-non-empty="true">
+                                    <![CDATA[
+                                    if((typeof individual != 'undefined')&&(individual != null)&&(individual.birthDate != null)){
+                                        var o = call_data;
+                                        if  ((moment(o, 'DD.MM.YYYY').diff(moment(individual.birthDate, 'DD.MM.YYYY'), 'years') < 1) &&
+                                            (moment(o, 'DD.MM.YYYY').diff(moment(individual.birthDate, 'DD.MM.YYYY'), 'months') < 1)
+                                        ) moment(o, 'DD.MM.YYYY').diff(moment(individual.birthDate, 'DD.MM.YYYY'), 'days');
+                                        else null;
+                                    } else null;
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+                            <ctrl:output-text id="day" label="дн." css-class="ambcard-age"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="citizenship_type" label="Житель">
+                                <ctrl:query query-id="citizenship_type" label-field-id="name" value-field-id="id"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+
+                    <fs:field-set header="line" label="Вызов" css-class="ambcard-fsresult">
+                        <fs:row>
+                            <ctrl:classifier id="caller_reason" label="Повод"
+                                             dependency-condition="(typeof call_kind == 'undefined') || (call_kind == null) || (call_kind.id != 3)&amp;&amp;(call_kind.id !=4)"
+                                             required="true" css-class="ambcard-creason">
+                                <ctrl:query query-id="caller_reason" value-field-id="id" label-field-id="name"/>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="upd_is_psycho_set" side="client"/>
+                                    <ctrl:validation ref-id="upd_is_psycho_rem" side="client"/>
+                                    <ctrl:validation ref-id="upd_is_alco_set" side="client"/>
+                                    <ctrl:validation ref-id="upd_is_alco_rem" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="diagnosis" label="Диагноз(повод)"
+                                             dependency-condition="(call_kind.id == 3)||(call_kind.id ==4)"
+                                             required="true"
+                                             css-class="ambcard-creason">
+                                <ctrl:query query-id="amb_diagnosis" value-field-id="id" label-field-id="name"/>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="upd_is_psycho_set" side="client"/>
+                                    <ctrl:validation ref-id="upd_is_psycho_rem" side="client"/>
+                                    <ctrl:validation ref-id="upd_is_alco_set" side="client"/>
+                                    <ctrl:validation ref-id="upd_is_alco_rem" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="reason_note" label="" css-class="ambcard-reason_note_03"/>
+                            <ctrl:checkbox id="is_psycho" label="П" css-class="ambcard-is_group">
+                                <ctrl:set-value-expression on="caller_reason, diagnosis" on-load="false">
+                                    if (caller_reason.id != null) {
+                                        if (caller_reason.is_psycho == true)
+                                            true;
+                                        else
+                                            false;
+                                        }
+                                    else
+                                        if (diagnosis.is_psycho == true)
+                                            true;
+                                        else
+                                            false;
+                                </ctrl:set-value-expression>
+                            </ctrl:checkbox>
+                            <ctrl:hidden id="is_psycho_field"/>
+                            <ctrl:checkbox id="is_alco" label="А" css-class="ambcard-is_group"/>
+                            <ctrl:hidden id="is_alco_field"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="call_reason" label="Причина" css-class="ambcard-reason ambcard-label" search-as-you-type="true">
+                                <ctrl:query query-id="call_reason" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression on="caller_reason" on-load="false" on-non-empty="true">
+                                        if ((typeof caller_reason != 'undefined')&amp;&amp;(caller_reason != null)){
+                                        var o = new Object();
+                                        o.id = caller_reason.reason_id;
+                                        o.name = caller_reason.reason_name;
+                                        o;
+                                    } else null;
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="reason_accident" label="Причина НС" css-class="ambcard-reason_accident ambcard-label"
+                                             dependency-condition="call_reason.id == 1" search-as-you-type="true">
+                                <ctrl:query query-id="reason_accident" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression on="caller_reason.id" on-load="false" on-non-empty="true">
+                                        if ((typeof caller_reason != 'undefined')&amp;&amp;(caller_reason != null)){
+                                        var o = new Object();
+                                        o.id = caller_reason.accident_id;
+                                        o.name = caller_reason.accident_name;
+                                        o;
+                                    } else null;
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="time_gone" label="Прошло времени с начала заболевания" css-class="ambcard-label ambcard-time_gone">
+                                <ctrl:query query-id="time_gone" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            <ctrl:date-time id="nsdata" label="" label-style="width:0;" css-class="ambcard-nsdata"/>
+                            <ctrl:masked-input id="nstime" label="" label-style="width:0;" css-class="ambcard-nsdatatime" mask="99:99"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:text-area id="condition_ns" label="Обстоятельства НС" rows="2" css-class="ambcard-label ambcard-condition_ns"/>
+                        </fs:row>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+
+            <container id="results" place="single">
+                <wgt:form src="ambulance/n2o/custom/amb_card_results" customize="js" css-class="card-from n2o-form"
+                >
+                    <wgt:name>Результат</wgt:name>
+                    <wgt:query-id>amb_card_result</wgt:query-id>
+                    <wgt:object-id>amb_card_result</wgt:object-id>
+                    <wgt:edit after-submit="edit">
+                        <wgt:invoke-action action-id="update"/>
+                    </wgt:edit>
+                    <pre-filters>
+                        <pre-filter field-id="id" ref="call.id"/>
+                    </pre-filters>
+                    <fs:field-set header="line" label="Результат" css-class="ambcard-fsresult">
+                        <fs:row>
+                            <ctrl:classifier id="step_result" label="Результат выезда" css-class="ambcard-result" required="true" search-as-you-type="true">
+                                <ctrl:query query-id="step_result" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="clinic.id" ref="station.id"/>
+                                        <ctrl:pre-filter field-id="fdate" value="today()"/>
+                                        <ctrl:pre-filter field-id="tdate" value="today()"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="care_result" label="Результат оказания МП" css-class="ambcard-outcome"
+                                             required="true"
+                                             dependency-condition="(step_result.code == '401')||(step_result.code == '402')||(step_result.code == '403')||(step_result.code == '404')"
+                                             search-as-you-type="true">
+                                <ctrl:query query-id="step_care_result" value-field-id="id" label-field-id="codename">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="resId" ref="step_result.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:checkbox id="diagnosis_is_not_confirmed" label="Диагноз не подтвердился" css-class="ambcard-is_not_confirmed"/>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="line" label="Диагноз" css-class="ambcard-fsresult" field-label-location="top">
+                        <fs:row>
+                            <ctrl:classifier id="master_diag" label="основной" css-class="ambcard-label ambcard-diagnosis" search-as-you-type="true">
+                                <ctrl:query query-id="amb_diagnosis" value-field-id="id" label-field-id="codename"/>
+                                <ctrl:set-value-expression on-load="true" on-non-empty="true">
+                                    if (has_spc == true) spc_diag; else throw '!'
+                                </ctrl:set-value-expression>
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>((typeof step_result == 'undefined')||(step_result ==null)
+                                        ||(step_result.code == '401')||(step_result.code =='402')
+                                        ||(step_result.code == '403')||(step_result.code =='404')
+                                        ||(step_result.code == '405')||(step_result.code == '406'))
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="mdiadisease_type" label="Характер заболевания" required="true"
+                                             search-as-you-type="true"
+                                             css-class="ambcard-time_gone" control-style="width:310px;"
+                                             label-style="width:150px;">
+                                <ctrl:query query-id="disease_type" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="master_injuryReason" label="Причина травмы" required="true"
+                                             control-style="width: 550px"
+                                             search-are-you-type="true"
+                                             dependency-condition="master_diag.injury == true">
+                                <ctrl:query query-id="amb_injuryDiagnosis" label-field-id="name" value-field-id="id"/>
+                                <ctrl:set-value-expression on="master_diag">
+                                    <![CDATA[ if(master_diag == null || master_diag.injury != true) null; else throw '!' ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="take_birth" label="Роды приняты"
+                                             css-class="ambcard-label ambcard-resource"
+                                             search-as-you-type="true" required="true"
+                                             dependency-condition="(master_diag.parent_code == 'O80')||(master_diag.parent_code == 'O81')||(master_diag.parent_code == 'O82')||(master_diag.parent_code == 'O83')||(master_diag.parent_code == 'O84')">
+                                <ctrl:query query-id="take_birth" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="accomp_diag" label="сопутствующий" search-as-you-type="true"
+                                             css-class="ambcard-label ambcard-diagnosis">
+                                <ctrl:query query-id="amb_diagnosis" value-field-id="id" label-field-id="codename"/>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="accompdiadisease_type" label="Характер заболевания" search-as-you-type="true"
+                                             control-style="width:310px;" label-style="width:150px;" css-class="ambcard-time_gone">
+                                <ctrl:query query-id="disease_type" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="accomp_injuryReason" label="Причина травмы" required="true"
+                                             control-style="width: 550px"
+                                             search-are-you-type="true"
+                                             dependency-condition="accomp_diag.injury == true">
+                                <ctrl:query query-id="amb_injuryDiagnosis" label-field-id="name" value-field-id="id"/>
+                                <ctrl:set-value-expression on="accomp_diag">
+                                    <![CDATA[ if(accomp_diag == null || accomp_diag.injury != true) null; else throw '!' ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+
+                    <fs:field-set header="line" label="Рекомендации">
+                        <fs:row>
+                            <ctrl:select id="recommendation" label="Больной " css-class="ambcard-creason">
+                                <ctrl:options>
+                                    <ctrl:option>{"id":1, "name":"нуждается в активном выезде через"}</ctrl:option>
+                                    <ctrl:option>{"id":2, "name":"подлежит активному посещению врачом поликлиники"}</ctrl:option>
+                                    <ctrl:option>{"id":3, "name":"другие рекомендации"}</ctrl:option>
+                                </ctrl:options>
+                            </ctrl:select>
+                            <!--параметр нуждается в активном выезде ч/з не изменяемый-->
+                            <ctrl:input-text id="need_exit_through" label="" label-style="width:0;" css-class="ambcard-need_exit_through"
+                                             dependency-condition="recommendation.id == 1" readonly="true"/>
+                            <ctrl:output-text id="day" label="часов" css-class="ambcard-age" dependency-condition="recommendation.id == 1"/>
+                            <ctrl:classifier id="activ_visit_clinic" label="" label-style="width:0;" css-class="ambcard-activ_visit_clinic" dependency-condition="recommendation.id == 2">
+                                <ctrl:query query-id="amborg" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="other_recommendations" label="" label-style="width:0;" css-class="ambcard-receive_emp" dependency-condition="recommendation.id == 3"/>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="line"
+                                  dependency-condition="((call_kind.id == 3)||(call_kind.id == 4)||(step_result.code == '403')||(has_hosp == true))">
+                        <fs:row>
+                            <ctrl:classifier id="to_org" label="Организация" css-class="ambcard-address-org"
+                                             dependency-condition="((call_kind.id == 3)||(call_kind.id == 4)||(step_result.code == '403')||(has_hosp == true))"
+                                             search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="amborg" value-field-id="id" label-field-id="name">
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="to_department" label="Подразделение" css-class="ambcard-address-dep"
+                                             dependency-condition="((call_kind.id == 3)||(call_kind.id == 4)||(step_result.code == '403')||(has_hosp == true))"
+                                             search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="ambdep" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="org.id" ref="to_org.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <rc:address id="toaddr_data" label="Адрес" css-class="ambcard-address-street">
+                                <rc:set-value-expression on="to_org,to_department" on-load="false" on-non-empty="true"
+                                                         on-invisible="false">
+                                    if ((typeof to_department != 'undefined') &amp;&amp;(to_department != null) &amp;&amp;(to_department.addr
+                                    != null)){
+                                    var o = new Object();
+                                    o.id = to_department.addr;
+                                    o.displayName = to_department.addrname;
+                                    o;
+                                    } else if ((typeof to_org != 'undefined') &amp;&amp;(to_org != null) &amp;&amp;(to_org.addr
+                                    != null)) {
+                                    var o = new Object();
+                                    o.id = to_org.addr;
+                                    o.displayName = to_org.addrname;
+                                    o;
+                                    } else null;
+                                </rc:set-value-expression>
+                            </rc:address>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:input-text id="to_addr_descr" label="Доп. ориентиры"
+                                             css-class="ambcard-address-street"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="toclemployee" label="Дежурный врач" css-class="ambcard-receive_emp_id"
+                                             dependency-condition="((call_kind.id == 3)||(call_kind.id == 4)||(step_result.code == '403')||(has_hosp == true))">
+                                <ctrl:query query-id="employee" value-field-id="id" label-field-id="namePos">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="statId" ref="to_org.id"/>
+                                        <ctrl:pre-filter field-id="depId" ref="to_department.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="receive_emp" label="" label-style="width:0;"
+                                             css-class="ambcard-creason"
+                                             dependency-condition="((call_kind.id == 3)||(call_kind.id == 4)||(step_result.code == '403')||(has_hosp == true))">
+                                <ctrl:set-value-expression on-load="false" on-non-empty="true">
+                                    if ((typeof toclemployee != 'undefined')&amp;&amp;(toclemployee != null))
+                                    toclemployee.name; else recive_emp;
+                                </ctrl:set-value-expression>
+                            </ctrl:input-text>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="line"
+                                  dependency-condition="(step_result.code == '405')||(step_result.code == '406')">
+                        <fs:row>
+                            <ctrl:date-time id="death_date" label="Дата/время смерти" css-class="ambcard-death_date">
+                                <ctrl:set-value-expression>
+                                    call_data
+                                </ctrl:set-value-expression>
+                            </ctrl:date-time>
+                            <ctrl:masked-input id="death_time" label="" label-style="width:0;"
+                                               css-class="ambcard-death_time" mask="99:99">
+                                <ctrl:dependencies>
+                                    <ctrl:required-condition>
+                                        (step_result.code == '405') || (step_result.code == '406')
+                                    </ctrl:required-condition>
+                                </ctrl:dependencies>
+                            </ctrl:masked-input>
+                            <!--подставлять по умолчанию старшего в бригаде-->
+                            <ctrl:classifier id="deathemployee" label="Врач, констатировавший смерть"
+                                             css-class="ambcard-death_employee">
+                                <ctrl:query query-id="employee" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="statId" value="#{org.id?}"/>
+                                        <ctrl:pre-filter field-id="depId" value="#{dep.id?}"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="death_diag" label="Посмертный диагноз"
+                                             css-class="ambcard-label ambcard-individual">
+                                <ctrl:query query-id="amb_diagnosis" value-field-id="id" label-field-id="codename"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:text-area id="deathres" label="Причина смерти" rows="2"
+                                            css-class="ambcard-label ambcard-note"/>
+                        </fs:row>
+                    </fs:field-set>
+
+                    <fs:field-set header="none">
+                        <fs:row>
+                            <ctrl:classifier id="spc_brg" label="Бригада" css-class="ambcard-creason"
+                                             dependency-condition="(step_result.code == '404')||(has_spc == true)">
+                                <ctrl:query query-id="ambbrg" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="station.id" value="#{org.id?}"/>
+                                        <ctrl:pre-filter field-id="change.id" ref="spc_change.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="none">
+                        <!--объединённые данные по step.outcome_date-->
+                        <fs:row>
+                            <ctrl:date-time id="stoutcome_date" label="Время передачи" css-class="ambcard-outcome_date"
+                                            dependency-condition="(call_kind.id == 3)||(call_kind.id == 4)||(step_result.code == '403')||(has_hosp == true)||((step_result.code == '404')||(has_spc == true))">
+                                <ctrl:set-value-expression>
+                                    call_data
+                                </ctrl:set-value-expression>
+                            </ctrl:date-time>
+
+                            <ctrl:masked-input id="stoutcome_time" label="" label-style="width:0;"
+                                               css-class="ambcard-outcome_time" mask="99:99"
+                                               dependency-condition="(call_kind.id == 3)||(call_kind.id == 4)||(step_result.code == '403')||(has_hosp == true)||((step_result.code == '404')||(has_spc == true))">
+                                <ctrl:set-value-expression on-load="false" on-non-empty="true">
+                                    if ((step_result.code == '404')||(has_spc == true)) end_time; else time_toclinic;
+                                </ctrl:set-value-expression>
+                            </ctrl:masked-input>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="none" dependency-condition="((call_kind.id == 3)||(call_kind.id == 4)||(step_result.code == '403')||(has_hosp == true))">
+                        <fs:row>
+                            <ctrl:classifier id="transp_type" label="Способ транспортировки" css-class="ambcard-creason"
+                                             dependency-condition="((call_kind.id == 3)||(call_kind.id == 4)||(step_result.code == '403')||(has_hosp == true))">
+                                <ctrl:query query-id="transporting_type" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:text-area id="condition_ns" label="Примечание к сопр.листу" rows="2" css-class="ambcard-list_note"
+                                            dependency-condition="((call_kind.id == 3)||(call_kind.id == 4)||(step_result.code == '403')||(has_hosp == true))"/>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set header="line">
+                        <fs:row>
+                            <ctrl:classifier id="out_delay_reason" label="Причины выезда с опозданием" css-class="ambcard-creason">
+                                <ctrl:query query-id="out_delay_reason" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            <ctrl:masked-input id="milage" label="Километраж выезда" css-class="ambcard-milage" mask="999.9" default-value="000.0" control-style="width:45px"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:text-area id="casenote" label="Примечание" rows="2" css-class="ambcard-label ambcard-note">
+                                <ctrl:set-value-expression on-load="false" on-non-empty="true">
+                                    descr
+                                </ctrl:set-value-expression>
+                            </ctrl:text-area>
+                        </fs:row>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+
+            <container id="protocol" place="single" depends-on="call">
+                <wgt:custom src="ehr/widget/protocol" master-field-id="rendered.id" detail-field-id="id">
+                    <wgt:query-id>sr_srv_rendered_protocol</wgt:query-id>
+                    <wgt:name>Протокол осмотра</wgt:name>
+                    <wgt:properties>
+                        <wgt:property key="object-type" value="service"/>
+                    </wgt:properties>
+                </wgt:custom>
+            </container>
+            <container id="manipulation" place="single" depends-on="call">
+                <wgt:table master-field-id="id" detail-field-id="call.id">
+                    <wgt:name>Оказанная помощь</wgt:name>
+                    <wgt:query-id>call_services</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="place.name" width="100px"/>
+                        <wgt:column column-field-id="service.name" width="200px"/>
+                        <wgt:column column-field-id="quantity" width="50px"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить(Ins)" default="true" context="false" key="Insert">
+                            <wgt:show-modal page-id="call_services_ins" master-field-id="call.id"
+                                            detail-field-id="call.id" action-id="create" width="500px"
+                                            refresh-on-close="true"
+                                            page-name="Добавить оказанную помощь">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить(Enter)" default="true" context="true" key="Enter">
+                            <wgt:show-modal page-id="call_services_ins" result-container-id="single" action-id="update"
+                                            width="500px" refresh-on-close="true"
+                                            page-name="Изменить оказанную помощь '{manipulation.service.name}'"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" label="Удалить(Del)" context="true" key="Delete">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+            <container id="consumables" place="single" depends-on="call">
+                <wgt:table detail-field-id="case.id" master-field-id="case.id">
+                    <wgt:name>Расходные материалы</wgt:name>
+                    <wgt:query-id>ambPrescriptionList</wgt:query-id>
+                    <wgt:size>15</wgt:size>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Добавить" context="false" id="save">
+                            <wgt:sub-menu>
+                                <wgt:menu-item label="Назначение" context="false" id="prescription">
+                                    <wgt:show-modal-form
+                                            form-id="ambPrescriptionForm"
+                                            width="960px;"
+                                            refresh-on-close="true"
+                                            page-name="Лекарственное назначение">
+                                        <wgt:edit model="default">
+                                            <wgt:invoke-action action-id="save"/>
+                                        </wgt:edit>
+                                        <wgt:pre-filters>
+                                            <wgt:pre-filter field-id="patientId" ref="indId"/>
+                                        </wgt:pre-filters>
+                                    </wgt:show-modal-form>
+                                </wgt:menu-item>
+
+                                <wgt:menu-item label="По шаблону" context="false" id="prescriptionByTemplate">
+                                    <wgt:show-modal
+                                            page-id="ambPrescriptionByTemplate"
+                                            refresh-on-close="true"
+                                            master-field-id="case.id"
+                                            detail-field-id="case.id"
+                                            width="80%">
+                                    </wgt:show-modal>
+                                </wgt:menu-item>
+
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Изменить" context="true" id="update">
+                            <wgt:show-modal-form
+                                    form-id="ambPrescriptionForm"
+                                    width="960px;"
+                                    refresh-on-close="true"
+                                    master-field-id="id"
+                                    detail-field-id="id"
+                                    page-name="Лекарственное назначение">
+                                <wgt:edit model="query">
+                                    <wgt:invoke-action action-id="edit"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>statusId == 1 || statusId == 2</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>executionDt == null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>statusId == 1 || statusId == 2</wgt:expression>
+                                </wgt:visibility-condition>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>executionDt == null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Просмотр" context="true" id="read">
+                            <wgt:show-modal-form
+                                    master-field-id="id"
+                                    detail-field-id="id"
+                                    width="90%;max-width:1024px;min-width:960px;"
+                                    form-id="ambPrescriptionForm"
+                                    page-name="Просмотр лекарственного назначения">
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>statusId == 1 || statusId == 2</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Списать" id="writeOff1" context="true" color="btn-success" icon="icon-ok">
+                            <wgt:show-modal
+                                    page-id="amb_store_list"
+                                    refresh-on-close="true"
+                                    master-field-id="prescription.firstScheduleId"
+                                    detail-field-id="prescription.schedule.id"
+                                    width="80%">
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>executionDt == null &amp;&amp; isPatientMedicament != true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Отменить списание" id="cancelWriteOff" context="true"
+                                       icon="icon-remove-circle">
+                            <wgt:invoke-action action-id="cancelWriteOff" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>executionDt != null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="name">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="presCount" width="6%">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="mnei" width="6%">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="presDose" width="6%">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="measureDose" width="6%">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="administrationRoute.name">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="note">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+                    </wgt:columns>
+
+                    <wgt:rows>
+                        <wgt:color color-field-id="statusColor"/>
+                    </wgt:rows>
+                </wgt:table>
+
+                <pre-filters>
+                    <pre-filter field-id="case.id" ref="case.id"/>
+                </pre-filters>
+            </container>
+        </region>
+    </regions>
+</page>

@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <object-id>migrantDocument</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>Выдача документа</name>
+    <modal-max-width>500px</modal-max-width>
+
+    <regions>
+        <region place="single">
+            <container id="main">
+                <wgt:form>
+                    <wgt:query-id>migrantDocument</wgt:query-id>
+                    <fs:field-set>
+                        <ctrl:hidden id="cardId"/>
+                        <ctrl:hidden id="type.id"/>
+                        <ctrl:output-text id="type.name" label="Тип документа"/>
+                        <ctrl:output-text id="series" label="Серия"/>
+                        <ctrl:output-text id="number" label="Номер"/>
+                        <ctrl:date-time id="formIssuanceDate" label="Дата выдачи бланка" readonly="true"
+                                          dependency-condition="type.name == 'Заключение'"/>
+                        <ctrl:date-time id="documentIssuanceDate" label="Дата выдачи документа" required="true">
+                            <ctrl:set-value-expression on-non-empty="false">
+                                <![CDATA[today();]]>
+                            </ctrl:set-value-expression>
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="dateFormIssueBeforeDocumentIssue"/>
+                            </ctrl:validations>
+                        </ctrl:date-time>
+                        <ctrl:date-time id="validityDate" label="Годен до" required="true">
+                            <ctrl:set-value-expression on-non-empty="false">
+                                <![CDATA[var myDate = new Date();
+                                    myDate.setMonth(myDate.getMonth()+3);
+                                    var strDate = moment(myDate).format('DD.MM.YYYY 00:00');
+									strDate;]]>
+                            </ctrl:set-value-expression>
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="dateIssueBeforeValidity"/>
+                            </ctrl:validations>
+                        </ctrl:date-time>
+                        <ctrl:classifier label="Ресурс" id="commission" required="true" depends-on="documentIssuanceDate" >
+                            <ctrl:query query-id="medCommission" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org_id" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="documentDate" ref="documentIssuanceDate"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+    </regions>
+
+</page>

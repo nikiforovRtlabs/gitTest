@@ -1,0 +1,150 @@
+<table xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+       xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+       xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+>
+
+    <wgt:name>Журнал проведенных экспертиз</wgt:name>
+    <wgt:query-id>examinationCardList</wgt:query-id>
+    <wgt:size>15</wgt:size>
+
+    <wgt:filters position="top" opened="true">
+        <ctrl:date-interval id="createDate" label="Дата проведения экспертизы" format="DD.MM.YYYY" popup-placement="down,right">
+            <ctrl:default-model begin="today()"/>
+        </ctrl:date-interval>
+
+        <ctrl:classifier id="patient" label="Пациент" search-as-you-type="true">
+            <ctrl:query query-id="exam_patient" value-field-id="id" label-field-id="name"/>
+        </ctrl:classifier>
+
+        <ctrl:classifier id="controlLevel" label="Ступень контроля" search-as-you-type="true">
+            <ctrl:query query-id="exam_controlLevelForFilter" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="date" value="now()"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+
+        <ctrl:select id="ql_condition" label="условие" control-style="width: 95px" label-style="width: 95px">
+            <ctrl:options>
+                <ctrl:option>{"name":"&lt;"}</ctrl:option>
+                <ctrl:option>{"name":"&gt;"}</ctrl:option>
+                <ctrl:option>{"name":"&gt;="}</ctrl:option>
+                <ctrl:option>{"name":"&lt;="}</ctrl:option>
+                <ctrl:option>{"name":"="}</ctrl:option>
+            </ctrl:options>
+        </ctrl:select>
+
+        <ctrl:masked-input id="qualityLevel" mask="9.99">
+            <ctrl:validations>
+                <ctrl:validation ref-id="checkQualityLevel"/>
+            </ctrl:validations>
+        </ctrl:masked-input>
+        
+        <ctrl:radio-group id="buttons" label="" control-style="width: 90px" label-style="width: 0px">
+            <ctrl:options>
+                <ctrl:option>{"id":2, "name":"Эксперт"}</ctrl:option>
+                <ctrl:option>{"id":1, "name":"Ресурс"}</ctrl:option>
+            </ctrl:options>
+            <ctrl:default-model>
+                <ctrl:value field-id="id">1</ctrl:value>
+                <ctrl:value field-id="name">Эксперт</ctrl:value>
+            </ctrl:default-model>
+        </ctrl:radio-group>
+        
+        <ctrl:classifier id="expert" label="Ресурс" search-as-you-type="true"
+                         depends-on="buttons" dependency-condition="buttons.id == 1">
+            <ctrl:query query-id="exam_expert" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                    <ctrl:pre-filter field-id="button" ref="buttons.id"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+            <ctrl:default-model>
+                <ctrl:value field-id="id">#{emplPosRes.id?}</ctrl:value>
+                <ctrl:value field-id="name">#{emplPosRes.name?}</ctrl:value>
+            </ctrl:default-model>
+        </ctrl:classifier>
+
+        <ctrl:classifier id="resource" label="Эксперт" search-as-you-type="true"
+                         depends-on="buttons" dependency-condition="buttons.id == 2">
+            <ctrl:query query-id="exam_resourceEmployeePositionResource" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                    <ctrl:pre-filter field-id="button" ref="buttons.id"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+
+        <ctrl:classifier id="department" label="Отделение" search-as-you-type="true">
+            <ctrl:query query-id="exam_department" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="organizationId" value="#{org.id?}"/>
+                    <ctrl:pre-filter field-id="date" value="today()"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+                                                                                                                                   `
+        <ctrl:classifier id="doctor" label="Лечащий врач" search-as-you-type="true">
+            <ctrl:query query-id="exam_resourceEmployeePositionResource" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                    <ctrl:pre-filter field-id="depId" ref="department.id" reset-mode="on"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+
+    </wgt:filters>
+
+    <wgt:action-menu>
+
+        <wgt:menu-item id="view" label="Просмотреть" icon="icon-eye-open">
+            <wgt:show-modal page-id="examinationCardViewForm"
+                            container-id="main"
+                            master-field-id="id" detail-field-id="id"/>
+        </wgt:menu-item>
+
+        <wgt:menu-item id="update" label="Изменить ЭК" context="true">
+            <wgt:conditions>
+                <wgt:enabling-condition>
+                    <wgt:expression>defectsExist == true</wgt:expression>
+                </wgt:enabling-condition>
+            </wgt:conditions>
+            <wgt:show-modal page-id="examinationCardForm"
+                            container-id="main" action-id="save"
+                            master-field-id="id" detail-field-id="id"/>
+        </wgt:menu-item>
+
+        <wgt:menu-item id="editCriteria" label="Ввести критерии ЭК">
+            <wgt:show-modal-form form-id="criteriaTree${id}_{templateId}" master-field-id="id" detail-field-id="cardId">
+                <wgt:edit>
+                    <wgt:invoke-action action-id="save"/>
+                </wgt:edit>
+            </wgt:show-modal-form>
+        </wgt:menu-item>
+
+        <wgt:menu-item id="delete" label="Удалить ЭК" context="true">
+            <wgt:invoke-action action-id="delete"/>
+        </wgt:menu-item>
+
+    </wgt:action-menu>
+
+    <wgt:columns>
+        <wgt:column column-field-id="createDate" width="9%"/>
+        <wgt:column column-field-id="controlLevelName" width="4%"/>
+        <wgt:column column-field-id="resGroup.name"  width="15%"/>
+        <wgt:column column-field-id="patient.name"  width="15%"/>
+        <wgt:column column-field-id="department.name" width="10%"/>
+        <wgt:column column-field-id="doctorName"/>
+        <wgt:column column-field-id="regimenName"/>
+        <wgt:column column-field-id="diagnosis" width="15%"/>
+        <wgt:column column-field-id="duration" width="6%"/>
+        <wgt:column column-field-id="qualityLevel"/>
+    </wgt:columns>
+
+    <wgt:sortings>
+        <wgt:sorting sorting-field-id="createDate" direction="DESC"/>
+    </wgt:sortings>
+
+    <wgt:paging mode="lazy"/>
+
+</table>

@@ -1,0 +1,486 @@
+﻿<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>brg_mit_amb</id>-->
+    <name>Бригады</name>
+    <object-id>brg</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from
+                (select
+                srtj.id as id
+                ,srtj.id as brg_id
+                , srg.name as name
+                , srg.org_id as org
+                , pd.id as dep
+                , mac.id as change
+                , to_char(cast(mac.from_data + mac.from_time as TIMESTAMP),'dd.mm.yyyy hh24:mi') as chb
+                , to_char(cast(mac.to_data + mac.to_time as TIMESTAMP),'dd.mm.yyyy hh24:mi') as che
+                , case when srtj.edate is null then false else true end as is_edate
+                , srtjs.color as color
+                , srtjr.id as resId
+                , respep.id||': '||respi.surname||' '||left(initcap(respi.name),1)||'. '||left(initcap(respi.patr_name),1)||'.' as resName
+                , respep.id||': '||respi.surname||' '||left(initcap(respi.name),1)||'. '||left(initcap(respi.patr_name),1)||'.'||'('||resppos.name||')' as resNamepos
+                , cal.id as call_id
+                , cal.call_number as call_num
+                , cal.address_id as addr
+                , srjsh.date_time as starttime
+                , srtjs.id as statId
+                , srtjs.name as statName
+                ,to_char(case when srtjs.id in (2,4,5) then cast(srjsh.date_time + tcontr.control_time as timestamp WITHOUT TIME ZONE) end,'hh24:mi') as control_time
+                ,case when srtjs.id in (4,5) then
+                        case when now() > cast(srjsh.date_time + tcontr.control_time as timestamp WITHOUT TIME ZONE)
+                        then true
+                        else false end
+                end as is_contrTime
+                ,case when now() > srtj.planned_edate then 'Смена работы бригады закончилась' else '' end as end_text
+                , case when case when amb.team_job_is_created(srtj.id) in (1,2) then '+' else '' end ='' then 'Бригада без врача' else '' end as onedoc_text
+                ,(select count(*) from amb.md_ambulance_call where brg_id = srtj.id) as call_count
+                , mp.id as prof_id
+                , mp.name as prof_name
+                , ap.id as amb_prof_id
+                , ap.name as amb_prof_name
+                <!--, amb.search_call_state_state(cal.id) as state_id-->
+                ,(select id from amb.md_ambcall_state_history where call_id = cal.id order by date_time DESC, id desc limit 1) as state_id
+                , false as is_amb
+                from amb.sr_res_team_job srtj
+                join amb.sr_res_team srt on srt.id = srtj.team_id
+                join sr_res_group srg on srt.resource_id = srg.id
+
+                join pim_department pd on srg.department_id = pd.id
+                left join amb.sr_res_team_template srtt on srt.team_template_id = srtt.id
+                join amb.md_ambulance_team_kind tk on srt.team_kind_id = tk.id
+
+                left join amb.sr_res_team_template_profile ttp on srtt.id = ttp.team_template_id
+                left join md_profile mp on ttp.profile_id = mp.id
+                left join public.md_resgroup_amb_profile rap on srt.resource_id = rap.id
+                left join public.md_ambulance_profile ap on rap.profile_id = ap.id
+
+                join amb.md_ambulance_change mac on srtj.change_id = mac.id
+
+                join amb.sr_res_team_job_status_history srjsh on srjsh.id =  (select id from amb.sr_res_team_job_status_history where team_job_id = srtj.id order by date_time DESC, id desc limit 1)
+                <!--amb.search_team_job_status(srtj.id)-->
+                join amb.sr_res_team_job_status srtjs on srtjs.id = srjsh.job_status_id
+                left join amb.md_ambulance_call_time_control tcontr on srtjs.id = tcontr.job_status_id and tcontr.clinic_id = srg.org_id
+
+                join amb.sr_res_team_job_resourse srtjr on srtjr.team_job_id = srtj.id and srtjr.is_head is true and srtjr.deviation_id is null
+                join sr_resource sr on srtjr.resource_id = sr.id
+
+                join pim_employee_position_resource pepr on sr.id = pepr.id
+                join pim_employee_position respep on pepr.employee_position_id = respep.id
+                join pim_employee respe on respep.employee_id = respe.id
+                join pim_individual respi on respe.individual_id = respi.id
+                join pim_position resppos on respep.position_id = resppos.id
+                left join amb.md_ambulance_call cal on cal.brg_id = srtj.id and cal.to_time is null and cal.call_type_id not in (4)
+
+                where tk.code = '1' and (srtj.edate is null or srtj.edate > now())
+
+                union
+
+                select
+                srtj.id as id
+                , srtj.id as brg_id
+                , 'АМБ' as name
+                ,ppos.organization_id as org
+                , ppos.department_id as dep
+                , mac.id as change
+                , to_char(cast(mac.from_data + mac.from_time as TIMESTAMP),'dd.mm.yyyy hh24:mi') as chb
+                , to_char(cast(mac.to_data + mac.to_time as TIMESTAMP),'dd.mm.yyyy hh24:mi') as che
+                , case when srtj.edate is null then false else true end as is_edate
+
+                , 'text-error' as color
+                , srtj.id as resId
+                , pep.id||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.' as resName
+                , pep.id||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||')' as resNamepos
+                , cal.id as call_id
+                , cal.call_number as call_num
+                , cal.address_id as addr
+                <!--, to_char(mash.date_time,'hh24:mi') as starttime-->
+                , mash.date_time as starttime
+                , macs.id as statId
+                , macs.name as statName
+                ,to_char(cast(mash.date_time + (select control_time from amb.md_ambulance_call_time_control where job_status_id = 2 and clinic_id = ppos.organization_id) as timestamp WITHOUT TIME ZONE),'hh24:mi') as control_time
+                ,case when now() > cast(mash.date_time + (select control_time from amb.md_ambulance_call_time_control where job_status_id = 2 and clinic_id = ppos.organization_id) as timestamp WITHOUT TIME ZONE)
+                    then true
+                    else false
+                 end as is_contrTime
+                ,case when now() > srtj.planned_edate then 'Смена работы бригады закончилась' else '' end as end_text
+
+                ,'' as onedoc_text
+
+                ,(select count(*) from amb.md_ambulance_call where emp_id = srtj.id) as call_count
+
+                , (select id from md_profile where e_code = '97') as prof_id
+                , (select name from md_profile where e_code = '97') as prof_name
+                , 1 as amb_prof_id
+                , 'Терапия' as amb_prof_name
+
+                <!--, amb.search_call_state_state(cal.id) as state_id-->
+                ,(select id from amb.md_ambcall_state_history where call_id = cal.id order by date_time DESC, id desc limit 1) as state_id
+                , true as is_amb
+                from amb.sr_res_team_job_resourse srtj
+                join pim_employee_position_resource pepr on pepr.id = srtj.resource_id
+                join pim_employee_position pep on pep.id = pepr.employee_position_id
+                join pim_employee pe on pe.id = pep.employee_id
+                join pim_individual pi on pi.id = pe.individual_id
+                join pim_position ppos on ppos.id = pep.position_id
+
+                join amb.md_ambulance_change mac on mac.id = srtj.change_id
+
+                join amb.md_ambulance_call cal on cal.emp_id = srtj.id and cal.to_time is null
+                join amb.md_ambcall_state_history mash on mash.id = (select id from amb.md_ambcall_state_history where call_id = cal.id order by date_time DESC, id desc limit 1) and mash.state_id = 7
+                <!--amb.search_call_state_hist(cal.id)-->
+                join amb.md_ambulance_call_state macs on macs.id = mash.state_id ) as brg
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from
+                (select
+                srtj.id as id
+                ,srtj.id as brg_id
+                , srg.name as name
+                , srg.org_id as org
+                , pd.id as dep
+                , mac.id as change
+                , to_char(cast(mac.from_data + mac.from_time as TIMESTAMP),'dd.mm.yyyy hh24:mi') as chb
+                , to_char(cast(mac.to_data + mac.to_time as TIMESTAMP),'dd.mm.yyyy hh24:mi') as che
+                , case when srtj.edate is null then false else true end as is_edate
+                , srtjs.color as color
+                , srtjr.id as resId
+                , respep.id||': '||respi.surname||' '||left(initcap(respi.name),1)||'. '||left(initcap(respi.patr_name),1)||'.' as resName
+                , respep.id||': '||respi.surname||' '||left(initcap(respi.name),1)||'. '||left(initcap(respi.patr_name),1)||'.'||'('||resppos.name||')' as resNamepos
+                , cal.id as call_id
+                , cal.call_number as call_num
+                , cal.address_id as addr
+                <!--, to_char(srjsh.date_time,'hh24:mi') as starttime-->
+                , srjsh.date_time as starttime
+                , srtjs.id as statId
+                , srtjs.name as statName
+                ,to_char(case when srtjs.id in (2,4,5) then cast(srjsh.date_time + tcontr.control_time as timestamp WITHOUT TIME ZONE) end,'hh24:mi') as control_time
+                ,case when srtjs.id in (4,5) then
+                case when now() > cast(srjsh.date_time + tcontr.control_time as timestamp WITHOUT TIME ZONE)
+                then true
+                else false end
+                end as is_contrTime
+                ,case when now() > srtj.planned_edate then 'Смена работы бригады закончилась' else '' end as end_text
+                , case when case when amb.team_job_is_created(srtj.id) in (1,2) then '+' else '' end ='' then 'Бригада без врача' else '' end as onedoc_text
+                ,(select count(*) from amb.md_ambulance_call where brg_id = srtj.id) as call_count
+                , mp.id as prof_id
+                , mp.name as prof_name
+                , ap.id as amb_prof_id
+                , ap.name as amb_prof_name
+                <!--, amb.search_call_state_state(cal.id) as state_id-->
+                ,(select id from amb.md_ambcall_state_history where call_id = cal.id order by date_time DESC, id desc limit 1) as state_id
+                , false as is_amb
+                from amb.sr_res_team_job srtj
+                join amb.sr_res_team srt on srt.id = srtj.team_id
+                join sr_res_group srg on srt.resource_id = srg.id
+
+                join pim_department pd on srg.department_id = pd.id
+                left join amb.sr_res_team_template srtt on srt.team_template_id = srtt.id
+                join amb.md_ambulance_team_kind tk on srt.team_kind_id = tk.id
+
+                left join amb.sr_res_team_template_profile ttp on srtt.id = ttp.team_template_id
+                left join md_profile mp on ttp.profile_id = mp.id
+                left join public.md_resgroup_amb_profile rap on srt.resource_id = rap.id
+                left join public.md_ambulance_profile ap on rap.profile_id = ap.id
+
+                join amb.md_ambulance_change mac on srtj.change_id = mac.id
+
+                join amb.sr_res_team_job_status_history srjsh on srjsh.id = (select id from amb.sr_res_team_job_status_history where team_job_id = srtj.id order by date_time DESC, id desc limit 1)
+                <!--amb.search_team_job_status(srtj.id)-->
+                join amb.sr_res_team_job_status srtjs on srtjs.id = srjsh.job_status_id
+                left join amb.md_ambulance_call_time_control tcontr on srtjs.id = tcontr.job_status_id and tcontr.clinic_id = srg.org_id
+
+                join amb.sr_res_team_job_resourse srtjr on srtjr.team_job_id = srtj.id and srtjr.is_head is true and srtjr.deviation_id is null
+                join sr_resource sr on srtjr.resource_id = sr.id
+
+                join pim_employee_position_resource pepr on sr.id = pepr.id
+                join pim_employee_position respep on pepr.employee_position_id = respep.id
+                join pim_employee respe on respep.employee_id = respe.id
+                join pim_individual respi on respe.individual_id = respi.id
+                join pim_position resppos on respep.position_id = resppos.id
+                left join amb.md_ambulance_call cal on cal.brg_id = srtj.id and cal.to_time is null and cal.call_type_id not in (4)
+
+                where tk.code = '1' and (srtj.edate is null or srtj.edate > now())
+
+                union
+
+                select
+                srtj.id as id
+                , srtj.id as brg_id
+                , 'АМБ' as name
+                ,ppos.organization_id as org
+                , ppos.department_id as dep
+                , mac.id as change
+                , to_char(cast(mac.from_data + mac.from_time as TIMESTAMP),'dd.mm.yyyy hh24:mi') as chb
+                , to_char(cast(mac.to_data + mac.to_time as TIMESTAMP),'dd.mm.yyyy hh24:mi') as che
+                , case when srtj.edate is null then false else true end as is_edate
+
+                , 'text-error' as color
+                , srtj.id as resId
+                , pep.id||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.' as resName
+                , pep.id||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||')' as resNamepos
+                , cal.id as call_id
+                , cal.call_number as call_num
+                , cal.address_id as addr
+                <!--, to_char(mash.date_time,'hh24:mi') as starttime-->
+                , mash.date_time as starttime
+                , macs.id as statId
+                , macs.name as statName
+                ,to_char(cast(mash.date_time + (select control_time from amb.md_ambulance_call_time_control where job_status_id = 2 and clinic_id = ppos.organization_id) as timestamp WITHOUT TIME ZONE),'hh24:mi') as control_time
+                ,case when now() > cast(mash.date_time + (select control_time from amb.md_ambulance_call_time_control where job_status_id = 2 and clinic_id = ppos.organization_id) as timestamp WITHOUT TIME ZONE)
+                then true
+                else false end as is_contrTime
+                ,case when now() > srtj.planned_edate then 'Смена работы бригады закончилась' else '' end as end_text
+
+                ,'' as onedoc_text
+
+                ,(select count(*) from amb.md_ambulance_call where emp_id = srtj.id) as call_count
+
+                , (select id from md_profile where e_code = '97') as prof_id
+                , (select name from md_profile where e_code = '97') as prof_name
+                , 1 as amb_prof_id
+                , 'Терапия' as amb_prof_name
+
+                <!--, amb.search_call_state_state(cal.id) as state_id-->
+                ,(select id from amb.md_ambcall_state_history where call_id = cal.id order by date_time DESC, id desc limit 1) as state_id
+                , true as is_amb
+                from amb.sr_res_team_job_resourse srtj
+                join pim_employee_position_resource pepr on pepr.id = srtj.resource_id
+                join pim_employee_position pep on pep.id = pepr.employee_position_id
+                join pim_employee pe on pe.id = pep.employee_id
+                join pim_individual pi on pi.id = pe.individual_id
+                join pim_position ppos on ppos.id = pep.position_id
+
+                join amb.md_ambulance_change mac on mac.id = srtj.change_id
+
+                join amb.md_ambulance_call cal on cal.emp_id = srtj.id and cal.to_time is null
+                join amb.md_ambcall_state_history mash on mash.id = (select id from amb.md_ambcall_state_history where call_id = cal.id order by date_time DESC, id desc limit 1) and mash.state_id = 7
+                <!--amb.search_call_state_hist(cal.id) -->
+                join amb.md_ambulance_call_state macs on macs.id = mash.state_id ) as brg
+
+                where :where
+            </n2o:count-query>
+            <n2o:alias>brg</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>id</expression>
+        </field>
+        <field>
+            <id>brg_id</id>
+            <domain>integer</domain>
+            <name>бригада</name>
+            <expression>brg_id</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Бригада</name>
+            <expression>name</expression>
+            <search>upper(name) like upper('%'||:name||'%')</search>
+            <!--<search unavailable="true"/>-->
+        </field>
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <expression>org</expression>
+            <search value="#{org.id?}"/>
+        </field>
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <expression>dep</expression>
+        </field>
+        <!--График бригады-->
+        <field>
+            <id>change.id</id>
+            <domain>integer</domain>
+            <name>Смена</name>
+            <expression>change</expression>
+        </field>
+        <field>
+            <id>change.from_dt</id>
+            <domain>date</domain>
+            <name>Начало</name>
+            <expression>chb</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>change.to_dt</id>
+            <domain>date</domain>
+            <name>Окончание</name>
+            <expression>che</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>is_edate</id>
+            <domain>boolean</domain>
+            <expression>is_edate</expression>
+            <!--<search unavailable="true"/>-->
+        </field>
+
+        <field>
+            <id>jscolor.id</id>
+            <domain>string</domain>
+            <name>Цвет</name>
+            <expression>color</expression>
+            <search unavailable="true"/>
+        </field>
+        
+        <field>
+            <id>team_job_resource.id</id>
+            <domain>integer</domain>
+            <expression>resId</expression>
+        </field>
+        <field>
+            <id>team_job_resource.name</id>
+            <domain>string</domain>
+            <name>Старший</name>
+            <expression>resName</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>team_job_resource.res_name</id>
+            <domain>string</domain>
+            <name>Старший</name>
+            <expression>resNamepos</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>call.id</id>
+            <domain>integer</domain>
+            <expression>call_id</expression>
+        </field>
+        <field>
+            <id>call.number</id>
+            <domain>integer</domain>
+            <name>Вызов</name>
+            <expression>call_num</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>address</id>
+            <domain>integer</domain>
+            <name>Адрес</name>
+            <expression>adr__get_element_as_text(addr,'(6,s,0)(7,s,0)(8,s,0)')</expression>
+            <!--<expression>addr</expression>-->
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>stat_time</id>
+            <domain>time</domain>
+            <!--<name>Время назначения последнего состояния</name>-->
+            <name>Время</name>
+            <expression>starttime</expression>
+            <display>to_char(starttime,'hh24:mi')</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>job_status.id</id>
+            <domain>integer</domain>
+            <expression>statId</expression>
+        </field>
+        <field>
+            <id>job_status.name</id>
+            <domain>string</domain>
+            <name>Состояние</name>
+            <expression>statName</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>control_time</id>
+            <domain>time</domain>
+            <name>Контр.</name>
+            <expression>
+                control_time
+            </expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>is_control_time</id>
+            <domain>boolean</domain>
+            <!--<name>Контр.</name>-->
+            <expression>is_contrTime</expression>
+            <search unavailable="true"/>
+        </field>
+
+
+        <field>
+            <id>endmes</id>
+            <domain>string</domain>
+            <expression>end_text</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>readymes</id>
+            <domain>string</domain>
+            <expression>onedoc_text</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>brg_call</id>
+            <domain>integer</domain>
+            <name>Кол-во вызовов</name>
+            <display>
+                call_count
+            </display>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>md_profile.id</id>
+            <domain>integer</domain>
+            <expression>prof_id</expression>
+        </field>
+        <field>
+            <id>md_profile.name</id>
+            <domain>string</domain>
+            <name>Мед. профиль</name>
+            <expression>prof_name</expression>
+        </field>
+        <field>
+            <id>amb_profile.id</id>
+            <domain>integer</domain>
+            <expression>amb_prof_id</expression>
+        </field>
+        <field>
+            <id>amb_profile.name</id>
+            <domain>string</domain>
+            <name>Профиль бригады</name>
+            <expression>amb_prof_name</expression>
+        </field>
+        <field>
+            <id>last_state</id>
+            <domain>integer</domain>
+            <name>Крайнее состояние</name>
+            <expression>state_id</expression>
+        </field>
+        <field>
+            <id>is_amb</id>
+            <domain>boolean</domain>
+            <expression>is_amb</expression>
+        </field>
+
+        <field>
+            <id>par_id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+    </fields>
+</query>

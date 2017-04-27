@@ -1,0 +1,95 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>clinicAppointment</object-id>
+    <name>srComplexServiceChilds</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sr_service s
+                left join sr_srv_composition sc on s.id = sc.service_id
+                where s.org_id = :orgId
+                and :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(s)
+                from sr_service s
+                left join sr_srv_composition sc on s.id = sc.service_id
+                where s.org_id = :orgId
+                and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>(coalesce(s.code, '') || ' ' || coalesce(s.name, ''))</expression>
+            <filters>
+                <filter type="eq" filter-field="name">upper(:expression) like '%'||upper(:name)||'%'</filter>
+            </filters>
+            <display/>
+        </field>
+
+        <field>
+            <id>complexId</id>
+            <domain>integer</domain>
+            <expression>sc.complex_id</expression>
+            <filters>
+                <filter type="eq" filter-field="complexId"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>emplContext</id>
+            <domain>integer</domain>
+            <expression>:emplContext</expression>
+            <filters>
+                <filter type="eq" filter-field="emplContext" default-value="#{emplPos.id?}"/>
+            </filters>
+            <display/>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+            <filters>
+                <filter type="eqOrIsNull" filter-field="orgId" default-value="#{org.id?}"/>
+            </filters>
+            <display/>
+        </field>
+
+        <field>
+            <id>fullOrNotFull</id>
+            <domain>integer</domain>
+            <expression>:fullOrNotFull</expression>
+            <filters>
+                <filter type="eq" filter-field="fullOrNotFull">
+                    (case :expression
+                    when 1 then (1=1)
+                    when 2 then ((current_date between s.from_dt and s.to_dt or s.to_dt is null or  s.to_dt >= current_date and current_date >= s.from_dt) and
+                    ((exists(select 1 from sr_res_group_service sr join sr_res_group g on g.id = sr.group_id where g.responsible_id = :emplContext and g.is_system = false)
+                    and exists (select 1 from sr_res_group_service srgp
+                    join sr_res_group srg on srgp.group_id = srg.id
+                    where s.id = srgp.srv_type_id and srg.responsible_id = :emplContext  and srg.is_system = false))
+                    or not exists(select 1 from sr_res_group_service sr join sr_res_group g on g.id = sr.group_id where g.responsible_id = :emplContext  and g.is_system = false))
+                    )
+                    end)
+                </filter>
+            </filters>
+            <display/>
+        </field>
+
+
+    </fields>
+</query>

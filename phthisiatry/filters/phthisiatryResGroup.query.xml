@@ -1,0 +1,184 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>phthisiatryResGroup</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.sr_res_group sg
+                join pim_employee_position epos ON epos.id = sg.responsible_id
+                join pim_position pos ON pos.id = epos.position_id
+                left join public.pim_speciality sp on sp.id = pos.speciality_id
+                join pim_employee emp ON emp.id = epos.employee_id
+                join pim_individual ind ON ind.id = emp.individual_id
+                where :where
+                and not sg.is_system
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from public.sr_res_group sg
+                join pim_employee_position epos ON epos.id = sg.responsible_id
+                join pim_position pos ON pos.id = epos.position_id
+                join pim_employee emp ON emp.id = epos.employee_id
+                join pim_individual ind ON ind.id = emp.individual_id
+                where :where
+                and not sg.is_system
+            </n2o:count-query>
+            <n2o:alias>sr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>system_res_group_id</id>
+            <domain>integer</domain>
+            <expression>sg.id</expression>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>sg.id</expression>
+        </field>
+
+        <field>
+            <id>responsible_id</id>
+            <domain>integer</domain>
+            <expression>sg.responsible_id</expression>
+        </field>
+
+        <field>
+            <id>employee_position_id</id>
+            <domain>integer</domain>
+            <expression>epos.id</expression>
+        </field>
+
+        <field>
+            <id>fio</id>
+            <name>ФИО</name>
+            <domain>string</domain>
+            <expression>initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name))</expression>
+        </field>
+
+        <field>
+            <id>res_fio</id>
+            <name>ФИО</name>
+            <domain>string</domain>
+            <expression>initcap(concat(sg.name,' (',ind.surname, ' ', ind.name, ' ', ind.patr_name, ')'))</expression>
+            <search>
+                lower(concat(sg.name,' (',ind.surname, ' ', ind.name, ' ', ind.patr_name, ')'))
+                like '%'||lower(:res_fio)||'%'</search>
+        </field>
+
+        <field>
+            <id>name</id>
+            <name>Имя</name>
+            <domain>string</domain>
+            <expression>ind.name</expression>
+            <search>lower(ind.name) like '%'||lower(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>surname</id>
+            <name>Фамилия</name>
+            <domain>string</domain>
+            <expression>ind.surname</expression>
+            <search>lower(ind.surname) like '%'||lower(:surname)||'%'</search>
+        </field>
+
+        <field>
+            <id>patr_name</id>
+            <name>Отчество</name>
+            <domain>string</domain>
+            <expression>ind.patr_name</expression>
+            <search>lower(ind.patr_name) like '%'||lower(:patr_name)||'%'</search>
+        </field>
+
+        <field>
+            <id>birth_dt</id>
+            <name>Дата рождения</name>
+            <domain>string</domain>
+            <expression>to_char(ind.birth_dt, 'DD.MM.YYYY')</expression>
+        </field>
+
+        <field>
+            <id>birth_date</id>
+            <name>Дата рождения</name>
+            <domain>date</domain>
+            <expression>ind.birth_dt</expression>
+        </field>
+
+        <field>
+            <id>res.name</id>
+            <name>Наименование ресурса</name>
+            <domain>string</domain>
+            <expression>sg.name</expression>
+        </field>
+
+        <field>
+            <id>pos.name</id>
+            <name>Должность</name>
+            <domain>string</domain>
+            <expression>pos.name</expression>
+            <search>lower(pos.name) like '%'||lower(:pos.name)||'%'</search>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>sg.org_id</expression>
+        </field>
+
+        <field>
+            <id>vrach.id</id>
+            <domain>integer</domain>
+            <expression>(select epr.id from public.pim_employee_position_resource epr
+                where epr.employee_position_id = epos.id limit 1)</expression>
+        </field>
+
+        <field>
+            <id>vrach.name</id>
+            <domain>string</domain>
+            <expression>initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name))
+                || ' (' || COALESCE(sp.name, pos.name) || ')'</expression>
+        </field>
+
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>(select sr.id from sr_service sr join sr_res_group_service srg on srg.srv_type_id = sr.id
+                where srg.group_id = sg.id limit 1)</expression>
+        </field>
+
+        <field>
+            <id>service.name</id>
+            <domain>string</domain>
+            <expression>(select sr.name from sr_service sr join sr_res_group_service srg on srg.srv_type_id = sr.id
+                where srg.group_id = sg.id limit 1)</expression>
+        </field>
+
+        <field>
+            <id>equip.id</id>
+            <domain>integer</domain>
+            <expression>(select sgr.resource_id from public.sr_res_group_relationship sgr
+                join public.sr_res_role rrol on rrol.id = sgr.role_id and rrol.code = 'EQUIPMENTUNIT'
+                where sgr.group_id = sg.id limit 1)</expression>
+        </field>
+
+        <field>
+            <id>equip.name</id>
+            <domain>string</domain>
+            <expression>(select equip.name from public.sr_res_group_relationship sgr
+                join public.sr_res_role rrol on rrol.id = sgr.role_id and rrol.code = 'EQUIPMENTUNIT'
+                join public.pim_equipment_unit_resource eres on eres.id = sgr.resource_id
+                join public.pim_equipment_unit equip on equip.id = eres.equipment_unit_id
+                where sgr.group_id = sg.id limit 1)</expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,173 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>applicationDocProdList</name>
+
+    <object-id>applicationDocProd</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.application_doc_prod doc
+                inner join pim_department dep on dep.id=doc.dep_id
+                inner join inventory.doc_status st on st.id=doc.status_id
+                inner join public.cmn_measure ms on ms.id=doc.measure_id
+                left outer join inventory.formula_doc fd on fd.id=doc.formula_doc_id
+                left outer join inventory.store s on s.id= doc.store_id
+                left outer join inventory.funding_source fs on fs.id= doc.fund_source_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(doc)
+                from inventory.application_doc_prod doc
+                where :where
+            </n2o:count-query>
+            <n2o:alias>doc</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>doc.org_id</expression>
+            <search value="#{org.id?}"/>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>doc.status_id</expression>
+            <search>(:expression = :status.id or :status.id = -1)</search>
+        </field>
+        <field>
+            <id>status.name</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>st.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>docNumber</id>
+            <domain>string</domain>
+            <name>Номер</name>
+            <expression>doc.number</expression>
+            <search>:expression like '%'||:docNumber</search>
+        </field>
+        <field>
+            <id>docDate</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>doc.doc_date</expression>
+            <search type="between">
+                <![CDATA[(:docDate.begin::date is null or doc.doc_date >= :docDate.begin) and
+                        (:docDate.end::date is null or doc.doc_date <= :docDate.end) ]]>
+            </search>
+        </field>
+        <field>
+            <id>docDateString</id>
+            <domain>date</domain>
+            <expression>to_char(doc.doc_date, 'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>docDate.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>docDate.begin</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>dep.id</expression>
+        </field>
+        <field>
+            <id>department.name</id>
+            <domain>string</domain>
+            <name>Подразделение</name>
+            <expression>dep.name</expression>
+        </field>
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+        <field>
+            <id>store.name</id>
+            <domain>string</domain>
+            <name>Склад</name>
+            <expression>s.name</expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fs.id</expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <name>Финансирование</name>
+            <expression>fs.name</expression>
+        </field>
+        <field>
+            <id>formulaDoc.id</id>
+            <domain>integer</domain>
+            <expression>fd.id</expression>
+        </field>
+        <field>
+            <id>formulaDoc.name</id>
+            <domain>string</domain>
+            <name>Пропись</name>
+            <expression>fd.name</expression>
+        </field>
+        <field>
+            <id>formulaDocName</id>
+            <domain>string</domain>
+            <name>Пропись</name>
+            <expression>doc.formula_doc_name</expression>
+        </field>
+        <field>
+            <id>formulaDocDisplay</id>
+            <domain>string</domain>
+            <name>Пропись</name>
+            <expression>coalesce(fd.name, doc.formula_doc_name)</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>string</domain>
+            <name>Количество</name>
+            <expression>cast(round(doc.quantity, 2) as varchar) || ' ' || ms.mnemocode</expression>
+        </field>
+        <field>
+            <id>departments*.id</id>
+            <domain>integer[]</domain>
+            <search>dep.id in (:departments*.id)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>stores*.id</id>
+            <domain>integer[]</domain>
+            <search>s.id in (:stores*.id)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>countOfSpec</id>
+            <domain>integer</domain>
+            <expression>(select count (*) from inventory.application_prod_spec spec where spec.document_id = doc.id)
+            </expression>
+        </field>
+        <field>
+            <id>sumSpecExists</id>
+            <domain>boolean</domain>
+            <expression>(doc.sum_app_spec_id is not null)</expression>
+        </field>
+
+    </fields>
+</query>

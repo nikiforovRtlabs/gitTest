@@ -1,0 +1,146 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>team_job</id>-->
+    <name>Наряд на бригаду</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <sql:sql>
+                    select amb.add_res_team_job(:team,amb.insert_into_md_ambulance_change (:xdate,:org,:dep),:reg,cast(:btime as time),cast(:etime as time));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="res_team.id" mapping="['team']" domain="integer"/>
+                <!--<param name="change.id" mapping="['change']" domain="integer"/>-->
+                <!--<param name="change_setting.id" mapping="['setting']" domain="integer"/>-->
+                <param name="data" mapping="['xdate']" domain="date"/>
+                <param name="employee.id" mapping="['reg']" domain="integer" value="#{emplPos.id}"/>
+                <param name="station.id" mapping="['org']" domain="integer"/>
+                <param name="substation.id" mapping="['dep']" domain="integer"/>
+                <param name="planned_bdate" mapping="['btime']" domain="string"/>
+                <param name="planned_edate" mapping="['etime']" domain="string"/>
+                <param name="change" mapping="['change']" domain="string"/>
+            </in-parameters>
+            <validations activate="all"/>
+        </action>
+        <!--<action id="update">-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--update amb.sr_res_team_job set registrator_id = :reg where id = :id;-->
+                    <!--&lt;!&ndash;update amb.sr_res_team_job set registrator_id = :reg, bdate = cast(:bdate as timestamp WITHOUT TIME ZONE) where id = :id;&ndash;&gt;-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="id" mapping="['id']" domain="integer"/>-->
+                <!--&lt;!&ndash;<param name="res_team.id" mapping="['team']" domain="integer"/>&ndash;&gt;-->
+                <!--&lt;!&ndash;<param name="change.id" mapping="['change']" domain="integer"/>&ndash;&gt;-->
+                <!--&lt;!&ndash;<param name="bdate" mapping="['bdate']" domain="date"/>&ndash;&gt;-->
+                <!--&lt;!&ndash;<param name="edate" mapping="['edate']" domain="date"/>&ndash;&gt;-->
+                <!--<param name="employee.id" mapping="['reg']" domain="integer" value="#{emplPos.id?}"/>-->
+            <!--</in-parameters>-->
+        <!--</action>-->
+        <action id="insStatus">
+            <invocation>
+                <sql:sql>
+                    select amb.add_team_job_status_hist (:id,:dt,:status,:reg,null,:user);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="employee.id" mapping="['reg']" domain="integer" value="#{emplPos.id}"/>
+                <param name="user" mapping="['user']" domain="integer" value="#{user.id}"/>
+            </in-parameters>
+        </action>
+        <action id="ready" name="Начало смены">
+            <invocation>
+                <sql:sql>
+                    select amb.team_job_ready(
+                    (select cast(string_to_array(trim(both '[]' from :id),',') as integer[]))
+                    ,:reg,:user);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="brg*.id" mapping="['id']"/>
+                <param name="employee.id" mapping="['reg']" domain="integer" value="#{emplPos.id?}"/>
+                <param name="user" mapping="['user']" domain="integer" value="#{user.id}"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="arrayLength"/>
+            </validations>
+        </action>
+        <action id="close" name="Закончить смену">
+            <invocation>
+                <sql:sql>
+                    select amb.team_job_close(
+                    (select cast(string_to_array(trim(both '[]' from :id),',') as integer[]))
+                    ,:reg,:user);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="brg*.id" mapping="['id']"/>
+                <param name="statreg.id" mapping="['reg']" domain="integer" value="#{emplPos.id}"/>
+                <param name="user" mapping="['user']" domain="integer" value="#{user.id}"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="arrayLength"/>
+            </validations>
+        </action>
+        <action id="delete" form-submit-label="Удаление">
+            <invocation>
+                <sql:sql>
+                    delete from amb.sr_res_team_job_resourse where team_job_id = :id;
+                    delete from amb.sr_res_team_job_status_history where team_job_id = :id;
+                    delete from amb.sr_res_team_job where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить наряд со связанными ресурсами?</confirmation-text>
+            <success-text>Наряд удален.</success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkUniqueTeamJob" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*) from amb.sr_res_team_job
+                    where team_id = :team
+                    and change_id = amb.insert_into_md_ambulance_change (:data,:org,:dep)
+                    <!--and (:id is null or id != :id)-->
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="res_team.id" mapping="['team']" domain="integer"/>
+                <param name="station.id" mapping="['org']" domain="integer"/>
+                <param name="substation.id" mapping="['dep']" domain="integer"/>
+                <!--<param name="change.id" mapping="['change']" domain="integer"/>-->
+                <param name="data" mapping="['data']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Наряд на бригаду в выбранную смену уже составлен</message>
+        </constraint>
+        
+        <constraint id="arrayLength" level="error">
+            <message>Не выбраны бригады</message>
+            <invocation>
+                <sql:sql>
+                    select array_length((select cast(string_to_array(trim(both '[]' from :id),',') as integer[])),1) > 0
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="brg*.id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0]==true"/>
+        </constraint>
+
+        <condition id="nullChange" level="error">
+            <message></message>
+            <expression on="change">
+                change == null || change.id == null
+            </expression>
+        </condition>
+    </validations>
+</object>

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>phthisiatryStep</object-id>
+    <name>Посещение</name>
+    <execution xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from mc_step t
+                join plc_visit v on v.id=t.id
+                join mc_case mc on mc.id=t.case_id
+                join d_accounting.account_case dac on dac.case_id = mc.id
+                join d_accounting.account d_ac on d_ac.id = dac.account_id
+                where :where order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(t)
+                from mc_step t
+                join plc_visit v on v.id=t.id
+                join mc_case mc on mc.id=t.case_id
+                join d_accounting.account_case dac on dac.case_id = mc.id
+                join d_accounting.account d_ac on d_ac.id = dac.account_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>t</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>admission_date</id>
+            <name>Дата оказания</name>
+            <domain>date</domain>
+        </field>
+        <field>
+            <id>admission_time</id>
+            <name>Время оказания</name>
+        </field>
+        <field>
+            <id>vrach.id</id>
+            <name>Врач</name>
+            <domain>integer</domain>
+            <expression>
+                (select eps.id
+                from public.mc_step step
+                join public.sr_res_group res ON res.id = step.res_group_id
+                join public.pim_employee_position epos ON epos.id = res.responsible_id
+                join public.pim_employee_position_resource eps on eps.employee_position_id = epos.id
+                WHERE step.id = t.id
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>vrach_label</id>
+            <name>Врач</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name))
+                from public.mc_step step
+                join public.sr_res_group res ON res.id = step.res_group_id
+                join public.pim_employee_position epos ON epos.id = res.responsible_id
+                JOIN public.pim_employee empl ON empl.id = epos.employee_id
+                JOIN public.pim_individual ind ON ind.id = empl.individual_id
+                WHERE step.id = t.id
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>main_diagnos.id</id>
+            <name>Диагноз</name>
+            <domain>integer</domain>
+            <expression>
+                (SELECT mdd.id FROM public.mc_diagnosis mcd
+                JOIN public.md_diagnosis mdd ON mdd.id = mcd.diagnos_id
+                WHERE mcd.id = t.main_diagnosis_id
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>mainDiagnosCaption</id>
+            <name>Диагноз</name>
+            <domain>string</domain>
+            <expression>
+                (select get_diagnosis_full_name(t.main_diagnosis_id))
+            </expression>
+        </field>
+        <field>
+            <id>service.name</id>
+            <name>Услуга</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT sr.name FROM public.md_srv_rendered msr
+                JOIN public.sr_srv_rendered srv ON srv.id = msr.id
+                JOIN public.sr_service sr ON sr.id = srv.service_id
+                WHERE msr.step_id = t.id
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>t.case_id</expression>
+        </field>
+        <field>
+            <id>case.patient.id</id>
+            <domain>integer</domain>
+            <expression>mc.patient_id</expression>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>mc.patient_id</expression>
+        </field>
+        
+        <field>
+            <id>countPhisycalService</id>
+            <domain>integer</domain>
+            <expression>(select count(rr.id) from public.md_srv_rendered rr where rr.step_id = t.id)</expression>
+        </field>
+        <field>
+            <id>account.id</id>
+            <domain>integer</domain>
+            <expression>d_ac.id</expression>
+        </field>
+    </fields>
+</query>
+

@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>pregnantChild</object-id>
+    <name>pregnantChild_def</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.sr_srv_rendered ssr
+                inner join motherhood.mh_pregnant_outcome po on ssr.id = po.service_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(ssr)
+                from public.sr_srv_rendered ssr
+                left join motherhood.mh_pregnant_outcome po on ssr.id = po.service_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ssr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <expression>coalesce((select max(d) from (
+                select max(poc.date + poc.time) as d from motherhood.mh_pregnant_outcome_configuration poc where po.id = poc.pregnant_outcome_id
+                union
+                select max(podc.date + podc.time) as d from motherhood.mh_pregnant_outcome_disclosure_cervix podc where po.id = podc.pregnant_outcome_id
+                union
+                select max(poh.date + poh.time) as d from motherhood.mh_pregnant_outcome_heartbeat poh where po.id = poh.pregnant_outcome_id
+                union
+                select max(poo.date + poo.time) as d from motherhood.mh_pregnant_outcome_oxytocin poo where po.id = poo.pregnant_outcome_id
+                union
+                select max(prep.period_begin_dt) as d from motherhood.mh_pregnant_outcome_prescription pop
+                     join hospital.prescription prep on prep.id = pop.prescription_id where po.id = pop.pregnant_outcome_id
+                union
+                select max(popres.date + popres.time) as d from motherhood.mh_pregnant_outcome_pressure popres where po.id = popres.pregnant_outcome_id
+                union
+                select max(pot.date + pot.time) as d from motherhood.mh_pregnant_outcome_temperature pot where po.id = pot.pregnant_outcome_id
+                union
+                select max(pou.date + pou.time) as d from motherhood.mh_pregnant_outcome_urine pou where po.id = pou.pregnant_outcome_id
+                union
+                select max(pouc.date + pouc.time) as d from motherhood.mh_pregnant_outcome_uterine_contractions pouc where po.id = pouc.pregnant_outcome_id
+                ) md), ssr.bdate + coalesce(ssr.begin_time, '00:00'))
+            </expression>
+        </field>
+
+        <field>
+            <id>pregnantOutcomeId</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+        </field>
+
+        <field>
+            <id>motherId</id>
+            <domain>integer</domain>
+            <expression>ssr.customer_id</expression>
+        </field>
+
+        <field>
+            <id>provisionDate</id>
+            <domain>date</domain>
+            <expression>ssr.bdate</expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+    <name>observationPlan</name>
+    <actions>
+        <action id="deletePlan" name="Удаление плана наблюдения">
+            <invocation>
+                <n2o:sql>
+                    delete from d_accounting.observ_plan where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы действительно хотите удалить план?</confirmation-text>
+            <validations activate="whiteList">
+                <validation ref-id="hasStep"/>
+            </validations>
+        </action>
+        <action id="closePlan">
+            <invocation>
+                <rest:rest method="PUT" >
+                    ${n2o.backend.path}/d-accounting/observ_plan/close/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы действительно хотите закрыть план?</confirmation-text>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="hasStep" level="error">
+            <message>По данному плану имеются посещения. Удаление невозможно.</message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from d_accounting.observ_plan_h ph
+                    where ph.fact_dt is not null
+                    and ph.obs_plan_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

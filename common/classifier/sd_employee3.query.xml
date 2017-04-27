@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>sd_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from pim_employee_position ep
+                join pim_position pp on pp.id = ep.position_id
+                join pim_employee e on ep.employee_id = e.id
+                join pim_individual i on i.id = e.individual_id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(1)
+                from pim_employee_position ep
+                join pim_position pp on pp.id = ep.position_id
+                join pim_employee e on ep.employee_id = e.id
+                join pim_individual i on i.id = e.individual_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ep.id</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <domain>integer</domain>
+            <expression>(select SUM(case when dr.end_num IS NULL THEN 1 else (dr.end_num::bigint - dr.start_num::bigint) end)  quantity
+                from sickdoc.bso_distr_record_range dr
+                join sickdoc.bso_distr_record r on r.id = dr.distr_record_id
+                where r.receiver_id = ep.id)
+            </expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <display>
+                concat(i.surname, ' ' || left(i.name, 1) || '.', ' ' || left(i.patr_name, 1) || '.', ', ' || pp.name)
+            </display>
+            <search>
+                (upper(i.surname) like upper(:name)||'%'
+                or upper(i.name) like upper(:name)||'%'
+                or upper(i.patr_name) like upper(:name)||'%'
+                or upper(concat(i.surname, ' ' || i.name, ' ' || i.patr_name)) like upper(:name)||'%'
+                or upper(pp.name) like upper(:name)||'%')
+            </search>
+            <sorting>i.surname, i.name, i.patr_name, pp.name</sorting>
+        </field>
+        <field>
+            <id>organizationId</id>
+            <domain>integer</domain>
+            <expression>e.organization_id</expression>
+        </field>
+    </fields>
+</query>

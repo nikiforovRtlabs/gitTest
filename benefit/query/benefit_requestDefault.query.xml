@@ -1,0 +1,198 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>benefit_request</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from pim_individual ind
+                left join pci_patient pat on pat.id = ind.id
+                left join pim_indiv_code indc on indc.indiv_id = ind.id and indc.type_id = 1
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(*) from pim_individual ind
+                left join pci_patient pat on pat.id = ind.id
+                left join pim_indiv_code indc on indc.indiv_id = ind.id and indc.type_id = 1
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ind.id</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>ind.id</expression>
+        </field>
+
+        <field>
+            <id>fio</id>
+            <name>ФИО</name>
+            <domain>string</domain>
+            <expression>ind.surname||' '||initcap(ind.name)||' '||initcap(ind.patr_name)</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <name>Имя</name>
+            <domain>string</domain>
+            <expression>ind.name</expression>
+        </field>
+
+        <field>
+            <id>surname</id>
+            <name>Фамилия</name>
+            <domain>string</domain>
+            <expression>ind.surname</expression>
+        </field>
+
+        <field>
+            <id>patr_name</id>
+            <name>Отчество</name>
+            <domain>string</domain>
+            <expression>ind.patr_name</expression>
+        </field>
+
+        <field>
+            <id>gender.id</id>
+            <name>Пол</name>
+            <domain>integer</domain>
+            <expression>ind.gender_id</expression>
+        </field>
+
+        <field>
+            <id>birth_dt</id>
+            <name>Дата рождения</name>
+            <domain>string</domain>
+            <expression>ind.birth_dt</expression>
+        </field>
+
+        <field>
+            <id>snils</id>
+            <name>СНИЛС</name>
+            <domain>string</domain>
+            <expression>indc.code</expression>
+        </field>
+
+        <field>
+            <id>doc_name</id>
+            <name>Тип документа</name>
+            <domain>string</domain>
+            <expression>
+                (select doct.name from pim_individual_doc doc
+                join pim_doc_type_category cat on cat.type_id = doc.type_id and cat.category_id = 1
+                join pim_doc_type doct on doct.id = doc.type_id
+                where doc.indiv_id = ind.id
+                order by doct.priority, doc.verific_dt desc, doc.is_active desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>doc_type.id</id>
+            <name>Тип документа</name>
+            <domain>integer</domain>
+            <expression>
+                (select doct.id from pim_individual_doc doc
+                join pim_doc_type_category cat on cat.type_id = doc.type_id and cat.category_id = 1
+                join pim_doc_type doct on doct.id = doc.type_id
+                where doc.indiv_id = ind.id
+                order by doct.priority, doc.verific_dt desc, doc.is_active desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>doc_series</id>
+            <name>Серия документа</name>
+            <domain>string</domain>
+            <expression>
+                (select doc.series from pim_individual_doc doc
+                join pim_doc_type_category cat on cat.type_id = doc.type_id and cat.category_id = 1
+                join pim_doc_type doct on doct.id = doc.type_id
+                where doc.indiv_id = ind.id
+                order by doct.priority, doc.verific_dt desc, doc.is_active desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>doc_number</id>
+            <name>Номер документа</name>
+            <domain>integer</domain>
+            <expression>
+                (select doc.number from pim_individual_doc doc
+                join pim_doc_type_category cat on cat.type_id = doc.type_id and cat.category_id = 1
+                join pim_doc_type doct on doct.id = doc.type_id
+                where doc.indiv_id = ind.id
+                order by doct.priority, doc.verific_dt desc, doc.is_active desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>doc_aud.date</id>
+            <name>Дата проверки документов</name>
+            <domain>date</domain>
+            <expression>
+                (select COALESCE(sec_aud.date, pat.created_dt) from pim_individual_doc doc
+                join pim_doc_type_category cat on cat.type_id = doc.type_id and cat.category_id = 1
+                join pim_doc_type doct on doct.id = doc.type_id
+                left join pim_individual_doc_aud doc_aud on doc_aud.id = doc.id
+                left join sec_audit_entry sec_aud on sec_aud.id = doc_aud.rev
+                where doc.indiv_id = ind.id order by doct.priority, doc.verific_dt desc, doc.is_active desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <display value="#{org.id?}" unavailable="true"/>
+            <name>ЛПУ</name>
+        </field>
+
+        <field>
+            <id>reg_state.id</id>
+            <name>Состояние регистрации</name>
+            <domain>integer</domain>
+            <expression>
+                (select regst.state_id from pci_patient_reg regst
+                where regst.patient_id = ind.id
+                and regst.clinic_id = :reg_state_org_id
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>reg_state_org_id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>age_six_month</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[
+                (age(ind.birth_dt) < interval '6 month')
+                ]]>
+            </expression>
+        </field>
+
+    </fields>
+</query>

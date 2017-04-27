@@ -1,0 +1,154 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Классификатор аудита</name>
+
+    <actions>
+        <action id="createTopLevelDir" name="Создание элемента верхнего уровня">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        INSERT INTO audit.table_hierarchy (name, position)
+                        VALUES (:name, :position);
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="position" mapping="['position']" domain="integer"/>
+            </in-parameters>
+            <out-parameters/>
+            <success-text>
+                Запись успешно создана
+            </success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="createDir" name="Создание уровня">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        INSERT INTO audit.table_hierarchy (name, parent_id, position)
+                        VALUES (:name, :parent_id, :position);
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="parent_id" mapping="['parent_id']" domain="integer"/>
+                <param name="position" mapping="['position']" domain="integer"/>
+            </in-parameters>
+            <out-parameters/>
+            <success-text>
+                Запись успешно создана
+            </success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="updateDir">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        UPDATE audit.table_hierarchy
+                        SET name = :name, position = :position
+                        WHERE id = :id;
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="position" mapping="['position']" domain="integer"/>
+            </in-parameters>
+            <out-parameters/>
+            <success-text>
+                Запись успешно изменена
+            </success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="deleteDir">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        DELETE FROM audit.table_hierarchy
+                        WHERE id = :id;
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters/>
+            <success-text>
+                Запись успешно удалена
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkIsDefault"/>
+                <validation ref-id="checkHasChildren"/>
+                <validation ref-id="checkHasTables"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="checkIsDefault" level="error">
+            <message>Нельзя удалить Неструктурированную категорию!</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                        SELECT CASE WHEN :id = 1 THEN 1 ELSE 0 END;
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="result" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkHasChildren" level="error">
+            <message>Нельзя удалить категорию которая содержит потомков!</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                        SELECT COUNT(*) as result
+                        FROM audit.table_hierarchy h
+                        WHERE h.parent_id = :id;
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="result" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkHasTables" level="error">
+            <message>Нельзя удалить категорию которая содержит таблицы!</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                        SELECT COUNT(*) as result
+                        FROM audit.table_setting s
+                        WHERE s.table_hierarchy_id = :id;
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="result" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

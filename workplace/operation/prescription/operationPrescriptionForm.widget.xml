@@ -1,0 +1,95 @@
+<form xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+
+    <name>Расходные материалы</name>
+    <object-id>hosp_prescription</object-id>
+
+    <edit model="default" form-submit-label="Сохранить" create-more="true" refresh-after-submit="true" after-submit="closeModal">
+        <invoke-action action-id="createOperationPrescription"/>
+    </edit>
+
+    <fs:field-set>
+        <ctrl:hidden id="mdSrvRendered.id" copied="false"/>
+
+        <ctrl:classifier id="holding" label="Препарат" control-style="width: 385px;" required="true" copied="false">
+            <ctrl:show-modal page-id="hosp_storeBalance" result-container-id="storeSupplyList"
+                             value-field-id="holdingId" label-field-id="holdingFullName">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="financialTypeId" ref="financialType.id"/>
+                </ctrl:pre-filters>
+            </ctrl:show-modal>
+        </ctrl:classifier>
+        <ctrl:checkbox id="isPatientMedicament" label="Препарат пациента" />
+
+        <ctrl:hidden id="holding.dose" copied="false"/>
+        <ctrl:hidden id="holding.formTypeId" copied="false"/>
+        <ctrl:hidden id="holding.storeSupply.id" copied="false"/>
+        <fs:row>
+            <ctrl:output-text id="holding.mneiName" label="Основная ед.изм." control-style="width:100px;" copied="false"/>
+            <ctrl:input-text id="count" label="Количество" control-style="width:100px;" required="true" copied="false">
+                <ctrl:set-value-expression on="dose" silent-mode="true">
+                    <![CDATA[
+                    if(typeof holding != 'undefined' && holding != null && holding.dose != null &&
+                       typeof dose != 'undefined' && dose != null){
+                           var dd = typeof dose == 'string' ? dose.replace(',', '.') : dose;
+                           parseFloat(dd/holding.dose).toFixed(3)*1;
+                     }
+                    ]]>
+                </ctrl:set-value-expression>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        <![CDATA[typeof holding != 'undefined' && holding != null && holding.dose != null;]]>
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:input-text>
+
+            <ctrl:hidden id="count" copied="false">
+                <ctrl:set-value-expression on="count" silent-mode="true">
+                    <![CDATA[
+                   if(typeof count != 'undefined' && count != null)
+                        typeof count == 'string' ? count.replace(',', '.') : count;
+                ]]>
+                </ctrl:set-value-expression>
+            </ctrl:hidden>
+        </fs:row>
+
+        <fs:row>
+            <ctrl:output-text id="holding.doseWithMeasure" label="Дозировка" control-style="width:100px;" copied="false"/>
+            <ctrl:input-text id="dose" label="Доза" control-style="width:100px;" required="true" copied="false">
+                <ctrl:set-value-expression on="count" silent-mode="true">
+                    <![CDATA[
+                    if(typeof holding != 'undefined' && holding != null && holding.dose != null &&
+                       typeof count != 'undefined' && count != null){
+                            var cc = typeof count == 'string' ? count.replace(',', '.') : count;
+                            parseFloat(holding.dose * cc).toFixed(3)*1;
+                      }
+                    ]]>
+                </ctrl:set-value-expression>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        <![CDATA[typeof holding != 'undefined' && holding != null && holding.dose != null]]>
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:input-text>
+            <ctrl:hidden id="dose" copied="false">
+                <ctrl:set-value-expression on="dose" silent-mode="true">
+                    <![CDATA[
+                     if(typeof dose != 'undefined' && dose != null)
+                       typeof dose == 'string' ? dose.replace(',', '.') : dose;
+                ]]>
+                </ctrl:set-value-expression>
+            </ctrl:hidden>
+        </fs:row>
+
+        <ctrl:classifier id="administrationRoute" label="Способ введения" search-are-you-type="true" required="true" control-style="width: 385px;" depends-on="holding.formTypeId" autoselect="true"  copied="false">
+            <ctrl:query query-id="hosp_administrationRouteByFormType" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="formTypeId" ref="holding.formTypeId"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+
+    </fs:field-set>
+
+</form>

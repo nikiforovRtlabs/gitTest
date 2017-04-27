@@ -1,0 +1,255 @@
+<form xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0"
+      customize="js" src="vaccine/n2o/layout/add_patient_to_form_model">
+    <name>Прививка</name>
+    <object-id>inoculation</object-id>
+    <query-id>inoculation</query-id>
+    <modal-width>820px</modal-width>
+    <default-values-query-id>inoculation_def_values</default-values-query-id>
+    <edit model="query" condition="status.id != 4" after-submit="edit" refresh-after-submit="true" >
+        <invoke-action action-id="update"/>
+    </edit>
+    <fs:field-set field-label-location="left">
+        <ctrl:output-text id="statusExecutedOrPermanentDenyCaption" label="Статус:" dependency-condition="id != null &amp;&amp; statusExecutedOrPermanentDeny" label-style="width:auto;" control-style="font-weight:bold;"/>
+    </fs:field-set>
+    <fs:field-set field-label-location="top" label="">
+        <ctrl:hidden id="patient.id"/>
+        <ctrl:hidden id="birth_date" />
+        <ctrl:hidden id="isMantu"/>
+        <ctrl:hidden id="serviceId"/>
+        <ctrl:buttons id="status" data-toggle="buttons-radio" required="true" copied="false" label="Статус" dependency-condition="(typeof id == 'undefined') || id == null || !statusExecutedOrPermanentDeny" color-field-id="color" control-style="width:95%;">
+            <ctrl:properties>
+                <ctrl:property key="floppy-position" value="right"/>
+            </ctrl:properties>
+            <ctrl:default-model>
+                <ctrl:value field-id="id">1</ctrl:value>
+            </ctrl:default-model>
+            <ctrl:query query-id="status_control" value-field-id="id" label-field-id="label">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="id" type="notEq" value="4"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:buttons>
+        <fs:row>
+            <rc:patient id="patient" label="Пациент" isFilter="true" control-style="width:450px;" depends-on="isPatientEnabled" dependency-condition="isPatientVisible" required="true">
+                <rc:validations>
+                    <rc:validation ref-id="has_uid"/>
+                </rc:validations>
+            </rc:patient>
+        </fs:row>
+        <fs:row>
+            <ctrl:checkbox id="anotherMo" label="Выполнено в другой МО" dependency-condition="typeof status != 'undefined' &amp;&amp; status != null &amp;&amp; status.id == 3"/>
+        </fs:row>
+        <fs:row>
+            <ctrl:classifier id="clinic" label="МО" search-as-you-type="true" copied="false" required="true">
+                <ctrl:query query-id="clinic_control" value-field-id="id" label-field-id="name"/>
+                <ctrl:default-model>
+                    <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+                    <ctrl:value field-id="name">#{org.name?}</ctrl:value>
+                </ctrl:default-model>
+            </ctrl:classifier>
+            <ctrl:classifier id="emplPosRes" label="Мед. работник" required="true" search-as-you-type="true" label-style="width: 200px;" copied="false">
+                <ctrl:query query-id="employee_control" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="organizationId" ref="clinic.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:default-model>
+                    <ctrl:value field-id="id">#{emplPosRes.id?}</ctrl:value>
+                    <ctrl:value field-id="posId">#{emplPos.id?}</ctrl:value>
+                    <ctrl:value field-id="name">#{emplPosRes.name?}</ctrl:value>
+                </ctrl:default-model>
+            </ctrl:classifier>
+            <ctrl:date-time id="date" label="Дата" format="DD.MM.YYYY" default-value="today()" copied="false">
+                <ctrl:validations>
+                    <ctrl:validation ref-id="date_gt_bdate" side="client"/>
+                    <ctrl:validation ref-id="date_execute" side="client"/>
+                    <ctrl:validation ref-id="dateIsDiffFromNow" side="client"/>
+                </ctrl:validations>
+            </ctrl:date-time>
+        </fs:row>
+        <fs:row>
+            <ctrl:classifier id="vaccine" label="Вакцина" required="true" search-as-you-type="true" copied="false">
+                <ctrl:query query-id="vaccine_control" value-field-id="id" label-field-id="label">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="forMantu" ref="isMantu"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:update-model target="field" value-field-id="infection_text" query-id="infection_by_vaccine" target-field-id="infection_text" master-field-id="vaccine.id" detail-field-id="id"/>
+            </ctrl:classifier>
+            <ctrl:output-text id="infection_text" label="Инфекция" depends-on="vaccine" control-style=""/>
+            <ctrl:classifier id="number" label="Этап" required="true" depends-on="vaccine" search-as-you-type="true" copied="false">
+                <ctrl:query query-id="stage_control" value-field-id="id" label-field-id="label">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="vacId" ref="vaccine.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:dependencies>
+                    <ctrl:required-condition on="status">
+                        status.id === 2 || status.id === 3
+                    </ctrl:required-condition>
+                </ctrl:dependencies>
+            </ctrl:classifier>
+        </fs:row>
+        <fs:row>
+            <ctrl:classifier id="dose" label="Доза" search-as-you-type="true" depends-on="vaccine" copied="false">
+                <ctrl:query query-id="dose_control" label-field-id="label" value-field-id="id">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="vacId" ref="vaccine.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:set-value-expression on="vaccine" on-readonly="false" on-load="false">
+                    if ((typeof vaccine != 'undefined') &amp;&amp; (vaccine != null) &amp;&amp; (typeof vaccine.defDoseId != 'undefined') &amp;&amp; (vaccine.defDoseId != null)){
+                        var o = new Object();
+                        o.id = vaccine.defDoseId;
+                        o.label = vaccine.defDoseLabel;
+                        o;
+                    }
+                </ctrl:set-value-expression>
+                <ctrl:dependencies>
+                    <ctrl:required-condition on="status">
+                        status.id === 2 || status.id === 3
+                    </ctrl:required-condition>
+                </ctrl:dependencies>
+            </ctrl:classifier>
+            <ctrl:classifier id="inputType" search-as-you-type="true" depends-on="vaccine" copied="false" label="          Тип введения    ">
+                <ctrl:query query-id="type_control" label-field-id="label" value-field-id="id">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="vacId" ref="vaccine.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:set-value-expression on="vaccine" on-readonly="false" on-load="false">
+                    if ((typeof vaccine != 'undefined') &amp;&amp; (vaccine != null) &amp;&amp; (typeof vaccine.defInpTypeId != 'undefined') &amp;&amp; (vaccine.defInpTypeId != null)){
+                        var o = new Object();
+                        o.id = vaccine.defInpTypeId;
+                        o.label = vaccine.defInpTypeLabel;
+                        o;
+                    }
+                </ctrl:set-value-expression>
+                <ctrl:dependencies>
+                    <ctrl:required-condition on="status">
+                        status.id === 2 || status.id === 3
+                    </ctrl:required-condition>
+                </ctrl:dependencies>
+            </ctrl:classifier>
+            <ctrl:classifier id="series" search-as-you-type="true" autoselect-first="true" depends-on="vaccine" copied="false" label="        Серия       ">
+                <ctrl:query query-id="series_control" label-field-id="label" value-field-id="id">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="vacId" ref="vaccine.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:actions>
+                    <ctrl:link label="Создать">
+                        <ctrl:show-modal page-id="create_series" model="default" action-id="create" create-more="true">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="vaccine_hidden.id" ref="vaccine.id"/>
+                                <ctrl:pre-filter field-id="vaccine_hidden.label" ref="vaccine.label"/>
+                                <ctrl:pre-filter field-id="def_producer.id" ref="vaccine.def_producerId"/>
+                                <ctrl:pre-filter field-id="def_producer.label" ref="vaccine.def_producerLabel"/>
+                                <ctrl:pre-filter field-id="country.id" ref="vaccine.countryId"/>
+                                <ctrl:pre-filter field-id="country.label" ref="vaccine.countryLabel"/>
+                            </ctrl:pre-filters>
+                        </ctrl:show-modal>
+                        <ctrl:dependencies>
+                            <ctrl:enabling-condition><![CDATA[
+                                typeof vaccine != 'undefined' && vaccine != null && vaccine.id != null
+                            ]]>
+                            </ctrl:enabling-condition>
+                        </ctrl:dependencies>
+                    </ctrl:link>
+                </ctrl:actions>
+                <ctrl:dependencies>
+                    <ctrl:required-condition><![CDATA[
+                        ((status.id === 3) &&
+                        (typeof date != 'undefined') && (date != null) && (moment().subtract('month',1) <  moment(date, 'DD.MM.YYYY')) )
+                        ]]>
+                    </ctrl:required-condition>
+                </ctrl:dependencies>
+                <ctrl:validations>
+                    <ctrl:validation ref-id="series_overdue"/>
+                </ctrl:validations>
+            </ctrl:classifier>
+        </fs:row>
+    </fs:field-set>
+    <fs:field-set>
+        <ctrl:output-text id="endDate" label="Годен до: " control-style="margin-left:10px"
+                          label-style="margin-left:360px">
+            <ctrl:set-value-expression>
+                series.endDate
+            </ctrl:set-value-expression>
+        </ctrl:output-text>
+    </fs:field-set>
+    <fs:field-set field-label-location="top" label="Осмотр после вакцинации" header="line" dependency-condition="typeof status != 'undefined' &amp;&amp; status != null &amp;&amp; status.id == 3">
+        <fs:row>
+            <ctrl:date-time id="inspectionDateTime" label="Дата и время" format="DD.MM.YYYY HH:mm" default-value="now()" default-time="now()">
+                <ctrl:validations>
+                    <ctrl:validation ref-id="date_inspection"/>
+                    <ctrl:validation ref-id="date_inspection_for_mantu"/>
+                </ctrl:validations>
+            </ctrl:date-time>
+            <ctrl:masked-input id="temperature" label="Температура" mask="99.9"/>
+            <ctrl:text-area id="inspectionNotes" label="Дополнительно" rows="2"/>
+        </fs:row>
+    </fs:field-set>
+    <fs:field-set field-label-location="top" label="Результат" header="line" dependency-condition="!isMantu &amp;&amp; typeof status != 'undefined' &amp;&amp; status != null &amp;&amp; status.id == 3">
+        <fs:row>
+            <ctrl:text-area id="inoculationLocalResult" label="Местная реакция" rows="2"/>
+            <ctrl:text-area id="inoculationGlobalResult" label="Общая реакция" rows="2"/>
+            <ctrl:text-area id="inoculationComplicationResult" label="Осложнения" rows="2"/>
+        </fs:row>
+    </fs:field-set>
+    <fs:field-set field-label-location="top" label="Результат" header="line" dependency-condition="isMantu &amp;&amp; typeof status != 'undefined' &amp;&amp; status != null &amp;&amp; status.id == 3">
+        <fs:row>
+            <ctrl:classifier id="probaResultClinic" label="МО" search-as-you-type="true">
+                <ctrl:query query-id="clinic_control" value-field-id="id" label-field-id="name"/>
+                <ctrl:default-model>
+                    <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+                    <ctrl:value field-id="name">#{org.name?}</ctrl:value>
+                </ctrl:default-model>
+                <ctrl:set-value-expression on-load="true" on-non-empty="false">
+                    var o = new Object();
+                    o.id = curOrg.id;
+                    o.name = curOrg.name;
+                    o;
+                </ctrl:set-value-expression>
+            </ctrl:classifier>
+            <ctrl:classifier id="probaResultEmplPosRes" label="Мед. работник" search-as-you-type="true" label-style="width: 200px;">
+                <ctrl:query query-id="employee_control" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="organizationId" ref="probaResultClinic.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:default-model>
+                    <ctrl:value field-id="id">#{emplPosRes.id?}</ctrl:value>
+                    <ctrl:value field-id="posId">#{emplPos.id?}</ctrl:value>
+                    <ctrl:value field-id="name">#{emplPosRes.name?}</ctrl:value>
+                </ctrl:default-model>
+                <ctrl:set-value-expression on-load="true" on-non-empty="false">
+                    if (typeof probaResultClinic != 'undefined' &amp;&amp; probaResultClinic != null &amp;&amp; typeof probaResultClinic.id != 'undefined' &amp;&amp; probaResultClinic.id == curOrg.id) {
+                    var o = new Object();
+                    o.id = curEmplPosRes.id;
+                    o.posId = curEmplPos.id;
+                    o.name = curEmplPosRes.name;
+                    o;
+                    }
+                </ctrl:set-value-expression>
+            </ctrl:classifier>
+            <ctrl:date-time id="probaInspectDate" label="Дата проверки" default-value="today()" format="DD.MM.YYYY">
+                <ctrl:set-value-expression on="date" on-load="false">
+                    if ((typeof date != 'undefined')&amp;&amp;(date != null)) {
+                    moment(date, 'DD.MM.YYYY HH:mm').add('days',3).format('DD.MM.YYYY HH:mm');
+                    };
+                </ctrl:set-value-expression>
+            </ctrl:date-time>
+        </fs:row>
+        <fs:row>
+            <ctrl:masked-input id="probaPapul" label="Папула" mask="9?99"/>
+            <ctrl:masked-input id="probaGiper" label="Гиперемия" mask="9?99"/>
+            <ctrl:classifier id="probaResult" label="Результат" search-as-you-type="true">
+                <ctrl:query query-id="mantu_result_control" value-field-id="id" label-field-id="name"/>
+            </ctrl:classifier>
+        </fs:row>
+    </fs:field-set>
+</form>

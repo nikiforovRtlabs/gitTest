@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-2.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Врачебная комиссия</name>
+
+    <actions>
+
+        <action id="create">
+            <invocation>
+                <rest:rest method="POST" >
+                    <rest:query>
+                        ${n2o.backend.path}/d-accounting/med_commission
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="create_dt" mapping="['createDate']" domain="date"/>
+                <param name="chairman.id" mapping="['chairmanResourceId']" domain="integer"/>
+                <param name="secretary.id" mapping="['secretaryResourceId']" domain="integer"/>
+                <param name="department.id" mapping="['departmentId']" domain="integer"/>
+                <param name="org.id" mapping="['orgId']" domain="integer" value="#{org.id?}"/>
+                <param name="firstViceChairman.id" mapping="['firstViceChairmanResourceId']" domain="integer"/>
+                <param name="secondViceChairman.id" mapping="['secondViceChairmanResourceId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="update" name="Редактирование комиссии">
+            <invocation>
+                <rest:rest method="PUT">
+                    <rest:query>
+                        ${n2o.backend.path}/d-accounting/med_commission/{id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="create_dt" mapping="['createDate']" domain="date"/>
+                <param name="chairman.id" mapping="['chairmanResourceId']" domain="integer"/>
+                <param name="secretary.id" mapping="['secretaryResourceId']" domain="integer"/>
+                <param name="department.id" mapping="['departmentId']" domain="integer"/>
+                <param name="org.id" mapping="['orgId']" domain="integer" value="#{org.id?}"/>
+                <param name="res_group_id" mapping="['resGroupId']" domain="integer"/>
+                <param name="firstViceChairman.id" mapping="['firstViceChairmanResourceId']" domain="integer"/>
+                <param name="firstViceChairmanRelationShipId" mapping="['firstViceChairmanRelationShipId']" domain="integer"/>
+                <param name="secondViceChairman.id" mapping="['secondViceChairmanResourceId']" domain="integer"/>
+                <param name="secondViceChairmanRelationShipId" mapping="['secondViceChairmanRelationShipId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="copy">
+            <invocation>
+                <rest:rest method="POST" >
+                    <rest:query>
+                        ${n2o.backend.path}/d-accounting/med_commission/{id}/copy
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены что хотите скопировать врачебную комиссию?</confirmation-text>
+        </action>
+
+        <action id="delete" name="Удаление комиссии">
+            <invocation>
+                <rest:rest method="DELETE">
+                    <rest:query>
+                        ${n2o.backend.path}/d-accounting/med_commission/{id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены что хотите удалить врачебную комиссию?</confirmation-text>
+            <validations activate="whiteList">
+                <validation ref-id="commissionHasIssue"/>
+            </validations>
+        </action>
+
+        <action id="addDoctorToCommission" name="Добавление врача в состав комиссии">
+            <invocation>
+                <sql:sql>
+                    INSERT INTO sr_res_group_relationship (id, resource_id, group_id, role_id)
+                    VALUES (
+                    (select nextval('sr_res_group_relationship_seq')),
+                    :resource_id,
+                    :group_id,
+                    (select id from public.sr_res_role where e_code = 'COMMISSIONER' limit 1)
+                    );
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="resource_id" mapping="['resource_id']" domain="integer"/>
+                <param name="res_group_id" mapping="['group_id']" domain="integer"/>
+                <param name="fio" mapping="['fio']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите добавить врача в состав комиссии?</confirmation-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkIfDoctorInCommissionAlready"/>
+            </validations>
+        </action>
+
+        <action id="removeDoctorFromCommission" name="Удаление врача из состава комиссии">
+            <invocation>
+                <sql:sql>
+                    delete from sr_res_group_relationship where id = :sr_res_group_relationship_id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="sr_res_group_relationship_id" mapping="['sr_res_group_relationship_id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить врача из состава комиссии?</confirmation-text>
+        </action>
+
+    </actions>
+
+    <validations>
+
+        <constraint id="commissionHasIssue" level="error">
+            <message>Удаление невозможно, так как имеются решения, принятые данным составом</message>
+            <invocation>
+                <sql:sql>
+                    select count(*) from d_accounting.commission_issue ci
+                    where ci.commission_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="checkIfDoctorInCommissionAlready" level="error" moment="before-action">
+            <invocation>
+                <sql:sql>
+                    select not exists(select id from sr_res_group_relationship where resource_id = :resource_id and group_id = :group_id
+                        and role_id = (select id from sr_res_role where code = 'COMMISSIONER' limit 1))
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="resource_id" mapping="['resource_id']" domain="integer"/>
+                <param name="res_group_id" mapping="['group_id']" domain="integer"/>
+                <param name="fio" mapping="['fio']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>{fio} уже присутсвует в составе комиссии</message>
+        </constraint>
+
+    </validations>
+
+</object>

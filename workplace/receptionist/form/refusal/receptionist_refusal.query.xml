@@ -1,0 +1,196 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>refusal</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join hsp_record h on h.id = s.id
+                inner join mc_case c on c.id = s.case_id
+                inner join pci_patient pat on pat.id = c.patient_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+                left join fin_funding_source_type funding on funding.id = c.funding_id
+                left join mc_step_result result on result.id = s.result_id
+                left join mc_step_result_reason reason on reason.id = s.reason_id
+                left join pim_employee_position_resource epr on epr.id = h.refusal_employee_id
+                left join mc_step_care_result stepCareResult on stepCareResult.id = s.outcome_id
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(r) from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join hsp_record h on h.id = s.id
+                inner join mc_case c on c.id = s.case_id
+                inner join pci_patient pat on pat.id = c.patient_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+                left join fin_funding_source_type funding on funding.id = c.funding_id
+                left join mc_step_result result on result.id = s.result_id
+                left join mc_step_result_reason reason on reason.id = s.reason_id
+                left join pim_employee_position_resource epr on epr.id = h.refusal_employee_id
+                left join mc_step_care_result stepCareResult on stepCareResult.id = s.outcome_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <!--case-->
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>r.id</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+            <search>:expression = :caseId</search>
+        </field>
+
+        <field>
+            <id>patientName</id>
+            <domain>string</domain>
+            <expression>coalesce(pat_ind.surname, '') || ' ' || coalesce(pat_ind.name, '') || ' ' || coalesce(pat_ind.patr_name, '')</expression>
+        </field>
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <expression>c.uid</expression>
+        </field>
+
+        <field>
+            <id>financialTypeName</id>
+            <domain>string</domain>
+            <expression>funding.name</expression>
+        </field>
+
+        <!--refusal-->
+
+        <field>
+            <id>refusalDate</id>
+            <domain>date</domain>
+            <expression>case when s.outcome_time is null then s.outcome_date else s.outcome_date + s.outcome_time end</expression>
+        </field>
+
+        <field>
+            <id>stepResult.id</id>
+            <domain>integer</domain>
+            <expression>result.id</expression>
+        </field>
+
+        <field>
+            <id>stepResult.name</id>
+            <domain>string</domain>
+            <expression>result.name</expression>
+        </field>
+
+        <field>
+            <id>stepResultReason.id</id>
+            <domain>integer</domain>
+            <expression>reason.id</expression>
+        </field>
+
+        <field>
+            <id>stepResultReason.name</id>
+            <domain>string</domain>
+            <expression>reason.name</expression>
+        </field>
+
+        <field>
+            <id>refusalEmployee.id</id>
+            <domain>integer</domain>
+            <expression>epr.id</expression>
+        </field>
+
+        <field>
+            <id>notice</id>
+            <domain>string</domain>
+            <expression>c.note</expression>
+        </field>
+
+        <field>
+            <id>outcome.id</id>
+            <domain>integer</domain>
+            <expression>stepCareResult.id</expression>
+        </field>
+
+        <field>
+            <id>outcome.name</id>
+            <domain>string</domain>
+            <expression>stepCareResult.name</expression>
+        </field>
+
+        <field>
+            <id>careRegimen.id</id>
+            <domain>integer</domain>
+            <expression>s.regimen_id</expression>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>s.profile_id</expression>
+        </field>
+
+        <!--todo: Значения из настроек-->
+        <field>
+            <id>caseNumeratorByClinic</id>
+            <domain>boolean</domain>
+            <expression>
+                (select case when sv.value is not null and sv.value != '' then sv.value else s.default_value end from cmn_setting s
+                left join cmn_setting_value sv on sv.setting_id = s.id
+                left join cmn_scope sc on sc.id = sv.scope_id
+                left join cmn_scope_type st on st.id = sc.type_id and st.code = 'Global'
+                where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.caseNumeratorByClinic' limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>caseNumeratorByDepartment</id>
+            <domain>boolean</domain>
+            <expression>
+                (select case when sv.value is not null and sv.value != '' then sv.value else s.default_value end from cmn_setting s
+                left join cmn_setting_value sv on sv.setting_id = s.id
+                left join cmn_scope sc on sc.id = sv.scope_id
+                left join cmn_scope_type st on st.id = sc.type_id and st.code = 'Global'
+                where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.caseNumeratorByDepartment' limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+
+        <field>
+            <id>enableUidLink</id>
+            <domain>string</domain>
+            <expression>(select 'enable')</expression>
+        </field>
+
+        <field>
+            <id>paymentMethod.id</id>
+            <domain>integer</domain>
+            <expression>c.payment_method_id</expression>
+        </field>
+
+        <field>
+            <id>careLevel.id</id>
+            <domain>integer</domain>
+            <expression>c.care_level_id</expression>
+        </field>
+
+    </fields>
+
+</query>

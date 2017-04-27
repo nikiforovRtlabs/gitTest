@@ -1,0 +1,566 @@
+﻿<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>team_job</id>-->
+    <name>Наряд на бригаду</name>
+    <object-id>team_job</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.sr_res_team_job srtj
+                join amb.sr_res_team srt on srt.id = srtj.team_id
+                join sr_res_group srg on srg.id = srt.resource_id
+                join amb.md_ambulance_change mac on mac.id = srtj.change_id
+                <!--мед профиль бригады-->
+                left join sr_res_group_profile srgprof on srgprof.res_group_id = srg.id
+                left join md_profile resmp on resmp.id = srgprof.profile_id
+
+                join pim_organization po on po.id = srg.org_id
+                join pim_department pd on pd.id = srg.department_id
+                <!--шаблон-->
+                left join amb.sr_res_team_template srtt on srtt.id = srt.team_template_id
+                <!--вид бригады-->
+                join amb.md_ambulance_team_kind tk on tk.id = srt.team_kind_id
+                <!--вид наряда-->
+                join amb.md_ambulance_job_kind jk on jk.id = srt.job_kind_id
+                <!--тип: вр/фел-->
+                left join amb.md_ambulance_team_type tety on tety.id = srt.team_type_id
+                <!--профиль бригады-->
+                left join public.md_resgroup_amb_profile rap on rap.id = srt.resource_id
+                left join public.md_ambulance_profile ap on ap.id = rap.profile_id
+
+                join pim_employee_position pep on pep.id = srtj.registrator_id
+                join pim_employee pe on pe.id = pep.employee_id
+                join pim_individual pi on pi.id = pe.individual_id
+                join pim_position ppos on ppos.id = pep.position_id
+
+                left join amb.sr_res_team_job_status_history srjsh on srjsh.id = (select id from amb.sr_res_team_job_status_history where team_job_id = srtj.id order by date_time desc,job_status_id desc, id desc limit 1)
+                <!--amb.search_team_job_status(srtj.id)-->
+                left join amb.sr_res_team_job_status srtjstat on srtjstat.id = srjsh.job_status_id
+
+                left join amb.sr_res_team_job_resourse srtjr on srtjr.team_job_id = srtj.id and srtjr.is_head is true and srtjr.deviation_id is null
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from amb.sr_res_team_job srtj
+                join amb.sr_res_team srt on srt.id = srtj.team_id
+                join sr_res_group srg on srg.id = srt.resource_id
+                join amb.md_ambulance_change mac on mac.id = srtj.change_id
+                <!--мед профиль бригады-->
+                left join sr_res_group_profile srgprof on srgprof.res_group_id = srg.id
+                left join md_profile resmp on resmp.id = srgprof.profile_id
+
+                join pim_organization po on po.id = srg.org_id
+                join pim_department pd on pd.id = srg.department_id
+                left join amb.sr_res_team_template srtt on srtt.id = srt.team_template_id
+                join amb.md_ambulance_team_kind tk on tk.id = srt.team_kind_id
+                join amb.md_ambulance_job_kind jk on jk.id = srt.job_kind_id
+                left join amb.md_ambulance_team_type tety on tety.id = srt.team_type_id
+                <!--профиль бригады-->
+                left join public.md_resgroup_amb_profile rap on rap.id = srt.resource_id
+                left join public.md_ambulance_profile ap on ap.id = rap.profile_id
+
+                join pim_employee_position pep on pep.id = srtj.registrator_id
+                join pim_employee pe on pe.id = pep.employee_id
+                join pim_individual pi on pi.id = pe.individual_id
+                join pim_position ppos on ppos.id = pep.position_id
+
+                left join amb.sr_res_team_job_status_history srjsh on srjsh.id = (select id from amb.sr_res_team_job_status_history where team_job_id = srtj.id order by date_time desc,job_status_id desc, id desc limit 1)
+                <!--amb.search_team_job_status(srtj.id)-->
+                left join amb.sr_res_team_job_status srtjstat on srtjstat.id = srjsh.job_status_id
+
+                left join amb.sr_res_team_job_resourse srtjr on srtjr.team_job_id = srtj.id and srtjr.is_head is true and srtjr.deviation_id is null
+
+                where :where
+            </n2o:count-query>
+            <n2o:alias>srtj</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>srtj.id</expression>
+        </field>
+        <field>
+            <id>created</id>
+            <domain>string</domain>
+            <expression>case when amb.team_job_is_created(srtj.id) in (1,2) then '+' else '' end</expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Бригада</name>
+            <expression>srg.name</expression>
+            <search>upper(srg.name) like upper('%'||:name||'%')</search>
+        </field>
+        <field>
+            <id>nameS</id>
+            <domain>string</domain>
+            <name>Бригада</name>
+            <expression>srg.name||'('||to_char(mac.from_data,'dd.mm.yyyy')||')'</expression>
+            <search>upper(:expression) like upper('%'||:nameS||'%')</search>
+        </field>
+        <field>
+            <id>team_id</id>
+            <domain>integer</domain>
+            <name>Бригада</name>
+            <expression>srt.id</expression>
+        </field>
+        <field>
+            <id>res_team.id</id>
+            <domain>integer</domain>
+            <name>Бригада</name>
+            <expression>srt.id</expression>
+        </field>
+        <field>
+            <id>res_team.name</id>
+            <domain>string</domain>
+            <name>Бригада</name>
+            <expression>srg.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>res_team.statId</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+        </field>
+        <field>
+            <id>jkId</id>
+            <domain>integer</domain>
+            <expression>jk.id</expression>
+        </field>
+        <field>
+            <id>job_kind.id</id>
+            <domain>integer</domain>
+            <expression>jk.id</expression>
+        </field>
+        <field>
+            <id>job_kind.name</id>
+            <domain>string</domain>
+            <name>Вид наряда</name>
+            <expression>jk.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>temsetId</id>
+            <domain>integer</domain>
+            <name>Шаблон</name>
+            <expression>srtt.id</expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>has_emptemset</id>-->
+            <!--<domain>boolean</domain>-->
+            <!--<expression>-->
+                <!--case when (srtt.id is not null) -->
+                        <!--and exists (select * from amb.sr_res_team_template_employer where team_template_id = srtt.id and )-->
+                    <!--then true-->
+                    <!--else false-->
+                <!--end-->
+            <!--</expression>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>temsetName</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Шаблон</name>-->
+            <!--<expression>srtt.name</expression>-->
+        <!--</field>-->
+        <field>
+            <id>res_group.id</id>
+            <domain>integer</domain>
+            <expression>srg.id</expression>
+        </field>
+        <field>
+            <id>res_group.name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>srg.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+            <!--<search value="#{org.id?}"/>-->
+        </field>
+        <field>
+            <id>station.name</id>
+            <domain>string</domain>
+            <name>Станция</name>
+            <expression>coalesce(po.short_name,po.full_name)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <expression>pd.id</expression>
+        </field>
+        <field>
+            <id>substation.name</id>
+            <domain>string</domain>
+            <name>Подстанция</name>
+            <expression>pd.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <!--График бригады-->
+        <field>
+            <id>change.id</id>
+            <domain>integer</domain>
+            <name>Смена</name>
+            <expression>mac.id</expression>
+        </field>
+        <field>
+            <id>change_id</id>
+            <domain>integer</domain>
+            <name>Смена</name>
+            <expression>mac.id</expression>
+        </field>
+        <field>
+            <id>change.date</id>
+            <domain>date</domain>
+            <name>Смена</name>
+            <expression>mac.from_data</expression>
+            <!--<search>mac.from_data = "#{change.date?}"</search>-->
+        </field>
+        <field>
+            <id>change_date</id>
+            <domain>date</domain>
+            <name>Смена</name>
+            <expression>mac.from_data</expression>
+            <!--<search>mac.from_data = "#{change.date?}"</search>-->
+        </field>
+        <field>
+            <id>change.data</id>
+            <domain>string</domain>
+            <!--<domain>date</domain>-->
+            <name>Смена</name>
+            <expression>to_char(mac.from_data,'dd.mm.yyyy')</expression>
+            <!--<expression>mac.from_data</expression>-->
+            <!--<sorting>mac.from_data desc</sorting>-->
+            <!--<search type="between">(mac.from_data > :change.data.begin) and (mac.from_data < :change.data.end)</search>-->
+            <!--<search unavailable="true"/>-->
+        </field>
+        <field>
+            <id>change.fdata</id>
+            <domain>date</domain>
+            <!--<name>Дата начала смены</name>-->
+            <expression>mac.from_data</expression>
+        </field>
+        <field>
+            <id>change.from_dt</id>
+            <domain>date</domain>
+            <expression>to_char(cast(mac.from_data + mac.from_time as TIMESTAMP),'dd.mm.yyyy hh24:mi:ss')</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>change.to_dt</id>
+            <domain>date</domain>
+            <expression>to_char(cast(mac.to_data + mac.to_time as TIMESTAMP),'dd.mm.yyyy hh24:mi:ss')</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>change.from_time</id>
+            <domain>date</domain>
+            <expression>to_char(cast(mac.from_data + mac.from_time as TIMESTAMP),'HH24:mi')</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>change.to_time</id>
+            <domain>date</domain>
+            <expression>to_char(cast(mac.to_data + mac.to_time as TIMESTAMP),'HH24:mi')</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <name>Период</name>
+            <expression>mac.from_data</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>date.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search>mac.from_data >= :date.begin</search>
+        </field>
+        <field>
+            <id>date.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[
+                mac.from_data <= :date.end
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>change.ftime</id>
+            <domain>time</domain>
+            <name>Время начала смены</name>
+            <!--<expression>mac.from_time</expression>-->
+            <expression>to_char(mac.from_time,'hh24:mi:ss')</expression>
+            <!--<search unavailable="true"/>-->
+        </field>
+        <field>
+            <id>planned_bdate</id>
+            <domain>date</domain>
+            <!--<domain>string</domain>-->
+            <name>Дата/время начала наряда плановое</name>
+            <expression>srtj.planned_bdate</expression>
+            <!--<expression>to_char(srtj.planned_bdate,'dd.mm.yyyy hh24:mi')</expression>-->
+            <!--<search type="between">(srtj.planned_bdate > :planned_bdate.begin) and (srtj.planned_bdate < :planned_bdate.end)</search>-->
+        </field>
+        <field>
+            <id>planned_btime</id>
+            <domain>string</domain>
+            <!--<domain>string</domain>-->
+            <name>Дата/время начала наряда плановое</name>
+            <expression>to_char(srtj.planned_bdate,'HH24:mi')</expression>
+            <!--<expression>to_char(srtj.planned_bdate,'dd.mm.yyyy hh24:mi')</expression>-->
+            <!--<search type="between">(srtj.planned_bdate > :planned_bdate.begin) and (srtj.planned_bdate < :planned_bdate.end)</search>-->
+        </field>
+        <field>
+            <id>planned_edate</id>
+            <domain>date</domain>
+            <!--<domain>string</domain>-->
+            <name>Дата/время окончания наряда плановое</name>
+            <expression>srtj.planned_edate</expression>
+            <!--<expression>to_char(srtj.planned_edate,'dd.mm.yyyy hh24:mi')</expression>-->
+        </field>
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <name>Начало</name>
+            <!--<expression>coalesce(to_char(srtj.bdate,'dd.mm.yyyy hh24:mi:ss'),to_char(srtj.planned_bdate,'dd.mm.yyyy hh24:mi:ss'))</expression>-->
+            <expression>coalesce(srtj.bdate,srtj.planned_bdate)</expression>
+        </field>
+        <field>
+            <id>to_dt</id>
+            <domain>date</domain>
+            <name>Окончание</name>
+            <!--<expression>coalesce(to_char(srtj.edate,'dd.mm.yyyy hh24:mi:ss'),to_char(srtj.planned_edate,'dd.mm.yyyy hh24:mi:ss'))</expression>-->
+            <expression>coalesce(srtj.edate,srtj.planned_edate)</expression>
+        </field>
+        <field>
+            <id>bdate</id>
+            <domain>date</domain>
+            <!--<domain>string</domain>-->
+            <name>Дата/время начала наряда фактическое</name>
+            <expression>srtj.bdate</expression>
+        </field>
+        <field>
+            <id>edate</id>
+            <domain>date</domain>
+            <!--<domain>string</domain>-->
+            <name>Дата/время окончания наряда фактическое</name>
+            <!--<expression>to_char(srtj.edate,'dd.mm.yyyy hh24:mi:ss')</expression>-->
+            <expression>srtj.edate</expression>
+        </field>
+
+        <field>
+            <id>pim_employee_position</id>
+            <domain>integer</domain>
+            <expression>pep.id</expression>
+        </field>
+        <field>
+            <id>employee.id</id>
+            <domain>integer</domain>
+            <name>Ввел наряд</name>
+            <expression>pep.id</expression>
+            <!--<display></display>-->
+        </field>
+        <field>
+            <id>employee.full_name</id>
+            <domain>string</domain>
+            <name>Ввел наряд</name>
+            <expression>pi.surname||' '||pi.name||' '||pi.patr_name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>employee.name</id>
+            <domain>string</domain>
+            <name>Ввел наряд</name>
+            <expression>pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>employee.namePos</id>
+            <domain>string</domain>
+            <name>Ввел наряд</name>
+            <expression>pep.id||': '||pi.surname||' '||left(initcap(pi.name),1)||'. '||left(initcap(pi.patr_name),1)||'.'||'('||ppos.name||')'</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>position.id</id>
+            <domain>integer</domain>
+            <expression>ppos.id</expression>
+        </field>
+        <field>
+            <id>position.name</id>
+            <domain>string</domain>
+            <name>Должность</name>
+            <expression>ppos.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>team_kind.name</id>
+            <domain>string</domain>
+            <name>Вид бригады</name>
+            <expression>tk.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>team_kind.id</id>
+            <domain>integer</domain>
+            <expression>tk.id</expression>
+        </field>
+
+        <field>
+            <id>team_type.code</id>
+            <domain>string</domain>
+            <name>Тип</name>
+            <expression>tety.code</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>team_type.name</id>
+            <domain>string</domain>
+            <name>Тип бригады</name>
+            <expression>tety.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>team_type.id</id>
+            <domain>integer</domain>
+            <expression>tety.id</expression>
+        </field>
+
+        <field>
+            <id>job_status.id</id>
+            <domain>integer</domain>
+            <expression>srtjstat.id</expression>
+        </field>
+        <field>
+            <id>job_status.name</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>srtjstat.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>jscolor.id</id>
+            <domain>string</domain>
+            <name>Цвет</name>
+            <expression>srtjstat.color</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>actual_change.id</id>
+            <domain>integer</domain>
+            <name>Текущая смена</name>
+            <!--<display value="#{change.id}" unavailable="true"/>-->
+            <!--<search unavailable="true"/>-->
+            <expression>
+                (select mac.id from amb.md_ambulance_change mac
+                        where mac.clinic_id = po.id and (mac.department_id is null or mac.department_id = pd.id)
+                                and mac.state = 1
+                order by mac.department_id
+                limit 1
+                        )
+            </expression>
+        </field>
+
+        <field>
+            <id>has_head</id>
+            <domain>boolean</domain>
+            <expression>
+                case when srtjr.id is not null then true else false end
+            </expression>
+        </field>
+        
+        <field>
+            <id>teamDate</id>
+            <domain>string</domain>
+            <expression>srg.name||' ('||to_char(mac.from_data,'dd.mm.yyyy')||')'</expression>
+        </field>
+
+        <field>
+            <id>hasNotStarted</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[
+                case when exists (select *
+                                    from amb.sr_res_team_job srtj
+                                    join amb.sr_res_team srt on srt.id = srtj.team_id
+                                    join sr_res_group srg on srg.id = srt.resource_id
+                                    join amb.md_ambulance_change mac on mac.id = srtj.change_id
+                                    join pim_organization po2 on po2.id = srg.org_id
+                                    join pim_department pd2 on pd2.id = srg.department_id
+                                    left join amb.sr_res_team_job_resourse srtjr on srtjr.team_job_id = srtj.id and srtjr.is_head is true and srtjr.deviation_id is null
+                                    where amb.team_job_is_created(srtj.id) in (1,2)
+                                            and po2.id=po.id
+                                             and pd2.id=pd.id
+                                            and srtj.planned_bdate < now()
+                                            and srtj.planned_edate > now()
+                                            and srtj.bdate is null
+                                            and srtj.edate is null
+                                            and srtjr.id is not null
+                                )
+                    then true
+                    else false
+                end
+                ]]>
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>hasNotFinished</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[
+                case when exists (select *
+                                    from amb.sr_res_team_job srtj
+                                    join amb.sr_res_team srt on srt.id = srtj.team_id
+                                    join sr_res_group srg on srg.id = srt.resource_id
+                                    join amb.md_ambulance_change mac on mac.id = srtj.change_id
+                                    join pim_organization po2 on po2.id = srg.org_id
+                                    join pim_department pd2 on pd2.id = srg.department_id
+                                    left join amb.sr_res_team_job_resourse srtjr on srtjr.team_job_id = srtj.id and srtjr.is_head is true and srtjr.deviation_id is null
+                                    where po2.id=po.id
+                                        and pd2.id=pd.id
+                                            and srtj.edate is null
+                                            and mac.from_data < cast(now() as date)
+                                )
+                    then true
+                    else false
+                end
+                ]]>
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <!--смена уже работала -->
+        <field>
+            <id>isWork</id>
+            <domain>boolean</domain>
+            <expression>
+                <![CDATA[
+                    (exists (select 1 from amb.sr_res_team_job_status_history where team_job_id = srtj.id and job_status_id != 1))
+                ]]>
+            </expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>disprCardRenderingServiceExcrement</id>
+    <name>disprCardRenderingServiceExcrement</name>
+
+    <actions>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    select disp.saveEventServiceExcrement(:event_patient_id, :ssr_id, :case_id, :date, :resource_srg_id,
+                      :pathology, :service_type_id, :is_mobile_medical_teams, :org)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="event_patient_id" mapping="['event_patient_id']"/>
+                <param name="ssr_id" mapping="['ssr_id']"/>
+                <param name="case_id" mapping="['case_id']"/>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="resource.srg_id" mapping="['resource_srg_id']"/>
+                <param name="pathology" mapping="['pathology']"/>
+                <param name="service_type_id" mapping="['service_type_id']"/>
+                <param name="is_mobile_medical_teams" mapping="['is_mobile_medical_teams']"/>
+                <param name="id"/>
+                <param name="contextOrg" mapping="['org']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="ssr_id" mapping="[0][0][0]" domain="integer"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="serviceInBill"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+    <constraint id="checkDateBeforeEvent" level="error">
+        <invocation>
+            <sql:sql> <![CDATA[
+                    select count(*) from mc_case mc
+                    where mc.open_date > to_date(:date, 'DD.MM.YYYY') and mc.id = :case_id
+                    ]]>
+            </sql:sql>
+        </invocation>
+        <in-parameters>
+            <param name="case_id" mapping="['case_id']"/>
+            <param name="date" mapping="['date']" domain="string"/>
+        </in-parameters>
+        <result expression="[0][0][0] == 0"/>
+        <message>Указана дата вне рамок случая диспансеризации, воспользуйтесь формой поиска оказанных услуг</message>
+    </constraint>
+        <constraint id="checkDateAfterEvent" level="error">
+            <invocation>
+                <sql:sql> <![CDATA[
+                    select count(*) from mc_case mc
+                    join mc_step ms on mc.closing_step_id = ms.id
+                    where ms.admission_date < to_date(:date, 'DD.MM.YYYY') and mc.id = :case_id
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="case_id" mapping="['case_id']"/>
+                <param name="date" mapping="['date']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Дата оказания услуги должна быть не позднее даты посещения терапевта</message>
+        </constraint>
+        <condition id="checkDateCurrentDate" level="error">
+            <message>Дата оказания не должна превышать текущую дату</message>
+            <expression on="date">
+                <![CDATA[
+                        var now = moment(); now.diff(moment(date, 'DD.MM.YYYY')) >= 0;
+                ]]>
+            </expression>
+        </condition>
+        <constraint id="serviceInBill" level="error">
+            <message>На случай сформирован счет-реестр, действие запрещено</message>
+            <invocation>
+                <sql:sql>
+                    select disp.service_validate3(:id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+
+    <!--<validations>-->
+        <!--<condition id="checkAgreem" level="error" check-before-submit="true">-->
+            <!--<expression>agreeService == true</expression>-->
+            <!--<message>Пациент не дал согласие на оказание услуги!</message>-->
+        <!--</condition>-->
+    <!--</validations>-->
+
+</object>

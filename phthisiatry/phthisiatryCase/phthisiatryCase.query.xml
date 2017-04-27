@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>phthisiatryCase</object-id>
+    <execution xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from public.mc_case t
+                join public.mc_case_type ct on ct.id=t.case_type_id and ct.case_mode_id = 1 and ct.e_code not in ('7','8')
+                join public.pim_individual ind ON ind.id = t.patient_id
+                left join public.mc_diagnosis diag on diag.id = t.main_diagnos_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(t)
+                from public.mc_case t
+                join public.mc_case_type ct on ct.id=t.case_type_id and ct.case_mode_id = 1 and ct.e_code not in ('7','8')
+                join public.pim_individual ind ON ind.id = t.patient_id
+                left join public.mc_diagnosis diag on diag.id = t.main_diagnos_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>t</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>number</id>
+            <name>Номер случая</name>
+            <expression>t.uid</expression>
+            <search>trim(lower(:expression)) like '%'||trim(lower(:number))||'%'</search>
+        </field>
+        <field>
+            <id>create_date</id>
+            <name>Дата создания случая</name>
+            <domain>date</domain>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>t.patient_id</expression>
+        </field>
+        <field>
+            <id>patient.fio</id>
+            <name>Пациент</name>
+            <domain>string</domain>
+            <expression>concat_ws(' ', initcap(ind.surname), initcap(ind.name), initcap(ind.patr_name))</expression>
+        </field>
+        <field>
+            <id>gender.id</id>
+            <domain>integer</domain>
+            <expression>ind.gender_id</expression>
+        </field>
+        <field>
+            <id>gender.name</id>
+            <name>Пол</name>
+            <domain>integer</domain>
+            <expression>(SELECT gen.name FROM public.pim_gender gen WHERE gen.id = ind.gender_id)</expression>
+        </field>
+        <field>
+            <id>birth_dt</id>
+            <name>Дата рождения</name>
+            <domain>date</domain>
+            <expression>ind.birth_dt</expression>
+        </field>
+        <field>
+            <id>soc_group.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select social_group_id from pci_patient pat
+                where pat.id = ind.id limit 1)
+            </expression>
+        </field>
+        <field>
+            <id>soc_group.name</id>
+            <name>Социальный статус</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT sg.name FROM public.md_soc_group sg
+                JOIN pci_patient pat on pat.social_group_id = sg.id
+                WHERE pat.id = ind.id
+                limit 1)</expression>
+        </field>
+
+        <field>
+            <id>patient.passport</id>
+            <name>Паспорт</name>
+            <domain>string</domain>
+            <expression>(select concat_ws(' ', passport.series, passport.number) from pim_individual_doc passport where passport.indiv_id = ind.id and passport.type_id =
+                (select dtype.id from pim_doc_type dtype where dtype.code = 'PASSPORT_RUSSIAN_FEDERATION' limit 1) limit 1)</expression>
+        </field>
+
+        <field>
+            <id>patient.passport_dt</id>
+            <name>Дата выдачи</name>
+            <domain>date</domain>
+            <expression>(select passport.issue_dt from pim_individual_doc passport where passport.indiv_id = ind.id and passport.type_id =
+                (select dtype.id from pim_doc_type dtype where dtype.code = 'PASSPORT_RUSSIAN_FEDERATION' limit 1) limit 1)</expression>
+        </field>
+
+        <field>
+            <id>patient.polic</id>
+            <name>Полис</name>
+            <domain>string</domain>
+            <expression>
+                (select concat_ws(' ', polic.series, polic.number)
+                from pim_individual_doc polic
+                where polic.indiv_id = ind.id and polic.type_id in
+                (select dtype.id from pim_doc_type dtype where dtype.code in ('MHI_UNIFORM', 'MHI_OLDER'))
+                order by polic.type_id desc
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.polic_dt</id>
+            <name>Дата выдачи</name>
+            <domain>date</domain>
+            <expression>
+                (select polic.issue_dt
+                from pim_individual_doc polic
+                where polic.indiv_id = ind.id and polic.type_id in
+                (select dtype.id from pim_doc_type dtype where dtype.code in ('MHI_UNIFORM', 'MHI_OLDER'))
+                order by polic.type_id desc
+                limit 1)
+            </expression>
+        </field>
+        <field>
+            <id>vrach.employee_position_id</id>
+            <name>Врач</name>
+            <domain>integer</domain>
+            <expression>
+                (SELECT epos.id FROM public.mc_step step
+                JOIN public.sr_res_group res ON res.id = step.res_group_id
+                JOIN public.pim_employee_position epos ON epos.id = res.responsible_id
+                JOIN public.pim_employee empl ON empl.id = epos.employee_id
+                JOIN public.pim_individual ind ON ind.id = empl.individual_id
+                WHERE step.case_id = t.id
+                ORDER BY step.admission_date
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>vrach.name</id>
+            <name>Врач</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT concat_ws(' ', initcap(ind.surname), initcap(ind.name), initcap(ind.patr_name)) FROM public.mc_step step
+                JOIN public.sr_res_group res ON res.id = step.res_group_id
+                JOIN public.pim_employee_position epos ON epos.id = res.responsible_id
+                JOIN public.pim_employee empl ON empl.id = epos.employee_id
+                JOIN public.pim_individual ind ON ind.id = empl.individual_id
+                WHERE step.case_id = t.id
+                ORDER BY step.admission_date
+                LIMIT 1)
+            </expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>admission_reason.id</id>
+            <domain>integer</domain>
+            <expression>t.admission_reason_id</expression>
+        </field>
+        <field>
+            <id>admission_state.id</id>
+            <domain>integer</domain>
+            <expression>t.admission_state_id</expression>
+        </field>
+        <field>
+            <id>admission_type.id</id>
+            <domain>integer</domain>
+            <expression>t.admission_type_id</expression>
+        </field>
+        <field>
+            <id>care_level.id</id>
+            <domain>integer</domain>
+            <expression>t.care_level_id</expression>
+        </field>
+        <field>
+            <id>care_regimen.id</id>
+            <domain>integer</domain>
+            <expression>t.care_regimen_id</expression>
+        </field>
+        <field>
+            <id>case_type.id</id>
+            <domain>integer</domain>
+            <expression>t.case_type_id</expression>
+        </field>
+        <field>
+            <id>repeat_count.id</id>
+            <domain>integer</domain>
+            <expression>t.repeat_count_id</expression>
+        </field>
+        <field>
+            <id>clinic.id</id>
+            <domain>integer</domain>
+            <expression>t.clinic_id</expression>
+        </field>
+        <field>
+            <id>funding.id</id>
+            <domain>integer</domain>
+            <expression>t.funding_id</expression>
+        </field>
+        <field>
+            <id>funding.name</id>
+            <name>Вид оплаты</name>
+            <domain>integer</domain>
+            <expression>(SELECT fund.name FROM public.fin_funding_source_type fund WHERE fund.id = t.funding_id)</expression>
+        </field>
+        <field>
+            <id>init_goal.id</id>
+            <domain>integer</domain>
+            <expression>t.init_goal_id</expression>
+        </field>
+        <field>
+            <id>init_type.id</id>
+            <domain>integer</domain>
+            <expression>t.init_type_id</expression>
+        </field>
+        <field>
+            <id>main_diagnos</id>
+            <domain>object</domain>
+            <expression>(select get_diagnosis_init(diag.diagnos_id, (select array_agg(attr_value_id) from mc_diag_attr where diagnosis_id = t.main_diagnos_id)))</expression>
+        </field>
+        <field>
+            <id>stage.id</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT mc_d.stage_id FROM public.mc_diagnosis mc_d
+                WHERE mc_d.id = t.main_diagnos_id)
+            </expression>
+        </field>
+        <field>
+            <id>case_diagnos.id</id>
+            <domain>integer</domain>
+            <expression>t.main_diagnos_id</expression>
+        </field>
+        <field>
+            <id>md_case_diagnos.id</id>
+            <domain>integer</domain>
+            <expression>(select mcd.diagnos_id from public.mc_diagnosis mcd where mcd.id=t.main_diagnos_id)</expression>
+        </field>
+        <field>
+            <id>mainDiagnosName</id>
+            <name>Подтверждённый диагноз</name>
+            <domain>string</domain>
+            <expression>
+                (select get_diagnosis_full_name(t.main_diagnos_id))
+            </expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>ref_diagnos.name</id>
+            <name>Направительный диагноз</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT ref.diagnosis_id FROM md_referral ref
+                JOIN public.mc_step step ON step.id = ref.step_id
+                WHERE step.case_id = t.id
+                ORDER BY step.admission_date
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>referral.id</id>
+            <domain>integer</domain>
+            <expression>t.referral_id</expression>
+        </field>
+        <field>
+            <id>referral_resulting.id</id>
+            <domain>integer</domain>
+            <expression>t.referral_resulting_id</expression>
+        </field>
+        <field>
+            <id>open_date</id>
+            <domain>date</domain>
+        </field>
+        <field>
+            <id>closing_step.id</id>
+            <domain>integer</domain>
+            <expression>t.closing_step_id</expression>
+        </field>
+        <field>
+            <id>closing_stepId</id>
+            <domain>integer</domain>
+            <expression>t.closing_step_id</expression>
+        </field>
+        <field>
+            <id>closing_step.date</id>
+            <name>Дата закрытия случая</name>
+            <domain>date</domain>
+            <expression>(SELECT step.outcome_date FROM mc_step step WHERE step.id = t.closing_step_id LIMIT 1)</expression>
+        </field>
+        <field>
+            <id>d_account_status</id>
+            <name>Д-учет</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT
+                CASE
+                WHEN count(*) = 0 THEN 'не подлежит учету'
+                WHEN count(*) > 0 THEN 'подлежит учету'
+                END
+                FROM d_accounting.account_case acc
+                WHERE acc.case_id = t.id
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>visit_exists</id>
+            <domain>boolean</domain>
+            <expression>(select exists(select 1 from mc_step where case_id = t.id))</expression>
+        </field>
+        <field>
+            <id>isInReestr</id>
+            <domain>integer</domain>
+            <expression>(select count(*) from fin_bill_spec_item fi
+                join md_srv_rendered srv on fi.service_id=srv.id
+                where srv.case_id = t.id)</expression>
+        </field>
+        <field>
+            <id>mo.id</id>
+            <domain>integer</domain>
+            <expression>t.clinic_id</expression>
+        </field>
+        <field>
+            <id>clinicalForm.id</id>
+            <domain>integer</domain>
+            <expression>diag.clinical_form_id</expression>
+        </field>
+        <field>
+            <id>complication.id</id>
+            <domain>integer</domain>
+            <expression>diag.complication_id</expression>
+        </field>
+        <field>
+            <id>localization.id</id>
+            <domain>integer</domain>
+            <expression>diag.localization_id</expression>
+        </field>
+    </fields>
+</query>
+

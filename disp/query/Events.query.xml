@@ -1,0 +1,199 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+        >
+    <id>Events</id>
+    <name>Мероприятия</name>
+    <object-id>Event</object-id>
+    <execution>
+        <n2o:sql>
+            <!--<n2o:data-source>jdbc/lsd</n2o:data-source>-->
+            <n2o:items-query>select :select
+                from disp.md_event e
+                left join pim_organization po on po.id = e.org_id
+                left join fin_funding_source_type ffst on ffst.id = e.pay_type
+                left join md_standard s on s.id = e.standard_id
+                left join disp.md_event_type met on met.id = e.event_type
+                <!--todo Убрана для правильного отображения дерева -->
+                <!--left join disp.md_event_patient mep on e.id = mep.event_id-->
+                <!--left join gibdd.md_gibdd_reference mgr on mep.id= mgr.id-->
+                left join mc_payment_method mpm on mpm.id = e.pay_method
+                left join md_mes mes on e.mes_id = mes.id
+                where :where and e.is_deleted is not true
+                order by met.code, e.start_date desc
+            </n2o:items-query>
+            <n2o:count-query>select count(e)
+                from disp.md_event e
+                left join pim_organization po on po.id = e.org_id
+                left join fin_funding_source_type ffst on ffst.id = e.pay_type
+                left join md_standard s on s.id = e.standard_id
+                left join disp.md_event_type met on met.id = e.event_type
+                left join mc_payment_method mpm on mpm.id = e.pay_method
+                left join md_mes mes on e.mes_id = mes.id
+                where :where and e.is_deleted is not true
+            </n2o:count-query>
+            <n2o:alias>e</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>e.id</display>
+            <search>e.id = :id</search>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>String</domain>
+            <expression>e.name</expression>
+            <display>e.name</display>
+            <search>upper(e.name) like '%'||upper(:name)||'%'</search>
+            <name>Наименование</name>
+            <sorting>e.name</sorting>
+        </field>
+        <field>
+            <id>startDate</id>
+            <domain>Date</domain>
+            <display>e.start_date</display>
+            <search>e.start_date = :startDate</search>
+            <name>Дата начала</name>
+            <sorting>e.start_date</sorting>
+        </field>
+        <field>
+            <id>endDate</id>
+            <domain>Date</domain>
+            <display>e.end_date</display>
+            <search>e.end_date = :endDate</search>
+            <name>Дата окончания</name>
+            <sorting>e.end_date</sorting>
+        </field>
+        <field>
+            <id>standard.name</id>
+            <name>Стандарт назначения</name>
+            <domain>String</domain>
+            <expression>s.name</expression>
+        </field>
+        <field>
+            <id>standard.id</id>
+            <domain>Integer</domain>
+            <expression>s.id</expression>
+        </field>
+        <field>
+            <id>organization.short_name</id>
+            <name>Стандарт назначения</name>
+            <domain>String</domain>
+            <expression>po.short_name</expression>
+        </field>
+        <field>
+            <id>enable</id>
+            <domain>Integer</domain>
+            <expression>(case when now()>e.end_date or  e.start_date > now() and met.code not like
+                'ДВ%' then 0 else 1  end )
+            </expression>
+            <display>:expression</display>
+        </field>
+        <field>
+            <id>organization.id</id>
+            <domain>Integer</domain>
+            <display>po.id</display>
+            <search>po.id = CAST(:organization.id as integer)</search>
+        </field>
+        <field>
+            <id>fundingSourceType.name</id>
+            <name>Стандарт назначения</name>
+            <domain>String</domain>
+            <expression>ffst.name</expression>
+        </field>
+        <field>
+            <id>fundingSourceType.id</id>
+            <domain>Integer</domain>
+            <expression>ffst.id</expression>
+        </field>
+        <field>
+            <id>paymentMethod.id</id>
+            <domain>Integer</domain>
+            <expression>mpm.id</expression>
+
+        </field>
+        <field>
+            <id>paymentMethod.name</id>
+            <domain>String</domain>
+            <display>mpm.name</display>
+        </field>
+        <field>
+            <id>paymentMethod.code</id>
+            <domain>String</domain>
+            <expression>mpm.code</expression>
+            <search>mpm.code= :paymentMethod.code</search>
+
+        </field>
+
+        <field>
+            <id>mes.id</id>
+            <domain>Integer</domain>
+            <expression>mes.id</expression>
+        </field>
+        <field>
+            <id>mes.name</id>
+            <domain>String</domain>
+            <display>mes.name</display>
+        </field>
+        <field>
+            <id>eventType.name</id>
+            <name>Вид мероприятия</name>
+            <domain>String</domain>
+            <expression>met.name</expression>
+        </field>
+        <field>
+            <id>eventType.id</id>
+            <domain>Integer</domain>
+            <expression>met.id</expression>
+        </field>
+        <field>
+            <id>eventType.code</id>
+            <domain>String</domain>
+            <expression>met.code</expression>
+            <search>met.code = :eventType.code</search>
+        </field>
+        <field>
+            <id>event_year_id</id>
+            <domain>string</domain>
+            <display>CAST(met.id as text)||CAST(EXTRACT(YEAR FROM e.start_date) as text)</display>
+        </field>
+        <field>
+            <id>event_year_name</id>
+            <domain>string</domain>
+            <display>'Мероприятия '||CAST(EXTRACT(YEAR FROM e.start_date) as text)||' года'</display>
+        </field>
+        <field>
+            <id>event_type_name</id>
+            <domain>string</domain>
+            <display>met.code||' - '||coalesce(met.short_name, met.name)</display>
+        </field>
+        <field>
+            <id>is_mobile_medical_teams</id>
+            <domain>boolean</domain>
+            <display>e.is_mobile_medical_teams</display>
+        </field>
+        <field>
+            <id>count_mmt</id>
+            <domain>integer</domain>
+            <display>e.count_mmt</display>
+        </field>
+        <field>
+            <id>year.id</id>
+            <domain>integer</domain>
+            <display>(case when (met.code = 'ДВ1') then (select id from disp.md_event_year y where y.year = CAST(EXTRACT(YEAR FROM e.start_date) as text))
+                else null end)
+            </display>
+        </field>
+        <!--todo Убрана до выяснения надобности этого поля в выборке -->
+        <!--<field>-->
+            <!--<id>disp.md_gibdd_status</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<display>mgr.status</display>-->
+        <!--</field>-->
+    </fields>
+</query>

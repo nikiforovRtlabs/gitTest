@@ -1,0 +1,180 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>storeSupplyList</name>
+    <object-id>storeSupply</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query><![CDATA[ select :select from
+            (select hm.id holdModifId, hm.name hmName, s.id storeId, s.org_id orgId, s.name sName,cg.id cgId, cg.name cgName,
+                bal.quantity as minBalanceMneiQuantity, bal.fund_source_id as minBalanceFundSource,
+                sum(ss.act_balance_mnei) mneiQuantity, sum(ss.act_balance_arr) quantity,
+                hm.mnei_count_in_sec_pk mneiCountInSecPk, hm.mnei_id mneiId,
+                inventory.get_unit_name_by_flag_of_modif(hm.price_unit_flag, hm.id) unitName,
+                measure.mnemocode mneiUnitName
+                from inventory.store_supply ss
+                inner join inventory.store s on ss.store_id=s.id
+                inner join inventory.batch b on b.id=ss.batch_id
+                inner join inventory.hold_modif hm on hm.id=b.hold_modif_id
+                left outer join inventory.hold_modif_min_balance bal on bal.hold_modif_id=hm.id and bal.store_id=s.id
+                inner join inventory.holding h on h.id=hm.holding_id
+                left outer join  cmn_measure measure on measure.id=hm.mnei_id
+                left outer join inventory.commodity_group cg on cg.id=h.commodity_group_id
+                where  ss.id in (
+                             select ssup.id from inventory.store_supply ssup
+                                    inner join inventory.batch b on b.id=ssup.batch_id
+                             where  (:fundSource.id::int is null or ssup.funding_source_id= :fundSource.id::int) and
+                                    (:expireDate.begin::date is null or b.expire_dt >= :expireDate.begin::date) and
+                                    (:expireDate.end::date is null or b.expire_dt <= :expireDate.end::date)
+                                    and ssup.store_id=s.id
+                                    and b.hold_modif_id=hm.id
+                                    and ssup.act_balance_mnei!=0)
+                group by hm.id, s.id,cg.id, bal.id,measure.id) store_supply
+                where mneiQuantity!=0 and :where order by :order ]]>
+            </n2o:items-query>
+            <n2o:count-query><![CDATA[ select count(store_supply) from
+            (select hm.id holdModifId, hm.name hmName, s.id storeId, s.org_id orgId, s.name sName,cg.id cgId, cg.name cgName,
+                sum(ss.act_balance_mnei) mneiQuantity, sum(ss.act_balance_arr) quantity,
+                hm.mnei_count_in_sec_pk mneiCountInSecPk, hm.mnei_id mneiId
+
+                from inventory.store_supply ss
+                inner join inventory.store s on ss.store_id=s.id
+                inner join inventory.batch b on b.id=ss.batch_id
+                inner join inventory.hold_modif hm on hm.id=b.hold_modif_id
+                inner join inventory.holding h on h.id=hm.holding_id
+                left outer join inventory.commodity_group cg on cg.id=h.commodity_group_id
+                where  ss.id in (
+                             select ssup.id from inventory.store_supply ssup
+                                    inner join inventory.batch b on b.id=ssup.batch_id
+                             where  (:fundSource.id::int is null or ssup.funding_source_id= :fundSource.id::int) and
+                                    (:expireDate.begin::date is null or b.expire_dt >= :expireDate.begin::date) and
+                                    (:expireDate.end::date is null or b.expire_dt <= :expireDate.end::date)
+                                    and ssup.store_id=s.id
+                                    and b.hold_modif_id=hm.id
+                                    and ssup.act_balance_mnei!=0)
+                group by hm.id, s.id,cg.id) store_supply
+                where mneiQuantity!=0 and :where ]]>
+            </n2o:count-query>
+            <n2o:alias>ss</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>string</domain>
+            <expression>CONCAT(storeId,'_',holdModifId)</expression>
+        </field>
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <expression>storeId</expression>
+        </field>
+        <field>
+            <id>stores.id*</id>
+            <domain>integer[]</domain>
+            <search>storeId in (:stores.id*)</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>store.name</id>
+            <domain>string</domain>
+            <name>Склад</name>
+            <expression>sName</expression>
+        </field>
+        <field>
+            <id>holdModif.id</id>
+            <domain>integer</domain>
+            <expression>holdModifId</expression>
+        </field>
+        <field>
+            <id>holdModif.name</id>
+            <domain>string</domain>
+            <name>Наименование ЛС и ИМН</name>
+            <expression>hmName</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>filterHoldModif.name</id>
+            <domain>string</domain>
+            <name>Наименование ЛС и ИМН</name>
+            <expression>hmName</expression>
+            <search>translate(upper(hmName),'., ','') like '%'||translate(upper(:filterHoldModif.name),',. ','')||'%'</search>
+            <sorting>hmName=:filterHoldModif.name desc , :filterHoldModif.name like substr(hmName, 0,position(' ' IN hmName))||'%' desc, hmName like :filterHoldModif.name||'%' desc, hmName like '%'|| :filterHoldModif.name</sorting>
+        </field>
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>cgId</expression>
+        </field>
+        <field>
+            <id>comGroup.name</id>
+            <name>Группа учета</name>
+            <domain>string</domain>
+            <expression>cgName</expression>
+        </field>
+        <field>
+            <id>balance</id>
+            <domain>string</domain>
+            <name>Остаток</name>
+            <expression>case when quantity = mneiQuantity
+                then
+                    trim(to_char(quantity, 'FM9999990.999999'), '.')||' '||unitName
+                else
+                    trim(to_char(quantity, 'FM9999990.999999'), '.')||' '||unitName
+                ||' ('||trim(to_char(mneiQuantity, 'FM9999990.999999'), '.')||' '||mneiUnitName||')'
+                end
+            </expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>(select :fundSource.id::int)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>expireDate.end</id>
+            <domain>date</domain>
+            <expression>(select :expireDate.end::date)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>expireDate.begin</id>
+            <domain>date</domain>
+            <expression>(select :expireDate.begin::date)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>expireDate</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>orgId</expression>
+            <search value="#{org.id?}">(:expression = :org.id or :org.id is null)</search>
+        </field>
+        <field>
+            <id>minBalanceMneiQuantity</id>
+            <domain>string</domain>
+            <expression>minBalanceMneiQuantity</expression>
+        </field>
+        <field>
+            <id>unitName</id>
+            <domain>string</domain>
+            <expression>unitName</expression>
+        </field>
+        <field>
+            <id>mneiUnitName</id>
+            <domain>string</domain>
+            <expression>mneiUnitName</expression>
+        </field>
+        <field>
+            <id>minBalanceFundSource.id</id>
+            <domain>integer</domain>
+            <expression>minBalanceFundSource</expression>
+        </field>
+    </fields>
+</query>

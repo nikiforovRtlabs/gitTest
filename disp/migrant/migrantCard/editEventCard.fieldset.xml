@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<field-set xmlns="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+           xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+           field-label-location="top" header="none">
+    <row>
+    <ctrl:input-text label="Наименование" id="name" required="true"/>
+    <ctrl:classifier id="eventType" label="Вид мероприятия" required="true">
+        <ctrl:query query-id="eventType" value-field-id="id" label-field-id="name"/>
+    </ctrl:classifier>
+    <ctrl:classifier id="organization" label="Организация" required="true">
+        <ctrl:query query-id="organization" value-field-id="id" label-field-id="short_name">
+            <ctrl:pre-filters>
+                <ctrl:pre-filter field-id="id" value="#{org.id?}"/>
+            </ctrl:pre-filters>
+        </ctrl:query>
+    </ctrl:classifier>
+    <ctrl:classifier id="fundingSourceType" label="Вид финансирования" depends-on="organization" required="true">
+        <ctrl:query query-id="fundingSourceType" value-field-id="id" label-field-id="name">
+            <ctrl:pre-filters>
+                <ctrl:pre-filter field-id="eventTypeId" ref="eventType.id" />
+            </ctrl:pre-filters>
+        </ctrl:query>
+    </ctrl:classifier>
+    <ctrl:classifier id="year" label="Год проведения" required="true" depends-on="eventType"
+                     dependency-condition="(typeof eventType != 'undefined') &amp;&amp; (eventType != null) &amp;&amp; (eventType.code == 'ДВ1')">
+        <ctrl:query query-id="eventYear" value-field-id="id" label-field-id="year"/>
+    </ctrl:classifier>
+    <ctrl:date-time label="Дата начала" id="startDate" required="true" depends-on="eventType"
+                    dependency-condition="(typeof eventType != 'undefined') &amp;&amp; (eventType != null) &amp;&amp; (eventType.code != 'ДВ1')">
+        <ctrl:set-value-expression on="year">
+            <![CDATA[
+                if ((typeof year != 'undefined') && (year != null) && (year.year != null))
+                    moment('01.01.' + year.year, 'DD.MM.YYYY').format('DD.MM.YYYY HH:mm');
+                else throw '!';
+            ]]>
+        </ctrl:set-value-expression>
+    </ctrl:date-time>
+    <ctrl:date-time label="Дата окончания" id="endDate" required="true" depends-on="eventType"
+                    dependency-condition="(typeof eventType != 'undefined') &amp;&amp; (eventType != null) &amp;&amp; (eventType.code != 'ДВ1')">
+        <ctrl:set-value-expression on="year">
+            <![CDATA[
+                if ((typeof year != 'undefined') && (year != null) && (year.year != null))
+                    moment('31.12.' + year.year, 'DD.MM.YYYY').format('DD.MM.YYYY HH:mm');
+                else throw '!';
+            ]]>
+        </ctrl:set-value-expression>
+        <ctrl:validations>
+            <ctrl:validation ref-id="checkEventDate"/>
+            <ctrl:validation ref-id="checkOrphansEventLength"/>
+            <ctrl:validation ref-id="checkAdultEventLength"/>
+        </ctrl:validations>
+    </ctrl:date-time>
+
+    <ctrl:classifier id="standard" label="Стандарт лечения" required="true" readonly="true">
+        <ctrl:query query-id="md_standard" value-field-id="id" label-field-id="name"/>
+    </ctrl:classifier>
+    <ctrl:checkbox id="is_mobile_medical_teams" label="Мобильные медицинские бригады"/>
+    <ctrl:input-text id="count_mmt" label="Количество ММБ">
+        <ctrl:dependencies>
+            <ctrl:enabling-condition on="is_mobile_medical_teams">is_mobile_medical_teams == true</ctrl:enabling-condition>
+        </ctrl:dependencies>
+        <ctrl:set-value-expression on="is_mobile_medical_teams">if (is_mobile_medical_teams == null || is_mobile_medical_teams == false) null; else throw '!';</ctrl:set-value-expression>
+    </ctrl:input-text>
+
+        <ctrl:classifier id="paymentMethod" label="Способ оплаты"  required="true">
+            <ctrl:query query-id="mc_payment_method" value-field-id="id" label-field-id="name">
+            </ctrl:query>
+        </ctrl:classifier>
+    <ctrl:input-text label="Идентификатор мероприятия" id="id" readonly="true"  label-style="width:200px;"/>
+        <ctrl:classifier id="mes" label="МЭС">
+            <ctrl:query query-id="md_mes" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="orgId" ref="organization.id"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+    </row>
+</field-set>

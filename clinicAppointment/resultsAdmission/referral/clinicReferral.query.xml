@@ -1,0 +1,449 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicReferral</object-id>
+    <name>clinicReferral</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from md_referral mr
+
+                left join pim_organization ref_org on ref_org.id = mr.ref_organization_id
+                left join pim_department ref_dep on ref_dep.id = mr.ref_department_id
+
+                left join md_report_referral_type mrrt on mrrt.referral_type_id = mr.referral_type_id
+
+                left join pim_organization po on ( mr.recv_organization_id = po.id )
+                left join pim_department pd on ( mr.department_id = pd.id )
+                left join md_diagnosis md on ( mr.diagnosis_id = md.id )
+                left join sr_srv_rendered ssr on ( mr.service_id = ssr.id )
+                left join sr_service ss on ( ssr.service_id = ss.id )
+                left join fin_funding_source_type ffst on ( mr.funding_id = ffst.id )
+                left join mc_step ms on ( mr.step_id = ms.id )
+                left join md_referral_type mrt on ( mr.referral_type_id = mrt.id )
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mr)
+                from md_referral mr
+                left join pim_organization po on ( mr.recv_organization_id = po.id )
+                left join mc_step ms on ( mr.step_id = ms.id )
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>reportName</id>
+            <domain>string</domain>
+            <expression>mrrt.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>referralTypeName</id>
+            <domain>string</domain>
+            <expression>
+                (case when mrt.is_laboratory = true then 'лаб. исследования'
+                when mrt.code = '2' then 'на госпитализацию'
+                when mrt.code = '5' then 'на экспертизу'
+                when mrt.code = '10' then 'на ЦВКК'
+                when mrt.code = '11' then 'на 2 этап диспансеризации'
+                else regexp_replace(mrt.name, 'направление ', '', 'i')
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>ms.case_id</expression>
+        </field>
+
+        <field>
+            <id>stepId</id>
+            <domain>integer</domain>
+            <expression>ms.id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>mr.order_number</expression>
+        </field>
+
+        <field>
+            <id>date</id>
+            <domain>string</domain>
+            <expression>to_char(mr.referral_date, 'DD.MM.YYYY HH24:MI')</expression>
+        </field>
+
+        <field>
+            <id>referralDate</id>
+            <domain>date</domain>
+            <expression>mr.referral_date</expression>
+        </field>
+
+        <field>
+            <id>status</id>
+            <domain>boolean</domain>
+            <expression>case when mr.status_id = 4 then true else false end</expression>
+        </field>
+
+        <field>
+            <id>referralOrganization.id</id>
+            <domain>integer</domain>
+            <expression>mr.ref_organization_id</expression>
+        </field>
+
+        <field>
+            <id>referralOrganization.name</id>
+            <domain>string</domain>
+            <expression>coalesce(ref_org.short_name, ref_org.full_name)</expression>
+        </field>
+
+        <field>
+            <id>referralDepartment.id</id>
+            <domain>integer</domain>
+            <expression>mr.ref_department_id</expression>
+        </field>
+
+        <field>
+            <id>referralDepartment.name</id>
+            <domain>string</domain>
+            <expression>ref_dep.name</expression>
+        </field>
+
+        <field>
+            <id>referralDoctor.id</id>
+            <domain>integer</domain>
+            <expression>mr.ref_doctor_id</expression>
+        </field>
+
+        <field>
+            <id>recvOrg.id</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+        </field>
+
+        <field>
+            <id>recvOrg.name</id>
+            <domain>string</domain>
+            <expression>po.full_name</expression>
+        </field>
+
+        <field>
+            <id>recvDepartment.id</id>
+            <domain>integer</domain>
+            <expression>pd.id</expression>
+        </field>
+
+        <field>
+            <id>recvDepartment.name</id>
+            <domain>string</domain>
+            <expression>pd.name</expression>
+        </field>
+
+        <field>
+            <id>recvDoctor.id</id>
+            <domain>integer</domain>
+            <expression>mr.recv_doctor_id</expression>
+        </field>
+
+        <field>
+            <id>recvDoctor.name</id>
+            <domain>string</domain>
+            <expression>(select pi1.surname ||' '||left(initcap(pi1.name),1)||'. '||left(initcap(pi1.patr_name),1) from pim_employee_position pep1
+                left join pim_employee pe1 on ( pep1.employee_id = pe1.id  )
+                left join pim_individual pi1 on ( pe1.individual_id = pi1.id  )
+                where pep1.id = mr.recv_doctor_id )
+            </expression>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>md.id</expression>
+        </field>
+
+        <field>
+            <id>diagnosis.name</id>
+            <domain>string</domain>
+            <expression>md.code || ' ' || md.name</expression>
+        </field>
+
+        <field>
+            <id>isUrgent</id>
+            <domain>boolean</domain>
+            <expression>mr.is_urgent</expression>
+        </field>
+
+        <field>
+            <id>service</id>
+            <domain>string</domain>
+            <name>Услуга</name>
+            <expression>
+                (case
+                when
+                    exists (select 1 from md_referral_service mrsx where mrsx.referral_id = mr.id and main_complex is true) is true
+                then
+                    (select concat('[+] ',ss.name)
+                    from md_referral_service mrs1
+                    join sr_service ss ON ( mrs1.service_id = ss.id )
+                    where mrs1.referral_id = mr.id and main_complex is true limit 1)
+                else
+                    array_to_string(array(select ss.name
+                    from md_referral_service mrs1
+                    join sr_service ss ON ( mrs1.service_id = ss.id )
+                    where mrs1.referral_id = mr.id), '; ')
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>mr.patient_id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>referralType.id</id>
+            <domain>integer</domain>
+            <expression>mr.referral_type_id</expression>
+        </field>
+
+        <field>
+            <id>is_laboratoryReferral</id>
+            <domain>boolean</domain>
+            <expression>
+                case when (select is_laboratory from md_referral_type where id = mr.referral_type_id) = true then true
+                else false end
+            </expression>
+        </field>
+
+        <field>
+            <id>is_hospitalReferral</id>
+            <domain>boolean</domain>
+            <expression>
+                case when (select hsp_rsv_mark from md_referral_type where id = mr.referral_type_id) = true then true
+                else false end
+            </expression>
+        </field>
+
+        <field>
+            <id>org_party_role.id</id>
+            <domain>integer</domain>
+            <expression>(select ppr.id from pim_party_role ppr where ppr.code = 'CLINIC_ORGANIZATION')</expression>
+        </field>
+
+        <field>
+            <id>funding.id</id>
+            <domain>integer</domain>
+            <expression>ffst.id</expression>
+        </field>
+
+        <field>
+            <id>services</id>
+            <domain>object[]</domain>
+            <expression>
+                (select array_to_json(array_agg(r)) from (
+                select distinct
+                ss1.id as id,
+                (case
+                when (exists(select 1 from md_referral_service xmrs
+                where xmrs.referral_id = mr.id AND xmrs.main_complex = true)) is true
+                then
+                (case when sc.is_required is true then concat('[!] ',ss1.code,' ', ss1.name) else concat(ss1.code,' ', ss1.name)
+                end )
+                else concat(ss1.code,' ', ss1.name)
+                end) as name
+                from md_referral_service mrs
+                left join sr_service ss1 on ( mrs.service_id = ss1.id )
+                left join sr_srv_composition sc on mrs.service_id = sc.service_id
+                where mrs.main_complex is not true and mrs.referral_id = mr.id and mrs.service_id is not null) as r)
+            </expression>
+        </field>
+        <field>
+            <id>rootService</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(r) from(
+                select
+                ss1.id as id,
+                (concat('[+] ',ss1.code,' ', ss1.name)) as name,
+                (
+                select array_agg(s1.id) from sr_service s1
+                join sr_srv_composition sc1 on s1.id = sc1.service_id
+                where sc1.complex_id = ss1.id and sc1.is_required = true
+                ) as "requiredFieldsIds"
+                from md_referral_service mrs
+                left join sr_service ss1 on ( mrs.service_id = ss1.id )
+                where mrs.main_complex is true and mrs.referral_id = mr.id
+                order by mrs.id limit 1)r)
+            </expression>
+        </field>
+
+        <field>
+            <id>prototype</id>
+            <domain>object[]</domain>
+            <expression>
+                (select array_to_json(array_agg(r)) from (
+                select
+                mrs.id as id,
+                mrs.id as referral_service_id,
+                mrs.service_prototype_id as prototype_id,
+                ssp.name as prototype_name
+                from md_referral_service mrs
+                left join sr_srv_prototype ssp on ( mrs.service_prototype_id = ssp.id )
+                where mrs.referral_id = mr.id and mrs.service_prototype_id is not null
+                order by mrs.id) as r)
+            </expression>
+        </field>
+
+        <field>
+            <id>comment</id>
+            <domain>string</domain>
+            <expression>mr.comment</expression>
+        </field>
+
+        <field>
+            <id>referralAppendix</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(ar)) from (
+                select
+                mra.id as id,
+                mra.id as appendix_id,
+                mrat.id as type_id,
+                mrat.name as type_name,
+                mra.appendix_name as appendix_name,
+                mra.file_name as appendix_file_name,
+                mra.comment as appendix_comment
+                from md_referral_appendix mra
+                left join md_referral_appendix_type mrat on ( mra.appendix_type_id = mrat.id )
+                where mra.referral_id = mr.id
+                order by mra.id) as ar)
+            </expression>
+        </field>
+
+        <field>
+            <id>serviceIdList</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(r)) from (
+                select
+                mrs.id as id
+                from md_referral_service mrs
+                where mrs.referral_id = mr.id
+                order by mrs.id) as r)
+            </expression>
+        </field>
+
+        <field>
+            <id>appendixIdList</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(ar)) from (
+                select
+                mra.id as id
+                from md_referral_appendix mra
+                where mra.referral_id = mr.id
+                order by mra.id) as ar)
+            </expression>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>:org.id</expression>
+            <search value="#{org.id?}"/>
+        </field>
+
+        <field>
+            <id>referralDiagnosis.id</id>
+            <domain>integer</domain>
+            <expression>:referralDiagnosis.id</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>isComplex</id>
+            <domain>boolean</domain>
+            <expression>
+                exists(select 1
+                from md_referral_service xmrs
+                where xmrs.referral_id = mr.id AND xmrs.main_complex = true)
+            </expression>
+        </field>
+
+        <field>
+            <id>referralServiceId</id>
+            <domain>integer</domain>
+            <expression>
+                (case when :org.id != po.id
+                        then (case when ((select count(service_prototype_id) from md_referral_service
+                                            where referral_id = mr.id and service_prototype_id is not null) != 1
+                                        or (select count(distinct ss1.id) from md_referral_service mrs
+                                                left join sr_service ss1 on ( mrs.service_id = ss1.id )
+                                                where mrs.main_complex is not true and mrs.referral_id = mr.id and mrs.service_id is not null) != 1)
+                                    then null
+                                    else (case when (select count(id) from sr_service where org_id = po.id
+                                                        and prototype_id = (select service_prototype_id from md_referral_service
+                                                        where referral_id = mr.id and service_prototype_id is not null limit 1)) = 1
+                                                then (select id from sr_service where org_id = po.id
+                                                        and prototype_id = (select service_prototype_id from md_referral_service
+                                                        where referral_id = mr.id and service_prototype_id is not null)limit 1)
+                                                else null end)
+                                     end)
+                        else (case when (select ss1.id from md_referral_service mrs
+                                            left join sr_service ss1 on ( mrs.service_id = ss1.id )
+                                            where mrs.main_complex is true and mrs.referral_id = mr.id
+                                            order by mrs.id limit 1) is not null
+                                    then (case when (select distinct ss1.id from md_referral_service mrs
+                                                        left join sr_service ss1 on ( mrs.service_id = ss1.id )
+                                                        where mrs.main_complex is not true and mrs.referral_id = mr.id and mrs.service_id is not null limit 1) is not null
+                                                then null
+                                                else (select ss1.id from md_referral_service mrs
+                                                        left join sr_service ss1 on ( mrs.service_id = ss1.id )
+                                                        where mrs.main_complex is true and mrs.referral_id = mr.id
+                                                        order by mrs.id limit 1)
+                                                end)
+                                    else (case when (select count(distinct ss1.id) from md_referral_service mrs
+                                                        left join sr_service ss1 on ( mrs.service_id = ss1.id )
+                                                        where mrs.main_complex is not true and mrs.referral_id = mr.id and mrs.service_id is not null) != 1
+                                                then null
+                                                else (select distinct ss1.id from md_referral_service mrs
+                                                        left join sr_service ss1 on ( mrs.service_id = ss1.id )
+                                                        where mrs.main_complex is not true and mrs.referral_id = mr.id and mrs.service_id is not null limit 1)
+                                                end)
+                                    end)
+                        end)
+            </expression>
+        </field>
+
+        <field>
+            <id>initialFundingSourceType</id>
+            <domain>object</domain>
+            <expression>:initialFundingSourceType</expression>
+        </field>
+
+        <field>
+            <id>initialIsFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>:initialIsFinanceTypeControl</expression>
+        </field>
+
+        <field>
+            <id>isStomatologyVisit</id>
+            <domain>boolean</domain>
+            <expression>:isStomatologyVisit</expression>
+        </field>
+
+    </fields>
+</query>

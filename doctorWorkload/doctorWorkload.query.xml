@@ -1,0 +1,96 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>doctorWorkload</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from pim_employee_position_resource epr
+                join sr_resource rs on rs.id = epr.id
+                join sr_res_role rr on rr.id = rs.role_id
+                join pim_employee_position ep on ep.id = epr.employee_position_id
+                join pim_employee e on ep.employee_id = e.id
+                join pim_individual i on e.individual_id = i.id
+                join pim_position pp on ep.position_id = pp.id
+                left join pim_position_name pname on pp.id = pname.position_id
+                where rr.code = 'DOCTOR' and (e.is_dismissed is not true and (pname.sex_id is null or pname.sex_id = i.gender_id)) and :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(epr) from pim_employee_position_resource epr
+                join sr_resource rs on rs.id = epr.id
+                join sr_res_role rr on rr.id = rs.role_id
+                join pim_employee_position ep on ep.id = epr.employee_position_id
+                join pim_employee e on ep.employee_id = e.id
+                join pim_individual i on e.individual_id = i.id
+                join pim_position pp on ep.position_id = pp.id
+                left join pim_position_name pname on pp.id = pname.position_id
+                where rr.code = 'DOCTOR' and (e.is_dismissed is not true and (pname.sex_id is null or pname.sex_id = i.gender_id)) and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>epr.id</expression>
+        </field>
+
+        <field>
+            <id>doctor</id>
+            <name>Врач стационара</name>
+            <domain>string</domain>
+            <expression>
+                coalesce(i.surname, '') || ' '
+                || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for 1) || '.' end || ', ' || coalesce(NULLIF(pname.name,''), NULLIF(pp.name, ''))
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>resourceEmployeePositionResource.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>epr.id = :resourceEmployeePositionResource.id</search>
+        </field>
+
+        <field>
+            <id>caseCount</id>
+            <name>Количество пациентов</name>
+            <domain>string</domain>
+            <expression>
+                (select string_agg(c, ', ') from
+                (select count(c.id) || ' (' || coalesce(f.name, 'Вид фин. не задан') || ')' as c from hsp_record r
+                inner join mc_step s on s.id = r.id
+                inner join mc_case c on c.id = s.case_id
+                inner join sr_res_group rg on rg.id = s.res_group_id
+                left outer join fin_funding_source_type f on f.id = c.funding_id
+                where not exists(select 1 from hsp_record h2 inner join mc_step s2 on s2.id = h2.id where s2.case_id = c.id and h2.previous_id = r.id)
+                and c.closing_step_id is null and rg.responsible_id = ep.id group by f.id) as t)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>e.organization_id</expression>
+            <search value="#{org.id?}">(:org.id is null or :expression = :org.id)</search>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>pp.department_id</expression>
+            <search>:expression = :department.id</search>
+        </field>
+
+    </fields>
+
+
+</query>

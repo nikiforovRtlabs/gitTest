@@ -1,0 +1,275 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Вакцина этапа схемы вакцинации</name>
+    <actions>
+        <action id="create" name="Создать вакцины этапа схемы вакцинации">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/vaccine/stage-vaccines/
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="schemaStageId" mapping="['schemaStageId']" domain="integer"/>
+                <param name="org.id" mapping="['orgId']" domain="integer"/>
+                <param name="period.begin" mapping="['from']" domain="date"/>
+                <param name="period.end" mapping="['to']" domain="date"/>
+                <param name="vaccine*.id" mapping="['vaccineIds']" domain="integer[]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="error_if_try_register_vaccines_with_intersecting_diseases"/>
+                <validation ref-id="error_if_vaccines_diseases_non_match_for_stage_diseases"/>
+                <validation ref-id="error_if_try_register_def_vaccines_when_def_vaccines_already_registered"/>
+                <validation ref-id="error_if_try_register_non_def_vaccines_when_def_vaccines_yet_not_registered"/>
+                <validation ref-id="error_if_try_register_def_vaccines_with_period_when_def_vaccines_for_this_period_already_registered"/>
+                <validation ref-id="error_if_try_register_vaccines_for_org_and_period_when_vaccines_for_these_org_and_period_already_registered"/>
+                <validation ref-id="error_if_try_register_def_vaccines_when_def_vaccines_with_intersecting_period_already_registered"/>
+                <validation ref-id="error_if_try_register_vaccines_when_vaccines_for_this_org_with_intersecting_period_already_registered"/>
+            </validations>
+        </action>
+        <action id="update" name="Редактировать вакцины этапа схемы вакцинации">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/vaccine/stage-vaccines/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="schemaStageId" mapping="['schemaStageId']" domain="integer"/>
+                <param name="org.id" mapping="['orgId']" domain="integer"/>
+                <param name="period.begin" mapping="['from']" domain="date"/>
+                <param name="period.end" mapping="['to']" domain="date"/>
+                <param name="vaccine*.id" mapping="['vaccineIds']" domain="integer[]"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="error_if_try_register_vaccines_with_intersecting_diseases"/>
+                <validation ref-id="error_if_vaccines_diseases_non_match_for_stage_diseases"/>
+                <!--<validation ref-id="error_if_try_register_def_vaccines_when_def_vaccines_already_registered"/>-->
+                <validation ref-id="error_if_try_register_non_def_vaccines_when_def_vaccines_yet_not_registered"/>
+                <validation ref-id="error_if_try_register_def_vaccines_with_period_when_def_vaccines_for_this_period_already_registered"/>
+                <validation ref-id="error_if_try_register_vaccines_for_org_and_period_when_vaccines_for_these_org_and_period_already_registered"/>
+                <validation ref-id="error_if_try_register_def_vaccines_when_def_vaccines_with_intersecting_period_already_registered"/>
+                <validation ref-id="error_if_try_register_vaccines_when_vaccines_for_this_org_with_intersecting_period_already_registered"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить вакцины этапа схемы вакцинации">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/vaccine/stage-vaccines/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <!--<confirmation-text>Удаление этапа схемы повлечет за собой удаление цепочки зависимых этапов в схеме. Вы уверены, что хотите выполнить действие?</confirmation-text>-->
+        </action>
+    </actions>
+    <validations>
+        <constraint id="error_if_try_register_vaccines_with_intersecting_diseases" level="error" moment="before-action">
+            <invocation>
+                <n2o:rest method="POST">
+                    <n2o:query>
+                        ${n2o.backend.path}/vaccine/validation/stage-vaccines/diseases-intersection
+                    </n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="schemaStageId" mapping="['schemaStageId']" domain="integer"/>
+                <param name="vaccine*.id" mapping="['vaccineIds']" domain="integer[]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="message" mapping="['message']"/>
+            </out-parameters>
+            <result expression="['success']"/>
+            <message>{message}</message>
+        </constraint>
+        <constraint id="error_if_vaccines_diseases_non_match_for_stage_diseases" level="error" moment="before-action">
+            <invocation>
+                <n2o:rest method="POST">
+                    <n2o:query>
+                        ${n2o.backend.path}/vaccine/validation/stage-vaccines/vaccines-diseases-match-stage-diseases
+                    </n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="schemaStageId" mapping="['schemaStageId']" domain="integer"/>
+                <param name="vaccine*.id" mapping="['vaccineIds']" domain="integer[]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="message" mapping="['message']"/>
+            </out-parameters>
+            <result expression="['success']"/>
+            <message>{message}</message>
+        </constraint>
+        <constraint id="error_if_try_register_def_vaccines_when_def_vaccines_already_registered" level="error" moment="before-action">
+            <message>Вакцины по умолчанию с пустым периодом уже зарегистрированы.</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+SELECT CASE
+  WHEN :orgId :: INT ISNULL
+                 AND :periodBegin :: DATE ISNULL
+                 AND :periodEnd :: DATE ISNULL AND 0 = (SELECT count(*)
+                                                  FROM vac.schema_stage_vaccine_relevance r
+                                                  WHERE r.schema_stage_id = :schemaStageId
+                                                        AND r.org_id ISNULL
+                                                        AND r.from_dt ISNULL
+                                                        AND r.to_dt ISNULL)
+  THEN 0
+  WHEN :orgId :: INT ISNULL
+                 AND :periodBegin :: DATE ISNULL
+                 AND :periodEnd :: DATE ISNULL
+  THEN 1
+  ELSE 0
+  END;
+]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="schemaStageId" mapping="['schemaStageId']" domain="integer" required="true"/>
+                <param name="org.id" mapping="['orgId']" domain="integer"/>
+                <param name="period.begin" mapping="['periodBegin']" domain="date"/>
+                <param name="period.end" mapping="['periodEnd']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="error_if_try_register_non_def_vaccines_when_def_vaccines_yet_not_registered" level="error" moment="before-action">
+            <message>Для начала добавьте вакцины по умолчанию с пустым периодом.</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+SELECT CASE WHEN (:orgId :: INT NOTNULL
+                 OR :periodBegin :: DATE NOTNULL
+                 OR :periodEnd :: DATE NOTNULL) AND 0 = (SELECT count(*)
+                                                  FROM vac.schema_stage_vaccine_relevance r
+                                                  WHERE r.schema_stage_id = :schemaStageId
+                                                        AND r.org_id ISNULL
+                                                        AND r.from_dt ISNULL
+                                                        AND r.to_dt ISNULL)
+  THEN 1
+       ELSE 0 END;
+]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="schemaStageId" mapping="['schemaStageId']" domain="integer" required="true"/>
+                <param name="org.id" mapping="['orgId']" domain="integer"/>
+                <param name="period.begin" mapping="['periodBegin']" domain="date"/>
+                <param name="period.end" mapping="['periodEnd']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="error_if_try_register_def_vaccines_with_period_when_def_vaccines_for_this_period_already_registered" level="error" moment="before-action">
+            <message>На указанный период вакцины по умолчанию уже зарегистрированы.</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+SELECT count(*)
+FROM vac.schema_stage_vaccine_relevance r
+WHERE r.schema_stage_id = :schemaStageId
+      AND (:id::int ISNULL or :id::int <> r.id)
+      AND :orgId::int ISNULL AND r.org_id ISNULL
+      AND (case when :periodBegin::date ISNULL THEN r.from_dt ISNULL else r.from_dt = :periodBegin::date end)
+      AND (case when :periodEnd::date ISNULL THEN r.to_dt ISNULL else r.to_dt = :periodEnd::date end);
+]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer" required="false"/>
+                <param name="schemaStageId" mapping="['schemaStageId']" domain="integer" required="true"/>
+                <param name="org.id" mapping="['orgId']" domain="integer"/>
+                <param name="period.begin" mapping="['periodBegin']" domain="date"/>
+                <param name="period.end" mapping="['periodEnd']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="error_if_try_register_vaccines_for_org_and_period_when_vaccines_for_these_org_and_period_already_registered" level="error" moment="before-action">
+            <message>Для организации и периода вакцины уже зарегистрированы.</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+SELECT count(*)
+FROM vac.schema_stage_vaccine_relevance r
+WHERE r.schema_stage_id = :schemaStageId
+      AND (:id::int ISNULL or :id::int <> r.id)
+      AND :orgId::int NOTNULL AND r.org_id = :orgId::int
+      AND (case when :periodBegin::date ISNULL THEN r.from_dt ISNULL else r.from_dt = :periodBegin::date end)
+      AND (case when :periodEnd::date ISNULL THEN r.to_dt ISNULL else r.to_dt = :periodEnd::date end);
+]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer" required="false"/>
+                <param name="schemaStageId" mapping="['schemaStageId']" domain="integer" required="true"/>
+                <param name="org.id" mapping="['orgId']" domain="integer"/>
+                <param name="period.begin" mapping="['periodBegin']" domain="date"/>
+                <param name="period.end" mapping="['periodEnd']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="error_if_try_register_def_vaccines_when_def_vaccines_with_intersecting_period_already_registered" level="error" moment="before-action">
+            <message>Вакцины по умолчанию пересекаются по периоду с существующими вакцинами по умолчанию.</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+SELECT count(*)
+FROM vac.schema_stage_vaccine_relevance r
+WHERE r.schema_stage_id = :schemaStageId
+      AND :orgId::int ISNULL AND r.org_id ISNULL
+      AND (:id::int ISNULL or :id::int <> r.id)
+      AND (case when :periodBegin::date NOTNULL and :periodEnd::date ISNULL  THEN r.from_dt <= :periodBegin::date and r.to_dt >= :periodBegin::date
+                when :periodBegin::date ISNULL  and :periodEnd::date NOTNULL THEN r.from_dt <= :periodEnd::date   and r.to_dt >= :periodEnd::date
+                when :periodBegin::date NOTNULL and :periodEnd::date NOTNULL THEN
+                (:periodBegin::date > r.from_dt  and :periodEnd::date < r.to_dt) or
+                (:periodBegin::date <= r.from_dt and :periodEnd::date >= r.from_dt) or
+                (:periodBegin::date < r.from_dt and :periodEnd::date > r.to_dt) or
+                (:periodBegin::date <= r.to_dt and :periodEnd::date >= r.to_dt)
+           end);
+]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer" required="false"/>
+                <param name="schemaStageId" mapping="['schemaStageId']" domain="integer" required="true"/>
+                <param name="org.id" mapping="['orgId']" domain="integer"/>
+                <param name="period.begin" mapping="['periodBegin']" domain="date"/>
+                <param name="period.end" mapping="['periodEnd']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="error_if_try_register_vaccines_when_vaccines_for_this_org_with_intersecting_period_already_registered" level="error" moment="before-action">
+            <message>Вакцины для организации пересекаются по периоду с существующими вакцинами организации.</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+SELECT count(*)
+FROM vac.schema_stage_vaccine_relevance r
+WHERE r.schema_stage_id = :schemaStageId
+      AND :orgId::int NOTNULL AND :orgId::int = r.org_id
+      AND (:id::int ISNULL or :id::int <> r.id)
+      AND (case when :periodBegin::date NOTNULL and :periodEnd::date ISNULL  THEN r.from_dt <= :periodBegin::date and r.to_dt >= :periodBegin::date
+                when :periodBegin::date ISNULL  and :periodEnd::date NOTNULL THEN r.from_dt <= :periodEnd::date   and r.to_dt >= :periodEnd::date
+                when :periodBegin::date NOTNULL and :periodEnd::date NOTNULL THEN
+                (:periodBegin::date > r.from_dt  and :periodEnd::date < r.to_dt) or
+                (:periodBegin::date <= r.from_dt and :periodEnd::date >= r.from_dt) or
+                (:periodBegin::date < r.from_dt and :periodEnd::date > r.to_dt) or
+                (:periodBegin::date <= r.to_dt and :periodEnd::date >= r.to_dt)
+           end);
+]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer" required="false"/>
+                <param name="schemaStageId" mapping="['schemaStageId']" domain="integer" required="true"/>
+                <param name="org.id" mapping="['orgId']" domain="integer"/>
+                <param name="period.begin" mapping="['periodBegin']" domain="date"/>
+                <param name="period.end" mapping="['periodEnd']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

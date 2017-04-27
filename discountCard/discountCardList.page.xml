@@ -1,0 +1,152 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-patient-1.0">
+
+    <object-id>discountCardCommon</object-id>
+    <layout>n2o/layout/top-bottom(left-right)</layout>
+    <name>Картотека дисконтных карт</name>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="discountCard">
+                <wgt:table>
+                    <wgt:query-id>discountCardList</wgt:query-id>
+                    <wgt:name>Дисконтные карты</wgt:name>
+                    <wgt:columns>
+                        <wgt:column column-field-id="number"/>
+                        <wgt:column column-field-id="org.name"/>
+                        <wgt:column column-field-id="patientName"/>
+                        <wgt:column column-field-id="beginDate"/>
+                        <wgt:column column-field-id="endDate"/>
+                        <wgt:column column-field-id="discountName"/>
+                        <wgt:column column-field-id="kind.name"/>
+                        <wgt:column column-field-id="statusName"/>
+                    </wgt:columns>
+
+                    <wgt:filters opened="true">
+                        <ctrl:input-text id="number" label="Номер дисконтной карты"/>
+
+                        <ctrl:multi-classifier id="orgs"
+                                               label="Медицинская организация"
+                                               control-style="width:350px;"
+                                               search-as-you-type="true">
+                            <ctrl:query query-id="pm_org_by_access_key" value-field-id="id" label-field-id="name"/>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id}</ctrl:value>
+                                <ctrl:value field-id="name">#{org.name}</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:multi-classifier>
+
+                        <rc:patient id="patient"
+                                    label="Владелец дисконтной карты"
+                                    isFilter="true"
+                                    control-style="width:350px;"/>
+
+                        <ctrl:classifier id="discount" label="Система скидок" control-style="width:350px;"
+                                         depends-on="orgs">
+                            <ctrl:query query-id="pm_discount" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" ref="org.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:date-interval id="discountCardDate" label="Период" control-style="width:360px;"/>
+
+                        <ctrl:classifier id="kind" label="Вид дисконтной карты">
+                            <ctrl:query query-id="pm_discount_card_kind" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="type" label="Тип дисконтной карты" visible="false"> <!--visible=false RMISDEV-4861-->
+                            <ctrl:query query-id="pm_discount_card_type" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="status" label="Статус дисконтной карты">
+                            <ctrl:query query-id="pm_discount_card_status" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                    </wgt:filters>
+                    <wgt:rows>
+                        <wgt:color color-field-id="urgent"/>
+                    </wgt:rows>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" context="false" label="Создать">
+                            <wgt:show-modal page-id="discountCardForm"
+                                            refresh-on-close="true"
+                                            width="90%" max-width="550px" min-width="550px"
+                                            action-id="save"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="update" context="true" label="Изменить">
+                            <wgt:show-modal page-id="discountCardForm"
+                                            width="90%" max-width="550px" min-width="550px"
+                                            detail-field-id="id"
+                                            master-field-id="id"
+                                            refresh-on-close="true"
+                                            action-id="save"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="view"
+                                       label="Просмотр"
+                                       context="true"
+                                       icon="icon-eye-open"
+                                       type="textAndIcon">
+                            <wgt:show-modal page-id="discountCardForm"
+                                            width="90%" max-width="550px" min-width="550px"
+                                            detail-field-id="id"
+                                            master-field-id="id"/>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+
+        <region place="left" type="list" name="Ограничения">
+            <container id="discountCardConfines" depends-on="discountCard"
+                       dependency-condition="typeof discountCard.kind.id!='undefined' &amp;&amp; discountCard.kind.id!=null &amp;&amp; discountCard.kind.id == 3">
+                <wgt:table master-field-id="id" detail-field-id="discountCardId">
+                    <wgt:name>Ограничения</wgt:name>
+                    <wgt:query-id>discountCardConfines</wgt:query-id>
+                    <wgt:size>10</wgt:size>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Создать" context="false">
+                            <wgt:show-modal page-id="discountCardConfinesForm"
+                                            action-id="saveConfine"
+                                            page-name="Добавление ограничения"
+                                            refresh-on-close="true"
+                                            width="90%" max-width="550px" min-width="550px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="delete" context="true">
+                            <wgt:invoke-action action-id="deleteConfine" confirmation="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="fullName"/>
+                        <wgt:column column-field-id="birthDate"/>
+                    </wgt:columns>
+                </wgt:table>
+            </container>
+        </region>
+
+        <region place="right" type="list" name="Системы скидок">
+            <container id="discountCardHistory" depends-on="discountCard">
+                <wgt:table master-field-id="id" detail-field-id="discountCardId">
+                    <wgt:name>Системы скидок</wgt:name>
+                    <wgt:query-id>discountCardHistory</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="discountName"/>
+                        <wgt:column column-field-id="beginDate"/>
+                    </wgt:columns>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>

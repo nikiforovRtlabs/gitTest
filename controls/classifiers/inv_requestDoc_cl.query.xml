@@ -1,0 +1,89 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>inventory_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.request_doc req
+                left outer join inventory.store s on req.rec_store_id = s.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(req)
+                from inventory.request_doc req
+                left outer join inventory.store s on req.rec_store_id = s.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>req</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>'№ '||req.number||', '||req.date||', '||s.name</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>req.status_id</expression>
+        </field>
+        <field>
+            <id>comGroupId</id>
+            <domain>integer</domain>
+            <expression>req.com_group_id</expression>
+        </field>
+        <field>
+            <id>recStore.id</id>
+            <domain>integer</domain>
+            <expression>req.rec_store_id</expression>
+        </field>
+        <field>
+            <id>fundSourceId</id>
+            <domain>integer</domain>
+            <expression>req.fund_source_id</expression>
+        </field>
+        <field>
+            <id>fundSource</id>
+            <domain>object</domain>
+            <expression>
+                (select row_to_json(fundSource_json)
+                from (select id,name from inventory.funding_source fs where fs.id=req.fund_source_id) as fundSource_json)
+            </expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>req.org_id</expression>
+        </field>
+        <field>
+            <id>expDocExists</id>
+            <domain>boolean</domain>
+            <expression>exists (select 1 from inventory.exp_invoice doc where doc.request_doc_id=req.id)</expression>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>integer</domain>
+            <expression>number</expression>
+        </field>
+        <field>
+            <id>sendStore.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>
+                (req.rec_store_id in (select id from inventory.store where central_store_id= :sendStore.id or central_store_id is null) or :sendStore.id is null)
+            </search>
+        </field>
+        <field>
+            <id>centralStoreId</id>
+            <domain>integer</domain>
+            <display>s.central_store_id</display>
+        </field>
+    </fields>
+</query>

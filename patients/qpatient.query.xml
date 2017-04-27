@@ -1,0 +1,256 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>patient</object-id>
+    <name>patient</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query><![CDATA[
+                select :select
+                from pim_individual i
+                JOIN LATERAL ( SELECT
+                                CASE
+                                    WHEN (COALESCE(t.age_yy, 0) = 0) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) < 1) THEN tdd.day_str
+                                        ELSE tmm.month_str
+                                    END
+                                    WHEN (COALESCE(t.age_yy, 0) < 18) THEN
+                                    CASE
+                                        WHEN (COALESCE(t.age_mm, 0) = 0) THEN tyy.year_str
+                                        ELSE concat(tyy.year_str, ' ', tmm.month_str)
+                                    END
+                                    ELSE tyy.year_str
+                                END AS age_txt,
+                            NULL::integer AS age_sort
+                           FROM (((( SELECT COALESCE((date_part('year'::text, t_1.age))::integer, i.age_year) AS age_yy,
+                                    COALESCE((date_part('month'::text, t_1.age))::integer, i.age_month) AS age_mm,
+                                    COALESCE((date_part('day'::text, t_1.age))::integer, i.age_day) AS age_dd
+                                   FROM ( SELECT age((COALESCE((i.death_dt)::date, ('now'::text)::date))::timestamp with time zone, (i.birth_dt)::timestamp with time zone) AS age) t_1) t
+                             LEFT JOIN LATERAL ( SELECT format('%s %s.'::text, t.age_yy,
+                                        CASE
+                                            WHEN ((t.age_yy <> ALL (ARRAY[11, 12, 13, 14])) AND ((t.age_yy % 10) = ANY (ARRAY[1, 2, 3, 4]))) THEN 'г'::text
+                                            ELSE 'л'::text
+                                        END) AS year_str
+                                  WHERE (t.age_yy IS NOT NULL)
+                                 LIMIT 1) tyy ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s мес.'::text, t.age_mm) AS month_str
+                                  WHERE (t.age_mm IS NOT NULL)
+                                 LIMIT 1) tmm ON (true))
+                             LEFT JOIN LATERAL ( SELECT format('%s дн.'::text, t.age_dd) AS day_str
+                                  WHERE (t.age_dd IS NOT NULL)
+                                 LIMIT 1) tdd ON (true))
+                         LIMIT 1) p_age on TRUE
+                left join pci_patient p on p.id = i.id
+                left join pim_citizenship pc on pc.individual_id = i.id
+                left join pim_indiv_code snils on snils.indiv_id = i.id and snils.type_id = 1
+                left join pim_indiv_code enp on enp.indiv_id = i.id and enp.type_id = 3
+                where :where
+                order by :order
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query>select count(p)
+                from pim_individual i
+                left join pci_patient p on p.id = i.id
+                left join pim_citizenship pc on pc.individual_id = i.id
+                left join pim_indiv_code snils on snils.indiv_id = i.id and snils.type_id = 1
+                left join pim_indiv_code enp on enp.indiv_id = i.id and enp.type_id = 3
+                where :where
+            </n2o:count-query>
+            <n2o:alias>i</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <expression>i.id</expression>
+            <domain>integer</domain>
+            <display>i.id</display>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>surname</id>
+            <expression>i.surname</expression>
+            <domain>string</domain>
+            <display>surname</display>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>i.name</expression>
+            <display>name</display>
+        </field>
+        <field>
+            <id>patronymic</id>
+            <expression>i.patr_name</expression>
+            <domain>string</domain>
+            <display>patr_name</display>
+        </field>
+        <field>
+            <id>birthDate</id>
+            <expression>i.birth_dt</expression>
+            <domain>date</domain>
+            <display>birth_dt</display>
+        </field>
+        <field>
+            <id>birthDt</id>
+            <domain>string</domain>
+            <expression>to_char(i.birth_dt, 'DD.MM.YYYY')</expression>
+            <display/>
+        </field>
+        <field>
+            <id>deathDate</id>
+            <expression>i.death_dt</expression>
+            <domain>date</domain>
+            <display>death_dt</display>
+        </field>
+        <field>
+            <id>death_dt</id>
+            <expression>
+                i.death_dt
+            </expression>
+            <domain>string</domain>
+            <display>death_dt</display>
+        </field>
+        <field>
+            <id>gender.id</id>
+            <name>Пол</name>
+            <domain>integer</domain>
+            <expression>i.gender_id</expression>
+            <display>i.gender_id</display>
+        </field>
+        <field>
+            <id>insuranceNumber</id>
+            <name>СНИЛС</name>
+            <expression>
+                case when snils.code is null
+                then null
+                else concat(SUBSTRING(snils.code,1,3),'-',SUBSTRING(snils.code,4,3),'-',SUBSTRING(snils.code,7,3),' ',SUBSTRING(snils.code,10,2)) end
+            </expression>
+            <domain>string</domain>
+            <display/>
+        </field>
+        <field>
+            <id>mhiNumber</id>
+            <name>ЕНП</name>
+            <expression>enp.code</expression>
+            <domain>string</domain>
+            <display>enp.code</display>
+        </field>
+        <field>
+            <id>vip</id>
+            <name>VIP</name>
+            <expression>p.vip</expression>
+            <domain>boolean</domain>
+            <display>p.vip</display>
+        </field>
+        <field>
+            <id>note</id>
+            <name>Примечание</name>
+            <domain>boolean</domain>
+            <expression>p.note</expression>
+            <display>p.note</display>
+        </field>
+        <field>
+            <id>birthPlace</id>
+            <domain>string</domain>
+            <name>Место рождения</name>
+            <display/>
+            <expression>
+                i.birth_place
+            </expression>
+        </field>
+        <field>
+            <id>citizenship.id</id>
+            <domain>integer</domain>
+            <name>Гражданство</name>
+            <display/>
+            <expression>pc.country_id</expression>
+        </field>
+        <field>
+            <id>nationality.id</id>
+            <domain>integer</domain>
+            <name>Национальность</name>
+            <display/>
+            <expression>i.nationality_id</expression>
+        </field>
+        <field>
+            <id>educationType.id</id>
+            <domain>integer</domain>
+            <name>Образование</name>
+            <display/>
+            <expression>p.education_type_id</expression>
+        </field>
+        <field>
+            <id>bloodGroup.id</id>
+            <domain>integer</domain>
+            <name>Группа крови</name>
+            <display/>
+            <expression>p.rh_blood_group_id</expression>
+        </field>
+        <field>
+            <id>birthWeight</id>
+            <domain>integer</domain>
+            <name>Вес при рождении</name>
+            <display/>
+            <expression>p.birthweight</expression>
+        </field>
+        <field>
+            <id>newbornNumber</id>
+            <domain>integer</domain>
+            <name>Порядковый номер при рождении</name>
+            <display/>
+            <expression>p.newborn_number</expression>
+        </field>
+        <field>
+            <id>hasPartCase</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>
+                (select count(1)
+                from pci_patient_part_case ppc
+                join pci_part_case pc on pc.id = ppc.part_case_id
+                where ppc.patient_id = p.id and pc.ui_code = '1') > 0
+            </expression>
+        </field>
+        <field>
+            <id>age</id>
+            <name>Возраст</name>
+            <expression>
+                    case when i.death_dt is not null
+                        then concat(p_age.age_txt, ' (Умер ', to_char(i.death_dt,'dd.mm.yyyy'), ')')
+                        else p_age.age_txt
+                    end
+            </expression>
+            <domain>string</domain>
+            <display/>
+        </field>
+        <field>
+            <id>ageYear</id>
+            <expression>i.age_year</expression>
+            <domain>string</domain>
+            <display/>
+        </field>
+        <field>
+            <id>ageMonth</id>
+            <domain>string</domain>
+            <expression>i.age_month</expression>
+            <display/>
+        </field>
+        <field>
+            <id>ageDay</id>
+            <domain>string</domain>
+            <expression>i.age_day</expression>
+            <display/>
+        </field>
+        <field>
+            <id>lastFluorographyDate</id>
+            <name>Флюорография</name>
+            <domain>date</domain>
+            <display/>
+            <expression>p.last_fluorography_date</expression>
+            <sorting/>
+        </field>
+    </fields>
+</query>

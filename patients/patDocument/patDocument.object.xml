@@ -1,0 +1,196 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Document</name>
+
+    <actions>
+        <action id="create" form-submit-label="Сохранить" name="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/patients/{individualId}/documents
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient_id" mapping="['individualId']"/>
+                <param name="series.value" mapping="['series']" domain="string"/>
+                <param name="number.value" mapping="['number']" domain="string"/>
+                <param name="note" mapping="['note']"/>
+                <param name="expireDate" mapping="['expireDate']"/>
+                <param name="issueDate" mapping="['issueDate']"/>
+                <param name="birthDate" mapping="['birthDate']"/>
+                <param name="surname" mapping="['surname']"/>
+                <param name="name" mapping="['name']"/>
+                <param name="patrName" mapping="['patrName']"/>
+                <param name="issuerText" mapping="['issuerText']"/>
+                <param name="issuer.id" mapping="['issuerId']"/>
+                <param name="docType.id" mapping="['typeId']"/>
+                <param name="docType.name" mapping="['typeName']"/>
+                <param name="docType.code" mapping="['typeCode']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+
+        </action>
+        <action id="update" form-submit-label="Сохранить" name="Сохранить">
+            <invocation>
+                <rest:rest method="PUT">
+                    ${n2o.backend.path}/patients/{individualId}/documents/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient_id" mapping="['individualId']"/>
+                <param name="series.value" mapping="['series']" domain="string"/>
+                <param name="number.value" mapping="['number']" domain="string"/>
+                <param name="note" mapping="['note']"/>
+                <param name="expireDate" mapping="['expireDate']"/>
+                <param name="issueDate" mapping="['issueDate']"/>
+                <param name="birthDate" mapping="['birthDate']"/>
+                <param name="surname" mapping="['surname']"/>
+                <param name="name" mapping="['name']"/>
+                <param name="patrName" mapping="['patrName']"/>
+                <param name="issuerText" mapping="['issuerText']"/>
+                <param name="issuer.id" mapping="['issuerId']"/>
+                <param name="docType.id" mapping="['typeId']"/>
+                <param name="docType.name" mapping="['typeName']"/>
+                <param name="docType.code" mapping="['typeCode']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueDocumentSeriesAndNumber"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/patients/{individualId}/documents/{id}
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient_id" mapping="['individualId']"/>
+                <param name="displayNumber" mapping="['displayNumber']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить документ "{displayNumber}"?</confirmation-text>
+            <success-text>Документ "{displayNumber}" удален.</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="hasAttachments"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+
+        <constraint id="checkUniqueDocument" level="error">
+            <message>Уже существует документ с таким типом и с пересечением периодов действия.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*)
+                        from pim_individual_doc doc
+                        inner join pim_doc_type dt on dt.id = doc.type_id
+                        inner join pim_doc_type_category dtc on dtc.category_id = 1 and dtc.type_id = dt.id
+                        where doc.indiv_id = :patient_id and dt.id = :typeId
+                            and not ( doc.issue_dt > :expireDate and cast(:expireDate as date) is not null
+                            and doc.issue_dt is not null
+                            or doc.expire_dt < :issueDate and doc.expire_dt is not null)
+                            and not (doc.expire_dt is null and doc.issue_dt < :issueDate and :id is null)
+                            and (:id is null or doc.id != :id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient_id" mapping="['patient_id']" domain="integer"/>
+                <param name="issueDate" mapping="['issueDate']" domain="date"/>
+                <param name="expireDate" mapping="['expireDate']" domain="date"/>
+                <param name="docType.id" mapping="['typeId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        
+        <constraint id="docMess" level="warning" moment="before-action">
+            <message>Действующие записи будут закрыты датой {date}.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*), to_char(cast(cast(:issueDate as date) - cast('1 day' as interval) as date),'dd.mm.yyyy')
+                        from pim_individual_doc doc
+                        inner join pim_doc_type dt on dt.id = doc.type_id
+                        inner join pim_doc_type_category dtc on dtc.category_id = 1 and dtc.type_id = dt.id
+                        where
+                            doc.indiv_id = :patient_id and dt.id = :typeId
+                            and :id is null
+                            and doc.expire_dt is null
+                            and doc.issue_dt < :issueDate
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient_id" mapping="['patient_id']" domain="integer"/>
+                <param name="issueDate" mapping="['issueDate']" domain="date"/>
+                <param name="expireDate" mapping="['expireDate']" domain="date"/>
+                <param name="docType.id" mapping="['typeId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="date" mapping="[0][0][1]" domain="date"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="checkDate" level="error" moment="before-action">
+            <message>Дата окончания должна быть позже даты начала.</message>
+            <expression on="expireDate"><![CDATA[
+                ((expireDate == null) ||
+                (moment(expireDate, 'DD.MM.YYYY') >= moment(issueDate, 'DD.MM.YYYY'))
+                )
+                ]]>
+            </expression>
+        </condition>
+
+        <constraint id="checkUniqueDocumentSeriesAndNumber" level="error">
+            <message>Уже существует документ с таким номером и серией.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*)
+                        from pim_individual_doc doc
+                        where doc.indiv_id != :patient_id and doc.type_id = :typeId
+                        and upper(translate(((case when doc.series is null then '' else doc.series end)||number)::text,',.-/\ ','')) =
+                               upper(translate(((case when :series is null then '' else :series end)||:number)::text,',.-/\ ',''))
+                        and (doc.expire_dt is NULL or (doc.expire_dt IS NOT NULL and doc.expire_dt >= current_date))
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient_id" mapping="['patient_id']" domain="integer"/>
+                <param name="docType.id" mapping="['typeId']" domain="integer"/>
+                <param name="series.value" mapping="['series']" domain="string"/>
+                <param name="number.value" mapping="['number']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="hasAttachments" level="warning">
+            <message>При удалении документа будут удалены все вложения</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        SELECT count(*) FROM public.pim_individual_doc_graphics WHERE doc_id = :doc_id
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[doc_id]" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

@@ -1,0 +1,573 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xsi:schemaLocation="http://n2oapp.net/framework/config/schema/query-1.0 http://localhost:8080/n2o/config/schema/query/query-1.0.xsd">
+    <id>disprCardService</id>
+    <name>Осмотры и исследования</name>
+    <object-id>disprCardService</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from disp.md_event_patient mep
+                left join mc_case mc on mc.id = mep.case_id
+                left join disp.md_event me on me.id=mep.event_id
+                left join md_standard ms on ms.id = me.standard_id
+                left join md_norm_document mnd2 on mnd2.id = ms.norm_document_id
+                left join disp.md_event_type  met on met.id=me.event_type
+                inner join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join disp.md_event_service_patient_agreement mespa on mespa.service_id = mesp.id
+                left join disp.md_event_service mes on mes.id = mesp.service_id
+                left join md_norm_document_service mnds on mnds.id = mes.doc_service_id
+                <!--todo: сменил на left join, т.к. мешает отображению-->
+                left join disp.md_standard_prescription_extended mspe on mspe.id = mes.standard_prescription_id and mspe.norm_doc_service_id = mnds.id and mspe.stage_number = 1
+
+                left join pim_organization po on po.id = mes.org_id
+                left join sr_service ss on ss.id = mes.service_id
+                left join disp.md_event_service_status mess on mess.code = mesp.status
+                left join pim_individual i on i.id = mep.indiv_id
+                left join disp.md_dispr md on md.id = mep.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mesp)
+                from disp.md_event_patient mep
+                left join mc_case mc on mc.id = mep.case_id
+                left join disp.md_event me on me.id=mep.event_id
+                left join pim_organization po on po.id = me.org_id
+                inner join disp.md_event_service_patient mesp on mesp.event_patient_id = mep.id
+                left join pim_individual i on i.id = mep.indiv_id
+                left join disp.md_dispr md on md.id = mep.id
+                left join disp.md_event_service_status mess on mess.code = mesp.status
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mesp</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>serviceOrg</id>
+            <domain>Integer</domain>
+            <display>mes.org_id</display>
+        </field>
+
+        <field>
+            <id>eventOrg</id>
+            <domain>Integer</domain>
+            <display>me.org_id</display>
+        </field>
+        <field>
+            <id>id</id>
+            <domain>Integer</domain>
+            <display>mesp.id</display>
+            <search>mesp.id = :id</search>
+            <sorting>mesp.id</sorting>
+        </field>
+        <field>
+            <id>mepId</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+        </field>
+        <field>
+            <id>stub</id>
+            <domain>integer</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>barcode</id>
+            <domain>String</domain>
+            <display>mesp.barcode</display>
+            <search>mesp.barcode = :barcode::bigint</search>
+        </field>
+        <field>
+            <id>statusCard</id>
+            <domain>boolean</domain>
+            <name>Только активные</name>
+            <display>FALSE</display>
+            <search>(:statusCard = false or mc.closing_step_id is null)</search>
+        </field>
+        <field>
+            <id>eventId</id>
+            <domain>Integer</domain>
+            <display>mesp.event_id</display>
+            <search>mesp.event_id = :eventId</search>
+        </field>
+        <field>
+            <id>eventType</id>
+            <domain>String</domain>
+            <display>met.code</display>
+            <search>(met.code = :eventType1 or met.code = :eventType2 ) </search>
+        </field>
+        <field>
+            <id>eventName.name</id>
+            <domain>String</domain>
+            <display>me.name</display>
+            <name>Мероприятие</name>
+            <search>me.name = :eventName.name</search>
+        </field>
+        <field>
+            <id>eventName.id</id>
+            <domain>Integer</domain>
+            <display>me.id</display>
+            <search>me.id = :eventName.id</search>
+        </field>
+        <field>
+            <id>indivId</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :indivId</search>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>Integer</domain>
+            <display>mep.indiv_id</display>
+            <search>mep.indiv_id = :patient.id</search>
+        </field>
+        <field>
+            <id>mainId</id>
+            <domain>Integer</domain>
+            <display>mep.id</display>
+            <search>mep.id = :mainId</search>
+        </field>
+        <field>
+            <id>agreeId</id>
+            <domain>Integer</domain>
+            <display>mespa.id</display>
+            <search>mespa.id = :agreeId</search>
+        </field>
+        <field>
+            <id>service.code</id>
+            <domain>string</domain>
+            <expression>mnds.code</expression>
+            <display>mnds.code</display>
+            <search>mnds.code = :service.code</search>
+        </field>
+        <field>
+            <id>service.id</id>
+            <domain>Integer</domain>
+            <expression>ss.id</expression>
+            <display>ss.id</display>
+            <search>ss.id = :service.id</search>
+        </field>
+        <field>
+            <id>service.render_id</id>
+            <domain>Integer</domain>
+            <expression>
+                CASE mesp.status WHEN 4 THEN (select ssr.id
+                                              from MD_SRV_RENDERED msr
+                                              inner join SR_SRV_RENDERED ssr on ssr.id = msr.id and ssr.service_id = mes.service_id
+                                              where msr.case_id = mep.case_id limit 1)
+                WHEN 3 THEN (select ssr.id
+                             from disp.md_event_service_link mesl
+                             inner join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                             where mesl.case_id = mep.case_id and mesl.event_service_id = mes.id limit 1)
+                ELSE NULL
+                END
+            </expression>
+            <display>:expression</display>
+            <search>:expression = :service.render_id</search>
+        </field>
+        <field>
+            <id>service.name</id>
+            <name>Услуга</name>
+            <domain>String</domain>
+            <display>ss.name</display>
+            <search>ss.name = :service.name</search>
+            <sorting>ss.name</sorting>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>Integer</domain>
+            <expression>po.id</expression>
+            <display>po.id</display>
+            <search>po.id = :org.id</search>
+            <sorting>po.id</sorting>
+        </field>
+        <field>
+            <id>owner_id</id>
+            <domain>Integer</domain>
+            <expression>mes.org_id</expression>
+            <display>:expression</display>
+            <search>mes.org_id = :expression</search>
+        </field>
+        <field>
+            <id>emplPos.id</id>
+            <domain>Integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>org.short_name</id>
+            <name>Организация</name>
+            <domain>String</domain>
+            <expression>po.short_name</expression>
+            <display>CASE mesp.status WHEN 4 THEN po.short_name
+                WHEN 3 THEN NULLIF(
+                (select po2.short_name
+                from disp.md_event_service_link mesl
+                inner join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                left join pim_organization po2 on po2.id = ssr.org_id
+                where mesl.case_id = mep.case_id and mesl.event_service_id = mes.id limit 1), NULL
+                )
+                ELSE NULL
+                END</display>
+            <search>po.short_name = :org.short_name</search>
+            <sorting>po.short_name</sorting>
+        </field>
+        <field>
+            <id>resource.id</id>
+            <domain>Integer</domain>
+            <display>
+                <![CDATA[
+                CASE mesp.status WHEN 4 THEN (select ssr.res_group_id
+                                                from MD_SRV_RENDERED msr
+                                                inner join SR_SRV_RENDERED ssr on ssr.id = msr.id and ssr.service_id = mes.service_id
+                                                where msr.case_id = mep.case_id limit 1)
+                                  WHEN 3 THEN (select ssr.res_group_id
+                                                from disp.md_event_service_link mesl
+                                                inner join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                                                where mesl.case_id = mep.case_id and mesl.event_service_id = mes.id limit 1)
+                                  ELSE NULL
+                END
+                ]]>
+            </display>
+        </field>
+
+        <field>
+            <id>resource.name</id>
+            <name>Ресурс</name>
+            <domain>String</domain>
+            <display>
+                <![CDATA[
+                CASE mesp.status WHEN 4 THEN (select srg.name
+                                                from MD_SRV_RENDERED msr
+                                                inner join SR_SRV_RENDERED ssr on ssr.id = msr.id and ssr.service_id = mes.service_id
+                                                inner join sr_res_group srg on srg.id = ssr.res_group_id
+                                                where msr.case_id = mep.case_id limit 1)
+                                  WHEN 3 THEN (select srg.name
+                                                from disp.md_event_service_link mesl
+                                                inner join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                                                inner join sr_res_group srg on srg.id = ssr.res_group_id
+                                                where mesl.case_id = mep.case_id and mesl.event_service_id = mes.id limit 1)
+                                  ELSE NULL
+                END
+                ]]>
+            </display>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>Integer</domain>
+            <expression>mess.id</expression>
+            <display>mess.id</display>
+            <search>mess.id = :status.id</search>
+            <sorting>mess.id</sorting>
+        </field>
+        <field>
+            <id>status.name</id>
+            <name>Статус</name>
+            <domain>String</domain>
+            <expression>mess.name</expression>
+            <display>mess.name</display>
+            <search>mess.name = :status.name</search>
+            <sorting>mess.name</sorting>
+        </field>
+        <field>
+            <id>date_render</id>
+            <domain>date</domain>
+            <name>Дата оказания</name>
+            <expression>
+                <![CDATA[
+                CASE mesp.status WHEN 4 THEN NULLIF(
+                                                (select ssr.bdate
+                                                from MD_SRV_RENDERED msr
+                                                inner join SR_SRV_RENDERED ssr on ssr.id = msr.id and ssr.service_id = mes.service_id
+                                                where msr.case_id = mep.case_id limit 1), NULL
+                                              )
+                                  WHEN 3 THEN NULLIF(
+                                                (select ssr.bdate
+                                                from disp.md_event_service_link mesl
+                                                inner join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                                                where mesl.case_id = mep.case_id and mesl.event_service_id = mes.id limit 1), NULL
+                                              )
+                                  ELSE NULL
+                END
+                ]]>
+            </expression>
+            <display>
+                :expression
+            </display>
+        </field>
+        <field>
+            <id>renderedDate.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <expression>
+                <![CDATA[
+                CASE mesp.status WHEN 4 THEN NULLIF(
+                                                (select ssr.bdate
+                                                from MD_SRV_RENDERED msr
+                                                inner join SR_SRV_RENDERED ssr on ssr.id = msr.id and ssr.service_id = mes.service_id
+                                                where  msr.case_id = mep.case_id limit 1), NULL
+                                              )
+                                  WHEN 3 THEN NULLIF(
+                                                (select ssr.bdate
+                                                from  disp.md_event_service_link mesl
+                                                inner join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                                                where  mesl.case_id = mep.case_id and mesl.event_service_id = mes.id limit 1), NULL
+                                              )
+                                  ELSE NULL
+                END
+                ]]>
+            </expression>
+            <search>:expression >= :renderedDate.begin</search>
+        </field>
+        <field>
+            <id>renderedDate.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <expression>
+                <![CDATA[
+                CASE mesp.status WHEN 4 THEN NULLIF(
+                                                (select ssr.bdate
+                                                from MD_SRV_RENDERED msr
+                                                inner join SR_SRV_RENDERED ssr on ssr.id = msr.id and ssr.service_id = mes.service_id
+                                                where msr.case_id = mep.case_id limit 1), NULL
+                                              )
+                                  WHEN 3 THEN NULLIF(
+                                                (select ssr.bdate
+                                                from disp.md_event_service_link mesl
+                                                inner join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                                                where mesl.case_id = mep.case_id and mesl.event_service_id = mes.id limit 1), NULL
+                                              )
+                                  ELSE NULL
+                END
+                ]]>
+            </expression>
+            <search><![CDATA[
+                :expression <= :renderedDate.end
+                ]]>
+            </search>
+        </field>
+
+        <field>
+            <id>date_deni</id>
+            <domain>date</domain>
+            <name>Отказ</name>
+            <expression>
+                <![CDATA[
+                CASE mesp.status WHEN 2 THEN NULLIF((select agree_date from disp.md_event_service_patient_agreement where service_id = mesp.id and denial = true limit 1), NULL)
+                                  ELSE NULL
+                END
+                ]]>
+            </expression>
+            <display>
+                <![CDATA[
+                CASE mesp.status WHEN 2 THEN NULLIF((select agree_date from disp.md_event_service_patient_agreement where service_id = mesp.id and denial = true limit 1), NULL)
+                                  ELSE NULL
+                END
+                ]]>
+            </display>
+        </field>
+        <field>
+            <id>agreeService</id>
+            <domain>boolean</domain>
+            <expression>mespa.agree</expression>
+            <display>mespa.agree</display>
+        </field>
+        <field>
+            <id>order</id>
+            <domain>integer</domain>
+            <display>mes.order_idx</display>
+            <search unavailable="true" />
+            <sorting>mes.order_idx</sorting>
+        </field>
+        <field>
+            <id>first</id>
+            <domain>boolean</domain>
+            <display>mes.first</display>
+            <search unavailable="true" />
+            <sorting>mes.first</sorting>
+        </field>
+        <field>
+            <id>last</id>
+            <domain>boolean</domain>
+            <display>mes.last</display>
+            <search unavailable="true" />
+            <sorting>mes.last</sorting>
+        </field>
+
+        <field>
+            <id>v_has_first</id>
+            <domain>boolean</domain>
+            <display>
+                CASE WHEN (select count(*) from disp.md_event_service mes1
+                 join disp.md_event_service_patient mesp1 on mes1.id = mesp1.service_id
+                 where mes1.event_id = mes.event_id and mesp1.event_patient_id = mep.id and mes1.first = TRUE) > 0 THEN TRUE ELSE FALSE END
+            </display>
+        </field>
+        <field>
+            <id>v_is_first</id>
+            <domain>boolean</domain>
+            <display>
+                mes.first
+            </display>
+        </field>
+        <field>
+            <id>v_first_ren</id>
+            <domain>boolean</domain>
+            <display>
+                CASE WHEN (select mess1.code from disp.md_event_patient mep1
+                inner join disp.md_event_service_patient mesp1 on mesp1.event_patient_id = mep1.id
+                left join disp.md_event_service mes1 on mes1.id = mesp1.service_id
+                left join disp.md_event_service_status mess1 on mess1.code = mesp1.status
+                where mep1.id = mep.id and mes1.first = TRUE limit 1) = 4 THEN TRUE ELSE FALSE END
+            </display>
+        </field>
+
+        <field>
+            <id>v_has_last</id>
+            <domain>boolean</domain>
+            <display>
+                CASE WHEN (select count(*) from disp.md_event_service
+                where event_id = mes.event_id and last = TRUE) > 0 THEN TRUE ELSE FALSE END
+            </display>
+        </field>
+        <field>
+            <id>v_is_last</id>
+            <domain>boolean</domain>
+            <display>
+                mes.last
+            </display>
+        </field>
+        <field>
+            <id>v_last_all_ren</id>
+            <domain>boolean</domain>
+            <display>
+                CASE WHEN (select count(*) from disp.md_event_patient mep1
+                inner join disp.md_event_service_patient mesp1 on mesp1.event_patient_id = mep1.id
+                left join disp.md_event_service mes1 on mes1.id = mesp1.service_id
+                left join disp.md_event_service_status mess1 on mess1.code = mesp1.status
+                where mep1.id = mep.id and (mes1.last IS NULL or mes1.last = FALSE) and mess1.code in (2,3,4)) = (select count(*) from disp.md_event_patient mep1
+                inner join disp.md_event_service_patient mesp1 on mesp1.event_patient_id = mep1.id
+                left join disp.md_event_service mes1 on mes1.id = mesp1.service_id
+                where mep1.id = mep.id and (mes1.last IS NULL or mes1.last = FALSE)) THEN TRUE ELSE FALSE END
+            </display>
+        </field>
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <display>mep.case_id</display>
+        </field>
+        <field>
+            <id>eventServiceId</id>
+            <domain>integer</domain>
+            <display>mes.id</display>
+        </field>
+        <field>
+            <id>formId</id>
+            <domain>string</domain>
+            <display>(select case when (count(service_code)=0 and met.code like 'ДВ%') Then 'disprCardRenderingServiceDefaultAdult' else
+                case when (count(service_code)=0 and (met.code like 'ДС%' or met.code like 'ОН%')) Then 'disprCardRenderingServiceDefaultOrphans'
+                else
+                (select n2o_form from disp.service_n2o_form where service_code = mnds.code limit 1) end end
+                from disp.service_n2o_form where service_code = mnds.code)</display>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>status_sorting</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <sorting>(case when mess.id = 1 then 1 else 2 end)</sorting>
+        </field>
+        <field>
+            <id>date_sorting</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <sorting>
+                CASE mesp.status WHEN 2 THEN NULLIF((select agree_date from disp.md_event_service_patient_agreement where service_id = mesp.id and denial = true limit 1), NULL)
+                WHEN 4 THEN NULLIF(
+                (select ssr.bdate
+                from MD_SRV_RENDERED msr
+                inner join SR_SRV_RENDERED ssr on ssr.id = msr.id and ssr.service_id = mes.service_id
+                where msr.case_id = mep.case_id limit 1), NULL
+                )
+                WHEN 3 THEN NULLIF(
+                (select ssr.bdate
+                from disp.md_event_service_link mesl
+                inner join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                where mesl.case_id = mep.case_id and mesl.event_service_id = mes.id limit 1), NULL
+                )
+                ELSE NULL
+                END
+            </sorting>
+        </field>
+        <field>
+            <id>dateRenderSorting</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <sorting>
+                CASE mesp.status WHEN 4 THEN coalesce(
+                (select ssr.bdate
+                from MD_SRV_RENDERED msr
+                inner join SR_SRV_RENDERED ssr on ssr.id = msr.id and ssr.service_id = mes.service_id
+                where msr.case_id = mep.case_id limit 1), '01.01.1900'::date
+                )
+                WHEN 3 THEN coalesce(
+                (select ssr.bdate
+                from disp.md_event_service_link mesl
+                inner join SR_SRV_RENDERED ssr on ssr.id = mesl.service_id
+                where mesl.case_id = mep.case_id and mesl.event_service_id = mes.id limit 1), '01.01.1900'::date
+                )
+                ELSE '01.01.1900'::date
+                END
+            </sorting>
+        </field>
+        <field>
+            <id>fio</id>
+            <domain>String</domain>
+            <expression>concat_ws(' ', i.surname, i.name, i.patr_name)</expression>
+            <display>concat_ws(' ', i.surname, i.name, i.patr_name)</display>
+            <search>lower(concat_ws(' ', i.surname, i.name, i.patr_name)) like '%' || lower(:fio) || '%'</search>
+            <name>ФИО</name>
+        </field>
+        <field>
+            <id>ssr_id</id>
+            <domain>integer</domain>
+            <display>(select msr.id
+                from  MD_SRV_RENDERED msr
+                inner join SR_SRV_RENDERED ssr on ssr.id = msr.id and ssr.service_id = mes.service_id
+                where msr.case_id = mep.case_id limit 1)</display>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>canRenderService</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(exists(select 1 from sr_res_group rg join sr_res_group_service rgs on rg.id = rgs.group_id
+                join sr_res_group_relationship rgr on rg.id = rgr.group_id join sr_resource r on rgr.resource_id = r.id
+                join pim_employee_position_resource epr on epr.id = r.id
+                where rgs.srv_type_id = ss.id and epr.employee_position_id = :canRenderService))</search>
+        </field>
+
+        <field>
+            <id>indiv.case.id</id>
+            <domain>Integer</domain>
+            <display>mep.case_id</display>
+        </field>
+        <field>
+            <id>indiv.service.id</id>
+            <domain>Integer</domain>
+            <display>mes.service_id</display>
+        </field>
+        <field>
+            <id>requiredService</id>
+            <domain>boolean</domain>
+            <display>mes.required</display>
+        </field>
+    </fields>
+</query>

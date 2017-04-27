@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-2.0">
+
+    <actions>
+
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO d_accounting.hospital(id, account_id, admission_dt, outcome_date, goal_id, diagnosis_id,
+                    clinic_id, uid, result_id, outcome_id)
+                    VALUES ((SELECT nextval('d_accounting.hospital_id_seq')), :account_id, :admission_dt, :outcome_date, :goal_id, :diagnosis_id,
+                    :clinic_id, :uid, :result_id, :outcome_id);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="account.id" mapping="['account_id']" domain="integer"/>
+                <param name="admission_dt" mapping="['admission_dt']" domain="date"/>
+                <param name="outcome_date" mapping="['outcome_date']" domain="date"/>
+                <param name="goal.id" mapping="['goal_id']" domain="integer"/>
+                <param name="diag.id" mapping="['diagnosis_id']" domain="integer"/>
+                <param name="clinic.id" mapping="['clinic_id']" domain="integer"/>
+                <param name="uid" mapping="['uid']" domain="string"/>
+                <param name="result.id" mapping="['result_id']" domain="integer"/>
+                <param name="outcome.id" mapping="['outcome_id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="update">
+            <invocation>
+                <n2o:sql>
+                    UPDATE d_accounting.hospital SET admission_dt = :admission_dt,
+                    outcome_date = :outcome_date, goal_id = :goal_id, diagnosis_id = :diagnosis_id,
+                    clinic_id=:clinic_id, uid=:uid, result_id=:result_id, outcome_id=:outcome_id
+                    WHERE id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="admission_dt" mapping="['admission_dt']" domain="date"/>
+                <param name="outcome_date" mapping="['outcome_date']" domain="date"/>
+                <param name="goal.id" mapping="['goal_id']" domain="integer"/>
+                <param name="diag.id" mapping="['diagnosis_id']" domain="integer"/>
+                <param name="clinic.id" mapping="['clinic_id']" domain="integer"/>
+                <param name="uid" mapping="['uid']" domain="string"/>
+                <param name="result.id" mapping="['result_id']" domain="integer"/>
+                <param name="outcome.id" mapping="['outcome_id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="delete" name="Удаление сведения о госпитализации">
+            <confirmation-text>Вы уверены, что хотите удлаить сведения о госпитализации?</confirmation-text>
+            <invocation>
+                <n2o:sql>
+                    DELETE FROM d_accounting.hospital WHERE id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="addCase">
+            <invocation>
+                <rest:rest method="PUT">
+                    <rest:query>
+                        ${n2o.backend.path}/d-accounting/case/{caseId}/addToDAccount?accountId={accountId}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="case.id" mapping="['caseId']"/>
+                <param name="account.id" mapping="['accountId']"/>
+            </in-parameters>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="datesCheck" level="error">
+            <message>Дата начала больше даты окончания!</message>
+            <expression>
+                <![CDATA[
+                if(admission_dt == 'undefined' || outcome_date == 'undefined' || admission_dt == null || outcome_date == null ) {
+                    true;
+                } else{
+                    (moment(admission_dt, 'DD.MM.YYYY').valueOf()<(moment(outcome_date, 'DD.MM.YYYY')).valueOf());
+                }]]></expression>
+        </condition>
+    </validations>
+</object>

@@ -1,0 +1,273 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>eventPatients</id>
+    <name>eventPatients</name>
+
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sp:stored-procedure name="disp.createindividual" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="surname" mapping="[0]"/>
+                <param name="name" mapping="[1]"/>
+                <param name="patrName" mapping="[2]"/>
+                <param name="birthday" mapping="[3]"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['result']"/>
+            </out-parameters>
+            <validations activate="nothing" />
+        </action>
+        <action id="update" name="Изменить" form-submit-label="">
+            <invocation>
+                <sp:stored-procedure name="disp.updateindividual" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="surname" mapping="[1]"  />
+                <param name="name" mapping="[2]"/>
+                <param name="patrName" mapping="[3]"/>
+                <param name="birthday" mapping="[4]"/>
+                <param name="id" mapping="[0]"/>
+            </in-parameters>
+            <validations activate="nothing" />
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sp:stored-procedure name="disp.deleteindividual" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="[0]"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+        <action id="selectPatients">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/dispensary/findPatients
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="event.id" mapping="['id']"/>
+                <param name="event.eventType.code" mapping="['event_type_code']"/>
+                <param name="patient.id"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkNotActualpatient"/>
+                <validation ref-id="checkOneModel"/>
+                <validation ref-id="isAppropriateModelPatient"/>
+                <validation ref-id="countAppropriatePatients"/>
+            </validations>
+        </action>
+        <action id="setPlannedDate">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/dispensary/setPlannedDate
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="event.id" mapping="['eventId']"/>
+            </in-parameters>
+            <validations activate="nothing" />
+        </action>
+        <action id="manualSetPlannedDate" name="manualSetPlannedDate">
+            <invocation>
+                <sp:stored-procedure name="disp.manualSetPlannedDate" data-source="jdbc/lsd"/>
+            </invocation>
+            <in-parameters>
+                <param name="indivId" mapping="[0]"/>
+                <param name="event.id" mapping="[1]"/>
+                <param name="target_date.name" mapping="[2]" domain="string"/>
+            </in-parameters>
+            <validations activate="nothing" />
+        </action>
+        <action id="removePatient" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from disp.md_event_patient mep where mep.id=:id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="canNotRemovePatient"/>
+            </validations>
+
+        </action>
+        <action id="addPatient">
+            <invocation>
+                <sql:sql>
+                    select disp.md_event_add_patient_function( :eventId, :patientId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="event.id" mapping="['eventId']" domain="integer"/>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="event.eventType.code" mapping="['event_type_code']" domain="string"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqPatient"/>
+                <validation ref-id="isAppropriatePatientByEventConstraint"/>
+            </validations>
+        </action>
+        <action id="openPatientData">
+            <invocation/>
+            <in-parameters>
+                <param name="indivId" mapping="['indivId']"/>
+                <param name="medOrgId" mapping="['medOrg']"/>
+            </in-parameters>
+        </action>
+        <!--todo NNO-465 -->
+    </actions>
+
+    <validations>
+        <constraint id="countAppropriatePatients" level="error" moment="before-action">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/dispensary/countAppropriatePatients
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+
+                <param name="event.id" mapping="['id']"/>
+                <param name="event.eventType.code" mapping="['event_type_code']"/>
+            </in-parameters>
+            <result expression="id == '1'"/>
+            <message>Количество отбираемых превышает пороговое значение (100 тыс.). Пожалуйста, измените критерии отбора</message>
+        </constraint>
+
+
+        <constraint id="isAppropriateModelPatient" level="error" moment="before-action">
+            <message>В дополнительной модели следует указать один из параметров отбора: прикреление, место работы/учебы, адрес</message>
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/dispensary/isAppropriateModel
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="event.id" mapping="['event_id']"/>
+                <param name="event.eventType.code" mapping="['event_type_code']"/>
+            </in-parameters>
+            <result expression="id == '1'"/>
+        </constraint>
+
+        <constraint id="isAppropriatePatientByEventConstraint" level="error" moment="before-action">
+            <message>Можно добавить только тех пациентов, которые соответствуют модели пациента</message>
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/dispensary/isAppropriatePatientByEvent
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="event.id" mapping="['eventId']"/>
+                <param name="patient.id" mapping="['patientId']"/>
+                <param name="event.eventType.code" mapping="['event_type_code']"/>
+            </in-parameters>
+            <result expression="id == '1'"/>
+        </constraint>
+        <constraint id="canNotRemovePatient" level="error" moment="before-action">
+            <message>
+                Удалить пациента нельзя, т.к. на случаи  сформированы счета.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(fbsi.id) from  fin_bill_spec_item fbsi
+                    left join md_srv_rendered msr on msr.id = fbsi.service_id
+                    left join mc_case mc on mc.id=msr.case_id
+                    left join  disp.md_event_patient mep on  mc.id = mep.case_id
+                    where mep.id=:id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="eventContainsNotBaseModel" level="error" moment="before-query">
+            <message>
+                Для отбора следует назначить дополнительную модель на все услуги мероприятия
+            </message>
+            <invocation>
+                <sql:sql>
+                    select exists (select 1 where((select (count(distinct mes.id))
+                    from  disp.md_event_service mes
+                    left join disp.md_event_service_model mesm on mes.id=mesm.event_service_id
+                    left join disp.md_model_patient  mmp on mesm.model_id=mmp.id
+                    where event_id=:event_id and mmp.base is not true) =
+                    (select count(mes.id) from  disp.md_event_service mes where event_id=:event_id)))
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="event.id" mapping="['event_id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+
+        <constraint id="checkUniqPatient" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(id) from disp.md_event_patient
+                    where indiv_id = CAST(:pid as integer) and event_id = CAST(:eid as integer)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['pid']" domain="integer"/>
+                <param name="event.id" mapping="['eid']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Данный пациент уже присутствует в мероприятии.</message>
+        </constraint>
+
+        <constraint id="checkNotActualpatient" level="warning" moment="after-success-action">
+            <invocation>
+                <sql:sql>
+                    select count(id) from disp.md_event_patient
+                    where not_actual_patient = true and event_id = CAST(:eid as integer)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+
+                <param name="event.id" mapping="['eid']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Карточки пациентов с полученным согласием/отказом не были удалены. Сформировать список можно задав фильтр для пациентов "Не подходит под критерии отбора".</message>
+        </constraint>
+
+        <constraint id="checkOneModel" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(mesm.id) from disp.md_event_service mes
+                    left join disp.md_event_service_model mesm on mesm.event_service_id = mes.id
+                    where (:pid IS NOT NULL) or (mes.event_id = :eid and mesm.id IS NOT NULL and mesm.is_based = FALSE)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="event.id" mapping="['eid']" domain="integer"/>
+                <param name="patient.id" mapping="['pid']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] != 0"/>
+            <message>Недостаточно данных для автоматического отбора пациентов</message>
+        </constraint>
+        <constraint id="patientNotRegistered" level="warning" moment="before-edit-model">
+            <message>Пациент не прикреплен к медицинскому учреждению</message>
+            <invocation>
+                <sql:sql>
+                    select exists(select 1 from pci_patient_reg ppr where ppr.patient_id = :indivId and ppr.type_id = 1 and ppr.clinic_id = :medOrg and ppr.unreg_dt IS NULL and ppr.state_id = 1)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="indivId" mapping="['indivId']"/>
+                <param name="medOrgId" mapping="['medOrg']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+    </validations>
+
+</object>

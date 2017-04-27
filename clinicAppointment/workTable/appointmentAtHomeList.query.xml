@@ -1,0 +1,319 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicAppointment</object-id>
+    <name>appointmentAtHomeList</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from md_house_call mhc
+                left join address_element ae on mhc.address_id = ae.id
+                join md_house_call_result mhcr on mhc.result_id = mhcr.id
+                join md_house_call_category mhcc on mhc.category_id = mhcc.id
+                left join md_house_call_reason mhcre on mhc.call_reason_id = mhcre.id
+                left join md_hcall_assignment mha on  mhc.id = mha.house_call_id
+                left join md_appointment ma on  mha.appointment_id = ma.id
+                left join sr_srv_rendered ssr on ma.srv_rendered_id = ssr.id
+                left join pim_individual pi on ma.customer_id = pi.id
+                join sr_ticket st on ma.id = st.id
+                join sr_session_ticket sst on st.id = sst.ticket_id
+                join sr_session ss on sst.session_id = ss.id
+                join sr_shift ss1 on ss.shift_id = ss1.id
+                join sr_timetable_res_group strg on ss1.timetable_id = strg.id
+                join sr_res_group srg on strg.res_group_id = srg.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(mhc)
+                from md_house_call mhc
+                left join address_element ae on mhc.address_id = ae.id
+                join md_house_call_result mhcr on mhc.result_id = mhcr.id
+                join md_house_call_category mhcc on mhc.category_id = mhcc.id
+                left join md_house_call_reason mhcre on mhc.call_reason_id = mhcre.id
+                left join md_hcall_assignment mha on  mhc.id = mha.house_call_id
+                left join md_appointment ma on  mha.appointment_id = ma.id
+                left join sr_srv_rendered ssr on  ma.srv_rendered_id = ssr.id
+                left join pim_individual pi on ma.customer_id = pi.id
+                join sr_ticket st on ma.id = st.id
+                join sr_session_ticket sst on st.id = sst.ticket_id
+                join sr_session ss on sst.session_id = ss.id
+                join sr_shift ss1 on ss.shift_id = ss1.id
+                join sr_timetable_res_group strg on ss1.timetable_id = strg.id
+                join sr_res_group srg on strg.res_group_id = srg.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>mhc</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>ФИО</name>
+            <expression>
+                <![CDATA[
+                case when (mhc.name is null)or (mhc.surname is null) or (mhc.patr_name is null) then (coalesce(pi.surname, '') || ' ' || coalesce(pi.name, '') || ' ' || coalesce(pi.patr_name, ''))
+                else concat_ws(' ', mhc.surname, mhc.name, mhc.patr_name)
+                end
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>individual.id</id>
+            <domain>integer</domain>
+            <expression>pi.id</expression>
+            <search><![CDATA[(:expression = :individual.id)]]></search>
+        </field>
+
+        <field>
+            <id>ageBegin</id>
+            <domain>integer</domain>
+            <expression>:ageBegin</expression>
+            <search><![CDATA[(:expression <= date_part('year', age(pi.birth_dt)))]]></search>
+        </field>
+
+        <field>
+            <id>ageEnd</id>
+            <domain>integer</domain>
+            <expression>:ageEnd</expression>
+            <search><![CDATA[(:expression >= date_part('year', age(pi.birth_dt)))]]></search>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>pi.id</expression>
+        </field>
+
+        <field>
+            <id>birthDt</id>
+            <domain>date</domain>
+            <name>Дата рождения</name>
+            <expression>pi.birth_dt</expression>
+        </field>
+
+        <field>
+            <id>patientAddress</id>
+            <domain>string</domain>
+            <name>Адрес, телефон</name>
+            <expression>
+                <![CDATA[
+                case when (mhc.address_id is null) then mhc.address_text
+                else (coalesce((select adr__get_element_as_text(mhc.address_id,'(4,s,0)(6,s,0)(7,s,0)(8,s,0)')), '') || ' / ' || coalesce(mhc.contact, ''))
+                end
+                ]]>
+            </expression>
+            <search><![CDATA[(upper(:expression) like '%' || upper(:patientAddress) || '%')]]></search>
+        </field>
+
+        <field>
+            <id>bdatetime</id>
+            <domain>string</domain>
+            <name>Время регистрации вызова</name>
+            <!--<expression>case when :dt::date > ma.registration_dt then to_char(ma.registration_dt, 'DD.MM.YYYY HH24:MI') else
+                to_char(ma.registration_dt, 'HH24:MI') end
+            </expression>-->
+            <expression>to_char(ma.registration_dt, 'DD.MM.YYYY HH24:MI')
+            </expression>
+            <sorting>ss.bdatetime</sorting>
+        </field>
+        <field>
+            <id>bdatetimeFilter</id>
+            <domain>date</domain>
+            <name>Время регистрации вызова</name>
+            <expression>ma.registration_dt</expression>
+            <search type="eq" unavailable="true"/>
+            <search filter-field="bdatetimeFilter.begin" type="more"><![CDATA[ma.registration_dt >= :bdatetimeFilter.begin]]></search>
+            <search filter-field="bdatetimeFilter.end" type="less"><![CDATA[ma.registration_dt <= :bdatetimeFilter.end]]></search>
+        </field>
+        <field>
+            <id>category.id</id>
+            <domain>integer</domain>
+            <expression>mhcc.id</expression>
+            <search><![CDATA[(:expression = :category.id)]]></search>
+        </field>
+
+        <field>
+            <id>category.name</id>
+            <domain>string</domain>
+            <expression>mhcc.name</expression>
+        </field>
+
+        <field>
+            <id>reason.id</id>
+            <domain>integer</domain>
+            <name>Причина</name>
+            <expression>mhcre.id</expression>
+            <search><![CDATA[(:expression = :reason.id)]]></search>
+        </field>
+
+        <field>
+            <id>reason.name</id>
+            <domain>string</domain>
+            <name>Причина</name>
+            <expression>mhcre.name</expression>
+        </field>
+
+        <field>
+            <id>categoryReason</id>
+            <domain>string</domain>
+            <name>Причина</name>
+            <expression>mhcc.name || ' ' || mhcre.name</expression>
+        </field>
+
+        <field>
+            <id>complaints</id>
+            <domain>string</domain>
+            <name>Жалобы</name>
+            <expression>mhc.complaints</expression>
+            <search><![CDATA[(upper(:expression) like '%' || upper(:complaints) || '%')]]></search>
+        </field>
+
+        <field>
+            <id>employeePosId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>srg.responsible_id</expression>
+            <search>(:expression = :employeePosId)</search>
+        </field>
+        <field>
+            <id>regdateFilter</id>
+            <domain>date</domain>
+            <expression>ss.bdatetime</expression>
+            <search type="eq" unavailable="true"/>
+            <search filter-field="regdateFilter.begin" type="more"><![CDATA[ss.bdatetime::date >= :regdateFilter.begin]]></search>
+            <search filter-field="regdateFilter.end" type="less"><![CDATA[ss.bdatetime::date <= :regdateFilter.end]]></search>
+        </field>
+        <field>
+            <id>appointmentStateColor</id>
+            <domain>string</domain>
+            <expression>
+                case when mhc.result_id = 1 and :regdateFilter.end::date > ss.bdatetime::date then 'text-warning'
+                when mhc.result_id = 2 then 'text-info'
+                else '' end
+            </expression>
+        </field>
+
+        <field>
+            <id>isHouseCall</id>
+            <domain>boolean</domain>
+            <expression>ss.is_house_call</expression>
+        </field>
+
+        <field>
+            <id>resourceGroup.id</id>
+            <domain>integer</domain>
+            <expression>srg.id</expression>
+            <search>:expression = :resourceGroup.id</search>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>(select mp.id from md_profile mp where code='68')</expression>
+        </field>
+
+        <field>
+            <id>caseType.id</id>
+            <domain>integer</domain>
+            <expression>(select mct.id from mc_case_type mct where code='1')</expression>
+        </field>
+
+        <field>
+            <id>initGoal.id</id>
+            <domain>integer</domain>
+            <expression>(select mcig.id from mc_case_init_goal mcig where code='1')</expression>
+        </field>
+
+        <field>
+            <id>careRegimen.id</id>
+            <domain>integer</domain>
+            <expression>(select mcr.id from mc_care_regimen mcr where mcr.code='1')</expression>
+        </field>
+
+        <field>
+            <id>fundingSourceType.id</id>
+            <domain>integer</domain>
+            <expression>(select ffst.id from fin_funding_source_type ffst where ffst.code='OMS')</expression>
+        </field>
+
+        <field>
+            <id>newCase</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+        </field>
+
+        <field>
+            <id>appointmentId</id>
+            <domain>integer</domain>
+            <expression>ma.id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.id</id>
+            <domain>integer</domain>
+            <expression>ma.srv_rendered_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.orgId</id>
+            <domain>integer</domain>
+            <expression>ssr.org_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.patientId</id>
+            <domain>integer</domain>
+            <expression>ssr.customer_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.resGroupId</id>
+            <domain>integer</domain>
+            <expression>ssr.res_group_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.resGroupIsSystem</id>
+            <domain>boolean</domain>
+            <expression>srg.is_system</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.serviceId</id>
+            <domain>integer</domain>
+            <expression>ma.service_id</expression>
+        </field>
+
+        <field>
+            <id>isRendered</id>
+            <domain>boolean</domain>
+            <expression>(case when (ssr.is_rendered = true and :dt::date > ss.bdatetime) then false else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>caseBlock</id>
+            <domain>string</domain>
+            <display value="Новый случай"/>
+            <expression>:caseBlock</expression>
+        </field>
+
+        <field>
+            <id>isState</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when mhc.result_id = 2 then true
+                else false end)
+            </expression>
+        </field>
+
+    </fields>
+</query>

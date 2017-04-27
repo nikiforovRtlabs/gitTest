@@ -1,0 +1,562 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>bedSpace</name>
+    <object-id>bedSpace</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                with realBedSpace as (
+                    select * from (
+                        select dep.id depId
+                            , dep.name depName
+                            , coalesce(mp.id, bpp.id, mrp.id, 0) profileId
+                            , coalesce(mp.name, bpp.name, mrp.name, 'Другой') profileName
+                            , coalesce(bp.id ,0) bedProfileId
+                            , coalesce(bp.name, 'Другой') bedProfileName
+                        from md_bed b
+                        left join pim_room r on r.id = b.room_id
+                        left join pim_department dep on dep.id = r.department_id
+                        left join md_department_profile dprofile on dprofile.id = b.profile_id
+                        left join md_profile mp on mp.id = dprofile.profile_id
+                        left join md_room_profile rp on rp.room_id = r.id and (select count(*) from md_room_profile where room_id = r.id) = 1
+                        left join md_profile mrp on mrp.id = rp.profile_id
+                        left join md_bed_profile bp on bp.id = b.bed_profile_id
+                        left join mc_care_regimen regimen on regimen.id = b.regimen_id
+                        left join md_profile_to_bed_profile bptp on bptp.bed_profile_id = b.bed_profile_id
+                        left join md_profile bpp on bpp.id = bptp.profile_id
+
+                        where (b.regimen_id = :regimen.id or :regimen.id is null)
+                        and dep.org_id = :org.id
+                        and (dep.id = :department.id or :department.id is null)
+                    ) main
+                    where (profileId = :profile.id or :profile.id is null)
+                    and (bedProfileId = :bedProfile.id or :bedProfile.id is null)
+                    group by depId, depName, profileId, profileName, bedProfileId, bedProfileName
+                    order by depId
+                )
+
+                , bedSpace as (
+                select bedsWithEmptyProfiles.*, days.day
+                from
+                    (select
+                        depId, depName, profileId,  profileName, bedProfileId, bedProfileName
+                        from realBedSpace
+                        union select depId, depName, profileId, profileName, 0, 'Другой'
+                        from realBedSpace
+                        union select depId, depName, 0, 'Другой', 0, 'Другой'
+                        from realBedSpace
+                        group by depId, depName, profileId, profileName, bedProfileId, bedProfileName
+                    ) bedsWithEmptyProfiles
+                    cross join (select day from generate_series(:periodDates.begin::date, :periodDates.end::date, '1 day'::interval) day) days
+                    where (profileId = :profile.id or :profile.id is null)
+                    and (bedProfileId = :bedProfile.id or :bedProfile.id is null)
+                    group by depId, depName, profileId, profileName, bedProfileId, bedProfileName, day
+                )
+
+                , beds as (
+                    select gender.code as gender_code
+                        , bed.from_dt
+                        , bed.to_dt
+                        , room.department_id
+                        , coalesce(mp.id, rp.profile_id, 0) profile_id
+                        , coalesce(bed.bed_profile_id, 0) bed_profile_id
+                    from md_bed bed
+                    join pim_room room on room.id = bed.room_id
+                    left join pim_gender gender on room.gender_id = gender.id
+                    left join md_department_profile dprofile on dprofile.id = bed.profile_id
+                    left join md_profile mp on mp.id = dprofile.profile_id
+                    left join md_room_profile rp on rp.room_id = room.id and (select count(*) from md_room_profile where room_id = room.id) = 1
+                    where (bed.regimen_id = :regimen.id or :regimen.id is null)
+                )
+
+                , hspRecords as (
+                    select case when algo.id is not null then algo.id else case when regalgo.days_comp_algo_id is not null then regalgo.days_comp_algo_id else '1' end end as algo
+                        , step.admission_date as from_dt
+                        , coalesce(step.outcome_date
+                        , rec.issue_planned_date
+                        , step.admission_date + interval '1' day *
+                            (select case when sv.value is not null and sv.value != '' then sv.value else s.default_value end from cmn_setting s
+                            left join cmn_setting_value sv on sv.setting_id = s.id
+                            left join cmn_scope sc on sc.id = sv.scope_id
+                            left join cmn_scope_type st on st.id = sc.type_id and st.code = 'Global'
+                            where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.avgBedDays' limit 1)::integer)::date
+                        as to_dt
+                        , g.code as gender_code
+                        , rec.department_id
+                        , coalesce(step.profile_id, 0) as profile_id
+                        , coalesce(rec.bed_profile_id, 0) as bed_profile_id
+                    from mc_step step
+                    join hsp_record rec on rec.id = step.id
+                    left join hsp_days_computing_algorithm algo on algo.id = rec.days_comp_algo_id
+                    left join mc_care_regimen regimen on regimen.id = step.regimen_id
+                    left join mc_care_regimen_algo regalgo on regalgo.regimen_id =  regimen.id
+                    left join pim_department depart on depart.id = rec.department_id
+                    left join mc_case c on c.id = step.case_id
+                    left join pim_individual indiv on indiv.id = c.patient_id
+                    left join pim_gender g on g.id = indiv.gender_id
+                    where rec.id in (
+                        select (case when type.id = 5 then (select id from hsp_record where id = rec.previous_id) else rec.id end)
+                        from mc_step step
+                        join hsp_record rec on rec.id = step.id and not exists(select 1 from hsp_record h2 inner join mc_step s2 on s2.id = h2.id where s2.case_id = step.case_id and h2.previous_id = rec.id)
+                        left join pim_department depart on depart.id = rec.department_id
+                        left join pim_department_type type on type.id = depart.type_id
+                    )
+                    and (step.regimen_id = :regimen.id or :regimen.id is null)
+                )
+
+                , reservations as (
+                    select case when regalgo.days_comp_algo_id is not null then regalgo.days_comp_algo_id else 1 end as algo
+                        , reserv.planned_date_from::date as from_dt
+                        , coalesce(reserv.issue_planned_date
+                        , reserv.planned_date_from + interval '1' day * (select case when sv.value is not null and sv.value != '' then sv.value else s.default_value end from cmn_setting s
+                            left join cmn_setting_value sv on sv.setting_id = s.id
+                            left join cmn_scope sc on sc.id = sv.scope_id
+                            left join cmn_scope_type st on st.id = sc.type_id and st.code = 'Global'
+                            where s.code='cz.atria.medcase.ui.MedicalCaseUISettings.avgBedDays' limit 1)::integer)::date
+                        as to_dt
+                        , g.code as gender_code
+                        , reserv.department_id
+                        , coalesce(reserv.profile_id, 0) as profile_id
+                        , coalesce(reserv.bed_profile_id, 0) as bed_profile_id
+                    from hsp_reservation reserv
+                    join md_referral ref on ref.id = reserv.referral_id
+                    left join pim_individual indiv on indiv.id = ref.patient_id
+                    left join pim_gender g on g.id = indiv.gender_id
+                    left join mc_care_regimen regimen on regimen.id = reserv.regimen_id
+                    left join mc_care_regimen_algo regalgo on regalgo.regimen_id =  regimen.id
+                    where reserv.planned_date_from is not null
+                    and (reserv.regimen_id = :regimen.id or :regimen.id is null)
+                )
+
+                , bedSpaceBalance as(
+                    select depId as dep_id
+                        , null::integer as regimen_id
+                        , null::integer as profile_id
+                        , null::integer as bed_profile_id
+                        , null::date as day
+                        , 'first' || depId as id
+                        , depName as name
+                        , 'first' as levelType
+                        , false as weekend
+                        , null::integer[] as totalCount
+                        , null::integer[] as busyCount
+                        , null::integer[] as dischargePlannedCount
+                        , null::integer[] as busyReservedCount
+                        , null::integer[] as reservedCount
+                    from bedSpace
+                    group by depId, depName
+
+                    union
+                    select
+                        depId as dep_id
+                        , null as regimen_id
+                        , profileId as profile_id
+                        , null as bed_profile_id
+                        , null as day
+                        , 'first'||depId||'second'||(case when profileId=0 then 'o' else trim(to_char(profileId, '9999')) end) as id
+                        , profileName as name
+                        , 'second' as levelType
+                        , false as weekend
+                        , null as totalCount
+                        , null as busyCount
+                        , null as dischargePlannedCount
+                        , null as busyReservedCount
+                        , null as reservedCount
+                    from  bedSpace
+                    group by depId, profileId, profileName
+
+                    union
+                    select depId as dep_id
+                        , null as regimen_id
+                        , profileId as profile_id
+                        , bedProfileId as bed_profile_id
+                        , null as day
+                        , 'first'||depId||'second'||(case when profileId=0 then 'o' else trim(to_char(profileId, '9999')) end)||'third'||(case when bedProfileId=0 then 'o' else trim(to_char(bedProfileId, '9999')) end) as id
+                        , bedProfileName as name
+                        , 'third' as levelType
+                        , false as weekend
+                        , null as totalCount
+                        , null as busyCount
+                        , null as dischargePlannedCount
+                        , null as busyReservedCount
+                        , null as reservedCount
+                    from  bedSpace
+                    group by depId, profileId, bedProfileId, bedProfileName
+
+                    union
+                    select depId as dep_id
+                        , :regimen.id as regimen_id
+                        , profileId as profile_id
+                        , bedProfileId as bed_profile_id
+                        , day
+                        , 'first'||depId||'second'||(case when profileId=0 then 'o' else trim(to_char(profileId, '9999')) end)||'third'||(case when bedProfileId=0 then 'o' else trim(to_char(bedProfileId, '9999')) end)||'fourth'||day::text as id
+                        , to_char(day, 'DD.MM') || '  ' || (select weekday from (values  (1, 'пн'), (2, 'вт'), (3, 'ср'), (4, 'чт'), (5, 'пт'), (6, 'сб'), (0, 'вс')) AS t (ind, weekday) where ind = extract(DOW from day)) as name
+                        , 'fourth' as levelType
+                        , (case when (extract(DOW from day) = 0 or extract(DOW from day) = 6) then true else false end)
+                        as weekend
+                        , (select ARRAY[
+                                coalesce(count(*), 0)
+                                , coalesce(sum(case when gender_code = 'MALE' then 1 else 0 end), 0)
+                                , coalesce(sum(case when gender_code = 'FEMALE' then 1 else 0 end), 0)
+                                , coalesce(count(*) - (sum(case when gender_code = 'MALE' then 1 else 0 end) + sum(case when gender_code = 'FEMALE' then 1 else 0 end)), 0)
+                            ]
+                            from beds
+                            where (beds.from_dt is null and beds.to_dt is null or (beds.from_dt is null or day >= beds.from_dt) and (beds.to_dt is null or beds.to_dt >= day))
+                            and department_id = depId
+                            and profile_id = profileId
+                            and bed_profile_id = bedProfileId
+                        ) as totalCount
+
+                        , (select ARRAY[
+                                coalesce( sum(case when ((algo = 2 or algo = 4) and day >= from_dt  and to_dt >= day) then 1 else 0 end) +
+                                    sum(case when ((algo != 2 and algo != 4) and day >= from_dt and to_dt > day) then 1 else 0 end), 0)
+                                , coalesce( sum(case when ((algo = 2 or algo = 4) and day >= from_dt and to_dt >= day and gender_code = 'MALE') then 1 else 0 end) +
+                                    sum(case when ((algo != 2 and algo != 4) and day >= from_dt and to_dt > day and gender_code = 'MALE') then 1 else 0 end), 0)
+                                , coalesce( sum(case when ((algo = 2 or algo = 4) and day >= from_dt  and to_dt >= day and gender_code = 'FEMALE') then 1 else 0 end) +
+                                    sum(case when ((algo != 2 and algo != 4) and day >= from_dt and to_dt > day and gender_code = 'FEMALE') then 1 else 0 end), 0)]
+                            from hspRecords
+                            where department_id = depId
+                            and profile_id = profileId
+                            and bed_profile_id = bedProfileId
+                        ) as busyCount
+
+                        , (select ARRAY[
+                                coalesce( sum(case when (day >= from_dt and day = to_dt) then 1 else 0 end), 0)
+                                , coalesce( sum(case when (day >= from_dt and day = to_dt and gender_code = 'MALE') then 1 else 0 end), 0)
+                                , coalesce( sum(case when (day >= from_dt and day = to_dt and gender_code = 'FEMALE') then 1 else 0 end), 0)]
+                            from hspRecords
+                            where department_id = depId
+                            and profile_id = profileId
+                            and bed_profile_id = bedProfileId
+                        ) as dischargePlannedCount
+
+                        , (select ARRAY[
+                                coalesce( sum(case when ((algo = 2 or algo = 4) and day > from_dt and to_dt >= day) then 1 else 0 end) +
+                                    sum(case when ((algo != 2 and algo != 4) and day > from_dt and to_dt > day) then 1 else 0 end), 0)
+                                , coalesce( sum(case when ((algo = 2 or algo = 4)and day > from_dt and to_dt >= day and gender_code = 'MALE') then 1 else 0 end) +
+                                    sum(case when ((algo != 2 and algo != 4) and day > from_dt and to_dt > day and gender_code = 'MALE') then 1 else 0 end), 0)
+                                , coalesce( sum(case when ((algo = 2 or algo = 4) and day > from_dt and to_dt >= day and gender_code = 'FEMALE') then 1 else 0 end) +
+                                    sum(case when ((algo != 2 and algo != 4) and day > from_dt and to_dt > day and gender_code = 'FEMALE') then 1 else 0 end), 0) ]
+                            from reservations
+                            where department_id = depId
+                            and profile_id = profileId
+                            and bed_profile_id = bedProfileId
+                        ) as busyReservedCount
+
+                        , (select ARRAY[
+                                coalesce( sum(case when (from_dt = day) then 1 else 0 end), 0)
+                                , coalesce( sum(case when (from_dt = day and gender_code = 'MALE') then 1 else 0 end), 0)
+                                , coalesce( sum(case when (from_dt = day and gender_code = 'FEMALE') then 1 else 0 end), 0)]
+                            from reservations
+                            where department_id = depId
+                            and profile_id = profileId
+                            and bed_profile_id = bedProfileId
+                        ) as reservedCount
+
+                    from  bedSpace
+                    group by depId, profileId, bedProfileId, day
+                )
+
+                select :select from  bedSpaceBalance
+                where :where
+                order by dep_id, id, :order
+            </n2o:items-query>
+            <n2o:count-query>
+                with realBedSpace as (
+                select * from (
+                select dep.id depId
+                , dep.name depName
+                , coalesce(mp.id, bpp.id, mrp.id, 0) profileId
+                , coalesce(mp.name, bpp.name, mrp.name, 'Другой') profileName
+                , coalesce(bp.id ,0) bedProfileId
+                , coalesce(bp.name, 'Другой') bedProfileName
+                from md_bed b
+                left join pim_room r on r.id = b.room_id
+                left join pim_department dep on dep.id = r.department_id
+                left join md_department_profile dprofile on dprofile.id = b.profile_id
+                left join md_profile mp on mp.id = dprofile.profile_id
+                left join md_room_profile rp on rp.room_id = r.id and (select count(*) from md_room_profile where room_id = r.id) = 1
+                left join md_profile mrp on mrp.id = rp.profile_id
+                left join md_bed_profile bp on bp.id = b.bed_profile_id
+                left join mc_care_regimen regimen on regimen.id = b.regimen_id
+                left join md_profile_to_bed_profile bptp on bptp.bed_profile_id = b.bed_profile_id
+                left join md_profile bpp on bpp.id = bptp.profile_id
+
+                where (b.regimen_id = :regimen.id or :regimen.id is null)
+                and dep.org_id = :org.id
+                ) main
+                where (depId = :department.id or :department.id is null)
+                and (profileId = :profile.id or :profile.id is null)
+                and (bedProfileId = :bedProfile.id or :bedProfile.id is null)
+                group by depId, depName, profileId, profileName, bedProfileId, bedProfileName
+                order by depId
+                )
+
+                , bedSpace as (
+                select bedsWithEmptyProfiles.*, days.day
+                from
+                (select
+                depId, depName, profileId,  profileName, bedProfileId, bedProfileName
+                from realBedSpace
+                union select depId, depName, profileId, profileName, 0, 'Другой'
+                from realBedSpace
+                union select depId, depName, 0, 'Другой', 0, 'Другой'
+                from realBedSpace
+                group by depId, depName, profileId, profileName, bedProfileId, bedProfileName
+                ) bedsWithEmptyProfiles
+                cross join (select day from generate_series(:periodDates.begin::date, :periodDates.end::date, '1 day'::interval) day) days
+                where (profileId = :profile.id or :profile.id is null)
+                and (bedProfileId = :bedProfile.id or :bedProfile.id is null)
+                group by depId, depName, profileId, profileName, bedProfileId, bedProfileName, day
+                )
+
+                , bedSpaceBalance as(
+                select depId as dep_id
+                , null::integer as profile_id
+                , null::integer as bed_profile_id
+                , null::date as day
+                , 'first' || depId as id
+                , depName as name
+                , 'first' as levelType
+
+                from bedSpace group by depId, depName
+
+                union
+                select
+                depId as dep_id
+                , profileId as profile_id
+                , null as bed_profile_id
+                , null as day
+                , 'first'||depId||'second'||(case when profileId=0 then 'o' else trim(to_char(profileId, '9999')) end) as id
+                , profileName as name
+                , 'second' as levelType
+
+                from  bedSpace group by depId, profileId, profileName
+
+                union
+                select depId as dep_id
+                , profileId as profile_id
+                , bedProfileId as bed_profile_id
+                , null as day
+                , 'first'||depId||'second'||(case when profileId=0 then 'o' else trim(to_char(profileId, '9999')) end)||'third'||(case when bedProfileId=0 then 'o' else trim(to_char(bedProfileId, '9999')) end) as id
+                , bedProfileName as name
+                , 'third' as levelType
+
+                from  bedSpace group by depId, profileId, bedProfileId, bedProfileName
+
+                union
+                select depId as dep_id
+                , profileId as profile_id
+                , bedProfileId as bed_profile_id
+                , day
+                ,'first'||depId||'second'||(case when profileId=0 then 'o' else trim(to_char(profileId, '9999')) end)||'third'||(case when bedProfileId=0 then 'o' else trim(to_char(bedProfileId, '9999')) end)||'fourth'||day::text as id
+                , to_char(day, 'DD.MM') || '  ' || (select weekday from (values  (1, 'пн'), (2, 'вт'), (3, 'ср'), (4, 'чт'), (5, 'пт'), (6, 'сб'), (0, 'вс')) AS t (ind, weekday) where ind = extract(DOW from day)) as name
+                , 'fourth' as levelType
+
+                from  bedSpace
+                group by depId, profileId, bedProfileId, day
+                )
+
+                select count(1) from  bedSpaceBalance
+                where  :where
+            </n2o:count-query>
+            <n2o:alias>bedSpace</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>string</domain>
+            <expression>id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>day</id>
+            <domain>date</domain>
+            <expression>day</expression>
+        </field>
+
+        <field>
+            <id>dep.id</id>
+            <domain>integer</domain>
+            <expression>dep_id</expression>
+        </field>
+
+        <field>
+            <id>dep.name</id>
+            <domain>string</domain>
+            <expression>(select name from pim_department where id = dep_id)</expression>
+        </field>
+
+        <field>
+            <id>prof.id</id>
+            <domain>integer</domain>
+            <expression>case when profile_id = 0 then null else profile_id end</expression>
+        </field>
+
+        <field>
+            <id>prof.name</id>
+            <domain>string</domain>
+            <expression>(select name from md_profile where id = profile_id)</expression>
+        </field>
+
+        <field>
+            <id>bProf.id</id>
+            <domain>integer</domain>
+            <expression>case when bed_profile_id = 0 then null else bed_profile_id end</expression>
+        </field>
+
+        <field>
+            <id>bProf.name</id>
+            <domain>string</domain>
+            <expression>(select name from md_bed_profile where id = bed_profile_id)</expression>
+        </field>
+
+        <field>
+            <id>reg.id</id>
+            <domain>integer</domain>
+            <expression>regimen_id</expression>
+        </field>
+
+        <field>
+            <id>reg.name</id>
+            <domain>string</domain>
+            <expression>(select name from mc_care_regimen where id = regimen_id)</expression>
+        </field>
+
+        <field>
+            <id>levelType</id>
+            <domain>string</domain>
+            <expression>levelType</expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Отделение/ Профиль/ Профиль койки/ Дата</name>
+            <expression>name</expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>periodDates.end</id>
+            <domain>date</domain>
+            <expression>(select :periodDates.end::date)</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>periodDates.begin</id>
+            <domain>date</domain>
+            <expression>(select :periodDates.begin::date)</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>regimen.id</id>
+            <domain>integer</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>bedProfile.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>weekend</id>
+            <domain>string</domain>
+            <expression>
+                (case when weekend is true then 'text-info' else '' end)
+            </expression>
+        </field>
+
+        <field>
+            <id>totalCount</id>
+            <domain>string</domain>
+            <expression>
+                totalcount[1] || '(' || totalcount[2] || '/' || totalcount[3] || '/' || totalcount[4] || ')'
+            </expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>busyCount</id>
+            <domain>string</domain>
+            <expression>
+                busycount[1] || '(' || busycount[2] || '/' || busycount[3] || ')'
+            </expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>dischargePlannedCount</id>
+            <domain>string</domain>
+            <expression>
+                dischargePlannedCount[1] || '(' || dischargePlannedCount[2] || '/' || dischargePlannedCount[3] || ')'
+            </expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>busyReservedCount</id>
+            <domain>string</domain>
+            <expression>
+                busyReservedCount[1] || '(' || busyReservedCount[2] || '/' || busyReservedCount[3] || ')'
+            </expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>reservedCount</id>
+            <domain>string</domain>
+            <expression>
+                reservedCount[1] || '(' || reservedCount[2] || '/' || reservedCount[3] || ')'
+            </expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>freeCount</id>
+            <domain>string</domain>
+            <expression>
+                totalCount[1] - busyCount[1] - busyReservedCount[1] - reservedCount[1]
+                || '(' ||
+                totalCount[2] - busyCount[2] - busyReservedCount[2] - reservedCount[2]
+                || '/' ||
+                totalCount[3] - busyCount[3] - busyReservedCount[3] - reservedCount[3]
+                || ')'
+            </expression>
+            <sorting unavailable="true"/>
+        </field>
+
+    </fields>
+</query>

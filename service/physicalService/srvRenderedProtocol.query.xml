@@ -1,0 +1,124 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>medicalServiceRendered</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sr_srv_rendered sr
+                join md_srv_rendered msr on msr.id = sr.id
+                join mc_case c on c.id = msr.case_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+                left join sr_res_group rg on rg.id = sr.res_group_id
+                left join pim_employee_position_resource epr on epr.employee_position_id = rg.responsible_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(sr)
+                from sr_srv_rendered sr
+                join md_srv_rendered msr on msr.id = sr.id
+                join mc_case c on c.id = msr.case_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+                left join sr_res_group rg on rg.id = sr.res_group_id
+                left join pim_employee_position_resource epr on epr.employee_position_id = rg.responsible_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>msr.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>sr.service_id</expression>
+        </field>
+        <field>
+            <id>bdate</id>
+            <domain>date</domain>
+            <expression>sr.bdate + coalesce(sr.begin_time, '00:00:00')</expression>
+        </field>
+        <field>
+            <id>resGroupId</id>
+            <domain>integer</domain>
+            <expression>rg.id</expression>
+        </field>
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>epr.id</expression>
+        </field>
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+        </field>
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>c.patient_id</expression>
+        </field>
+        <field>
+            <id>stepId</id>
+            <domain>integer</domain>
+            <expression>msr.step_id</expression>
+        </field>
+        <field>
+            <id>financialTypeId</id>
+            <domain>integer</domain>
+            <expression>c.funding_id</expression>
+        </field>
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+        <field>
+            <id>patient</id>
+            <domain>string</domain>
+            <expression>coalesce(i.surname, '') || ' ' || coalesce(i.name, '') || ' ' || coalesce(i.patr_name, '') ||
+                coalesce(' (' || to_char(i.birth_dt, 'DD.MM.YYYY') || ')', '') </expression>
+        </field>
+
+        <!--todo: Убрать в 27 версии-->
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>case.step.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>copyFrom</id>
+            <domain>integer</domain>
+            <expression>:id</expression>
+        </field>
+
+        <field>
+            <id>selectServices.id</id>
+            <domain>integer</domain>
+            <expression>
+                (case (exists(select 1 from sr_service s
+                join sr_srv_type st on st.id = s.type_id
+                where st.is_physical is true and
+                exists(select 1 from sr_resource_service rs where rs.service_id = s.id and rs.resource_id = epr.id)))
+                when true then 2
+                when false then 1
+                end)
+            </expression>
+        </field>
+    </fields>
+</query>

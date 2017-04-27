@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>call_services</id>-->
+    <name>Оказанная помощь</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    select amb.add_call_services(:call, :service, :place, :org, :quantity, :for_upload);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="call.id" mapping="['call']" domain="integer"/>
+                <param name="service.id" mapping="['service']" domain="integer"/>
+                <param name="place.id" mapping="['place']" domain="integer"/>
+                <param name="rendered.for_upload" mapping="['for_upload']" domain="boolean"/>
+                <param name="org" mapping="['org']" domain="integer" value="#{org.id}"/>
+                <param name="quantity" mapping="['quantity']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]" domain="integer"/>
+            </out-parameters>
+            <validations activate="all"/>
+        </action>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update sr_srv_rendered set quantity = :quantity, for_upload = :rendered.for_upload where id = :rendered;
+                    update amb.md_ambulance_call_services set service_place_id = :place where service_id = :rendered and call_id = :call;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "rendered.id" mapping = "['rendered']" domain="integer"/>
+                <param name = "rendered.for_upload" mapping = "['rendered.for_upload']" domain="boolean"/>
+                <param name = "quantity" mapping = "['quantity']" domain="integer"/>
+                <param name = "place.id" mapping = "['place']" domain = "integer"/>
+                <param name = "call.id" mapping = "['call']" domain = "integer"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from amb.md_ambulance_call_services where service_id = :rendered;
+                    update amb.md_ambulance_call_result set srv_rendered_id = null where srv_rendered_id = :rendered;
+                    delete from md_srv_rendered where id = :rendered;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+                <param name = "rendered.id" mapping = "['rendered']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+
+    <!--<validations>-->
+        <!--<constraint id="servicecodeUnique" level="error">-->
+            <!--<message summary ="Вид услуги с кодом '%code%' уже существует">-->
+                <!--Укажите другой код!-->
+            <!--</message>-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--select count (*)-->
+                    <!--from sr_service-->
+                    <!--where trim(upper(code)) = trim(upper(:code))-->
+                    <!--and ((to_dt is null) or (to_dt > cast(now() as date)))-->
+                    <!--and (org_id = :org)-->
+                    <!--and (:id is null or id != :id)-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name = "id" mapping = "['id']" domain="integer"/>-->
+                <!--<param name = "code" mapping = "['code']" domain="string"/>-->
+                <!--<param name = "org.id" mapping="['org']" domain="integer" value="#{org.id}"/>-->
+            <!--</in-parameters>-->
+            <!--<result expression="[0][0][0] == 0"/>-->
+        <!--</constraint>-->
+        <!--<constraint id="servicenameUnique" level="error">-->
+            <!--<message summary ="Вид вызова с наименованием '%name%' уже существует">-->
+                <!--Назовите вид иначе!-->
+            <!--</message>-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--select count (*)-->
+                    <!--from sr_service-->
+                    <!--where trim(upper(name)) = trim(upper(:name))-->
+                    <!--and ((to_dt is null) or (to_dt > cast(now() as date)))-->
+                    <!--and (org_id = :org)-->
+                    <!--and (:id is null or id != :id)-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name ="name" mapping = "['name']" domain="string"/>-->
+                <!--<param name = "id" mapping = "['id']" domain="integer"/>-->
+            <!--</in-parameters>-->
+            <!--<result expression="[0][0][0] == 0"/>-->
+        <!--</constraint>-->
+    <!--</validations>-->
+</object>

@@ -1,0 +1,543 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>paymentList</name>
+
+    <object-id>paymentControl</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from public.sr_srv_rendered ssr
+                left join public.sr_service sr on sr.id = ssr.service_id
+                left join public.md_appointment app on app.srv_rendered_id = ssr.id
+                left join public.pim_individual ind on ind.id = ssr.customer_id
+                left join public.fin_funding_source_type fund on fund.id = ssr.funding_id
+                left join public.fin_contract con on con.id = ssr.contract_id
+                left join public.pim_organization org on org.id = ssr.org_id
+                left join public.fin_price_list pl on pl.id = ssr.price_list_id
+                left join public.fin_bill_spec_item bsi on bsi.service_id = ssr.id
+                left join public.fin_bill_main bill on bill.id = bsi.bill_id
+                left join public.fin_bill fb on fb.id = bsi.bill_id
+                left join public.pim_party party on party.id = bill.payer_id
+                left join public.fin_discount_card card on card.id = bill.discount_card_id
+                where fund.code in ('CONTRACT', 'CITIZEN') and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ssr)
+                from public.sr_srv_rendered ssr
+                left join public.sr_service sr on sr.id = ssr.service_id
+                left join public.md_appointment app on app.srv_rendered_id = ssr.id
+                left join public.pim_individual ind on ind.id = ssr.customer_id
+                left join public.fin_funding_source_type fund on fund.id = ssr.funding_id
+                left join public.fin_contract con on con.id = ssr.contract_id
+                left join public.pim_organization org on org.id = ssr.org_id
+                left join public.fin_price_list pl on pl.id = ssr.price_list_id
+                left join public.fin_bill_spec_item bsi on bsi.service_id = ssr.id
+                left join public.fin_bill_main bill on bill.id = bsi.bill_id
+                left join public.fin_bill fb on fb.id = bsi.bill_id
+                left join public.pim_party party on party.id = bill.payer_id
+                left join public.fin_discount_card card on card.id = bill.discount_card_id
+                where fund.code in ('CONTRACT', 'CITIZEN') and :where
+            </n2o:count-query>
+            <n2o:alias>ssr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>recipient.id</id>
+            <domain>integer</domain>
+            <name>Получатель</name>
+            <expression>
+                ssr.org_id
+            </expression>
+        </field>
+
+        <field>
+            <id>recipient.name</id>
+            <domain>string</domain>
+            <name>Получатель</name>
+            <expression>
+                org.short_name
+            </expression>
+        </field>
+
+        <field>
+            <id>contract.id</id>
+            <domain>integer</domain>
+            <name>Договор</name>
+            <expression>
+                ssr.contract_id
+            </expression>
+        </field>
+
+        <field>
+            <id>contract*.id</id>
+            <domain>integer[]</domain>
+            <search>ssr.contract_id in (:contract*.id)</search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>contract.title</id>
+            <domain>string</domain>
+            <name>Договор</name>
+            <expression>
+                con.number || ' от ' || to_char(con.date, 'DD.MM.YYYY')
+            </expression>
+        </field>
+
+        <field>
+            <id>pricelist*.id</id>
+            <domain>integer[]</domain>
+            <name>Прайслист</name>
+            <display unavailable="true"/>
+            <search>pl.id in (:pricelist*.id)</search>
+        </field>
+
+        <field>
+            <id>pricelist.name</id>
+            <domain>string</domain>
+            <name>Прайслист</name>
+            <expression>
+                pl.name
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <name>Пациент</name>
+            <expression>
+                ssr.customer_id
+            </expression>
+            <search>:expression = :patient.id</search>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>
+                ind.surname || ' ' || ind.name || ' ' || ind.patr_name
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <name>Услуга</name>
+            <expression>ssr.service_id</expression>
+        </field>
+
+        <field>
+            <id>service*.id</id>
+            <domain>integer[]</domain>
+            <name>Услуга</name>
+            <display unavailable="true"/>
+            <search>ssr.service_id in (:service*.id)</search>
+        </field>
+
+        <field>
+            <id>service.name</id>
+            <domain>string</domain>
+            <name>Услуга</name>
+            <expression>sr.name</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>service.quantity</id>
+            <domain>integer</domain>
+            <name>Кол-во</name>
+            <expression>ssr.quantity</expression>
+        </field>
+
+        <field>
+            <id>service.plannedDate</id>
+            <domain>date</domain>
+            <name>Дата назначения</name>
+            <expression>ssr.planned_date</expression>
+        </field>
+
+        <field>
+            <id>service.beginDate</id>
+            <domain>date</domain>
+            <name>Дата оказания</name>
+            <expression>ssr.bdate</expression>
+        </field>
+
+        <field>
+            <id>servicePlannedDate.begin</id>
+            <domain>date</domain>
+            <expression>ssr.planned_date</expression>
+            <search>(:expression >= :servicePlannedDate.begin)</search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>servicePlannedDate.end</id>
+            <domain>date</domain>
+            <expression>ssr.planned_date</expression>
+            <search><![CDATA[(:expression <= :servicePlannedDate.end)]]></search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>serviceBeginDate.begin</id>
+            <domain>date</domain>
+            <expression>ssr.bdate</expression>
+            <search>(:expression >= :serviceBeginDate.begin)</search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>serviceBeginDate.end</id>
+            <domain>date</domain>
+            <expression>ssr.bdate</expression>
+            <search><![CDATA[(:expression <= :serviceBeginDate.end)]]></search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>serviceType.id</id>
+            <domain>integer</domain>
+            <name>Тип услуги</name>
+            <display unavailable="true"/>
+            <expression>
+                case when ssr.is_rendered then 2
+                else 1
+                end
+            </expression>
+            <search>(:expression = :serviceType.id)</search>
+        </field>
+
+        <field>
+            <id>funding*.id</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search>fund.id in (:funding*.id)</search>
+        </field>
+
+        <field>
+            <id>funding.id</id>
+            <domain>integer</domain>
+            <name>Вид финансирования  (Идентификатор)</name>
+            <expression>fund.id</expression>
+        </field>
+
+        <field>
+            <id>funding.name</id>
+            <domain>string</domain>
+            <name>Вид финансирования</name>
+            <expression>fund.name</expression>
+        </field>
+
+        <field>
+            <id>employee*.id</id>
+            <domain>integer[]</domain>
+            <name>Исполнитель</name>
+            <expression>
+                (select rg.responsible_id from sr_res_group rg
+                    where rg.id = ssr.res_group_id)
+            </expression>
+            <display unavailable="true"/>
+            <search>:expression in (:employee*.id)</search>
+        </field>
+
+        <field>
+            <id>employee.name</id>
+            <domain>string</domain>
+            <name>Исполнитель</name>
+            <expression>
+                (select concat(ri.surname, ' ' || left(ri.name, 1) || '. ', ' ' || left(ri.patr_name, 1) || '.')
+                from sr_res_group rg
+                    join pim_employee_position ep on ep.id = rg.responsible_id
+                    join pim_employee ee on ee.id = ep.employee_id
+                    join pim_individual ri on ri.id = ee.individual_id
+                    join pim_position pp on ep.position_id = pp.id
+                where rg.id = ssr.res_group_id)
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>employeePosition*.id</id>
+            <domain>integer[]</domain>
+            <name>Cпециальность исполнителя</name>
+            <expression>
+                (select ep.position_id
+                    from sr_res_group rg
+                        join pim_employee_position ep on ep.id = rg.responsible_id
+                    where rg.id = ssr.res_group_id)
+            </expression>
+            <display unavailable="true"/>
+            <search>:expression in (:employeePosition*.id)</search>
+        </field>
+
+        <field>
+            <id>employeePosition.name</id>
+            <domain>string</domain>
+            <name>Cпециальность исполнителя</name>
+            <expression>
+                (select pp.name from sr_res_group rg
+                    join pim_employee_position ep on ep.id = rg.responsible_id
+                    join pim_position pp on ep.position_id = pp.id
+                where rg.id = ssr.res_group_id)
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>employeeDepartment*.id</id>
+            <domain>integer[]</domain>
+            <expression>
+                (select rg.department_id from sr_res_group rg
+                where rg.id = ssr.res_group_id)
+            </expression>
+            <display unavailable="true"/>
+            <search>:expression in (:employeeDepartment*.id)</search>
+        </field>
+
+        <field>
+            <id>payerType.id</id>
+            <domain>integer</domain>
+            <name>Тип плательщика</name>
+            <expression>
+                party.type_id
+            </expression>
+            <display unavailable="true"/>
+            <search>(:expression = :payerType.id)</search>
+        </field>
+
+        <field>
+            <id>payerType.name</id>
+            <domain>string</domain>
+            <name>Тип плательщика</name>
+            <expression>
+                case when party.type_id = 1 then 'Физическое лицо'
+                     when party.type_id = 2 then 'Юридическое лицо'
+                    else null
+                end
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>payer.id</id>
+            <domain>integer</domain>
+            <name>Плательщик</name>
+            <expression>
+                bill.payer_id
+            </expression>
+            <display unavailable="true"/>
+            <search>(:expression = :payer.id)</search>
+        </field>
+
+        <field>
+            <id>payer*.id</id>
+            <domain>integer[]</domain>
+            <search>bill.payer_id in (:payer*.id)</search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>payer.name</id>
+            <domain>string</domain>
+            <name>Плательщик</name>
+            <expression>
+                case when party.type_id = 1 then (select concat(pind.surname, ' ' || pind.name, ' ' || pind.patr_name) from pim_individual pind where pind.id = bill.payer_id)
+                     when party.type_id = 2 then (select porg.short_name from pim_organization porg where porg.id = bill.payer_id)
+                else null
+                end
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>billNumber</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search>(upper(fb.number) like '%' || upper(:billNumber) || '%')</search>
+        </field>
+
+
+        <field>
+            <id>billDate.begin</id>
+            <domain>date</domain>
+            <expression>fb.date</expression>
+            <search>(:expression >= :billDate.begin)</search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>billDate.end</id>
+            <domain>date</domain>
+            <expression>fb.date</expression>
+            <search><![CDATA[(:expression <= :billDate.end)]]></search>
+            <display unavailable="true"/>
+        </field>
+
+
+        <field>
+            <id>discountCard</id>
+            <domain>string</domain>
+            <search>(upper(card.number) like '%' || upper(:discountСard) || '%')</search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>discount*.id</id>
+            <domain>integer[]</domain>
+            <search>exists(select 1 from public.fin_bill_spec_item_discount_rel
+                rel where rel.bill_spec_item_id = bsi.id and rel.discount_id in (:discount*.id))
+            </search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>pricingCat*.id</id>
+            <domain>integer[]</domain>
+            <search>exists(select 1 from public.fin_bill_spec_item_discount_rel rel
+                join fin_discount dis on dis.id = rel.discount_id
+                where rel.bill_spec_item_id = bsi.id and dis.pricing_cat_id in (:pricingCat*.id))</search>
+            <display unavailable="true"/>
+        </field>
+
+
+        <field>
+            <id>paymentNumber</id>
+            <domain>string</domain>
+            <display unavailable="true"/>
+            <search>exists((select pm.number from public.fin_payment_share pms
+                left join public.fin_payment pm on pm.id = pms.payment_id
+                where pms.service_id = ssr.id and (upper(pm.number) like '%' || upper(:paymentNumber) || '%')))</search>
+        </field>
+
+        <field>
+            <id>paymentDate.begin</id>
+            <domain>date</domain>
+            <search>exists(select pm.number from public.fin_payment_share pms
+                left join public.fin_payment pm on pm.id = pms.payment_id
+                where pms.service_id = ssr.id and pm.date >= :paymentDate.begin)</search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>paymentDate.end</id>
+            <domain>date</domain>
+            <search><![CDATA[exists(select pm.number from public.fin_payment_share pms
+                left join public.fin_payment pm on pm.id = pms.payment_id
+                where pms.service_id = ssr.id and pm.date <= :paymentDate.end)]]></search>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>isCancelAppointment</id>
+            <domain>boolean</domain>
+            <expression>(app.id is not null and ssr.is_rendered = false and app.state_id not in (1,3,4)
+                and not exists(select * from public.fin_payment_share pms where pms.service_id = ssr.id))</expression>
+            <search unavailable="true" />
+        </field>
+
+        <field>
+            <id>isContract</id>
+            <domain>boolean</domain>
+            <expression>(ssr.contract_id is null)</expression>
+            <search unavailable="true" />
+        </field>
+
+        <field>
+            <id>isBill</id>
+            <domain>boolean</domain>
+            <expression>(bsi.id is null)</expression>
+            <search unavailable="true" />
+        </field>
+
+        <field>
+            <id>isDeleteService</id>
+            <domain>boolean</domain>
+            <expression>((app.id is null or app.state_id = 4) and ssr.is_rendered = false and not exists(select * from public.fin_payment_share pms where pms.service_id = ssr.id))</expression>
+            <search unavailable="true" />
+        </field>
+
+        <field>
+            <id>appointment.id</id>
+            <domain>integer</domain>
+            <expression>app.id</expression>
+            <search unavailable="true" />
+        </field>
+
+        <field>
+            <id>payerId</id>
+            <domain>integer</domain>
+            <name>Плательщик</name>
+            <display>:payer.id</display>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>bill.id</id>
+            <domain>integer</domain>
+            <expression>fb.id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>bill.number</id>
+            <domain>string</domain>
+            <expression>fb.number</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>bill.date</id>
+            <domain>date</domain>
+            <expression>to_char(fb.date, 'DD.MM.YYYY')</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>bill.contract.id</id>
+            <domain>integer</domain>
+            <expression>bill.contract_id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>bill.org.id</id>
+            <domain>integer</domain>
+            <expression>bill.clinic_id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>bill.payer.id</id>
+            <domain>integer</domain>
+            <expression>bill.payer_id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>bill.payerType.id</id>
+            <domain>integer</domain>
+            <expression>party.type_id</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>bill.finType.id</id>
+            <domain>integer</domain>
+            <expression>bill.financing_type_id</expression>
+            <search unavailable="true"/>
+        </field>
+
+
+    </fields>
+</query>

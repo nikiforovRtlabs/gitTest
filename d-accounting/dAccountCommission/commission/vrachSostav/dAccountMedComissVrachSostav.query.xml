@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>dAccountMedComissVrachSostav</object-id>
+    <name>Состав врачебной комиссии</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from d_accounting.commission m
+                join public.sr_res_group sg on sg.id = m.res_group_id
+                join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'COMMISSIONER'
+                join public.pim_employee_position_resource emps on emps.id = srel.resource_id
+                join public.pim_employee_position epos on epos.id = emps.employee_position_id
+                join public.pim_employee emp on emp.id = epos.employee_id
+                join public.pim_individual ind on ind.id = emp.individual_id
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from d_accounting.commission m
+                join public.sr_res_group sg on sg.id = m.res_group_id
+                join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'COMMISSIONER'
+                join public.pim_employee_position_resource emps on emps.id = srel.resource_id
+                join public.pim_employee_position epos on epos.id = emps.employee_position_id
+                join public.pim_employee emp on emp.id = epos.employee_id
+                join public.pim_individual ind on ind.id = emp.individual_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>m</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>sr_res_group_relationship_id</id>
+            <domain>integer</domain>
+            <expression>srel.id</expression>
+        </field>
+
+        <field>
+            <id>res_group_id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>resource_id</id>
+            <domain>integer</domain>
+            <expression>srel.resource_id</expression>
+        </field>
+
+        <field>
+            <id>vrach.name</id>
+            <name>Врач</name>
+            <domain>string</domain>
+            <expression>
+                initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name))
+            </expression>
+        </field>
+
+        <field>
+            <id>org.name</id>
+            <name>Оранизация</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT coalesce(o.short_name, o.full_name)
+                FROM pim_organization o
+                WHERE o.id = emp.organization_id
+                LIMIT 1)
+            </expression>
+        </field>
+
+    </fields>
+</query>

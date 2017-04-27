@@ -1,0 +1,118 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <name>migrService</name>
+
+    <actions>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    select migr.saveMigrInspec(:event_patient_id,
+                    :ssr_id::integer,
+                    :case_id,
+                    :date,
+                    :srg_id,
+                    :main_diagnosis_id::integer,
+                    :disease_id::integer,
+                    :service_type_id,
+                    :is_suspicion::boolean,
+                    :conclusion::character varying,
+                    :recommendations::character varying,
+                    :result::boolean,
+                    :isSecond::boolean,
+                    :second_org_id::integer,
+                    :refDate::character varying,
+                    :diagnosis_id::integer,
+                    :second_result::boolean,
+                    :migr_service_id,
+                    :titr,
+                    :degree_id::integer);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="event_patient_id" mapping="['event_patient_id']" domain="integer"/>
+                <param name="ssr_id" mapping="['ssr_id']" domain="integer"/>
+                <param name="case_id" mapping="['case_id']" domain="integer"/>
+                <param name="date" mapping="['date']" domain="string"/>
+                <param name="resource.srg_id" mapping="['srg_id']" domain="integer"/>
+                <param name="main_diagnosis.id" mapping="['main_diagnosis_id']" domain="integer"/>
+                <param name="disease.id" mapping="['disease_id']" domain="integer"/>
+                <param name="service_type_id" mapping="['service_type_id']" domain="integer"/>
+                <param name="is_suspicion" mapping="['is_suspicion']" domain="boolean"/>
+                <param name="conclusion" mapping="['conclusion']" domain="string"/>
+                <param name="recommendations" mapping="['recommendations']" domain="string"/>
+                <param name="result.code" mapping="['result']" domain="boolean"/>
+                <param name="isSecond" mapping="['isSecond']" domain="boolean"/>
+                <param name="second_org.id" mapping="['second_org_id']" domain="integer"/>
+                <param name="refDate" mapping="['refDate']" domain="string"/>
+                <param name="diagnosis.id" mapping="['diagnosis_id']" domain="integer"/>
+                <param name="second_result.code" mapping="['second_result']" domain="boolean"/>
+                <param name="migr_service_id" mapping="['migr_service_id']" domain="integer"/>
+                <param name="titr" mapping="['titr']" domain="string"/>
+                <param name="degree.id" mapping="['degree_id']"  domain="integer"/>
+                <param name="exist_service" mapping="['exist_service']" domain="integer"/>
+            </in-parameters>
+            <validations activate="all"/>
+        </action>
+
+        <action id="clearService" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    update migr.md_migr_service set service_id = null, main_diagnosis_id = null, disease_type_id = null,
+                    is_surmise = null, resource_id = null, rendered_date = null,
+                    step_id = null, diagnos_id = null, conclusion = null, recommendations = null,
+                    result = null, is_second = null,
+                    org_id = null, ref_date = null,
+                    diagnosis_id = null, second_result = null
+                    where service_id = :id;
+                    delete from disp.md_referral_extended where id in (select id from md_referral where service_id = :id);
+                    delete from SR_SRV_RENDERED where id = :id;
+                    delete from MD_SRV_RENDERED where id = :id;
+                    delete from plc_visit where id = :stepId and :isAvailableDelete;
+                    delete from mc_step where id = :stepId and :isAvailableDelete;
+                    update disp.md_event_service_patient set status = 1 where id = :mespid;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="ssr_id" mapping="['id']"/>
+                <param name="mespId" mapping="['mespid']"/>
+                <param name="stepId" mapping="['stepId']"/>
+                <param name="isAvailableDelete" mapping="['isAvailableDelete']"/>
+            </in-parameters>
+        </action>
+    </actions>
+    
+    <validations>
+        <condition id="diseaseTypeRequired" level="error">
+            <message>Характер заболевания обязателен, для диагноза отличного от Z</message>
+            <expression on="main_diagnosis,disease"><![CDATA[
+                    (main_diagnosis.code == null) || (/Z.*/.test(main_diagnosis.code)) || (!(/Z.*/.test(main_diagnosis.code)) && (disease.id != null))
+            ]]></expression>
+        </condition>
+
+
+        <condition id="notExistService" level="error">
+            <message>Пациенту следует назначить услугу "РПГА"</message>
+            <expression on="exist_service,result,service_code"><![CDATA[
+             ((service_code=='ОМ8') && (exist_service !=null || result.id==2 )) || (service_code!='ОМ8')
+            ]]></expression>
+        </condition>
+        <condition id="checkDateAfterCardCreateDate" level="error">
+            <message>Дата оказания услуги может быть не ранее даты создания карточки мигранта и не позднее текущей даты</message>
+            <expression on="date">
+                <![CDATA[
+                var b = false;
+                d1 = new Date(date.substring(6,4)+'-'+date.substring(3,2)+'-'+date.substring(0,2));
+                d2 = new Date(curr_date.substring(6,4)+'-'+curr_date.substring(3,2)+'-'+curr_date.substring(0,2));
+                d3 = new Date(card_create_date.substring(6,4)+'-'+card_create_date.substring(3,2)+'-'+card_create_date.substring(0,2));
+                if(d3 <= d1 && d1 <= d2){
+                    b = true;
+                }
+                b;
+            ]]></expression>
+        </condition>
+    </validations>
+</object>

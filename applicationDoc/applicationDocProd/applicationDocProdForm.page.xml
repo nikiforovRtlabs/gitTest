@@ -1,0 +1,157 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <object-id>applicationDocProd</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>Заявка на изготовление ЛС</name>
+
+    <containers>
+        <container id="main" place="single">
+            <wgt:form detail-field-id="id" master-field-id="id">
+                <wgt:query-id>applicationDocProdForm</wgt:query-id>
+                <fs:field-set field-label-location="top">
+                    <fs:row>
+                        <ctrl:hidden id="id"/>
+                        <ctrl:hidden id="org.id" default-value="#{org.id?}"/>
+                        <ctrl:hidden id="docType.id" default-value="11"/> <!-- Заявка на изготовление-->
+
+                        <ctrl:input-text id="docNumber" label="Номер заявки" label-style="width: 100px"
+                                         css-class="n2o-label-5 n2o-control-6" control-style="width: 120px;">
+                        </ctrl:input-text>
+
+                        <ctrl:date-time id="docDate" label="Дата" required="true" default-value="today()" label-style="width: 40px"
+                                        control-style="width: 130px"/>
+
+                        <ctrl:hidden id="year">
+                            <ctrl:set-value-expression on="docDate"><![CDATA[moment(docDate,'DD.MM.YYYY HH:mm').get('year')]]></ctrl:set-value-expression>
+                        </ctrl:hidden>
+
+                        <ctrl:select-tree id="fundSource" ajax="false" label="Источник финансирование" search="true" control-style="width: 310px;"
+                                          css-class="n2o-label-6 n2o-control-6">
+                            <ctrl:inheritance-nodes query-id="inv_fundingSource_inheritance" parent-field-id="parentId"
+                                                    has-children-field-id="hasChildren" search-field-id="name"
+                                                    label-field-id="name" icon-field-id="iconId">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:inheritance-nodes>
+                        </ctrl:select-tree>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:checkbox id="enableFormulaDocName" visible="false">
+                            <ctrl:set-value-expression on="formulaDoc" on-load="true">
+                                if (formulaDoc.id != null) {
+                                    false;
+                                } else {
+                                    true;
+                                };
+                            </ctrl:set-value-expression>
+                        </ctrl:checkbox>
+
+                        <ctrl:classifier id="formulaDoc" label="Пропись" label-style="width: 200px"
+                                         css-class="formulaDoc n2o-label-6 n2o-control-6" control-style="width: 300px;">
+                            <ctrl:query query-id="inv_formulaDocExtForForm" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="is_extemporal" value="true"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+
+                            <ctrl:actions>
+                                <ctrl:button label="Ручное заполнение" icon="icon-pencil" type="icon" >
+                                    <ctrl:on-click src="inventory/custom/formulaDocName.js" function-name="enableFormulaDocName"/>
+                                </ctrl:button>
+                            </ctrl:actions>
+                        </ctrl:classifier>
+
+                        <ctrl:input-text id="quantity" label="Количество" label-style="width: 90px" control-style="width: 90px;"
+                                         required="true" css-class="n2o-label-5 n2o-control-6" default-value="1" domain="numeric">
+
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="checkQuantity" side="client"/>
+                            </ctrl:validations>
+                        </ctrl:input-text>
+
+                        <ctrl:classifier id="measure" label="Ед. изм" label-style="width: 110px" required="true"
+                                         css-class="n2o-label-6 n2o-control-6" control-style="width: 120px;"
+                                         autoselect-alone="true">
+                            <ctrl:query query-id="inv_measureForAppProd" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="id" ref="formulaDoc.mnei_id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:input-text id="formulaDocName" label="Пропись (ручной ввод)" css-class="n2o-label-6 n2o-control-6"
+                                         label-style="width: 300px" control-style="width: 580px;"
+                                         dependency-condition="enableFormulaDocName == true" />
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:input-text id="formulaDoc.modifName" label="Номенклатура" label-style="width: 100px" copied="false"
+                                          control-style="width: 580px" depends-on="formulaDoc" readonly="true"/>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:classifier id="department" label="Подразделение" required="true" label-style="width: 260px" control-style="width: 280px;">
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{dep.id?}</ctrl:value>
+                            </ctrl:default-model>
+                            <ctrl:query query-id="inv_departmentWithStore" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="store" label="Склад" autoselect-alone="true" control-style="width: 285px;" depends-on="department"
+                                         dependency-condition="typeof id!='undefined' &amp;&amp; id!=null">
+                            <ctrl:query query-id="inv_store" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="departmentId" ref="department.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on-load="false" on-non-empty="false" on="department">
+                                <![CDATA[
+                                 if (typeof id == 'undefined' || id == null) {
+                                    department.store;
+                                 } else {
+                                    store;
+                                 }
+                                ]]>
+                            </ctrl:set-value-expression>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="store" label="Склад" autoselect-alone="true" control-style="width: 290px;"
+                                         depends-on="department" dependency-condition="typeof id=='undefined' || id==null">
+                            <ctrl:query query-id="inv_store" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="departmentId" ref="department.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on-load="true" on-non-empty="false" on="department">
+                                <![CDATA[
+                                 if (typeof id == 'undefined' || id == null) {
+                                    department.store;
+                                 } else {
+                                    store;
+                                 }
+                                ]]>
+                            </ctrl:set-value-expression>
+                        </ctrl:classifier>
+                    </fs:row>
+                    <fs:row>
+                        <ctrl:text-area id="note" label="Примечание" rows="2" control-style="width: 580px;"/>
+                    </fs:row>
+                </fs:field-set>
+            </wgt:form>
+        </container>
+    </containers>
+</page>

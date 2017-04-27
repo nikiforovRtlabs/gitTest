@@ -1,0 +1,445 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>pimtransport</id>-->
+    <name>Транспортное средство</name>
+    <object-id>pimtransport</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.pim_transport pt
+                join pim_organization po on pt.org_id = po.id
+                left join amb.pim_transport_category ptc on pt.category_id = ptc.id
+                join amb.pim_transport_type ptt on pt.type_id = ptt.id
+                left join amb.pim_transport_equipment pte on pt.transport_equipment_id = pte.id
+                left join amb.pim_transport_brand_name ptbn on pt.brand_name_id = ptbn.id
+                left join amb.pim_transport_model ptm on pt.model_id = ptm.id
+                left join pim_organization om on pt.manufacturer_id = om.id
+                left join ns_country nc on pt.country_id = nc.id
+                join pim_department dep on pt.department_id = dep.id
+                left join pim_ownership_pattern op on pt.ownership_pattern_id = op.id
+                left join cmn_measure cm on pt.service_measure_id = cm.id
+                left join pim_building pb on pt.building_id = pb.id
+                left join pim_room pr on pt.room_id = pr.id
+                left join fin_contract fc on pt.contract_id = fc.id
+
+                left join amb.pim_transport_state pts on pts.id = (select id from amb.pim_transport_state where transport_id = pt.id order by from_dt desc,id desc limit 1)
+                <!--amb.search_transport_state(pt.id)-->
+                left join pim_stock_unit_state psus on psus.id = pts.state_id
+
+                left join amb.pim_transport_resource ptr on pt.id = ptr.transport_id
+                left join sr_resource sr on ptr.resource_id = sr.id
+
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from amb.pim_transport pt
+                join pim_organization po on pt.org_id = po.id
+                left join amb.pim_transport_category ptc on pt.category_id = ptc.id
+                join amb.pim_transport_type ptt on pt.type_id = ptt.id
+                left join amb.pim_transport_equipment pte on pt.transport_equipment_id = pte.id
+                left join amb.pim_transport_brand_name ptbn on pt.brand_name_id = ptbn.id
+                left join amb.pim_transport_model ptm on pt.model_id = ptm.id
+                left join pim_organization om on pt.manufacturer_id = om.id
+                left join ns_country nc on pt.country_id = nc.id
+                join pim_department dep on pt.department_id = dep.id
+                left join pim_ownership_pattern op on pt.ownership_pattern_id = op.id
+                left join cmn_measure cm on pt.service_measure_id = cm.id
+                left join pim_building pb on pt.building_id = pb.id
+                left join pim_room pr on pt.room_id = pr.id
+                left join fin_contract fc on pt.contract_id = fc.id
+
+                left join amb.pim_transport_state pts on pts.id = (select id from amb.pim_transport_state where transport_id = pt.id order by from_dt desc,id desc limit 1)
+                <!--amb.search_transport_state(pt.id)-->
+                left join pim_stock_unit_state psus on psus.id = pts.state_id
+
+                left join amb.pim_transport_resource ptr on pt.id = ptr.transport_id
+                left join sr_resource sr on ptr.resource_id = sr.id
+
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pt</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>pt.id</expression>
+        </field>
+        <field>
+            <id>resId</id>
+            <domain>integer</domain>
+            <expression>sr.id</expression>
+        </field>
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+        </field>
+        <field>
+            <id>station.name</id>
+            <domain>string</domain>
+            <name>Организация</name>
+            <expression>coalesce(po.short_name,po.full_name)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <name>Код</name>
+            <expression>pt.code</expression>
+            <search>upper(trim(pt.code)) like upper(trim(:code||'%'))</search>
+        </field>
+        <field>
+            <id>inventory_number</id>
+            <domain>string</domain>
+            <name>Гос. рег. знак номер</name>
+            <expression>pt.inventory_number</expression>
+            <search>upper(trim(pt.inventory_number)) like ('%'||:inventory_number||'%')</search>
+        </field>
+        <field>
+            <id>inventory_code</id>
+            <domain>string</domain>
+            <name>Гос. рег. знак код региона</name>
+            <expression>trim (TRAILING  'RUS' from pt.inventory_code)</expression>
+            <search>upper(trim(pt.inventory_code)) like ('%'||:inventory_code||'%')</search>
+        </field>
+        <field>
+            <id>rus</id>
+            <domain>string</domain>
+            <display value="RUS" unavailable="true"/>
+            <search unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>inventory</id>
+            <domain>string</domain>
+            <name>Гос. рег. знак</name>
+            <expression>
+                concat(pt.inventory_number,' ',pt.inventory_code)
+            </expression>
+        </field>
+
+        <field>
+            <id>okof_code</id>
+            <domain>string</domain>
+            <name>Код по ОКОФ</name>
+            <expression>pt.okof_code</expression>
+            <search>upper(trim(pt.okof_code)) like upper(trim(:okof_code||'%'))</search>
+        </field>
+        <field>
+            <id>transport_category.id</id>
+            <domain>integer</domain>
+            <expression>ptc.id</expression>
+        </field>
+        <field>
+            <id>transport_category.name</id>
+            <domain>string</domain>
+            <name>Категория ТС</name>
+            <expression>ptc.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>transport_type.id</id>
+            <domain>integer</domain>
+            <expression>ptt.id</expression>
+        </field>
+        <field>
+            <id>transport_type.name</id>
+            <domain>string</domain>
+            <name>Тип ТС</name>
+            <expression>ptt.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>transport_equipment.id</id>
+            <domain>integer</domain>
+            <expression>pte.id</expression>
+        </field>
+        <field>
+            <id>transport_equipment.name</id>
+            <domain>string</domain>
+            <name>Вид оснащения</name>
+            <expression>pte.name</expression>
+        </field>
+        <field>
+            <id>transport_brand.id</id>
+            <domain>integer</domain>
+            <expression>ptbn.id</expression>
+        </field>
+        <field>
+            <id>transport_brand.name</id>
+            <domain>string</domain>
+            <name>Марка</name>
+            <expression>ptbn.name</expression>
+        </field>
+        <field>
+            <id>transport_model.id</id>
+            <domain>integer</domain>
+            <expression>ptm.id</expression>
+        </field>
+        <field>
+            <id>transport_model.name</id>
+            <domain>string</domain>
+            <name>Модель</name>
+            <expression>ptm.name</expression>
+        </field>
+        <field>
+            <id>model</id>
+            <domain>string</domain>
+            <name>Марка/Модель</name>
+            <!--<expression>coalesce(pt.model,ptbn.name||'/'||ptm.name)</expression>-->
+            <expression>pt.model</expression>
+            <!--<search>upper(trim(pt.model)) like upper(trim(:model||'%'))</search>-->
+        </field>
+        <!--<field>-->
+        <!--<id>model</id>-->
+        <!--<domain>string</domain>-->
+        <!--<name>Модель: текст</name>-->
+        <!--<expression>pt.model</expression>-->
+        <!--</field>-->
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>om.id</expression>
+        </field>
+        <field>
+            <id>org.name</id>
+            <domain>string</domain>
+            <name>Производитель</name>
+            <expression>coalesce(om.short_name,om.full_name)</expression>
+        </field>
+        <field>
+            <id>country.id</id>
+            <domain>integer</domain>
+            <name>Страна производитель</name>
+            <expression>nc.id</expression>
+        </field>
+        <field>
+            <id>country.name</id>
+            <domain>string</domain>
+            <name>Страна производитель</name>
+            <expression>nc.name</expression>
+        </field>
+        <field>
+            <id>issue_dt.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>issue_dt.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>issue_dt</id>
+            <name>Дата выпуска</name>
+            <expression>
+                pt.issue_dt
+            </expression>
+            <search><![CDATA[
+                (
+                (:issue_dt.begin::date is null and :issue_dt.end::date is null) or
+                (:issue_dt.begin::date is null or pt.issue_dt >= :issue_dt.begin) and
+                (:issue_dt.end::date is null or pt.issue_dt <= :issue_dt.end)
+                )
+                ]]>
+            </search>
+        </field>
+        <field>
+            <id>substation.id</id>
+            <domain>integer</domain>
+            <expression>dep.id</expression>
+        </field>
+        <field>
+            <id>substation.name</id>
+            <domain>string</domain>
+            <name>Подразделение</name>
+            <expression>dep.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>purchase_dt</id>
+            <domain>date</domain>
+            <name>Дата приобритения</name>
+            <expression>pt.purchase_dt</expression>
+        </field>
+        <field>
+            <id>ownership_pattern.id</id>
+            <domain>integer</domain>
+            <expression>op.id</expression>
+        </field>
+        <field>
+            <id>ownership_pattern.name</id>
+            <domain>string</domain>
+            <name>Вид собственности</name>
+            <expression>op.name</expression>
+        </field>
+        <field>
+            <id>warranty_dt</id>
+            <domain>date</domain>
+            <name>Гарантийный срок эксплуатации</name>
+            <expression>pt.warranty_dt</expression>
+        </field>
+        <field>
+            <id>service_period</id>
+            <domain>integer</domain>
+            <name>Нормативный срок службы: число</name>
+            <expression>pt.service_period</expression>
+        </field>
+        <field>
+            <id>measure.id</id>
+            <domain>integer</domain>
+            <expression>cm.id</expression>
+        </field>
+        <field>
+            <id>measure.name</id>
+            <domain>string</domain>
+            <name>Ед. измер.</name>
+            <expression>cm.name</expression>
+        </field>
+        <field>
+            <id>period</id>
+            <domain>string</domain>
+            <name>Нормативный срок службы</name>
+            <expression>cast(service_period as varchar)||' '||cm.mnemocode</expression>
+        </field>
+        <field>
+            <id>building.id</id>
+            <domain>integer</domain>
+            <expression>pb.id</expression>
+        </field>
+        <field>
+            <id>building.name</id>
+            <domain>string</domain>
+            <name>Расположение: здание</name>
+            <expression>pb.name</expression>
+        </field>
+        <field>
+            <id>buOrg</id>
+            <domain>integer</domain>
+            <expression>pb.id</expression>
+        </field>
+        <field>
+            <id>room.id</id>
+            <domain>integer</domain>
+            <expression>pr.id</expression>
+        </field>
+        <field>
+            <id>room.name</id>
+            <domain>string</domain>
+            <name>Расположение: помещение</name>
+            <expression>pr.name</expression>
+        </field>
+        <field>
+            <id>location</id>
+            <domain>string</domain>
+            <name>Расположение</name>
+            <expression>pb.name||'('||coalesce(pr.code,pr.name)||')'</expression>
+        </field>
+
+        <field>
+            <id>is_res</id>
+            <domain>boolean</domain>
+            <expression><![CDATA[
+                case when (ptr.id is not null)
+                and (psus.id <> (select id from pim_stock_unit_state where code = '53'))
+                then true else false end
+                           ]]>
+            </expression>
+            <!--<display unavailable="true"/>-->
+            <!--<search unavailable="true"/>-->
+        </field>
+        <field>
+            <id>contract.id</id>
+            <domain>integer</domain>
+            <expression>fc.id</expression>
+        </field>
+        <field>
+            <id>contract.name</id>
+            <domain>string</domain>
+            <name>Договор поставки</name>
+            <expression>'Договор №'||fc.number||' от '||to_char(fc.date,'dd.mm.yyyy')</expression>
+        </field>
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <name>Дата начала действия</name>
+            <expression>pt.from_dt</expression>
+        </field>
+        <field>
+            <id>to_dt</id>
+            <domain>date</domain>
+            <name>Дата окончания действия</name>
+            <expression>pt.to_dt</expression>
+        </field>
+        <field>
+            <id>unit_id</id>
+            <domain>integer</domain>
+            <name>Единица орг. структуры</name>
+            <expression>pt.unit_id</expression>
+        </field>
+        <field>
+            <id>active.id</id>
+            <domain>integer</domain>
+            <name>Действующие</name>
+            <expression><![CDATA[
+                case when (pt.to_dt is null) or (pt.to_dt > now()) then 1
+                     when (pt.to_dt is not null) and (pt.to_dt <= now()) then 2
+                end
+            ]]>
+            </expression>
+            <!--<search type="in">:active.id</search>-->
+            <!--<search unavailable="true"/>-->
+        </field>
+
+        <!--<field>-->
+        <!--<id>color</id>-->
+        <!--<domain>string</domain>-->
+        <!--<name>Цвет</name>-->
+        <!--<expression><![CDATA[-->
+        <!--case when (pt.to_dt is null) or (pt.to_dt > now()) then-->
+        <!--case when then-->
+        <!--when (pt.to_dt is not null) and (pt.to_dt <= now()) then 2-->
+        <!--end-->
+        <!--]]>-->
+        <!--</expression>-->
+        <!--&lt;!&ndash;<search type="in">:active.id</search>&ndash;&gt;-->
+        <!--&lt;!&ndash;<search unavailable="true"/>&ndash;&gt;-->
+        <!--</field>-->
+
+        <!--<field>-->
+        <!--<id>transport_state.id</id>-->
+        <!--<domain>integer</domain>-->
+        <!--<expression>amb.search_transport_state(pt.id)</expression>-->
+        <!--<search>amb.search_transport_state(pt.id) = :transport_state.id</search>-->
+        <!--</field>-->
+        <field>
+            <id>stock_unit_state.id</id>
+            <domain>integer</domain>
+            <name>Статус</name>
+            <expression>psus.id</expression>
+        </field>
+        <field>
+            <id>stock_unit_state.name</id>
+            <domain>string</domain>
+            <expression>psus.name</expression>
+        </field>
+        <field>
+            <id>stock_unit_state.state_string</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>psus.name||' от '||to_char(pts.from_dt,'dd-mm-yyyy')</expression>
+        </field>
+    </fields>
+</query>

@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <id>serviceModelPatient</id>
+    <name>serviceModelPatient</name>
+
+    <validations>
+        <constraint id="checkUniqModel" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(id) from disp.md_event_service_model
+                    where event_service_id = CAST(:esid as integer) and model_id = CAST(:mid as integer)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="model.id" mapping="['mid']" domain="integer"/>
+                <param name="eventServiceId" mapping="['esid']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Данная модель уже прикреплена к услуге</message>
+        </constraint>
+    </validations>
+
+    <actions>
+        <action id="add" name="Добавить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    insert into disp.md_event_service_model(id, event_service_id, model_id)
+                      values(nextval('disp.md_event_service_model_id_seq'), CAST(:eventServiceId as int), :modelId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="model.id" mapping="['modelId']"/>
+                <param name="eventServiceId" mapping="['eventServiceId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0]"/>
+            </out-parameters>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    update disp.md_event_service_model set model_id=:modelId, event_service_id=:eventServiceId
+                    where id=:id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="model.id" mapping="['modelId']"/>
+                <param name="eventServiceId" mapping="['eventServiceId']"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql data-source="jdbc/lsd">
+                    delete from disp.md_event_service_model where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+        </action>
+    </actions>
+</object>

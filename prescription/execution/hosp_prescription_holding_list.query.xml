@@ -1,0 +1,101 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_prescription</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+            <![CDATA[
+                select :select
+                from hospital.prescription p
+                join hospital.prescription_holding ph on p.id = ph.prescription_id
+                join hospital.prescription_schedule ps on ps.prescription_holding_id = ph.id
+                join inventory.holding h on h.id = ph.holding_id
+                left join inventory.form_type ft on ft.id = ph.hold_form_type_id
+                left join cmn_measure dm on dm.id = ph.hold_dose_measure_id
+                left join cmn_measure mnei on mnei.id = ph.hold_mnei_id
+                left join inventory.hold_modif hm on hm.id = ps.hold_modif_id
+                left join inventory.store_opr_jur soj on soj.id = ps.store_opr_id
+                left join inventory.store store on store.id = soj.store_send_id
+                where :where
+                order by :order, ph.id
+            ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+            <![CDATA[
+                select count(1)
+                from hospital.prescription p
+                join hospital.prescription_holding ph on p.id = ph.prescription_id
+                join hospital.prescription_schedule ps on ps.prescription_holding_id = ph.id
+                join inventory.holding h on h.id = ph.holding_id
+                where :where
+            ]]>
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>prescription.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>prescription.prescription_dt</id>
+            <domain>date</domain>
+            <expression>ps.prescription_dt</expression>
+        </field>
+
+        <field>
+            <id>holding</id>
+            <name>Препарат</name>
+            <domain>string</domain>
+            <expression>
+                h.name || coalesce(', ' || ft.short_name, '')
+                || coalesce(', ' || ph.hold_con_value || coalesce(' ' || (select name from cmn_measure where id = ph.hold_con_measure_id),''), '')
+                || coalesce(', ' || trim(to_char(ph.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' ' || dm.name,''), '')
+                || coalesce(', ' || mnei.name, '')
+            </expression>
+        </field>
+
+        <field>
+            <id>dose</id>
+            <name>Доза</name>
+            <domain>string</domain>
+            <expression>coalesce(trim(to_char((ph.hold_dose_value * ph.count)::numeric, 'FM9999990.999'), '.') || coalesce(' ' || dm.name,''), '')</expression>
+        </field>
+
+        <field>
+            <id>modif</id>
+            <name>Модификация выполнения</name>
+            <domain>string</domain>
+            <expression>hm.name</expression>
+        </field>
+
+        <field>
+            <id>store</id>
+            <name>Склад</name>
+            <domain>string</domain>
+            <expression>store.name</expression>
+        </field>
+
+        <field>
+            <id>isPatientMedicamentColor</id>
+            <domain>string</domain>
+            <expression>(case when ps.is_patient_medicament is true then 'text-info' else '' end)</expression>
+        </field>
+
+        <field>
+            <id>isPatientMedicament</id>
+            <domain>boolean</domain>
+            <expression>ps.is_patient_medicament</expression>
+        </field>
+
+
+    </fields>
+</query>

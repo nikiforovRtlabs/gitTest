@@ -1,0 +1,350 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>spaceForm</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                <![CDATA[
+                select :select
+                from md_bed mb
+                left join pim_room pr on mb.room_id=pr.id
+                left join md_age_group age on age.id = mb.age_group_id
+                left join pim_gender gender on gender.id = mb.gender_id
+                left join mc_care_regimen mcr on mb.regimen_id=mcr.id
+                left join pim_department pd on pr.department_id=pd.id
+                left join md_department_profile mdp on mb.profile_id=mdp.id
+                left join md_profile mp on mdp.profile_id=mp.id
+                left join pim_organization po on pd.org_id=po.id
+                left join md_bed_profile mbp on mb.bed_profile_id=mbp.id
+                left join md_bed_profile_detail mbpd on mb.id=mbpd.bed_id AND mbpd.id = (
+                    select id
+                    from md_bed_profile_detail mbpd1
+                    where mbpd1.profile_id = mbp.id and from_dt <= current_date order by from_dt DESC limit 1 )
+                left join md_bed_profile_passport mbpp on mb.bed_profile_pass_id=mbpp.id
+                left join md_bed_state mbs on mb.id = mbs.bed_id and mbs.id = (
+                    select id
+                    from md_bed_state mbs1
+                    where mbs1.bed_id = mb.id and from_dt <= current_date order by from_dt DESC limit 1)
+                left join pim_stock_unit_state psus on mbs.state_id=psus.id
+                left join ( select bed_id, count(*)
+                            from md_bed_resource
+                            group by bed_id) res on res.bed_id=mb.id
+                where :where
+                order by :order
+                ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                <![CDATA[
+                select count(mb)
+                from md_bed mb
+                left join pim_room pr on mb.room_id=pr.id
+                left join mc_care_regimen mcr on mb.regimen_id=mcr.id
+                left join pim_department pd on pr.department_id=pd.id
+                left join md_department_profile mdp on mb.profile_id=mdp.id
+                left join md_profile mp on mdp.profile_id=mp.id
+                left join pim_organization po on pd.org_id=po.id
+                left join md_bed_profile mbp on mb.bed_profile_id=mbp.id
+                left join md_bed_profile_detail mbpd on mb.id=mbpd.bed_id AND mbpd.id = (
+                    select id
+                    from md_bed_profile_detail mbpd1
+                    where mbpd1.profile_id = mbp.id and from_dt <= current_date order by from_dt DESC limit 1 )
+                left join md_bed_profile_passport mbpp on mb.bed_profile_pass_id=mbpp.id
+                left join md_bed_state mbs on mb.id = mbs.bed_id and mbs.id = (
+                    select id
+                    from md_bed_state mbs1
+                    where mbs1.bed_id = mb.id and from_dt <= current_date order by from_dt DESC limit 1)
+                left join pim_stock_unit_state psus on mbs.state_id=psus.id
+                left join ( select bed_id, count(*)
+                            from md_bed_resource
+                            group by bed_id) res on res.bed_id=mb.id
+                where :where
+                ]]>
+            </n2o:count-query>
+            <n2o:alias>mb</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>bed_id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>mb.id</expression>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="from_dt">mb.from_dt = :from_dt</filter>
+            </filters>
+            <expression>mb.from_dt</expression>
+        </field>
+        <field>
+            <id>to_dt</id>
+            <domain>date</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="to_dt">mb.to_dt = :to_dt</filter>
+            </filters>
+            <expression>mb.to_dt</expression>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>string</domain>
+            <filters>
+                <filter type="eq" filter-field="number">number = :number</filter>
+            </filters>
+            <display/>
+            <expression>number</expression>
+        </field>
+        <field>
+            <id>additional_bed</id>
+            <domain>boolean</domain>
+            <filters>
+                <filter type="eq" filter-field="additional_bed">additional_bed = :additional_bed</filter>
+            </filters>
+            <display/>
+            <expression>additional_bed</expression>
+        </field>
+        <field>
+            <id>room.id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="room.id">pr.id = :room.id</filter>
+            </filters>
+            <expression>pr.id</expression>
+        </field>
+        <field>
+            <id>room.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>pr.code || ' ' || pr.name</expression>
+        </field>
+
+        <field>
+            <id>profile_dep.id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="profile_dep.id">mdp.id = :profile_dep.id</filter>
+            </filters>
+            <expression>mdp.id</expression>
+        </field>
+        <field>
+            <id>profile_dep.name</id>
+            <domain>string</domain>
+            <expression>mp.code || ' ' || mp.name</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>org.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>po.short_name</expression>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="org.id">po.id = :org.id</filter>
+            </filters>
+            <expression>po.id</expression>
+        </field>
+        <field>
+            <id>care_reg.id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="care_reg.id">mcr.id = :care_reg.id</filter>
+            </filters>
+            <expression>mcr.id</expression>
+        </field>
+        <field>
+            <id>care_reg.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>mcr.code || ' ' || mcr.name</expression>
+        </field>
+
+        <field>
+            <id>bed_profile.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>mbp.code || ' ' || mbp.name</expression>
+        </field>
+        <field>
+            <id>bed_profile.id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="bed.id">mbp.id = :bed.id</filter>
+            </filters>
+            <expression>mbp.id</expression>
+        </field>
+        <field>
+            <id>allow_descendants</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>1=1</expression>
+            <filters>
+                <filter type="eq" filter-field="allow_descendants">
+                    1=1
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>dep.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pd.id</expression>
+            <filters>
+                <filter type="eq" filter-field="dep.id">
+                    ( (pd.id = :dep.id) or (:allow_descendants::boolean and pd.id in (select get_all_department_children(:dep.id, :org_id )) ) )
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>dep.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>pd.name</expression>
+        </field>
+        <field>
+            <id>bed_profile_pass.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>mbpp.id</expression>
+        </field>
+        <field>
+            <id>bed_profile_pass.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>mbpp.code || ' ' || mbpp.name</expression>
+        </field>
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <display/>
+            <filters auto-generate="true"/>
+            <expression>mbpd.id</expression>
+        </field>
+        <field>
+            <id>profile.from_dt</id>
+            <domain>date</domain>
+            <display/>
+            <expression>mbpd.from_dt</expression>
+        </field>
+        <field>
+            <id>profile.to_dt</id>
+            <domain>date</domain>
+            <display/>
+            <expression>mbpd.to_dt</expression>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <filters>
+                <filter type="eq" filter-field="status.id">psus.id = :status.id</filter>
+            </filters>
+            <expression>psus.id</expression>
+        </field>
+        <field>
+            <id>status.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>psus.name</expression>
+        </field>
+        <field>
+            <id>id_name</id>
+            <domain>string</domain>
+            <expression>
+                (mb.id || '~' || case when length(mb.number) = 0 then 'без номера' else '№ ' || mb.number end)
+            </expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="org_id" default-value="#{stocks.orgId}">
+                    po.id = :org_id
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>age.id</id>
+            <domain>integer</domain>
+            <expression>age.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="age.id">
+                    :expression = :age.id
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>state.id</id>
+            <domain>integer</domain>
+            <expression>1=1</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="state.id"><![CDATA[
+                    (case
+                      when :state.id = 1 then ( (mb.from_dt isnull or mb.from_dt <= current_date ) and (mb.to_dt isnull or mb.to_dt >= current_date ) )
+                      when :state.id = 2 then ( not ( (mb.from_dt isnull or mb.from_dt <= current_date ) and (mb.to_dt isnull or mb.to_dt >= current_date ) ) )
+                      else true
+                     end)
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>gender.id</id>
+            <domain>integer</domain>
+            <expression>gender.id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="gender.id">
+                    gender.id = :gender.id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>resource_id</id>
+            <domain>integer</domain>
+            <expression>(select id from md_bed_resource where bed_id = mb.id limit 1)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>is_resource</id>
+            <domain>boolean</domain>
+            <expression>exists(select id from md_bed_resource where bed_id = mb.id limit 1)</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>has_group_resource</id>
+            <domain>integer</domain>
+            <expression>
+                exists(
+                  select srgr.id
+                  from sr_res_group_relationship srgr
+                where srgr.resource_id = (select id from md_bed_resource where bed_id = mb.id limit 1) )
+            </expression>
+            <display/>
+        </field>
+    </fields>
+</query>

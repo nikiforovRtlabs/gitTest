@@ -1,0 +1,186 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+
+    <name>addMigrant</name>
+    <actions>
+        <action id="addMigrant">
+            <invocation>
+                <sql:sql>
+                    select migr.md_event_add_migrant_function(:cardId::integer,
+                    :eventId,
+                    :patientId,
+                    :latinsurname,
+                    :latinname,
+                    :latinpatrname,
+                    :arrivedCountryId,
+                    :purposeId,
+                    :planPeriodId,
+                    :periodBegin::date,
+                    :periodEnd::date,
+                    :createDate::date);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="cardId" mapping="['cardId']" domain="integer"/>
+                <param name="eventId" mapping="['eventId']" domain="integer"/>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="latinsurname" mapping="['latinsurname']" domain="string"/>
+                <param name="latinname" mapping="['latinname']" domain="string"/>
+                <param name="latinpatrname" mapping="['latinpatrname']" domain="string"/>
+                <param name="arrivedCountry.id" mapping="['arrivedCountryId']" domain="integer"/>
+                <param name="purpose.id" mapping="['purposeId']" domain="integer"/>
+                <param name="planPeriod.id" mapping="['planPeriodId']" domain="integer"/>
+                <param name="period.begin" mapping="['periodBegin']" domain="date"/>
+                <param name="period.end" mapping="['periodEnd']" domain="date"/>
+                <param name="createDate" mapping="['createDate']" domain="date"/>
+
+                <param name="gender" mapping="['gender']" domain="string"/>
+                <param name="birthday" mapping="['birthday']" domain="string"/>
+                <param name="maritalStatus" mapping="['maritalStatus']" domain="string"/>
+                <param name="socialStatus" mapping="['socialStatus']" domain="string"/>
+                <param name="citizenship" mapping="['citizenship']" domain="string"/>
+                <param name="registerAddress" mapping="['registerAddress']" domain="string"/>
+                <param name="doc1" mapping="['doc1']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="cardId" mapping="[0][0][0]" domain="integer"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="requiredPatientInfoConstraint"/>
+                <validation ref-id="latinsurnameIsCorrect"/>
+                <validation ref-id="latinnameIsCorrect"/>
+                <validation ref-id="latinpatrnameIsCorrect"/>
+                <validation ref-id="notTargetValid"/>
+            </validations>
+        </action>
+
+        <action id="addMigrantServices">
+            <invocation>
+                <sql:sql>
+                    select migr.md_event_add_services_function(:cardId::integer,
+                    :eventId,
+                    :patientId,
+                    :services,
+                    :servicesDuplicates);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="cardId" mapping="['cardId']" domain="integer"/>
+                <param name="eventId" mapping="['eventId']" domain="integer"/>
+                <param name="indivId" mapping="['patientId']" domain="integer"/>
+                <param name="services*.id" mapping="['services']" domain="integer[]"/>
+                <param name="servicesDuplicates*.id" mapping="['servicesDuplicates']" domain="integer[]"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkDelService"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+
+        <constraint id="requiredPatientInfoConstraint" level="error">
+            <message>Необходимо заполнить следующие данные в Карточке пациента: {validation_message}</message>
+            <invocation>
+                <sql:sql>select migr.md_event_add_migrant_function_validation(:id);</sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="validation_message" mapping="[0][0][0]"/>
+            </out-parameters>
+            <result expression="[0][0][0] == null"/>
+        </constraint>
+
+        <condition id="latinsurnameIsCorrect" level="error">
+            <expression on="latinsurname"><![CDATA[
+                    (/[a-zA-Z]+([ '-][a-zA-Z]+)*$/.test(latinsurname)) || (latinsurname == null) || (latinsurname == '')
+                 ]]>
+            </expression>
+            <message>Фамилия на латин. должна содержать только латин. буквы</message>
+        </condition>
+        <condition id="latinnameIsCorrect" level="error">
+            <expression on="latinname"><![CDATA[
+                    (/[a-zA-Z]+([ '-][a-zA-Z]+)*$/.test(latinname)) || (latinname == null) || (latinname == '')
+                 ]]>
+            </expression>
+            <message>Имя на латин.должна содержать только латин. буквы</message>
+        </condition>
+
+        <condition id="latinpatrnameIsCorrect" level="error">
+            <expression on="latinpatrname"><![CDATA[
+                   (/[a-zA-Z]+([ '-][a-zA-Z]+)*$/.test(latinpatrname)) || (latinpatrname == null) || (latinpatrname == '')
+                 ]]>
+            </expression>
+            <message>Отчество на латин. должно содержать только латин. буквы</message>
+        </condition>
+
+        <constraint id="renderedServicesDisableConstraint" level="error">
+            <message>Оказанные услуги нельзя удалять.</message>
+            <invocation>
+                <sql:sql>
+                    select migr.md_event_add_services_validate_function(:cardId, :services);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="cardId" mapping="['cardId']" domain="integer"/>
+                <param name="services*.id" mapping="['services']" domain="integer[]"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+
+        <constraint id="notTargetValid" level="error">
+            <message> </message>
+            <invocation>
+                <sql:sql>
+                <![CDATA[
+                 select exists(select ett.case_init_goal_id
+                                    from disp.md_event_type_target ett
+                                    where ett.event_type_id = (select me.event_type from  disp.md_event me
+                                    where me.id = :eventId) and ett.stage = 1 and (begin_date is null or begin_date <= current_date)
+                                    and (end_date is null or end_date >= current_date))
+                ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="eventId" mapping="['eventId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+
+        <constraint id="checkDelService" level="error">
+            <message>Нельзя удалять обязательные услуги (помеченые (!))</message>
+            <invocation>
+                <sql:sql>
+                    select count(1)
+                    from disp.md_event_service
+                        WHERE event_id = :eventId
+                            AND required is TRUE
+                            AND id not in (SELECT unnest(string_to_array(translate(:services,'[] ',''),',')::INTEGER[]));
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="eventId" mapping="['eventId']" domain="integer"/>
+                <param name="services*.id" mapping="['services']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="checkDuplicate" level="error">
+            <message>Признак дубликат может быть отмечен только для выбранной услуги.</message>
+            <expression on="services,servicesDuplicates">
+                <![CDATA[
+                    servicesDuplicates == null || typeof servicesDuplicates == 'undefined' || servicesDuplicates.length == 0
+                    || (services != null && typeof services != 'undefined' && services.length != 0 && servicesDuplicates.length == servicesDuplicates.filter(el1 => services.filter(el2 => el1.id == el2.id).length > 0).length)
+                ]]>
+            </expression>
+        </condition>
+
+    </validations>
+
+
+</object>

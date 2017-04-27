@@ -1,0 +1,295 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+    <!--<id>team_job_resource_upd</id>-->
+    <name>Наряд ресурса</name>
+    <object-id>team_job_resource</object-id>
+    <layout>n2o/layout/single</layout>
+    <regions>
+        <region place="single" type="none">
+            <container id = "resTeam">
+                <wgt:form src="ext/css/amb03-control-container-ambcard" customize="css">
+                    <wgt:query-id>team_job_resource</wgt:query-id>
+                    <wgt:default-values-query-id>team_job_resource_def</wgt:default-values-query-id>
+                    <wgt:name>Наряд ресурса</wgt:name>
+                    <fs:field-set>
+                        <ctrl:hidden id="change">
+                            <ctrl:set-value-expression on="substation" on-load="false">
+                                substation.change
+                            </ctrl:set-value-expression>
+                        </ctrl:hidden>
+                        <ctrl:output-text id="errorText" label="Не определена(отсутствует) настройка смены для подстанции!"
+                                          dependency-condition="change == null" label-style="color:red;width:80%;font-weight: bold;">
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="nullChange"/>
+                            </ctrl:validations>
+                        </ctrl:output-text>
+                    </fs:field-set>
+                    <fs:field-set>
+                        <fs:row>
+                            <!--todo NNO-535 (пока что временный костыль, что передаем значение не в целевое поле, а в псевдополе)-->
+                            <!--<ctrl:hidden id="brg"/>-->
+                            <!--todo NNOREQ-85-->
+                            <ctrl:output-text id="flag" label="" css-class="ambcard-flag ambcard-no-label ambcard-boldtext"
+                                              dependency-condition="((typeof brg == 'undefined')||(brg == null))">
+                                                <!--dependency-condition="((typeof team_job == 'undefined')||(team_job == null))">-->
+                                <!--||(team_job.id == null)-->
+                                <ctrl:actions>
+                                    <ctrl:link label="Выбрать подстанцию:">
+                                        <ctrl:set-value-expression>
+                                            true
+                                        </ctrl:set-value-expression>
+                                    </ctrl:link>
+                                </ctrl:actions>
+                            </ctrl:output-text>
+                            <ctrl:classifier id="substation" label="" search-as-you-type="true" dependency-condition="flag == true"
+                                             css-class="ambcard-flag-substation ambcard-no-label ambcard-boldtext">
+                                <ctrl:query query-id="substation" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="dorgId" value="#{org.id?}"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">#{dep.id?}</ctrl:value>
+                                    <ctrl:value field-id="name">#{dep.name?}</ctrl:value>
+                                </ctrl:default-model>
+                                <!--<ctrl:dependencies>-->
+                                    <!--<ctrl:enabling-condition>-->
+                                        <!--flag == true-->
+                                    <!--</ctrl:enabling-condition>-->
+                                <!--</ctrl:dependencies>-->
+                                <!--<ctrl:actions>-->
+                                    <!--<ctrl:link label="Выбрать подстанцию">-->
+                                        <!--<ctrl:dependencies>-->
+                                            <!--<ctrl:enabling-condition>-->
+                                                <!--true-->
+                                            <!--</ctrl:enabling-condition>-->
+                                        <!--</ctrl:dependencies>-->
+                                    <!--</ctrl:link>-->
+                                <!--</ctrl:actions>-->
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <ctrl:date-time id="data" label="Дата" required="true" default-value="today()"/>
+                                        <!--default-value="#{change.date}"/>-->
+
+                        <!--<ctrl:classifier id="team_job" label="Наряд бригады" dependency-condition="(typeof brg != 'undefined')&amp;&amp;(brg != null)"-->
+                                         <!--readonly="true" autoselect-alone="true">-->
+                                         <!--&lt;!&ndash;dependency-condition="(typeof flag == 'undefined')||(flag == null) || (flag == false)" readonly="true">&ndash;&gt;-->
+                            <!--<ctrl:query query-id="team_job" value-field-id="id" label-field-id="nameS">-->
+                                <!--<ctrl:pre-filters>-->
+                                    <!--<ctrl:pre-filter field-id="id" ref="brg"/>-->
+                                    <!--&lt;!&ndash;<ctrl:pre-filter field-id="change.date" ref="data"/>&ndash;&gt;-->
+                                    <!--&lt;!&ndash;<ctrl:pre-filter field-id="station.id" ref="station.id"/>&ndash;&gt;-->
+                                    <!--&lt;!&ndash;<ctrl:pre-filter field-id="substation.id" ref="substation.id"/>&ndash;&gt;-->
+                                <!--</ctrl:pre-filters>-->
+                            <!--</ctrl:query>-->
+                        <!--</ctrl:classifier>-->
+                        <ctrl:classifier id="team_job" label="Наряд бригады">
+                                         <!--dependency-condition="((typeof brg == 'undefined')||(brg == null))">-->
+                            <ctrl:query query-id="team_job" value-field-id="id" label-field-id="nameS">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="change.date" ref="data"/>
+                                    <ctrl:pre-filter field-id="station.id" ref="station.id"/>
+                                    <ctrl:pre-filter field-id="substation.id" ref="substation.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <!-- todo Поле было решено скрыть, так как нет смысла в поле, но пока не удалять-->
+                        <ctrl:input-text id="has_team_job" label="Работа в наряде" dependency-condition="null">
+                            <ctrl:set-value-expression on="team_job" on-load="true" on-non-empty="true" on-invisible="true">
+                                if ((typeof team_job == 'undefined') || (team_job == null) || (team_job.id == null)) 1; else null;
+                            </ctrl:set-value-expression>
+                        </ctrl:input-text>
+
+                        <ctrl:classifier id="res_kind" label="Вид ресурса" required="true">
+                            <ctrl:query query-id="res_kind" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="template_employer" label="Рабочее место в шаблоне" search-as-you-type="true"
+                                         dependency-condition="(typeof team_job != 'undefined')  &amp;&amp; (team_job != null)
+                                         &amp;&amp; (res_kind.id == 1)&amp;&amp; (team_job.temsetId != null)">
+
+                            <ctrl:query query-id="emp_template" value-field-id="id" label-field-id="work_place">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="res_team.id" ref="team_job.team_id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="template_transport" label="Рабочее место в шаблоне" search-as-you-type="true"
+                                         dependency-condition="(typeof team_job != 'undefined')  &amp;&amp; (team_job != null)
+                                         &amp;&amp; (res_kind.id == 5)&amp;&amp; ((team_job.temsetId != null) || (team_template.id != null))">
+                            <ctrl:query query-id="transp_template" value-field-id="id" label-field-id="work_place">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="res_team.id" ref="team_job.team_id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <!--придумать, как всё таки сделать, чтоб появлялось и при условии что есть шаблон, но нет раб места в шаблоне-->
+
+                        <ctrl:classifier id ="res_role" label="Роль"
+                                         dependency-condition="
+                                         ((typeof template_employer == 'undefined')||(template_employer == null))&amp;&amp;
+                                         ((typeof template_transport == 'undefined')||(template_transport == null))">
+                            <ctrl:query query-id="res_role" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="reskindId" ref="res_kind.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:required-condition>
+                                    ((typeof template_employer == 'undefined')||(template_employer == null))&amp;&amp;
+                                    ((typeof template_transport == 'undefined')||(template_transport == null))
+                                </ctrl:required-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+
+                        <!--при редактировании-->
+                        <ctrl:input-text id="workplace" label="Рабочее место"
+                                         dependency-condition="(typeof id != 'undefined') &amp;&amp; (id != null)"/>
+                        <!--на сотрудника с нарядом на бригаду-->
+                        <ctrl:input-text id="workplace" label="Рабочее место"
+                                         dependency-condition="((typeof id == 'undefined') || (id == null)) &amp;&amp; (res_kind.id == 1)
+                                         &amp;&amp; (typeof team_job != 'undefined') &amp;&amp; (team_job != null)
+                                         &amp;&amp; ((team_job.temsetId != null) || (team_template.id !=null))
+                                         &amp;&amp;(typeof res_role == 'undefined')||(res_role == null)">
+                            <ctrl:set-value-expression on="template_employer.id" on-load="false">
+                                if ((typeof template_employer != 'undefined') &amp;&amp; (template_employer.id != null)) template_employer.work_place; else throw '!'
+                            </ctrl:set-value-expression>
+                        </ctrl:input-text>
+                        <!--на транспорт с нарядом на бригаду-->
+                        <ctrl:input-text id="workplace" label="Рабочее место"
+                                         dependency-condition="((typeof id == 'undefined') || (id == null))
+                                         &amp;&amp; (typeof team_job != 'undefined') &amp;&amp; (team_job != null)
+                                         &amp;&amp; (res_kind.id == 5)
+                                         &amp;&amp; ((team_job.temsetId != null) || (typeof team_template != 'undefined')&amp;&amp; (team_template != null) &amp;&amp;(team_template.id !=null))
+                                         &amp;&amp;((typeof res_role == 'undefined')||(res_role.id == null))">
+                            <ctrl:set-value-expression on="template_transport.id" on-load="false" on-non-empty="true">
+                                if ((typeof template_transport != 'undefined') &amp;&amp; (template_transport.id != null)) template_transport.work_place; else throw '!'
+                            </ctrl:set-value-expression>
+                        </ctrl:input-text>
+                        <!--без наряда на бригаду-->
+                        <ctrl:input-text id="workplace" label="Рабочее место" dependency-condition="(((typeof id == 'undefined') || (id == null)) &amp;&amp;(typeof res_role != 'undefined')&amp;&amp;(res_role.id != null))">
+                            <ctrl:set-value-expression on="res_role.id" on-load="false">
+                                if ((typeof res_role != 'undefined') &amp;&amp; (res_role.id != null)) res_role.name; else throw '!'
+                            </ctrl:set-value-expression>
+                        </ctrl:input-text>
+
+                        <ctrl:classifier id="resource" label="Ресурс" search-as-you-type="true" required="true" depends-on="planned_bdate, planned_edate">
+                            <ctrl:query query-id="resource" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="resOrg" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="resDep" ref="substation.id"/>
+                                    <ctrl:pre-filter field-id="res_kind.id" ref="res_kind.id"/>
+                                    <ctrl:pre-filter field-id="is_res" type="eq" value="true"/>
+                                    <ctrl:pre-filter field-id="in_team_job" type="eq" value="false"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="checkSUB"/>
+                            </ctrl:validations>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="job_kind" label="Вид наряда" required="true" autoselect-alone="true">
+                            <ctrl:query query-id="job_kind" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="id" ref="team_job.jkId"/>
+                                    <ctrl:pre-filter field-id="has_team_job" ref="has_team_job"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:checkbox id="is_head" label="Старший в наряде" default-value="false" dependency-condition="(typeof team_job != 'undefined') &amp;&amp; (team_job != null) &amp;&amp; (res_kind.id == 1)"/>
+
+                        <ctrl:classifier id="desk" label="Пульт" autoselect-alone="true"
+                                         dependency-condition="res_role.code == 'DISPATCHER'">
+                            <ctrl:query query-id="desk" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="isValid" value="true"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:hidden id="empbtime">
+                            <ctrl:set-value-expression on="template_employer,template_transport" on-load="true" on-non-empty="true">
+                                if ((typeof template_employer != 'undefined')&amp;&amp;(template_employer != null)&amp;&amp;(typeof template_employer.btime != 'undefined')&amp;&amp;(template_employer.btime != null)) template_employer.btime;
+                                else if ((typeof template_transport != 'undefined')&amp;&amp;(template_transport != null)&amp;&amp;(typeof template_transport.btime != 'undefined')&amp;&amp;(template_transport.btime != null)) template_transport.btime;
+                                else null;
+                            </ctrl:set-value-expression>
+                        </ctrl:hidden>
+                        <!--<ctrl:input-text id="empbtime"/>-->
+                        <ctrl:hidden id="begin">
+                            <ctrl:set-value-expression on="change.changeSet_begin,team_job.planned_btime" on-load="true" on-non-empty="true">
+                                if ((typeof team_job != 'undefined')&amp;&amp;(team_job != null)&amp;&amp;(typeof team_job.planned_btime != 'undefined')&amp;&amp;(team_job.planned_btime != null)) team_job.planned_btime; else change.changeSet_begin;
+                            </ctrl:set-value-expression>
+                        </ctrl:hidden>
+                        <!--<ctrl:input-text id="data"/>-->
+                        <ctrl:masked-input id="planned_bdate" mask="99.99.9999 99:99" label="Дата/время начала наряда плановое" format="DD.MM.YYYY HH:mm" required="true">
+                            <ctrl:set-value-expression on="team_job.from_dt" on-load="false">
+                                if ( (typeof team_job.from_dt != 'undefined')&amp;&amp;(team_job.from_dt != null)) team_job.from_dt;
+                                else
+                                    if ((typeof empbtime != 'undefined')&amp;&amp;(empbtime != null)&amp;&amp; (empbtime >= '00:00')&amp;&amp;(begin > empbtime))
+                                        (moment(moment(data.substring(0,10) +' '+ empbtime, 'DD.MM.YYYY HH:mm').add(1,'days')).format('DD.MM.YYYY HH:mm'))
+                                else
+                                    if ((typeof empbtime != 'undefined')&amp;&amp;(empbtime != null))
+                                        (moment(data.substring(0,10) +' '+ empbtime, 'DD.MM.YYYY HH:mm').format('DD.MM.YYYY HH:mm'))
+                                else
+                                    <!--if ((empbtime >= '00:00')&amp;&amp;(change.changeSet_begin > empbtime))-->
+                                        <!--(moment(moment(data.substring(0,10) +' '+ change.changeSet_begin, 'DD.MM.YYYY HH:mm').add(1,'days')).format('DD.MM.YYYY HH:mm'))-->
+                                    <!--else-->
+                                    (moment(data.substring(0,10) +' '+ change.changeSet_begin, 'DD.MM.YYYY HH:mm').format('DD.MM.YYYY HH:mm'));
+                            </ctrl:set-value-expression>
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="isPlannedBDate"/>
+                                <ctrl:validation ref-id="isPlannedDate"/>
+                            </ctrl:validations>
+                        </ctrl:masked-input>
+
+                        <ctrl:hidden id="empetime">
+                            <ctrl:set-value-expression on-load="true" on-non-empty="true">
+                                if ((typeof template_employer != 'undefined')&amp;&amp;(template_employer != null)&amp;&amp;(typeof template_employer.etime != 'undefined')&amp;&amp;(template_employer.etime != null)) template_employer.etime;
+                                else if ((typeof template_transport != 'undefined')&amp;&amp;(template_transport != null)&amp;&amp;(typeof template_transport.etime != 'undefined')&amp;&amp;(template_transport.etime != null)) template_transport.etime;
+                                else null;
+                            </ctrl:set-value-expression>
+                        </ctrl:hidden>
+                        <!--<ctrl:input-text id="empetime"/>-->
+                        <ctrl:masked-input id="planned_edate" mask="99.99.9999 99:99" label="Дата/время окончания наряда плановое" format="DD.MM.YYYY HH:mm" required="true">
+                            <ctrl:set-value-expression on="team_job.to_dt" on-load="false" >
+                                if ( (typeof team_job.to_dt != 'undefined')&amp;&amp;(team_job.to_dt != null)) team_job.to_dt;
+                                else
+                                    if ((typeof empetime != 'undefined')&amp;&amp;(empetime != null)&amp;&amp; (empetime >= '00:00')&amp;&amp;(begin >= empetime))
+                                        (moment(moment(data.substring(0,10) +' '+ empetime, 'DD.MM.YYYY HH:mm').add(1,'days')).format('DD.MM.YYYY HH:mm'))
+                                else
+                                    if ((typeof empetime != 'undefined')&amp;&amp;(empetime != null))
+                                        (moment(data.substring(0,10) +' '+ empetime, 'DD.MM.YYYY HH:mm').format('DD.MM.YYYY HH:mm'))
+                                else
+                                    (moment(moment(data.substring(0,10) +' '+ change.changeSet_begin, 'DD.MM.YYYY HH:mm').add(change.changeSet_inter,'hours')).format('DD.MM.YYYY HH:mm'))
+                            </ctrl:set-value-expression>
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="isPlannedEDate"/>
+                                <ctrl:validation ref-id="isPlannedDate"/>
+                            </ctrl:validations>
+                        </ctrl:masked-input>
+
+                        <!--<ctrl:masked-input id="planned_bdate2" mask="99.99.9999 99:99" label="Дата/время начала наряда плановое2" format="DD.MM.YYYY HH:mm:ss" dependency-condition="(typeof team_job == 'undefined') || (team_job == null)" default-value="#{change.date}">-->
+                            <!--<ctrl:set-value-expression>if ( (typeof planned_bdate == 'undefined') || (planned_bdate == null)) moment(data).format('dd.mm.yyyy') ; else throw '!'; </ctrl:set-value-expression>-->
+                        <!--</ctrl:masked-input>-->
+                        <!--<ctrl:masked-input id="planned_edate2" mask="99.99.9999 99:99" label="Дата/время окончания наряда плановое2" format="DD.MM.YYYY HH:mm:ss" dependency-condition="(typeof team_job == 'undefined') || (team_job == null)" default-value="#{change.date}">-->
+                            <!--<ctrl:set-value-expression>if ((typeof planned_edate == 'undefined') || (planned_edate == null)) change.to_dt; else throw '!';</ctrl:set-value-expression>-->
+                        <!--</ctrl:masked-input>-->
+
+                        <ctrl:date-time id="bdate" label="Дата/время начала наряда" format="DD.MM.YYYY HH:mm:ss"
+                                        dependency-condition="(typeof id != 'undefined') &amp;&amp; (id != null)"/>
+                        <ctrl:date-time id="edate" label="Дата/время окончания наряда" format="DD.MM.YYYY HH:mm:ss"
+                                        dependency-condition="(typeof id != 'undefined') &amp;&amp; (id != null)"/>
+
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+    </regions>
+</page>

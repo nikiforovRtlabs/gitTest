@@ -1,0 +1,201 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicAppointment</object-id>
+    <name>resultAdmissionCase</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from  mc_step ms
+                left join md_srv_rendered msr on ( msr.step_id = ms.id )
+                left join sr_srv_rendered ssr on ssr.id = msr.id
+                left join mc_case mc on ( ms.case_id = mc.id )
+                left join plc_visit pv on ( ms.id = pv.id )
+                left join plc_visit_place pvp on ( pv.place_id = pvp.id )
+                left join sr_res_group srg on ( ms.res_group_id = srg.id )
+                left join pim_employee_position pep on ( srg.responsible_id = pep.id )
+                left join pim_employee pe on ( pep.employee_id = pe.id )
+                left join pim_individual pi on ( pe.individual_id = pi.id )
+                left join sr_res_group srgrg on ( ms.res_group_id = srgrg.id )
+                left join pim_employee_position peprg on ( srgrg.responsible_id = peprg.id )
+                left join pim_employee perg on ( peprg.employee_id = perg.id )
+                left join pim_individual pirg on ( perg.individual_id = pirg.id )
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(ms)
+                from  mc_step ms
+                left join md_srv_rendered msr on ( msr.step_id = ms.id )
+                left join sr_srv_rendered ssr on ssr.id = msr.id
+                left join mc_case mc on ( ms.case_id = mc.id )
+                left join plc_visit pv on ( ms.id = pv.id )
+                left join plc_visit_place pvp on ( pv.place_id = pvp.id )
+                left join sr_res_group srg on ( ms.res_group_id = srg.id )
+                left join pim_employee_position pep on ( srg.responsible_id = pep.id )
+                left join pim_employee pe on ( pep.employee_id = pe.id )
+                left join pim_individual pi on ( pe.individual_id = pi.id )
+                left join sr_res_group srgrg on ( ms.res_group_id = srgrg.id )
+                left join pim_employee_position peprg on ( srgrg.responsible_id = peprg.id )
+                left join pim_employee perg on ( peprg.employee_id = perg.id )
+                left join pim_individual pirg on ( perg.individual_id = pirg.id )
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ms</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>resourceGroup.id</id>
+            <domain>integer</domain>
+            <expression>srg.id</expression>
+        </field>
+
+        <field>
+            <id>mcCaseId</id>
+            <domain>integer</domain>
+            <expression>mc.id</expression>
+        </field>
+
+        <field>
+            <id>visit.mcCaseId</id>
+            <domain>integer</domain>
+            <expression>mc.id</expression>
+        </field>
+
+        <field>
+            <id>visit.patientId</id>
+            <domain>integer</domain>
+            <expression>mc.patient_id</expression>
+        </field>
+
+        <field>
+            <id>visit.patientName</id>
+            <domain>string</domain>
+            <expression>(select concat_ws(' ', i.surname, i.name, i.patr_name) from pim_individual i where i.id = mc.patient_id)</expression>
+        </field>
+
+        <field>
+            <id>visit.isCaseState</id>
+            <domain>boolean</domain>
+            <expression>
+                (case when mc.closing_step_id is null then false
+                else true end)
+            </expression>
+        </field>
+
+        <field>
+            <id>visit.resGroupName</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <expression>
+                (coalesce(pirg.surname, '') || ' ' || coalesce(pirg.name, '') || ' ' || coalesce(pirg.patr_name, '')|| '
+                ' || coalesce(perg.note, ''))
+            </expression>
+        </field>
+
+        <field>
+            <id>visit.resGroupId</id>
+            <domain>integer</domain>
+            <expression>srgrg.id</expression>
+        </field>
+
+        <field>
+            <id>visit.doctorId</id>
+            <domain>integer</domain>
+            <expression>peprg.id</expression>
+        </field>
+
+        <field>
+            <id>visit.caseMainDiagnosisId</id>
+            <domain>integer</domain>
+            <expression>
+                mc.main_diagnos_id
+            </expression>
+        </field>
+
+        <field>
+            <id>visit.mdMainDiagnosisId</id>
+            <domain>integer</domain>
+            <expression>
+                (select mc_d.diagnos_id from mc_diagnosis mc_d where mc_d.id=ms.main_diagnosis_id)
+            </expression>
+        </field>
+
+        <field>
+            <id>dtStep</id>
+            <domain>string</domain>
+            <name>Дата</name>
+            <expression>to_char(ms.admission_date, 'DD.MM.YYYY')</expression>
+            <sorting>ms.admission_date</sorting>
+        </field>
+
+        <field>
+            <id>visit.id</id>
+            <domain>integer</domain>
+            <expression>pv.id</expression>
+        </field>
+
+        <field>
+            <id>visitPlace</id>
+            <domain>string</domain>
+            <name>Место посещения</name>
+            <expression>pvp.name</expression>
+        </field>
+
+        <field>
+            <id>resGroup.name</id>
+            <domain>string</domain>
+            <name>Врач</name>
+            <expression>
+                (coalesce(pi.surname, '') || ' ' || coalesce(pi.name, '') || ' ' || coalesce(pi.patr_name, '')|| ' ' ||
+                coalesce(pe.note, ''))
+            </expression>
+        </field>
+
+        <field>
+            <id>initialFundingSourceType</id>
+            <domain>object</domain>
+            <expression>:initialFundingSourceType</expression>
+        </field>
+
+        <field>
+            <id>initialIsFinanceTypeControl</id>
+            <domain>boolean</domain>
+            <expression>:initialIsFinanceTypeControl</expression>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <search value="#{org.id?}"/>
+            <expression>:org.id</expression>
+        </field>
+
+        <field>
+            <id>isStomatologyVisit</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>(case when pv.dental_formula_id is not null then true else false end)</expression>
+        </field>
+
+        <field>
+            <id>privilegedReceiptForNonRegisterPatients</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>(select priv_rec_for_unreg_pat::boolean from md_clinic where id = :org.id)</expression>
+        </field>
+
+        <field>
+            <id>checkPatientAge</id>
+            <domain>boolean</domain>
+            <expression>(select '3 Years'::INTERVAL >= age(ssr.bdate, birth_dt) from pim_individual where id = ssr.customer_id)</expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,244 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-2.0">
+
+    <name>Запись о получении бланков</name>
+
+    <fields>
+        <field id="id" domain="integer"/>
+        <field id="restQuantity" domain="string"/>
+        <field id="resultQuantity" domain="string"/>
+    </fields>
+
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <rest:rest method="POST" >
+                    <rest:query>
+                        ${n2o.backend.path}/sicklists/bso/receiving
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="orgId" mapping="['clinicId']" domain="integer"/>
+                <param name="receiveDate" mapping="['receiveDate']" domain="date"/>
+                <param name="receivedFrom.id" mapping="['receivedFrom']" domain="integer"/>
+                <param name="commission" mapping="['commission']" domain="string"/>
+                <param name="commissionDate" mapping="['commissionDate']" domain="date"/>
+                <param name="restQuantity" mapping="['restQuantity']" domain="string"/>
+                <param name="receivedQuantity" mapping="['receivedQuantity']" domain="string"/>
+                <param name="orderReport" mapping="['orderReport']" domain="string"/>
+                <param name="orderReportDate" mapping="['orderReportDate']" domain="date"/>
+                <param name="requisites" mapping="['requisites']" domain="string"/>
+                <param name="receiver.id" mapping="['receiver']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkIfDiapasonsNotExist"/>
+            </validations>
+
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <rest:rest method="PUT">
+                    <rest:query>
+                        ${n2o.backend.path}/sicklists/bso/receiving/{id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="orgId" mapping="['clinicId']" domain="integer"/>
+                <param name="receiveDate" mapping="['receiveDate']" domain="date"/>
+                <param name="receivedFrom.id" mapping="['receivedFrom']" domain="integer"/>
+                <param name="commission" mapping="['commission']" domain="string"/>
+                <param name="commissionDate" mapping="['commissionDate']" domain="date"/>
+                <param name="restQuantity" mapping="['restQuantity']" domain="string"/>
+                <param name="receivedQuantity" mapping="['receivedQuantity']" domain="string"/>
+                <param name="orderReport" mapping="['orderReport']" domain="string"/>
+                <param name="orderReportDate" mapping="['orderReportDate']" domain="date"/>
+                <param name="requisites" mapping="['requisites']" domain="string"/>
+                <param name="receiver.id" mapping="['receiver']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkIfDiapasonsNotExist"/>
+                <validation ref-id="areBeingDeletedNumbersNotInUse"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    <rest:query>
+                        ${n2o.backend.path}/sicklists/bso/receiving/{id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="areBeingDeletedNumbersNotInUseBeforeRefresh"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="areBeingDeletedNumbersNotInUse" level="error">
+            <invocation>
+                <rest:rest method="GET">
+                    <rest:query>
+                        ${n2o.backend.path}/sicklists/bso/receiving/updateValidation
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="requisites" mapping="['requisites']" domain="string"/>
+                <param name="id"  value="['id']"/>
+                <param name="type" value="receiving"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="data" mapping="['data']"/>
+            </out-parameters>
+            <message>Невозможно изменить диапазон. В системе есть оформленные ЛН на удаляемые номера.</message>
+            <result expression="['data'] == true"/>
+        </constraint>
+
+        <constraint id="checkIfDiapasonsNotExist" level="error">
+            <invocation>
+
+                <sql:sql>
+                    select * from sickdoc.counting_check_range_exists(:requisites,:table_name,:id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="requisites" mapping="['requisites']" domain="string"/>
+                <param value="bso_record_range" name="table_name" domain="string"/>
+                <param name="id" mapping="['id']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Невозможно завершить операцию. Некоторые номера из указанных уже существуют в системе!</message>
+        </constraint>
+
+        <constraint id="areBeingDeletedNumbersNotInUseBeforeRefresh" level="error">
+            <invocation>
+
+                <sql:sql>
+                    SELECT COUNT(*) from sickdoc.bso_record_range brr
+                    WHERE exists(
+                    SELECT 1 FROM sickdoc.sickdoc s
+                    WHERE left(s.number,9) !='' and  left(s.number,9)::bigint BETWEEN brr.start_num::bigint
+                    AND COALESCE(brr.end_num,brr.start_num)::bigint
+                    ) and brr.rec_record_id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Невозможно завершить операцию. Некоторые номера из указанных уже существуют в системе!</message>
+        </constraint>
+
+        <condition id="isLessThanMaxValue" level="error">
+            <message>Количество полученных бланков более 10 тыс.</message>
+            <expression on="quantity">
+                <![CDATA[(typeof receivedQuantity == 'undefined') || (receivedQuantity == null) || (receivedQuantity <= 10000)]]></expression>
+        </condition>
+
+
+        <condition id="notNegativeFloatRest" level="error">
+            <message>Некорректное значение</message>
+            <expression on="restQuantity">
+                <![CDATA[
+                !restQuantity || (/^\d+$/.test(restQuantity))
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="limitRest" level="error">
+            <message>Не более 1000000</message>
+            <expression on="restQuantity">
+                <![CDATA[
+                isNaN(restQuantity) || restQuantity <= 1000000
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="notNegativeFloatResult" level="error">
+            <message>Некорректное значение</message>
+            <expression on="resultQuantity">
+                <![CDATA[
+                !resultQuantity || (/^\d+$/.test(resultQuantity))
+                ]]>
+            </expression>
+        </condition>
+
+
+        <condition id="limitResult" level="error">
+            <message>Не более 1000000</message>
+            <expression on="resultQuantity">
+                <![CDATA[
+                isNaN(resultQuantity) || resultQuantity <= 1000000
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="notNegativeFloatOrderReport" level="error">
+            <message>Некорректное значение</message>
+            <expression on="orderReport">
+                <![CDATA[
+                !orderReport || (/^\d+$/.test(orderReport))
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="limitOrderReport" level="error">
+            <message>Не более 2147483646</message>
+            <expression on="orderReport">
+                <![CDATA[
+                isNaN(orderReport) || orderReport <= 2147483646
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="limitReceivedDate" level="error">
+            <message>Не позже текущей даты и не ранее даты отчета-заявки</message>
+            <expression on="receiveDate,orderReportDate">
+               <![CDATA[
+                var d1 = moment(receiveDate, 'DD.MM.YYYY').valueOf();
+                var d2 = moment(orderReportDate, 'DD.MM.YYYY').valueOf();
+                var d3 = new Date().getTime();
+                !d1 || (d1 <= d3 && (!d2 || d1 >= d2));
+            ]]>
+            </expression>
+        </condition>
+
+        <condition id="limitCommissionDate" level="error">
+            <message>Не позже текущей даты</message>
+            <expression on="commissionDate">
+               <![CDATA[
+                !commissionDate || moment(commissionDate, 'DD.MM.YYYY').valueOf() <= new Date().getTime();
+            ]]>
+            </expression>
+        </condition>
+
+        <condition id="limitOrderReportDate" level="error">
+            <message>Не позже текущей даты и даты получения</message>
+            <expression on="receiveDate,orderReportDate">
+                <![CDATA[
+                var d1 = moment(receiveDate, 'DD.MM.YYYY').valueOf();
+                var d2 = moment(orderReportDate, 'DD.MM.YYYY').valueOf();
+                var d3 = new Date().getTime();
+                !d2 || (d2 <= d3 && (!d1 || d1 >= d2));
+            ]]>
+            </expression>
+        </condition>
+
+
+
+    </validations>
+</object>

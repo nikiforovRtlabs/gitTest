@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>resultAdmission</object-id>
+    <name>stomatologyCardLink</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>  select :select
+                from sr_srv_rendered ssr
+                join md_srv_rendered msr on ( ssr.id = msr.id )
+                left join mc_step ms on ( msr.step_id = ms.id )
+                left join mc_case mc on ( ms.case_id = mc.id )
+                where :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(ssr)
+                from sr_srv_rendered ssr
+                join md_srv_rendered msr on ( ssr.id = msr.id )
+                left join mc_step ms on ( msr.step_id = ms.id )
+                left join mc_case mc on ( ms.case_id = mc.id )
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ssr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>mcCase.caseCreateDate</id>
+            <name>Дата открытия</name>
+            <domain>date</domain>
+            <expression>mc.create_date</expression>
+            <search unavailable="false"/>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>:clinicId</expression>
+            <search value="#{org.id?}">(:expression = :clinicId or :clinicId is null)</search>
+        </field>
+
+        <field>
+            <id>employeePosId</id>
+            <domain>integer</domain>
+            <expression>:employeePosId</expression>
+            <search value="#{emplPos.id?}">(:expression = :employeePosId or :employeePosId is null)</search>
+        </field>
+
+        <field>
+            <id>hasPrevious</id>
+            <domain>boolean</domain>
+            <expression>
+                (select exists(SELECT 1
+                FROM public.mc_case mc
+                LEFT JOIN public.mc_step ms ON mc.id = ms.case_id
+                LEFT JOIN public.plc_visit v ON ms.id = v.id
+                WHERE mc.patient_id = ssr.customer_id AND mc.clinic_id = :clinicId AND v.dental_formula_id NOTNULL))
+            </expression>
+        </field>
+
+    </fields>
+</query>

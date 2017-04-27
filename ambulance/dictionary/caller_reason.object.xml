@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>caller_reason</id>-->
+    <name>Повод к вызову</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <sql:sql>
+                    insert into amb.md_ambulance_caller_reason
+                    (name,call_reason_id,reason_accident_id,priority_id,profile_id, call_kind_id, call_type_id)
+                    values (:name, :reason, :accident, :priority, :profile, :kind, :type);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="call_reason.id" mapping="['reason']" domain="integer"/>
+                <param name="call_kind.id" mapping="['kind']" domain="integer"/>
+                <param name="call_type.id" mapping="['type']" domain="integer"/>
+                <param name="reason_accident.id" mapping="['accident']" domain="integer"/>
+                <param name="priority.id" mapping="['priority']" domain="integer"/>
+                <param name="profile.id" mapping="['profile']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+        </action>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update amb.md_ambulance_caller_reason set name = :name, call_reason_id = :reason, reason_accident_id = :accident,
+                    priority_id = :priority, profile_id = :profile, call_kind_id = :kind, call_type_id = :type where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="call_reason.id" mapping="['reason']" domain="integer"/>
+                <param name="call_kind.id" mapping="['kind']" domain="integer"/>
+                <param name="call_type.id" mapping="['type']" domain="integer"/>
+                <param name="reason_accident.id" mapping="['accident']" domain="integer"/>
+                <param name="priority.id" mapping="['priority']" domain="integer"/>
+                <param name="profile.id" mapping="['profile']" domain="integer"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from amb.md_ambulance_caller_reason where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <condition id="checkCallReason" level="error">
+            <message>Поле "Причина несчастного случая" должно быть заполнено</message>
+            <expression>(call_reason.id != '1') || (reason_accident.id != null) </expression>
+        </condition>
+        <constraint id="reasonnameUnique" level="error">
+            <!--<message summary ="Вызывающий '%name%' уже существует ->
+                Назовите вызывающего иначе!
+            </message>-->
+            <message> Повод '{name}' уже существует ->
+                Назовите иначе!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count (*) from amb.md_ambulance_caller_reason where trim(upper(name)) = trim(upper(:name)) and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name ="name" mapping = "['name']" domain="string"/>
+                <param name = "id" mapping = "['id']" domain="integer" required="false"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

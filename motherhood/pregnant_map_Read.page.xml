@@ -1,0 +1,237 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:info="http://n2oapp.net/framework/config/schema/info-panel-widget-1.0">
+
+    <object-id>pregnant_map</object-id>
+    <layout>pregnantMap/n2o/layout/pregnantMapLayout</layout>
+    <name>Индивидуальная карта беременной</name>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="main">
+                <info:form detail-field-id="id" master-field-id="id">
+                    <info:query-id>pregnant_map</info:query-id>
+                    <info:name>Индивидуальная карта беременной</info:name>
+
+                    <info:info-panel id="patient" show-personal-data="true" show-medical-data="false" readonly="true"/>
+
+                    <fs:field-set field-label-location="top">
+
+                        <fs:row>
+                            <ctrl:classifier id="riskLevel" label="Группа риска" search-as-you-type="true"
+                                             readonly="true">
+                                <ctrl:query query-id="pregnantRiskLevel" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:input-text id="pregnant_age" label="Срок беременности" readonly="true"/>
+
+                            <ctrl:classifier id="clinic" label="МО" readonly="true">
+                                <ctrl:query query-id="moth_clinicsList" label-field-id="name" value-field-id="id"/>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+                                    <ctrl:value field-id="name">#{org.name?}</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="employee" label="Врач" depends-on="clinic" readonly="true">
+                                <ctrl:query query-id="moth_employeesList" value-field-id="id" label-field-id="name" master-field-id="id" detail-field-id="clinicId"/>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">#{emplPos.id?}</ctrl:value>
+                                    <ctrl:value field-id="name">#{emplPos.name?}</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:date-time id="reg_dt" label="Дата постановки на учет" readonly="true"
+                                            default-value="today()"/>
+                            <ctrl:date-time id="birth_dt" label="Дата родов" readonly="true"/>
+                            <ctrl:input-text id="sickList" label="Лист нетрудоспособности" readonly="true"/>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:input-text id="number" label="Обменная карта"  readonly="true"/>
+                            <ctrl:classifier id="clinicObservation" label="МО наблюдения"  readonly="true">
+                                <ctrl:query query-id="moth_clinicsList" label-field-id="name" value-field-id="id"/>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">#{org.id?}</ctrl:value>
+                                    <ctrl:value field-id="name">#{org.name?}</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="birthCertificate" label="Родовой сертификат" readonly="true"/>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="outcome" label="Исход беременности"  readonly="true">
+                                <ctrl:query query-id="pregnantOutcome" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            <ctrl:output-text id="unreg_dt" label="Дата снятия с учета"
+                                              dependency-condition="unreg_dt != null"  readonly="true"/>
+                            <ctrl:output-text id="clinicUnregisteration" label="МО, закрывшее случай"
+                                              dependency-condition="unreg_dt != null"  readonly="true"/>
+                        </fs:row>
+                    </fs:field-set>
+
+                </info:form>
+            </container>
+        </region>
+
+        <region place="bottom-right-tab-routing" type="none">
+            <container id="routing-table" depends-on="main" refresh-dependent-container="true">
+                <wgt:table master-field-id="patient.id" detail-field-id="patient.id">
+                    <wgt:name>Маршрутизация</wgt:name>
+                    <wgt:query-id>pregnantRouting</wgt:query-id>
+                    <wgt:action-menu/>
+                    <wgt:columns>
+                        <wgt:column column-field-id="regType.name" width="100px"/>
+                        <wgt:column column-field-id="clinic.name" width="150px"/>
+                        <wgt:column column-field-id="regDt" width="75px" format="date DD.MM.YYYY"/>
+                        <wgt:column column-field-id="unregDt" width="75px" format="date DD.MM.YYYY"/>
+                    </wgt:columns>
+                </wgt:table>
+            </container>
+        </region>
+
+        <region place="bottom-right-tab-mainData" type="none">
+            <container id="pregnantMainData" depends-on="main" refresh-dependent-container="true">
+                <wgt:form master-field-id="patient.id" detail-field-id="id">
+                    <wgt:name>Основные данные</wgt:name>
+                    <wgt:query-id>pregnantMainData</wgt:query-id>
+                    <wgt:model>query</wgt:model>
+                    <fs:field-set>
+                        <fs:row>
+                            <ctrl:classifier id="maritalStatus" label="Семейное положение" readonly="true">
+                                <ctrl:query query-id="marital_status" label-field-id="name" value-field-id="id"/>
+                            </ctrl:classifier>
+                            <ctrl:input-text id="husbandSurname" label="Фамилия мужа"  readonly="true">
+                                <ctrl:actions>
+                                    <ctrl:button type="icon" icon="icomoon-redo2" label="Перейти в карту пациента">
+                                        <ctrl:a href="#patients.patients.main.edit?main%3Afilter%3Aid=:husbandId:" target="newWindow"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:visibility-condition>husbandId != null</ctrl:visibility-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+                                </ctrl:actions>
+                            </ctrl:input-text>
+                            <ctrl:input-text id="husbandPhone" label="Телефон мужа"  readonly="true"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="bloodGroup" label="Группа крови" readonly="true">
+                                <ctrl:query query-id="patbloodGroup" value-field-id="id" label-field-id="code"/>
+                            </ctrl:classifier>
+                            <ctrl:output-text id="husbandAge" label="Возраст мужа" readonly="true"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="job" label="Место работы" search-are-you-type="true" word-wrap="true" readonly="true">
+                                <ctrl:query query-id="orgForPatJob" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="role_id" value="1"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="husbandBloodGroup" label="Группа крови мужа" readonly="true">
+                                <ctrl:query query-id="patbloodGroup" value-field-id="id" label-field-id="code"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="professionWorking" label="Профессия" search-are-you-type="true"
+                                             word-wrap="true" depends-on="job" readonly="true">
+                                <ctrl:query query-id="profession_working" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="husbandJob" label="Место работы мужа" search-are-you-type="true"
+                                             word-wrap="true" readonly="true">
+                                <ctrl:query query-id="orgForPatJob" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="role_id" value="1"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+
+        <region place="bottom-right-tab-diary">
+            <container id="diary" depends-on="main" refresh-dependent-container="true">
+                <wgt:table master-field-id="patient.id" detail-field-id="patientId" css-class="tap">
+                    <wgt:query-id>observationDiary</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="gestation" width="12%"/>
+                        <wgt:column column-field-id="admissionDate" width="10%"/>
+                        <wgt:column column-field-id="serviceName" width="12%"/>
+                        <wgt:column column-field-id="isRenderedSymbol" width="10%" tooltip-field-id="statusTooltip"
+                                    name="Статус">
+                            <wgt:color>
+                                <wgt:switch value-field-id="isRendered">
+                                    <wgt:case value="1">badge badge-success</wgt:case>
+                                    <wgt:case value="0">badge badge-warning</wgt:case>
+                                </wgt:switch>
+                            </wgt:color>
+                        </wgt:column>
+                        <wgt:column column-field-id="result" width="40%"/>
+                        <wgt:column column-field-id="doctor"/>
+                        <wgt:column column-field-id="orgName"/>
+                    </wgt:columns>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="viewCase" label="Просмотр" context="true">
+                            <wgt:a href=":pageName:" target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isRendered == true</wgt:expression>
+                                    <wgt:tooltip>Услуга еще не оказана</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="bottom-right-tab-riskLevel">
+            <container id="riskLevel" depends-on="main" refresh-dependent-container="true">
+                <wgt:table master-field-id="id" detail-field-id="mapId">
+                    <wgt:query-id>mapRiskFactors</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="name"/>
+                        <wgt:column column-field-id="riskLevel">
+                            <wgt:color>
+                                <wgt:switch value-field-id="riskLevel">
+                                    <wgt:case value="Низкий">badge badge-info</wgt:case>
+                                    <wgt:case value="Средний">badge badge-warning</wgt:case>
+                                    <wgt:case value="Высокий">badge badge-important</wgt:case>
+                                </wgt:switch>
+                            </wgt:color>
+                        </wgt:column>
+                    </wgt:columns>
+                </wgt:table>
+            </container>
+        </region>
+
+        <region place="bottom-right-tab-monitoring" type="none">
+            <container id="monitoring" depends-on="main" refresh-dependent-container="true">
+                <wgt:table master-field-id="id" detail-field-id="pregnantMapId" ref-id="monitoring_read" css-class="tap"/>
+                <pre-filters>
+                    <pre-filter field-id="orgId" value="#{org.id?}"/>
+                </pre-filters>
+            </container>
+        </region>
+
+        <region place="bottom-right-tab-gravidogramma" type="none">
+            <container id="gravidogramma" depends-on="main" refresh-dependent-container="true">
+                <wgt:form master-field-id="id" detail-field-id="id">
+                    <wgt:query-id>gravidogramma</wgt:query-id>
+                    <wgt:name>Гравидограмма</wgt:name>
+                    <fs:field-set>
+                        <ctrl:custom label-style="display:none;" id="gravidogramma" src="pregnantMap/n2o/custom/gravidogramma/gravidogramma"/>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+    </regions>
+
+</page>

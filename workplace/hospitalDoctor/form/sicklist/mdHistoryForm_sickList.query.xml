@@ -1,0 +1,106 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_sickList</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from sickdoc.sickdoc s
+                left join sickdoc.sickdoc_extended se on ( se.id = s.id )
+                left join md_sicklist_type t on t.id = s.type_id
+                left join md_sl_disability_reason dr on dr.id = se.disability_reason_id
+                left join md_sicklist_state st on st.id = s.state_id
+                where :where order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(s)
+                from sickdoc.sickdoc
+                left join sickdoc.sickdoc_extended se on ( se.id = s.id )
+                left join md_sicklist_type t on t.id = s.type_id
+                left join md_sl_disability_reason dr on dr.id = se.disability_reason_id
+                left join md_sicklist_state st on st.id = s.state_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>code</id>
+            <name>Номер</name>
+            <domain>string</domain>
+            <expression>s.number</expression>
+        </field>
+
+        <field>
+            <id>issueDt</id>
+            <name>Дата выдачи</name>
+            <domain>date</domain>
+            <expression>s.issue_dt</expression>
+        </field>
+
+        <field>
+            <id>closeDate</id>
+            <name>Дата закрытия</name>
+            <domain>date</domain>
+            <expression>(select sp.to_dt from md_sicklist_period sp where sp.sicklist_id = s.id  order by sp.to_dt desc limit 1)</expression>
+        </field>
+
+        <field>
+            <id>type</id>
+            <name>Тип</name>
+            <domain>string</domain>
+            <expression>t.name</expression>
+        </field>
+
+        <field>
+            <id>disabilityReason</id>
+            <name>Причина</name>
+            <domain>string</domain>
+            <expression>dr.name</expression>
+        </field>
+
+        <field>
+            <id>state</id>
+            <name>Статус</name>
+            <domain>string</domain>
+            <expression>st.name</expression>
+        </field>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>s.case_id = :case.id</search>
+        </field>
+
+        <field>
+            <id>transferFromClinic</id>
+            <name>Выдан в другом МО</name>
+            <domain>boolean</domain>
+            <expression>s.transfer_from_clinic</expression>
+        </field>
+
+        <field>
+            <id>issuedBy.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(:issuedBy.id = 2 and s.transfer_from_clinic is not true or :issuedBy.id = 1 and s.transfer_from_clinic is true)</search>
+        </field>
+
+
+    </fields>
+
+
+</query>

@@ -1,0 +1,119 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>medicalServiceRendered</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from sr_srv_rendered s
+                left join md_srv_protocol sp on sp.srv_rendered_id = s.id
+                left join md_ehr_protocol p on p.id = sp.protocol_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(s)
+                from sr_srv_rendered s
+                left join md_srv_protocol sp on sp.srv_rendered_id = s.id
+                left join md_ehr_protocol p on p.id = sp.protocol_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>s</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <search>s.id = :id</search>
+        </field>
+        <field>
+            <id>service_id</id>
+            <domain>integer</domain>
+            <name>id услуги</name>
+            <expression>s.service_id</expression>
+        </field>
+
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>:org_id</expression>
+            <search value="#{org.id?}"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>dep_id</id>
+            <domain>integer</domain>
+            <expression>:dep_id</expression>
+            <search value="#{dep.id?}"/>
+            <display unavailable="true"/>
+        </field>
+
+        <field>
+            <id>printForm</id>
+            <domain>string</domain>
+            <expression>
+                (select coalesce((select case when report_path = '' then null else report_path end from sr_srv_ehr_opt where service_id = s.service_id limit 1),
+                (select case when value = '' then null else value end from cmn_setting_value s inner join pim_department d on d.scope_id = s.scope_id
+                    where s.setting_id = 'cz.atria.ehr.client.EhrProtocolUISettings.defaultReportPath' and d.id = :dep_id),
+                (select case when value = '' then null else value end from cmn_setting_value s inner join md_clinic c on c.scope_id = s.scope_id
+                    where s.setting_id = 'cz.atria.ehr.client.EhrProtocolUISettings.defaultReportPath' and c.id = :org_id),
+                (select case when value = '' then null else value end  from cmn_setting_value where setting_id = 'cz.atria.ehr.client.EhrProtocolUISettings.defaultReportPath' limit 1),
+                (select case when default_value = '' then null else default_value end from cmn_setting where id = 'cz.atria.ehr.client.EhrProtocolUISettings.defaultReportPath' limit 1),
+                'by_default_A5.rptdesign'
+                ))
+            </expression>
+        </field>
+
+        <field>
+            <id>protocolId</id>
+            <domain>integer</domain>
+            <expression>sp.id</expression>
+        </field>
+
+        <field>
+            <id>clinic_from_context</id>
+            <domain>integer</domain>
+            <display value="#{org.id?}" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>user_id</id>
+            <domain>integer</domain>
+            <display value="#{user.id}" unavailable="true"/>
+        </field>
+
+
+        <field>
+            <id>position_id</id>
+            <domain>integer</domain>
+            <display value="#{pos.id?}" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>templatePath</id>
+            <domain>string</domain>
+            <expression>coalesce(coalesce(p.template_path, (select template from sr_srv_ehr_opt where service_id = s.service_id limit 1)), 'template/default.opt')</expression>
+        </field>
+
+        <field>
+            <id>isSigned</id>
+            <domain>boolean</domain>
+            <expression>(is_signed NOTNULL and is_signed)</expression>
+        </field>
+
+        <field>
+            <id>signatureInfo</id>
+            <domain>string</domain>
+            <expression>
+                case when (is_signed NOTNULL and is_signed) then
+                    'Подписал пользователь: ' || coalesce(p.signed_user_full_name, 'Не заполнено') || ', ' ||
+                    'Информация о сертификате: ' || coalesce(p.certificate_info, 'Не заполнено') || ', ' ||
+                    'Дата подписи: ' || coalesce(to_char(p.signed_dt, 'DD.MM.YYYY'), 'Не заполнено')
+                else '' end
+            </expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>depForPatJob</id>-->
+    <name>Подразделение</name>
+    <actions>
+        <action id="create" name="Создать">
+        <invocation>
+            <sql:sql>
+                insert into public.pim_department(
+                id,
+                org_id,
+                name,
+                type_id
+                <!--from_dt,-->
+                <!--to_dt,-->
+                )
+                values (
+                (select max(id)+1 from pim_department)
+                ,:org
+                ,:name
+                ,:type
+                <!--,:from_dt-->
+                <!--,:to_dt-->
+                );
+            </sql:sql>
+        </invocation>
+            <in-parameters>
+                <param name="org.id" mapping="['org']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="type.id" mapping="['type']" domain="integer"/>
+                <!--<param name="from_dt" mapping="['from_dt']" domain="date"/>-->
+                <!--<param name="to_dt" mapping="['to_dt']" domain="date"/>-->
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Подразделение сохранено в системе
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkUniqueDep" level="error">
+            <!--todo NNO-542 Параметризация сообщений валидации на клиенте n2o.ver = 2.2-->
+            <message>Подразделение для организации уже существует</message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from pim_department pd
+                    where pd.org_id = :org
+                    and pd.name = :name
+                    and (:id is null or pd.id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="org.id" mapping="['org']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <!--<param name="from_dt" mapping="['from_dt']" domain="date"/>-->
+                <!--<param name="to_dt" mapping="['to_dt']" domain="date"/>-->
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

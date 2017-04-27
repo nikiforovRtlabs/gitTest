@@ -1,0 +1,208 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+
+    <name>Справка о стоимости услуг</name>
+
+    <fields>
+        <field id="id" domain="integer"/>
+        <field id="annuled" domain="boolean"/>
+        <field id="mcase.id" domain="integer"/>
+        <field id="number" domain="string"/>
+        <field id="clinicId" domain="integer"/>
+        <field id="creationDate" domain="string"/>
+        <field id="employeeIssued.id" domain="integer"/>
+        <field id="patient.id" domain="integer"/>
+        <field id="period.begin" domain="string"/>
+        <field id="period.end" domain="string"/>
+        <field id="receiver.id" domain="integer"/>
+        <field id="refused" domain="boolean"/>
+        <field id="remark" domain="string"/>
+        <field id="totalCost" domain="string"/>
+    </fields>
+
+    <actions>
+        <!--Выдать сертификат-->
+        <action id="createCert" name="Выдать справку"  form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    select billing.create_cert_decree1788(
+                    :case_id::integer
+                    ,:number::varchar
+                    ,:clinic_id::integer
+                    ,:creation_date::varchar
+                    ,:empl_issued_id::integer
+                    ,:patient_id::integer
+                    ,:period_begin::varchar
+                    ,:period_end::varchar
+                    ,:receiver_id::integer
+                    ,:remark::varchar
+                    );
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="mcase.id" mapping="['case_id']"/>
+                <param name="number" mapping="['number']"/>
+                <param name="clinicId" mapping="['clinic_id']"/>
+                <param name="creationDate" mapping="['creation_date']"/>
+                <param name="employeeIssued.id" mapping="['empl_issued_id']"/>
+                <param name="patient.id" mapping="['patient_id']"/>
+                <param name="period.begin" mapping="['period_begin']"/>
+                <param name="period.end" mapping="['period_end']"/>
+                <param name="receiver.id" mapping="['receiver_id']"/>
+                <param name="remark" mapping="['remark']"/>
+                <param name="refused" mapping="['refused']" value="false"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueNumberForOrg"/>
+            </validations>
+        </action>
+
+        <!--Зарегистрировать отказ-->
+        <action id="createRefusal" name="Зарегистрировать отказ" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    select billing.create_refusal_decree1788(
+                    :case_id::integer
+                    ,:number::varchar
+                    ,:clinic_id::integer
+                    ,:creation_date::varchar
+                    ,:empl_issued_id::integer
+                    ,:patient_id::integer
+                    ,:period_begin::varchar
+                    ,:period_end::varchar
+                    ,:receiver_id::integer
+                    ,:remark::varchar
+                    );
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="mcase.id" mapping="['case_id']"/>
+                <param name="number" mapping="['number']"/>
+                <param name="clinicId" mapping="['clinic_id']"/>
+                <param name="creationDate" mapping="['creation_date']"/>
+                <param name="employeeIssued.id" mapping="['empl_issued_id']"/>
+                <param name="patient.id" mapping="['patient_id']"/>
+                <param name="period.begin" mapping="['period_begin']"/>
+                <param name="period.end" mapping="['period_end']"/>
+                <param name="receiver.id" mapping="['receiver_id']"/>
+                <param name="remark" mapping="['remark']"/>
+                <param name="refused" domain="boolean" mapping="['refused']" value="true"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqueNumberForOrg"/>
+            </validations>
+        </action>
+
+        <!--Изменить сертификат/отказ-->
+        <action id="update" name="Изменить" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    select billing.update_cert_or_refusal_decree1788(
+                    :id::integer
+                    ,:case_id::integer
+                    ,:number::varchar
+                    ,:creation_date::varchar
+                    ,:empl_issued_id::integer
+                    ,:patient_id::integer
+                    ,:period_begin::varchar
+                    ,:period_end::varchar
+                    ,:receiver_id::integer
+                    ,:remark::varchar
+                    );
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="mcase.id" mapping="['case_id']"/>
+                <param name="number" mapping="['number']"/>
+                <param name="creationDate" mapping="['creation_date']"/>
+                <param name="employeeIssued.id" mapping="['empl_issued_id']"/>
+                <param name="patient.id" mapping="['patient_id']"/>
+                <param name="period.begin" mapping="['period_begin']"/>
+                <param name="period.end" mapping="['period_end']"/>
+                <param name="receiver.id" mapping="['receiver_id']"/>
+                <param name="remark" mapping="['remark']"/>
+                <param name="refused" domain="boolean" mapping="['refused']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="costRecalcWarning"/>
+                <validation ref-id="checkUniqueNumberForOrg"/>
+            </validations>
+        </action>
+
+        <!--Аннулировать сертификат/отказ-->
+        <action id="annule" name="Аннулировать">
+            <invocation>
+                <sql:sql>UPDATE billing.services_cost_certificate SET annuled = true WHERE id = :id</sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите аннулировать справку/отказ?</confirmation-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <!--Отменить аннулирование-->
+        <action id="cancelAnnuled" name="Отменить аннулирование">
+            <invocation>
+                <sql:sql>UPDATE billing.services_cost_certificate SET annuled = false WHERE id = :id</sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите отменить аннулирование справки/отказа?</confirmation-text>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="costRecalcWarning" level="warning">
+            <message>Данная справка уже была сформирована и по ней рассчитана сумма. При изменении параметров справки сумма может измениться.</message>
+            <invocation>
+                <sql:sql>
+                    select refused from billing.services_cost_certificate where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+        <condition id="checkLessOrEqualsToday" level="error">
+            <message>Дата справки/отказа не должна быть больше текущей даты</message>
+            <expression><![CDATA[
+                moment(creationDate, 'DD.MM.YYYY').isBefore() ||
+                moment(creationDate, 'DD.MM.YYYY').isSame()
+                ]]>
+            </expression>
+        </condition>
+        <constraint id="checkUniqueNumberForOrg" level="error">
+            <invocation>
+                <n2o:rest method="POST">
+                    <n2o:query>
+                        ${n2o.backend.path}/billing/validation/certs/is-number-busy
+                    </n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer" required="false"/>
+                <param name="number" mapping="['number']" domain="string" required="false"/>
+                <param name="clinicId" mapping="['clinicId']" domain="integer" required="false"/>
+                <param name="refused" mapping="['refused']" domain="boolean" required="false"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="message" mapping="['message']"/>
+            </out-parameters>
+            <result expression="['success']"/>
+            <message>{message}</message>
+        </constraint>
+    </validations>
+</object>

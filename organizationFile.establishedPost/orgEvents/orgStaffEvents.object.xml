@@ -1,0 +1,138 @@
+<object xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Организационно-штатное мероприятие</name>
+
+    <actions>
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into pim_org_staff_events
+                    (
+                    id,
+                    organization_id, staff_number, name, ose_date, reason
+                    )
+                    values (
+                    nextval('pim_org_staff_events_seq'),
+                    :organization_id, :staff_number, :name, :ose_date, :reason
+                    );
+
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+
+                <param name="ose.id" mapping="['id']" domain="integer"/>
+                <param name="org.id" mapping="['organization_id']" domain="integer"/>
+                <param name="staff_number" mapping="['staff_number']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="ose_date" mapping="['ose_date']" domain="date"/>
+                <param name="reason" mapping="['reason']" domain="string"/>
+
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Организационно-штатное мероприятие "{name}" успешно сохранено в системе.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="is_event_already_exists"/>
+            </validations>
+        </action>
+
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_org_staff_events set
+                      staff_number = :staff_number,
+                      name = :name,
+                      ose_date = :ose_date,
+                      reason = :reason
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="ose.id" mapping="['id']" domain="integer"/>
+                <param name="org.id" mapping="['organization_id']" domain="integer"/>
+                <param name="staff_number" mapping="['staff_number']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="ose_date" mapping="['ose_date']" domain="date"/>
+                <param name="reason" mapping="['reason']" domain="string"/>
+            </in-parameters>
+            <success-text>
+                Организационно-штатное мероприятие "{name}" успешно изменено.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="is_event_already_exists"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_org_staff_events where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="ose.id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что организационн-штатное мероприятие "{name}" должно быть удалено?
+            </confirmation-text>
+
+            <validations activate="whiteList">
+                <validation ref-id="event_has_dependent_position"/>
+            </validations>
+            <success-text>
+                Организационно-штатное мероприятие "{name}" успешно удалено.
+            </success-text>
+
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="event_has_dependent_position" level="error">
+            <message>Существуют записи штатного расписания, ссылающиеся на данную запись</message>
+            <invocation>
+                <n2o:sql>
+                    select count(id) from pim_position
+                    where staff_event1 = :id or staff_event2 = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="ose.id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="is_event_already_exists" level="error">
+            <message>В списке уже существует организационно-штатное мероприятие с указанными реквизитами</message>
+            <invocation>
+                <n2o:sql>
+                <![CDATA[
+                    select count(1) from pim_org_staff_events
+                    where
+                        trim(upper(staff_number)) = trim(upper(:staff_number)) and
+                        trim(upper(name)) = trim(upper(:name)) and
+                        organization_id = :organization_id and
+                        ose_date = :ose_date and
+                        trim(upper(reason)) = trim(upper(:reason)) and
+                        (:id isnull or id <> :id)
+                ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="ose.id" mapping="['id']" domain="integer"/>
+                <param name="staff_number" mapping="['staff_number']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="ose_date" mapping="['ose_date']" domain="date"/>
+                <param name="reason" mapping="['reason']" domain="string"/>
+                <param name="org.id" mapping="['organization_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+
+
+
+</object>

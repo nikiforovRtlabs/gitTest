@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>toothSurface</object-id>
+    <name>toothSurface</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_tooth_surface tsf
+                left join stomatology.tooth_disease_md_tooth_surface tdmts on (tsf.id = tdmts.md_tooth_surface_id)
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(tsf)
+                from md_tooth_surface tsf
+                where :where
+            </n2o:count-query>
+            <n2o:alias>tsf</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>tsf.id</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Поверхность</name>
+            <expression>tsf.name</expression>
+            <display>:expression</display>
+            <filters>
+                <filter type="eq" filter-field="name">upper(:expression) like '%' || upper(:name) || '%'</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>toothNumberId</id>
+            <domain>integer</domain>
+            <expression>:toothNumberId</expression>
+            <filters>
+                <filter type="eq" filter-field="toothNumberId">
+                    (tsf.id in (select tooth_surface_id from stomatology.tooth_number_surface where tooth_number_id = :toothNumberId))
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>toothNumberIds</id>
+            <domain>integer[]</domain>
+            <expression>:toothNumberIds</expression>
+            <filters>
+                <filter type="eq" filter-field="toothNumberIds">
+                    (
+                    case when (select count(distinct(id)) from stomatology.tooth_number where id in (:toothNumberIds)) > 1
+                    then (tsf.id in (
+                    select distinct(r.tooth_surface_id) from (
+                    select tooth_surface_id, tooth_number_id, count(*) over(partition by tooth_surface_id) as tooth_surface_cnt
+                    from stomatology.tooth_number_surface where tooth_number_id in (:toothNumberIds)
+                    ) r where r.tooth_surface_cnt = (select count(distinct(id)) from stomatology.tooth_number where id in (:toothNumberIds))
+                    ))
+                    else (tsf.id in (select distinct(tooth_surface_id) from stomatology.tooth_number_surface where tooth_number_id in (:toothNumberIds)))
+                    end
+                    )
+                </filter>
+            </filters>
+        </field>
+
+    </fields>
+</query>

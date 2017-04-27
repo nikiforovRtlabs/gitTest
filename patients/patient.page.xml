@@ -1,0 +1,779 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0" >
+    <object-id>patient</object-id>
+    <layout>n2o/layout/top-bottom(left-right)</layout>
+    <name>Редактирование пациента</name>
+    <modal-width>50%</modal-width>
+    <regions>
+        <region place="top" type="none">
+            <container id="main">
+                <wgt:form src="patients/n2o/ext/jsp/patientMainForm" customize="jsp,js" css-class="patient-form">
+                    <wgt:query-id>qpatient</wgt:query-id>
+                    <fs:field-set field-label-location="top">
+                        <fs:row>
+                            <ctrl:input-text id="surname" label="Фамилия">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="surnameValidation" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+                            <ctrl:input-text id="name" label="Имя">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="nameValidation" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+                            <ctrl:input-text id="patronymic" label="Отчество">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="patronymicValidation" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:input-text>
+                            <ctrl:classifier id="gender" label="Пол" required="true">
+                                <ctrl:query query-id="qgender" label-field-id="name" value-field-id="id"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:date-time id="birthDate" label="Дата рождения" format="DD.MM.YYYY">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="birthDateValidation" side="client"/>
+                                </ctrl:validations>
+                            </ctrl:date-time>
+                            <ctrl:hidden id="death_dt"/>
+                            <ctrl:hidden id="ageYear"/>
+                            <ctrl:hidden id="ageMonth"/>
+                            <ctrl:hidden id="ageDay"/>
+                            <ctrl:output-text id="age" label="Возраст">
+                                <ctrl:set-value-expression on="birthDate" on-load="false" on-non-empty="true">
+                                    <![CDATA[
+                                        var bdate = moment(birthDate, 'DD.MM.YYYY').toDate();
+                                        var edate = new Date();
+                                        if(death_dt != null){
+                                            edate = moment(death_dt, 'DD.MM.YYYY').toDate();
+                                        }
+                                        var sub = moment.duration(edate - bdate);
+                                        var o =  new Object();
+                                        if(sub < moment.duration(1,'months')){
+                                            o = ~~sub.asDays() + ' дн.';
+                                        }else if(sub < moment.duration(18,'years')){
+                                            o = ~~sub.asYears() + ' л. ' + ~~sub.subtract(~~sub.asYears(),'y').asMonths() + ' мес.';
+                                        }else{
+                                            o = ~~sub.asYears()  + ' л.';
+                                        }if(death_dt != null){
+                                            o += ' (Умер ' + moment(death_dt, 'DD.MM.YYYY').format('DD.MM.YYYY') + ')';
+                                        }
+                                        o;
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:output-text>
+                            <ctrl:masked-input id="insuranceNumber" label="СНИЛС" mask="?999-999-999 99">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="checkSnilsSum"/>
+                                    <ctrl:validation ref-id="checkSnilsNumbers"/>
+                                </ctrl:validations>
+                            </ctrl:masked-input>
+                            <ctrl:input-text id="mhiNumber" label="ЕНП" readonly="true"/>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set field-label-location="top">
+                        <fs:row>
+                            <ctrl:input-text id="birthPlace" label="Место рождения"/>
+                            <ctrl:classifier id="citizenship" label="Гражданство">
+                                <ctrl:query query-id="patCountry" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="nationality" label="Национальность">
+                                <ctrl:query query-id="patNationality" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                            <ctrl:classifier id="educationType" label="Образование">
+                                <ctrl:query query-id="patEd_type" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set field-label-location="top">
+                        <fs:row>
+                            <ctrl:classifier id="bloodGroup" label="Группа крови">
+                                <ctrl:query query-id="patbloodGroup" value-field-id="id" label-field-id="code"/>
+                            </ctrl:classifier>
+                            <ctrl:masked-input id="birthWeight" label="Вес при рождении" mask="99?999"/>
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:date-time id="lastFluorographyDate"
+                                            label="Дата последней флюорографии"
+                                            format="DD.MM.YYYY">
+                            </ctrl:date-time>
+                            <ctrl:masked-input id="newbornNumber" label="Порядковый номер при рождении" mask="9"
+                                               dependency-condition="hasPartCase == true"/>
+                        </fs:row>
+                    </fs:field-set>
+                    <fs:field-set field-label-location="top">
+                        <ctrl:text-area id="note" label="Примечание" rows="4" control-style="width:50%"/>
+                    </fs:field-set>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="showDeathDate" label="Данные о смерти" >
+                            <wgt:show-modal create-more="false" page-id="patientDeathData" master-field-id="id"
+                                            detail-field-id="id"  width="800px" model="query"
+                                            action-id="create" refresh-on-close="true" visible="false"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>death_dt != null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="regDeathDate" label="Зарегистрировать смерть" >
+                            <wgt:show-modal create-more="false" page-id="patientDeathData" master-field-id="id"
+                                            detail-field-id="id"  width="800px" model="query"
+                                            action-id="create" refresh-on-close="true" visible="false"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>death_dt == null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="reviseTmhif" label="Запрос в ТФОМС" icon="icomoon-download2" type="textAndIcon">
+                            <wgt:show-modal page-id="patReviseTmhif" refresh-on-close="true" width="40%" page-name="Запрос по пациенту {main.surname} {main.name} {main.patronymic} {main.birthDt}"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:form>
+            </container>
+        </region>
+        <region place="left" type="panel" src="n2o/regions/panel/panel">
+            <container id="oms" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient_id"
+                          src="patients/n2o/ext/css/patient-card-containers" customize="css" css-class="patient-form">
+                    <wgt:query-id>policyOMS</wgt:query-id>
+                    <wgt:name>Полисы ОМС</wgt:name>
+                    <wgt:rows label-field-id="displayNumber"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="policyOMSCreate" model="default" action-id="create"
+                                            width="700px" create-more="false" refresh-on-close="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="edit" label="Изменить" context="true" default="true" icon="icon-pencil"
+                                       type="icon">
+                            <wgt:show-modal page-id="policyOMSCreate" master-field-id="id" detail-field-id="id"
+                                            model="query"  action-id="update"
+                                            refresh-on-close="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="policyOMSHistory" master-field-id="patient_id"
+                                            detail-field-id="patient_id" refresh-on-close="true"
+                                            width="1050px"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+            <container id="disability" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id"
+                          src="patients/n2o/ext/css/patient-card-containers" customize="css" css-class="patient-form">
+                    <wgt:name>Инвалидность</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:query-id>patDisability</wgt:query-id>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patDisabilityCreate" model="default" action-id="create"
+                                            page-name="Инвалидность: Создание" create-more="false"
+                                            master-field-id="id" detail-field-id="id"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="edit" label="Изменить" context="true" default="true" icon="icon-pencil" type="icon">
+                            <wgt:show-modal page-id="patDisabilityCreate" model="query" action-id="update"
+                                            page-name="Инвалидность: Изменение" create-more="false"
+                                            refresh-on-close="true" master-field-id="id" detail-field-id="id"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patDisabilityHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Инвалидность: История" width="950px" refresh-on-close="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+            </container>
+
+            <container id="specialNotes" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id"
+                          src="patients/n2o/ext/css/patient-card-containers" customize="css" css-class="patient-form">
+                    <wgt:name>Особые отметки</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:query-id>specialNotes</wgt:query-id>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="specialNotesCreate" model="default" action-id="create"
+                                            page-name="Особые отметки: Создание" create-more="false"
+                                            master-field-id="id" detail-field-id="id"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="edit" label="Изменить" context="true" default="true" icon="icon-pencil" type="icon">
+                            <wgt:show-modal page-id="specialNotesCreate" model="query" action-id="update"
+                                            page-name="Особые отметки: Изменение" create-more="false"
+                                            refresh-on-close="true" master-field-id="id" detail-field-id="id"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="specialNotesHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id" refresh-on-close="true"
+                                            page-name="Особые отметки: История" width="950px"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+            </container>
+            <container id="reg" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patReg</wgt:query-id>
+                    <wgt:name>Прикрепления</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patRegCreate" action-id="create" width="700px"
+                                            master-field-id="patient.id" detail-field-id="patient.id"
+                                            page-name="Прикрепление пациента: Создание" create-more="false"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true" type="icon"
+                                       icon="icon-pencil">
+                            <wgt:show-modal page-id="patRegCreate" model="query" action-id="update"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            page-name="Прикрепление пациента: Изменение" width="700px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patRegHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Прикрепления пациента: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="attachment" label="Вложения" context="true" default="true"
+                                       icon="icomoon-attachment" type="icon">
+                            <wgt:show-modal page-id="patRegAttach" refresh-on-close="true" master-field-id="id"
+                                            detail-field-id="reg.id"
+                                            page-name="Прикрепления пациента: Список вложений">
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>kan_modif == true</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+            <container id="benefit" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patBenefit</wgt:query-id>
+                    <wgt:name>Особые категории (льготы)</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patBenefitCreate" action-id="create" width="500px"
+                                            master-field-id="patient.id" detail-field-id="patient.id"
+                                            page-name="Льгота пациента: Создание"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="patBenefitCreate" action-id="update" model="query"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            page-name="Льгота пациента: Изменение" width="500px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patBenefitHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id" width="1110px"
+                                            page-name="Льготы пациента: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+            <container id="part_case" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patPartCase</wgt:query-id>
+                    <wgt:name>Особые случаи</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patPartCaseCreate" action-id="create" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Особый случай: Создание" create-more="false"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="patPartCaseCreate" action-id="update" model="query"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            page-name="Особый случай: Изменение" width="600px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patPartCaseHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id" width="1050px"
+                                            page-name="Особые случаи: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+            <container id="contact" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patContact</wgt:query-id>
+                    <wgt:name>Контакты</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patContactCreate" action-id="create" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Контакт: Создание" create-more="false"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="patContactCreate" action-id="update" model="query"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            page-name="Контакт: Изменение" width="600px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patContactHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id" width="1050px"
+                                            page-name="Контакты: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+            </container>
+            <container id="relation" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patRelation</wgt:query-id>
+                    <wgt:name>Родственники</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patRelationCreate" action-id="create" width="600px"
+                                            master-field-id="patient.id" detail-field-id="patient.id"
+                                            page-name="Родственники: Создание"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="patRelationCreate" action-id="update" model="query"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            page-name="Родственники: Изменение" width="600px">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="patient.id" ref="patient.id"/>
+                                </wgt:pre-filters>
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patRelationHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id" width="1050px"
+                                            page-name="Родственники: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+            <container id="marital_status" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patMaritalStatus</wgt:query-id>
+                    <wgt:name>Семейное положение</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patMaritalStatusCreate" action-id="create"
+                                            master-field-id="patient.id" detail-field-id="patient.id"
+                                            page-name="Семейное положение: Создание" create-more="false"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="patMaritalStatusCreate" action-id="update" model="query"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            page-name="Семейное положение: Изменение" width="600px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patMaritalStatusHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id" width="1050px"
+                                            page-name="Семейное положение: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+
+            <container id="patient_category" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patCategory</wgt:query-id>
+                    <wgt:name>Категории пациента</wgt:name>
+                    <wgt:rows label-field-id="short_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patCategoryCreate" action-id="create" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Категории пациента: Создание" create-more="false"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="patCategoryCreate" action-id="update" model="query"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            page-name="Категории пациента: Изменение" width="600px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patCategoryHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Категории пациента: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+        </region>
+
+        <region place="right" type="panel" src="n2o/regions/panel/panel">
+            <container id="document" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient_id" css-class="patient-form">
+                    <wgt:query-id>patDocument</wgt:query-id>
+                    <wgt:name>Документы</wgt:name>
+                    <wgt:rows label-field-id="displayNumber"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patDocumentCreate" model="default" action-id="create"
+                                            page-name="Документ: Создание" width="700px" create-more="false"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="edit" label="Изменить" default="true" context="true" icon="icon-pencil"
+                                       type="icon">
+                            <wgt:show-modal page-id="patDocumentCreate" master-field-id="id" detail-field-id="id"
+                                            model="query" refresh-on-close="true"
+                                            page-name="Документ: Изменение" action-id="update"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patDocumentHistory" master-field-id="patient_id"
+                                            detail-field-id="patient_id" refresh-on-close="true"
+                                            page-name="Документ: История" width="1050px"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="attachment" label="Вложения" context="true" default="true"
+                                       icon="icomoon-attachment" type="icon">
+                            <wgt:show-modal page-id="patDocAttach" refresh-on-close="true" master-field-id="id"
+                                            detail-field-id="doc.id"
+                                            page-name="Документ: Список вложений">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+
+
+
+            <container id="socialGroup" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patSocialGroup</wgt:query-id>
+                    <wgt:name>Социальное положение</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patSocialGroupCreate" action-id="create"
+                                            master-field-id="patient.id" detail-field-id="patient.id"
+                                            page-name="Социальное положение: Создание" create-more="false"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="patSocialGroupCreate" action-id="update" model="query"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            page-name="Социальное положение: Изменение" width="600px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patSocialGroupHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id" width="1050px"
+                                            page-name="Социальное положение: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+            <container id="address" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patAddress</wgt:query-id>
+                    <wgt:name>Адреса</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patAddressCreate" action-id="create" width="700px"
+                                            master-field-id="patient.id" detail-field-id="patient.id"
+                                            page-name="Адреса пациента: Создание"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" icon="icon-pencil" type="icon"
+                                       default="true">
+                            <wgt:show-modal page-id="patAddressCreate" action-id="update" model="query"
+                                            refresh-on-close="true" master-field-id="realId" detail-field-id="realId"
+                                            page-name="Адреса пациента: Изменение" width="700px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patAddressHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id" width="950px"
+                                            page-name="Адреса пациента: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+
+            <container id="jobs" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patJob</wgt:query-id>
+                    <wgt:name>Место работы/Учебы/ДДУ</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patJobCreate" action-id="create" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Место работы/Учебы/ДДУ пациента: Создание"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" icon="icon-pencil" type="icon"
+                                       default="true">
+                            <wgt:show-modal page-id="patJobCreate" action-id="update" model="query"
+                                            refresh-on-close="true" master-field-id="id" detail-field-id="id"
+                                            page-name="Место работы/Учебы/ДДУ пациента: Изменение" width="500px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patJobHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Место работы/Учебы/ДДУ пациента: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+
+            <container id="codes" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patCode</wgt:query-id>
+                    <wgt:name>Идентификаторы</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patCodeHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Идентификаторы пациента: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+            </container>
+
+            <container id="residencePlace" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patResidencePlace</wgt:query-id>
+                    <wgt:name>Место пребывания</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patResidencePlaceCreate" action-id="create"
+                                            master-field-id="patient.id" detail-field-id="patient.id"
+                                            page-name="Место пребывания пациента: Создание"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" icon="icon-pencil" type="icon"
+                                       default="true">
+                            <wgt:show-modal page-id="patResidencePlaceCreate" action-id="update" model="query"
+                                            refresh-on-close="true" master-field-id="id" detail-field-id="id"
+                                            page-name="Место пребывания пациента: Изменение" width="500px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patResidencePlaceHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Место пребывания пациента: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+            <container id="dms" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient_id" css-class="patient-form">
+                    <wgt:query-id>policyDMS</wgt:query-id>
+                    <wgt:name>Полисы ДМС</wgt:name>
+                    <wgt:rows label-field-id="displayNumber"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="policyDMSCreate" model="default" action-id="create"
+                                            page-name="Полис ДМС: Создание" width="700px" create-more="false"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="edit" label="Изменить" default="true" context="true" icon="icon-pencil"
+                                       type="icon">
+                            <wgt:show-modal page-id="policyDMSCreate" master-field-id="id" detail-field-id="id"
+                                            model="query" refresh-on-close="true"
+                                            page-name="Полис ДМС: Изменение" action-id="update"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="policyDMSHistory" master-field-id="patient_id"
+                                            detail-field-id="patient_id" refresh-on-close="true"
+                                            page-name="Полис ДМС: История" width="1050px"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+            <container id="drugIntolerance" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patDrugIntolerance</wgt:query-id>
+                    <wgt:name>Лекарственная непереносимость</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patDrugIntoleranceCreate" action-id="create"
+                                            master-field-id="patient.id" detail-field-id="patient.id"
+                                            page-name="Лекарственная непереносимость: Создание" create-more="false"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="patDrugIntoleranceCreate" action-id="update" model="query"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            page-name="Лекарственная непереносимость: Изменение" width="600px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patDrugIntoleranceHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id" width="1050px"
+                                            page-name="Лекарственная непереносимость: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+            </container>
+
+            <container id="biometric" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patBiometric</wgt:query-id>
+                    <wgt:name>Биометрические данные</wgt:name>
+                    <wgt:rows label-field-id="type.name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patBiometricCreate" action-id="create"
+                                            master-field-id="patient.id" detail-field-id="patient.id"
+                                            page-name="Биометрические данные: Создание" create-more="false"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" default="true" icon="icon-pencil">
+                            <wgt:show-modal page-id="patBiometricCreate" action-id="update" model="query"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            page-name="Биометрические данные: Изменение" width="600px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="open" label="Скачать" context="true" icon="glyphicon glyphicon-download-alt" type="icon">
+                            <wgt:a href="${rmis.system.frontend.url}/filestorage/download{attachment.url}" target="newWindow" />
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patBiometricHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id" width="500px"
+                                            page-name="Биометрические данные: История" refresh-on-close="true"
+                                            focus-after-submit="true">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="isValid" value="true"/>
+                </pre-filters>
+            </container>
+
+            <container id="agreements" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patAgreement</wgt:query-id>
+                    <wgt:name>Соглашения</wgt:name>
+                    <wgt:rows label-field-id="full_name"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false" icon="icon-plus" type="icon">
+                            <wgt:show-modal page-id="patAgreementCreate" action-id="create" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Соглашение: Создание"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" context="true" icon="icon-pencil" type="icon"
+                                       default="true">
+                            <wgt:show-modal page-id="patAgreementCreate" action-id="update" model="query"
+                                            refresh-on-close="true" master-field-id="id" detail-field-id="id"
+                                            page-name="Соглашение: Изменение" width="500px"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patAgreementHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Соглашения: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="attachment" label="Вложения" context="true" default="true"
+                                       icon="icomoon-attachment" type="icon">
+                            <wgt:show-modal page-id="patAgreementAttach" refresh-on-close="true" master-field-id="id"
+                                            detail-field-id="agree.id"
+                                            page-name="Соглашения: Список вложений"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="rep" label="Печатная форма" context="true" icon="icon-print" type="icon">
+                            <wgt:a href="${rmis.report.birt.url}/run?__report=:report_url|uc:&amp;__format=pdf&amp;ID=:patient.id|uc:&amp;user_id=:user_id|uc:&amp;patient_id=:patient.id|uc:&amp;clinic_id=:clinicId|uc:"
+                                   target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>report_url != null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="is_valid" value="true" type="eq"/>
+                </pre-filters>
+            </container>
+            <container id="sig_diagnoses" depends-on="main">
+                <wgt:list master-field-id="id" detail-field-id="patient.id" css-class="patient-form">
+                    <wgt:query-id>patSigDiagnosest</wgt:query-id>
+                    <wgt:name>Значимые диагнозы</wgt:name>
+                    <wgt:rows label-field-id="fullName"/>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="history" label="История" context="false" icon="icon-time" type="icon"
+                                       primary="true">
+                            <wgt:show-modal page-id="patSigDiagnosestHistory" master-field-id="patient.id"
+                                            detail-field-id="patient.id"
+                                            page-name="Значимые диагнозы: История" refresh-on-close="true"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:list>
+                <pre-filters>
+                    <pre-filter field-id="isValid" value="true"/>
+                </pre-filters>
+            </container>
+        </region>
+    </regions>
+</page>

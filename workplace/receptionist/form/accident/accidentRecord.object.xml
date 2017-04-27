@@ -1,0 +1,163 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>accidentRecord</name>
+    <actions>
+        <action id="saveAccidentRecord" form-submit-label="Сохранить">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO
+                    mc_accident (
+                    accident_date,
+                    accident_time,
+                    employee_surname,
+                    note,
+                    org_phone,
+                    type_id,
+                    case_id,
+                    org_id,
+                    phonogram_number
+                    )
+                    VALUES (
+                    :accidentDate,
+                    :accidentTime::time,
+                    :employeeSurname,
+                    :note,
+                    :orgPhone,
+                    :accidentTypeId,
+                    :caseId,
+                    :organizationId,
+                    :phonogramNumber
+                    );
+
+                </n2o:sql>
+
+            </invocation>
+            <in-parameters>
+                <param name="accidentDate" mapping="['accidentDate']" domain="date"/>
+                <param name="accidentTime" mapping="['accidentTime']" domain="string"/>
+                <param name="employeeSurname" mapping="['employeeSurname']" domain="string"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="orgPhone" mapping="['orgPhone']" domain="string"/>
+                <param name="accidentType.id" mapping="['accidentTypeId']" domain="integer"/>
+                <param name="case.id" mapping="['caseId']" domain="integer"/>
+                <param name="organization.id" mapping="['organizationId']" domain="integer"/>
+                <param name="phonogramNumber" mapping="['phonogramNumber']" domain="string"/>
+
+            </in-parameters>
+        </action>
+
+        <action id="updateAccidentRecord" form-submit-label="Сохранить">
+            <invocation>
+                <n2o:sql>
+                    UPDATE mc_accident
+                    SET
+                    accident_date = :accidentDate,
+                    accident_time = :accidentTime::time,
+                    employee_surname = :employeeSurname,
+                    note = :note,
+                    org_phone = :orgPhone,
+                    type_id = :accidentTypeId,
+                    case_id = :caseId,
+                    org_id = :organizationId,
+                    phonogram_number = :phonogramNumber
+                    WHERE id = :id;
+                </n2o:sql>
+
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="accidentDate" mapping="['accidentDate']" domain="date"/>
+                <param name="accidentTime" mapping="['accidentTime']" domain="string"/>
+                <param name="employeeSurname" mapping="['employeeSurname']" domain="string"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="orgPhone" mapping="['orgPhone']" domain="string"/>
+                <param name="accidentType.id" mapping="['accidentTypeId']" domain="integer"/>
+                <param name="case.id" mapping="['caseId']" domain="integer"/>
+                <param name="organization.id" mapping="['organizationId']" domain="integer"/>
+                <param name="phonogramNumber" mapping="['phonogramNumber']" domain="string"/>
+
+            </in-parameters>
+        </action>
+        <action id="deleteAccidentRecord" form-submit-label="Удалить">
+            <invocation>
+                <n2o:sql>
+                    DELETE FROM mc_accident
+                    WHERE id = :id;
+                </n2o:sql>
+
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы действительно хотите удалить происшествие?</confirmation-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="validateSizeNote" level="error">
+            <expression on="note">
+                <![CDATA[
+                note.length<=255 && (typeof note != 'undefined' || note!= null)
+                ]]>
+            </expression>
+            <message>Установлено ограничение 255 символов</message>
+        </condition>
+        <condition id="validateSizeEmployeeSurname" level="error">
+            <expression on="employeeSurname">
+                <![CDATA[
+                employeeSurname.length<=255&&(typeof employeeSurname != 'undefined' || employeeSurname!= null)
+                ]]>
+            </expression>
+            <message>Установлено ограничение 255 символов</message>
+        </condition>
+        <condition id="validateSizePhonogramNumber" level="error">
+            <expression on="phonogramNumber">
+                <![CDATA[
+                phonogramNumber.length<=100&&(typeof phonogramNumber != 'undefined' || phonogramNumber!= null)
+                ]]>
+            </expression>
+            <message>Установлено ограничение 100 символов</message>
+        </condition>
+        <constraint id="checkAccidentDateBirthDt" level="error" moment="before-action">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select pat_ind.birth_dt<=:accidentDate
+                from mc_case c
+                inner join pci_patient pat on pat.id = c.patient_id
+                inner join pim_individual pat_ind on pat_ind.id = pat.id
+
+                    where c.id = :case.id and pat_ind.birth_dt is not null;
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="accidentDate" mapping="['accidentDate']" domain="date"/>
+                <param name="case.id" mapping="['case.id']"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+            <message>Дата регистрации происшествия не может быть меньше даты рождения пациента</message>
+        </constraint>
+        <condition id="checkAccidentDateCurrentDate" level="error" check-before-submit="false">
+            <expression on="accidentDate">
+                moment(accidentDate, 'DD.MM.YYYY').isBefore(new Date(), 'DD.MM.YYYY') ||
+                moment(accidentDate, 'DD.MM.YYYY').isSame(new Date(), 'DD.MM.YYYY')
+            </expression>
+            <message>Дата регистрации происшествия не может быть больше текущей даты.</message>
+        </condition>
+        <condition id="checkAccidentTime" level="error">
+            <expression><![CDATA[
+            if ((typeof accidentTime != 'undefined')&&(accidentTime != null))
+                    {var regex = new RegExp('([0-1][0-9]|2[0-3]):([0-5][0-9])'); regex.test(accidentTime);
+                    } else true;
+                ]]>
+            </expression>
+            <message>Время регистрации имеет некорректный формат</message>
+        </condition>
+
+    </validations>
+
+</object>

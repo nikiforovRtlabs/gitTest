@@ -1,0 +1,106 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <object-id>formulaDoc</object-id>
+    <layout>n2o/layout/single</layout>
+
+    <regions>
+        <region place="single" type="none">
+            <container id="main">
+                <wgt:form master-field-id="id" detail-field-id="id">
+                    <wgt:query-id>formulaDocument</wgt:query-id>
+
+                    <wgt:edit model="query-or-default"
+                              condition="typeof productionDocExists=='undefined' ||  productionDocExists==null || productionDocExists==false"
+                              after-submit="closeModal">
+                        <wgt:invoke-action action-id="save"/>
+                    </wgt:edit>
+
+                    <fs:field-set field-label-location="left">
+                        <ctrl:hidden id="org.id" default-value="#{org.id?}" required="true"/>
+
+                        <ctrl:classifier id="applicationDocProd"
+                                         label="Заявка на изготовление"
+                                         css-class="n2o-label-6 n2o-control-9">
+                            <ctrl:query query-id="inv_applicationDocProdWithParams"
+                                        value-field-id="id"
+                                        label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="statusId" value="7"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:input-text id="name"
+                                         label="Наименование прописи"
+                                         css-class="n2o-label-6 n2o-control-9"
+                                         required="true">
+                            <ctrl:set-value-expression on-load="false" silent-mode="true" on="applicationDocProd">
+                                <![CDATA[
+                                    if(applicationDocProd.modifName)
+                                        applicationDocProd.modifName;
+                                    else
+                                        name;
+                                    ]]>
+                            </ctrl:set-value-expression>
+                        </ctrl:input-text>
+
+                        <ctrl:classifier id="modif"
+                                         label="Наименование ЛС и ИМН"
+                                         css-class="n2o-label-6 n2o-control-9"
+                                         required="true">
+                            <ctrl:query query-id="inv_holdModifWithParams"
+                                        value-field-id="id"
+                                        label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="isExtemporal" value="true"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on-load="false" silent-mode="true" on="applicationDocProd">
+                                <![CDATA[
+                                    if(applicationDocProd.modifId){
+                                        var newModif = {
+                                            id:applicationDocProd.modifId,
+                                            name:applicationDocProd.modifName,
+                                            MNEI:applicationDocProd.MNEI
+                                        };
+                                        newModif;
+                                    } else
+                                        modif;
+                                    ]]>
+                            </ctrl:set-value-expression>
+                        </ctrl:classifier>
+
+                        <fs:row>
+                            <ctrl:input-text id="mneiQuantity"
+                                             label="Количество"
+                                             css-class="n2o-label-6 n2o-control-4"
+                                             required="true">
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="mneiQuantityValidation"/>
+                                </ctrl:validations>
+                                <ctrl:set-value-expression on-load="false" silent-mode="true" on="applicationDocProd">
+                                    <![CDATA[
+                                    if(applicationDocProd.quantity)
+                                        applicationDocProd.quantity;
+                                    else
+                                        mneiQuantityValidation;
+                                    ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:input-text>
+                            <ctrl:output-text id="modif.MNEI"
+                                              label=""
+                                              depends-on="modif"
+                                              css-class="n2o-label-1 n2o-control-2"/>
+                        </fs:row>
+
+                        <ctrl:input-text id="note" label="Примечание" css-class="n2o-label-6 n2o-control-9"/>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+        </region>
+    </regions>
+</page>

@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>stg</object-id>
+    <name>stg</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_clinical_statistical_group csg
+                left join md_csg_type csgt on csgt.id = csg.type_id
+                left join md_csg_to_diagnosis csgd on csgd.csg_id = csg.id
+                left join md_diagnosis md1 on md1.id = csgd.from_diagnosis_id
+                left join md_diagnosis md2 on md2.id = csgd.to_diagnosis_id
+                where csgt.code = '4'
+                and (current_date between csg.from_dt and csg.to_dt or csg.from_dt is null and current_date &lt;= csg.to_dt or csg.from_dt &lt;= current_date and csg.to_dt is null or csg.from_dt is null and csg.to_dt is null)
+                and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(csg)
+                from md_clinical_statistical_group csg
+                left join md_csg_type csgt on csgt.id = csg.type_id
+                left join md_csg_to_diagnosis csgd on csgd.csg_id = csg.id
+                left join md_diagnosis md1 on md1.id = csgd.from_diagnosis_id
+                left join md_diagnosis md2 on md2.id = csgd.to_diagnosis_id
+                where csgt.code = '4'
+                and (current_date between csg.from_dt and csg.to_dt or csg.from_dt is null and current_date &lt;= csg.to_dt or csg.from_dt &lt;= current_date and csg.to_dt is null or csg.from_dt is null and csg.to_dt is null)
+                and :where
+            </n2o:count-query>
+            <n2o:alias>csg</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>csg.id</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <expression>csg.code</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>csg.name</expression>
+            <display>:expression</display>
+        </field>
+
+        <field>
+            <id>diagnosisCode</id>
+            <domain>string</domain>
+            <expression>md1.code || '-' || md2.code</expression>
+            <filters>
+                <filter type="eqOrIsNull" filter-field="diagnosisCode">(:diagnosisCode between md1.code and md2.code)</filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>:clinicId</expression>
+            <filters>
+                <filter type="eq" filter-field="clinicId" default-value="#{org.id?}">
+                    csg.id in (
+                        select csg_id from md_csg_to_clinic
+                        where clinic_id = :clinicId and
+                        (current_date between from_dt and to_dt or from_dt is null and current_date &lt;= to_dt or from_dt &lt;= current_date and to_dt is null or from_dt is null and to_dt is null)
+                    )
+                </filter>
+            </filters>
+        </field>
+
+    </fields>
+</query>

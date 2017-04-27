@@ -1,0 +1,138 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<table xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0">
+    <name>Картотека транспортных средств</name>
+    <query-id>transport</query-id>
+    <columns>
+        <column column-field-id="brand.name" name="Марка" />
+        <column column-field-id="display_model" name="Модель" />
+        <column column-field-id="inventory_number" name="Гос. номер" />
+        <column column-field-id="inventory_code_view" name="Код региона" />
+        <column column-field-id="vin" name="VIN-код" />
+        <column column-field-id="is_resource" name="Является ресурсом">
+            <icon>
+                <switch>
+                    <case value="true">icon-ok</case>
+                </switch>
+            </icon>
+        </column>
+    </columns>
+    <action-menu>
+        <menu-item label="Создать" context="false" id="create">
+            <show-modal page-id="transport" width="950px" container-id="main"
+                        action-id="create" refresh-on-close="true" focus-after-submit="true"
+                        master-field-id="id" detail-field-id="id"/>
+        </menu-item>
+        <menu-item label="Удалить" id="delete">
+            <invoke-action action-id="delete" confirmation="true"/>
+            <conditions>
+                <enabling-condition>
+                    <expression>!is_resource</expression>
+                    <tooltip>Нельзя удалить транспорт, который является ресурсом. Удалить транспорт можно после удаления ресурса.</tooltip>
+                </enabling-condition>
+            </conditions>
+        </menu-item>
+        <menu-item label="Добавить ресурс" context="true" id="createTransportResource">
+            <show-modal page-id="transportResourceStocks" width="860px" container-id="main" action-id="createTransportResource" page-name="Ресурс"
+                            refresh-on-close="false" model="default" detail-field-id="transport_id" master-field-id="id" focus-after-submit="true">
+            </show-modal>
+            <conditions>
+                <visibility-condition>
+                    <expression>!is_resource</expression>
+                </visibility-condition>
+            </conditions>
+        </menu-item>
+        <menu-item label="Изменить ресурс" context="true" id="updateTransportResource">
+            <show-modal page-id="transportResourceStocks" width="860px" container-id="main" action-id="updateTransportResource" page-name="Ресурс"
+                            refresh-on-close="false" detail-field-id="id" after-submit="closeModal" refresh-after-submit="false" master-field-id="resource_id" focus-after-submit="false">
+            </show-modal>
+            <conditions>
+                <visibility-condition>
+                    <expression>is_resource</expression>
+                </visibility-condition>
+            </conditions>
+        </menu-item>
+        <menu-item label="Удалить ресурс" context="true" id="deleteTransportResource">
+            <invoke-action action-id="deleteTransportResource" confirmation="true"/>
+            <conditions>
+                <visibility-condition>
+                    <expression>is_resource</expression>
+                </visibility-condition>
+                <enabling-condition>
+                    <expression>!has_group_resource</expression>
+                    <tooltip>Нельзя удалить ресурс, который входит в составной</tooltip>
+                </enabling-condition>
+            </conditions>
+        </menu-item>
+    </action-menu>
+    <filters opened="true">
+        <ctrl:output-text id="upperVin" visible="false">
+            <ctrl:set-value-expression on = "vin">vin.toUpperCase()</ctrl:set-value-expression>
+        </ctrl:output-text>
+        <ctrl:output-text id="gosnumber" visible="false">
+            <ctrl:set-value-expression on="inventory_number" >inventory_number.toUpperCase()</ctrl:set-value-expression>
+        </ctrl:output-text>
+        <ctrl:classifier id="department" label="Подразделение МО">
+            <ctrl:query query-id="transportDepartments" value-field-id="oid" label-field-id="name"
+                        master-field-id="oid" detail-field-id="org_id"/>
+        </ctrl:classifier>
+        <ctrl:classifier id="building" label="Расположение: здание">
+            <ctrl:query query-id="transportBuildings" value-field-id="oid" label-field-id="name"
+                        master-field-id="oid" detail-field-id="org_id"/>
+        </ctrl:classifier>
+        <ctrl:classifier id="room" label="Расположение: помещение" depends-on="building">
+            <ctrl:query query-id="transportRooms" value-field-id="oid" label-field-id="name"
+                        master-field-id="oid" detail-field-id="building_id"/>
+        </ctrl:classifier>
+        <ctrl:classifier id="contract" label="Договор поставки">
+            <ctrl:query query-id="transportContracts" value-field-id="oid" label-field-id="name"
+                        master-field-id="oid" detail-field-id="org_id"/>
+        </ctrl:classifier>
+        <ctrl:masked-input  id="inventory_number" label="Гос. номер"  mask="Я999ЯЯ">
+            <ctrl:set-value-expression on-load="false">gosnumber</ctrl:set-value-expression>
+        </ctrl:masked-input>
+        <ctrl:classifier id="type" label="Тип">
+            <ctrl:query query-id="transportTypes" value-field-id="oid" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:classifier id="brand" label="Марка">
+            <ctrl:query query-id="transportBrands" value-field-id="oid" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:classifier id="transport_model" label="Модель">
+            <ctrl:query query-id="transportModels" value-field-id="oid" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:input-text id="model" label="Модель" domain="string" length="250"/>
+        <ctrl:masked-input id="inventory_code" label="Код региона" mask="99?9" />
+        <ctrl:masked-input id="vin" label="VIN-код" mask="*****************">
+            <ctrl:set-value-expression on="upperVin">upperVin</ctrl:set-value-expression>
+            <ctrl:validations>
+                <ctrl:validation ref-id="forbiddenSymbols"/>
+            </ctrl:validations>
+        </ctrl:masked-input>
+        <ctrl:masked-input  id="okof_code" label="Код по ОКОФ" mask="99 9999999"/>
+        <ctrl:classifier id="category" label="Категория">
+            <ctrl:query query-id="transportCategories" value-field-id="oid" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:classifier id="equipment" label="Вид оснащения">
+            <ctrl:query query-id="transportEquipments" value-field-id="oid" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:classifier id="manufacturer" label="Производитель">
+            <ctrl:query query-id="transportOrganizations" value-field-id="oid" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:classifier id="country" label="Страна происхождения">
+            <ctrl:query query-id="transportCountries" value-field-id="oid" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:classifier id="ownership" label="Вид собственности">
+            <ctrl:query query-id="transportOwnershipPatterns" value-field-id="oid" label-field-id="name"/>
+        </ctrl:classifier>
+        <ctrl:masked-input id="service_period" label="Нормативный срок службы" mask="?9999999999">
+            <ctrl:validations>
+                <ctrl:validation ref-id="servicePeriodValid"/>
+            </ctrl:validations>
+        </ctrl:masked-input>
+        <ctrl:checkbox id="is_resource" label="Является ресурсом"/>
+        <ctrl:date-interval id="issue_period" format="DD.MM.YYYY" label="Дата выпуска" />
+        <ctrl:date-interval id="purchase_period" format="DD.MM.YYYY" label="Дата приобретения" />
+        <ctrl:date-interval id="warranty_period" format="DD.MM.YYYY" label="Гарантийный срок" />
+        <ctrl:date-interval id="period" format="DD.MM.YYYY" label="Интервал действия" />
+    </filters>
+</table>

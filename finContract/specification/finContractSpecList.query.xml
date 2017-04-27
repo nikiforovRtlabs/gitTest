@@ -1,0 +1,122 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>Спецификации</name>
+    <object-id>finContractSpec</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from inventory.fin_contract_spec s
+                inner join fin_contract fc on fc.id=s.doc_id
+                left outer join inventory.hold_modif m on m.id=s.hold_modif_id
+                left outer join inventory.funding_source fs on fs.id=s.funding_source_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(s)
+                from inventory.fin_contract_spec s
+                inner join fin_contract fc on fc.id=s.doc_id
+                left outer join inventory.hold_modif m on m.id=s.hold_modif_id
+                left outer join inventory.funding_source fs on fs.id=s.funding_source_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>s</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>contract.id</id>
+            <domain>integer</domain>
+            <expression>s.doc_id</expression>
+            <search>:expression = :contract.id</search>
+        </field>
+        <field>
+            <id>holdModif.id</id>
+            <domain>integer</domain>
+            <expression>m.id</expression>
+        </field>
+        <field>
+            <id>holdModif.name</id>
+            <name>Наименование ЛС и ИМН</name>
+            <domain>string</domain>
+            <expression>m.name</expression>
+        </field>
+        <field>
+            <id>series</id>
+            <name>Серия</name>
+            <domain>string</domain>
+        </field>
+        <field>
+            <id>expireDate</id>
+            <name>Срок годности</name>
+            <domain>date</domain>
+            <expression>s.expire_dt</expression>
+        </field>
+        <field>
+            <id>quantity</id>
+            <name>Количество</name>
+            <domain>string</domain>
+            <expression>s.quantity</expression>
+        </field>
+        <field>
+            <id>measure</id>
+            <domain>string</domain>
+            <name>Ед.изм.</name>
+            <expression>(select inventory.get_unit_name_by_flag_of_modif(m.price_unit_flag, m.id))</expression>
+        </field>
+        <field>
+            <id>price</id>
+            <name>Цена</name>
+            <domain>string</domain>
+            <expression>s.price</expression>
+        </field>
+        <field>
+            <id>amount</id>
+            <name>Сумма</name>
+            <domain>string</domain>
+            <expression>s.amount</expression>
+        </field>
+        <field>
+            <id>docStatus.id</id>
+            <domain>integer</domain>
+            <expression>fc.status_id</expression>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>s.status_id</expression>
+        </field>
+        <field>
+            <id>status.name</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>(select name from fin_contract_status_type st where st.id=s.status_id)</expression>
+        </field>
+        <field>
+            <id>refFromArrivalSpecExists</id>
+            <domain>boolean</domain>
+            <expression>
+                (exists (select 1 from inventory.arrival_spec spec where spec.contract_spec_id = s.id ))
+            </expression>
+        </field>
+        <field>
+            <id>specCount</id>
+            <domain>integer</domain>
+            <expression>(select count(s) from inventory.fin_contract_spec s where s.doc_id= :contract.id)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>executionQuantity</id>
+            <domain>string</domain>
+            <name>Исполнение</name>
+            <expression>(select trim(to_char(sum(arr_s.quantity),'FM999 999 990.99'),'.') from inventory.arrival_spec arr_s
+                group by arr_s.contract_spec_id =s.id, arr_s.status_id having arr_s.contract_spec_id =s.id and arr_s.status_id=2)||' '||(select inventory.get_unit_name_by_flag_of_modif(m.price_unit_flag, m.id))
+            </expression>
+        </field>
+    </fields>
+</query>

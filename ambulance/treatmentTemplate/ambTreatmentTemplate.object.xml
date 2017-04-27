@@ -1,0 +1,177 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Шаблоны модели лечения</name>
+
+    <actions>
+        <action id="createServiceTemplate" form-submit-label="Сохранить">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO public.services_template(
+                    id, clinic_id, name, note, begin_date, end_date, is_service,
+                    is_holding, standard_id, is_ambulance)
+                    VALUES (nextval('public.services_template_seq'), :clinicId, :name, :note,
+                    :beginDate, :endDate, false,
+                    true, :standardId, true);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+                <param name="note" mapping="['note']"/>
+                <param name="clinicId" mapping="['clinicId']" value="#{org.id}"/>
+                <param name="period.begin" mapping="['beginDate']"/>
+                <param name="period.end" mapping="['endDate']"/>
+                <param name="standard.id" mapping="['standardId']"/>
+            </in-parameters>
+        </action>
+
+        <action id="updateServiceTemplate" form-submit-label="Сохранить">
+            <invocation>
+                <n2o:sql>
+                    UPDATE public.services_template
+                    SET clinic_id=:clinicId, name=:name, note=:note, begin_date=:beginDate,
+                    end_date=:endDate, standard_id=:standardId
+                    WHERE id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="name" mapping="['name']"/>
+                <param name="note" mapping="['note']"/>
+                <param name="clinicId" mapping="['clinicId']" value="#{org.id}"/>
+                <param name="period.begin" mapping="['beginDate']"/>
+                <param name="period.end" mapping="['endDate']"/>
+                <param name="standard.id" mapping="['standardId']"/>
+            </in-parameters>
+        </action>
+
+        <action id="deleteServiceTemplate" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    DELETE FROM public.services_template WHERE id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <confirmation-text>Вы уверены, что хотите удалить шаблон модели лечения ?</confirmation-text>
+        </action>
+
+        <!--servicesTemplatePrescriptionHolding-->
+
+        <action id="createServicesTemplatePrescriptionHolding" form-submit-label="Сохранить">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO public.services_template_prescription(
+                    id, template_id, administration_route_id, periodicity_id, note)
+                    VALUES (nextval('public.services_template_prescription_seq'), :templateId,
+                    :administrationRouteId, (select id from hospital.prescription_periodicity
+                    where name = 'Однократно'), :note);
+
+                    INSERT INTO public.services_template_prescription_holding(
+                    id, prescription_id, holding_id, hold_form_type_id, hold_mnei_id,
+                    hold_dose_value, hold_dose_measure_id, count)
+                    VALUES (nextval('public.services_template_prescription_holding_seq'), currval('public.services_template_prescription_seq'),
+                    :holding_id, :hold_form_type_id, :hold_mnei_id, :hold_dose_value, :hold_dose_measure_id,
+                    :count);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="holdings.0.holding.holding_id" mapping="['holding_id']" domain="integer"/>
+                <param name="holdings.0.count" mapping="['count']" domain="numeric"/>
+                <param name="holdings.0.dose" mapping="['dose']" domain="numeric"/>
+                <param name="holdings.0.holding.form_type_id" mapping="['hold_form_type_id']" domain="integer"/>
+                <param name="holdings.0.holding.mnei_id" mapping="['hold_mnei_id']" domain="integer"/>
+                <param name="holdings.0.holding.dose_measure_id" mapping="['hold_dose_measure_id']" domain="integer"/>
+                <param name="holdings.0.holding.dose" mapping="['hold_dose_value']" domain="numeric"/>
+                <param name="administrationRoute.id" mapping="['administrationRouteId']" domain="integer"/>
+                <param name="templateId" mapping="['templateId']"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+        </action>
+
+        <action id="updateServicesTemplatePrescriptionHolding" form-submit-label="Сохранить">
+            <invocation>
+                <n2o:sql>
+                    UPDATE public.services_template_prescription
+                    SET template_id=:templateId, administration_route_id=:administrationRouteId,
+                    note=:note
+                    WHERE id = :id;
+
+                    UPDATE public.services_template_prescription_holding
+                    SET prescription_id=:id, holding_id = :holding_id, hold_form_type_id = :hold_form_type_id,
+                    hold_mnei_id = :hold_mnei_id, hold_dose_value= :hold_dose_value, hold_dose_measure_id= :hold_dose_measure_id,
+                    count= :count
+                    WHERE id = :id_hold;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="holdings.0.id" mapping="['id_hold']" domain="integer"/>
+                <param name="holdings.0.holding.holding_id" mapping="['holding_id']" domain="integer"/>
+                <param name="holdings.0.count" mapping="['count']" domain="numeric"/>
+                <param name="holdings.0.dose" mapping="['dose']" domain="numeric"/>
+                <param name="holdings.0.holding.form_type_id" mapping="['hold_form_type_id']" domain="integer"/>
+                <param name="holdings.0.holding.mnei_id" mapping="['hold_mnei_id']" domain="integer"/>
+                <param name="holdings.0.holding.dose_measure_id" mapping="['hold_dose_measure_id']" domain="integer"/>
+                <param name="holdings.0.holding.dose" mapping="['hold_dose_value']" domain="numeric"/>
+                <param name="administrationRoute.id" mapping="['administrationRouteId']" domain="integer"/>
+                <param name="templateId" mapping="['templateId']"/>
+                <param name="note" mapping="['note']" domain="string"/>
+            </in-parameters>
+        </action>
+
+        <action id="deleteServicesTemplatePrescriptionHolding" form-submit-label="Удалить" name="Удаление">
+            <invocation>
+                <n2o:sql>
+                    delete from public.services_template_prescription where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+            <success-text>Препарат удален</success-text>
+            <confirmation-text>Вы уверены, что хотите удалить препарат?</confirmation-text>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkHolding0" level="error">
+            <expression>
+                typeof holdings != 'undefined' &amp;&amp; holdings != null &amp;&amp;
+                typeof holdings[0] != 'undefined' &amp;&amp; holdings[0] != null &amp;&amp;
+                typeof holdings[0].holding != 'undefined' &amp;&amp; holdings[0].holding != null &amp;&amp;
+                typeof holdings[0].holding.id != 'undefined' &amp;&amp; holdings[0].holding.id != null
+            </expression>
+            <message>Заполните поле</message>
+        </condition>
+
+        <condition id="checkDoseFormat" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[0].dose"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[0].dose!=null && typeof holdings[0].dose!= 'undefined'){
+                        regex.test(holdings[0].dose);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+
+        <condition id="checkCountFormat" level="error">
+            <message>Неверный формат</message>
+            <expression on="holdings[0].count"><![CDATA[
+                    var regex = new RegExp('(\^[1-9][0-9]{0,4}\$)|(\^[0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9](([.,])([0-9]{1,3}))\$)|(\^[1-9][0-9]{1,2}(([.,])([0-9]{1,2}))\$)|(\^[1-9][0-9]{1,3}(([.,])([0-9]{1}))\$)');
+                    if(holdings[0].count!=null && typeof holdings[0].count!= 'undefined'){
+                        regex.test(holdings[0].count);
+                    }else true;
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+
+</object>

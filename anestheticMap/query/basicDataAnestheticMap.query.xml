@@ -1,0 +1,141 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>anestheticMap</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from hospital.basic_data_anesthetic_map bdam
+                left join mc_case mc on bdam.uid_id = mc.id
+                left join mc_diagnosis mcd on mcd.id = mc.main_diagnos_id
+                left join md_diagnosis md on md.id = mcd.diagnos_id
+                left join md_rh_blood_group mrbg on bdam.blood_group_id = mrbg.id
+                left join sr_service ss on bdam.surgery_id = ss.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(a)
+                from hospital.basic_data_anesthetic_map bdam
+                left join mc_case mc on bdam.uid_id = mc.id
+                left join mc_diagnosis mcd on mcd.id = mc.main_diagnos_id
+                left join md_diagnosis md on md.id = mcd.diagnos_id
+                left join md_rh_blood_group mrbg on bdam.blood_group_id = mrbg.id
+                left join sr_service ss on bdam.surgery_id = ss.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>bdam</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>bdam.id</expression>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>bdam.patient_id</expression>
+        </field>
+
+        <field>
+            <id>operationJournalId</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>bdam.md_srv_rendered_oper_id</expression>
+            <filters auto-generate="true"/>
+        </field>
+
+        <field>
+            <id>uid.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>mc.id</expression>
+        </field>
+        <field>
+            <id>uid.uid</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                '№' ||coalesce(mc.uid, '') || '  Открыт:' || coalesce(to_char(mc.create_date, 'dd.mm.yyyy'), '')
+            </expression>
+        </field>
+
+        <field>
+            <id>height</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>bdam.height</expression>
+        </field>
+        <field>
+            <id>weight</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>bdam.weight</expression>
+        </field>
+
+        <field>
+            <id>bloodGroup.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>mrbg.id</expression>
+        </field>
+
+        <field>
+            <id>surgery.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>ss.id</expression>
+        </field>
+        <field>
+            <id>surgery.name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>coalesce(ss.code || ' ' || ss.name, ss.name)</expression>
+        </field>
+
+        <field>
+            <id>urgency</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                <!--todo: возвращает больше одного результата-->
+                (select (case when msr1.is_urgent is true then 'срочная' else 'плановая' end)
+                from md_srv_rendered msr1
+                left join sr_srv_rendered ssr1 on msr1.id = ssr1.id
+                left join sr_service ss1 on ss1.id = ssr1.service_id
+                where msr1.case_id = mc.id AND ss.id=ss1.id limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>diagnosis</id>
+            <domain>string</domain>
+            <display/>
+            <expression>md.name</expression>
+        </field>
+
+        <field>
+            <id>date_surgery</id>
+            <domain>date</domain>
+            <display/>
+            <expression>bdam.date_surgery</expression>
+        </field>
+
+        <field>
+            <id>controlSavingDone</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression> bdam.control_saving_done
+            </expression>
+        </field>
+
+
+
+    </fields>
+</query>

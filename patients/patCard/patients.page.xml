@@ -1,0 +1,123 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+    <object-id>patients</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>Поиск пациента</name>
+
+    <regions>
+        <region place="single" type="none">
+            <container id="main">
+                <wgt:table>
+                    <wgt:query-id>patients</wgt:query-id>
+                    <wgt:size>20</wgt:size>
+                    <wgt:action-menu>
+                        <wgt:group>
+                            <wgt:menu-item id="newPatient" label="Новый пациент" context="false" icon="icon-plus"
+                                           type="textAndIcon" key="Insert">
+                                <wgt:show-modal page-id="patientCreate"/>
+                            </wgt:menu-item>
+                            <wgt:menu-item id="edit" label="Изменить" icon="icon-pencil" type="textAndIcon">
+                                <wgt:open-page page-id="patient" width="1340px" action-id="update"
+                                               container-id="main" master-field-id="id" detail-field-id="id" refresh-on-close="true"
+                                               page-name="Редактирование пациента: {main.surname} {main.name} {main.patronymic}"/>
+                            </wgt:menu-item>
+                            <wgt:menu-item id="delete" label="Удалить" icon="icon-remove" type="textAndIcon">
+                                <wgt:invoke-action action-id="delete" confirmation="false"/>
+                            </wgt:menu-item>
+                        </wgt:group>
+                        <wgt:group>
+                            <wgt:menu-item id="duplicates" label="Поиск дубликатов" icon="icomoon-search" type="textAndIcon" context="false">
+                                <wgt:open-page page-id="PatSearchDuplicates"/>
+                            </wgt:menu-item>
+                            <wgt:menu-item id="emk" label="ЭМК" icon="icomoon-book">
+                                <wgt:a href="/cases/tree?value=:id:" target="newWindow"/>
+                            </wgt:menu-item>
+                            <wgt:menu-item id="sub" label="Еще">
+                                <wgt:sub-menu>
+                                    <wgt:menu-item id="recordPat" label="Запись на прием"  icon="icomoon-stopwatch">
+                                        <wgt:a href="${rmis.external.host}/plan/planning?value=:id:" target="newWindow"/>
+                                    </wgt:menu-item>
+                                    <wgt:menu-item id="reviseTmhif" label="Запрос в ТФОМС" icon="icomoon-download2">
+                                        <wgt:show-modal page-id="patReviseTmhif" refresh-on-close="true" width="40%" page-name="Запрос по пациенту {main.fullName} {main.birthDt}"/>
+                                    </wgt:menu-item>
+                                </wgt:sub-menu>
+                            </wgt:menu-item>
+                        </wgt:group>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="fullName" width="200px"/>
+                        <wgt:column column-field-id="birthDate" width="115px"/>
+                        <wgt:column column-field-id="age" width="70px"/>
+                        <wgt:column column-field-id="policy" width="210px"/>
+                        <wgt:column column-field-id="lastFluorographyDate" width="115px"/>
+                        <wgt:column column-field-id="document" width="190px"/>
+                        <wgt:column column-field-id="address" width="210px"/>
+                        <wgt:column column-field-id="insuranceNumber" width="120px"/>
+                        <wgt:column column-field-id="attach" width="550px"/>
+                        <wgt:column column-field-id="is_death" width="50px">
+                            <wgt:icon>
+                                <wgt:switch>
+                                    <wgt:case value="true">icon-ok</wgt:case>
+                                </wgt:switch>
+                            </wgt:icon>
+                        </wgt:column>
+                        <wgt:column column-field-id="socGroup" width="165px"/>
+                    </wgt:columns>
+                    <wgt:filters opened="true" position="top">
+                        <ctrl:input-text id="surname"/>
+                        <ctrl:input-text id="name"/>
+                        <ctrl:input-text id="patronymic"/>
+                        <ctrl:date-time id="birthDate" format="DD.MM.YYYY"/>
+                        <ctrl:classifier id="gender" label="Пол">
+                            <ctrl:query query-id="qgender" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+                        <ctrl:input-text id="policy" label="Серия и номер полиса"/>
+                        <ctrl:input-text id="document" label="Серия и номер документа"/>
+                        <ctrl:masked-input id="insuranceNumber" label="СНИЛС" mask="?999-999-999 99"/>
+                        <ctrl:checkbox id="is_attach" label="Прикреплен"/>
+                        <ctrl:hidden id="orgId" default-value="#{org.id?}"/>
+                        <ctrl:hidden id="orgName" default-value="#{org.name?}"/>
+                        <ctrl:classifier id="name_mo" label="МО прикрепления">
+                            <ctrl:query query-id="clinicForPatSearch" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="id" value="#{org.id?}"></ctrl:pre-filter>
+                                </ctrl:pre-filters>
+                                    </ctrl:query>
+                            <ctrl:set-value-expression on="is_attach" on-load="false">
+                                if ((is_attach == 'undefined') || (is_attach == false)) {
+                                null;
+                                }
+                                else if (is_attach == true) {
+                                var o = new Object();
+                                o.id = orgId;
+                                o.name = orgName;
+                                o;
+                                }
+                            </ctrl:set-value-expression>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>is_attach == true</ctrl:enabling-condition>
+                                <ctrl:required-condition>is_attach == true</ctrl:required-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+                        <ctrl:input-text id="number_attach" label="Номер карты">
+                            <ctrl:set-value-expression on="is_attach" on-load="false">
+                                if ((is_attach == 'undefined') || (is_attach == false))
+                                null;
+                            </ctrl:set-value-expression>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>is_attach == true</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:input-text>
+                        <rc:address id="address.id" label="Адрес" control-style="width:450px"
+                                    format="(2,s,0)(3,s,0)(4,s,0)(5,s,0)(6,s,0)(7,s,0)(8,s,0)(9,s,0)" min-level="2"
+                                    autocreate="false"/>
+                        <ctrl:checkbox id="is_death" label="Умер"/>
+                    </wgt:filters>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>

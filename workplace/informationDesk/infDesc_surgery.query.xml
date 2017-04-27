@@ -1,0 +1,125 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>infDesc_surgery</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_srv_rendered msr
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join sr_srv_type st on st.id = s.type_id
+                left join sr_srv_prototype sp on sp.id = s.prototype_id
+                left join md_referral r on r.id = msr.referral_id
+                left join md_employee_position mep on mep.id = r.ref_doctor_id
+                left join pim_employee_position pep on pep.id = mep.id
+                left join pim_employee e on e.id = pep.employee_id
+                left join pim_individual referral_doctor_ind on referral_doctor_ind.id = e.individual_id
+                left join sr_res_group res_group on res_group.id = ssr.res_group_id
+                left join pim_employee_position empl_posit on empl_posit.id = res_group.responsible_id
+                left join pim_employee empl on empl.id = empl_posit.employee_id
+                left join pim_individual render_doctor_ind on render_doctor_ind.id = empl.individual_id
+                where st.is_surgery is true and :where
+                order by :order, msr.id
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(msr)
+                from md_srv_rendered msr
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                join sr_service s on s.id = ssr.service_id
+                join sr_srv_type st on st.id = s.type_id
+                left join sr_srv_prototype sp on sp.id = s.prototype_id
+                left join md_referral r on r.id = msr.referral_id
+                left join md_employee_position mep on mep.id = r.ref_doctor_id
+                left join pim_employee_position pep on pep.id = mep.id
+                left join pim_employee e on e.id = pep.employee_id
+                left join pim_individual referral_doctor_ind on referral_doctor_ind.id = e.individual_id
+                left join sr_res_group res_group on res_group.id = ssr.res_group_id
+                left join pim_employee_position empl_posit on empl_posit.id = res_group.responsible_id
+                left join pim_employee empl on empl.id = empl_posit.employee_id
+                left join pim_individual render_doctor_ind on render_doctor_ind.id = empl.individual_id
+                where st.is_surgery is true and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>id</name>
+            <expression>msr.id</expression>
+        </field>
+
+        <field>
+            <id>service</id>
+            <domain>string</domain>
+            <name>Операция</name>
+            <expression>s.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>msr.case_id</expression>
+            <search>:expression = :caseId</search>
+        </field>
+
+        <field>
+            <id>referralDate</id>
+            <domain>date</domain>
+            <name>Дата направления</name>
+            <expression>r.referral_date</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>referralDoctor</id>
+            <domain>string</domain>
+            <name>Направил</name>
+            <expression>
+                coalesce(referral_doctor_ind.surname, '') ||
+                coalesce(' ' || substring(referral_doctor_ind.name for 1) || '.', '') ||
+                coalesce(' ' || substring(referral_doctor_ind.patr_name for 1) || '.', '')
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>renderedDate</id>
+            <domain>date</domain>
+            <name>Дата оказания</name>
+            <expression>ssr.bdate + coalesce(ssr.begin_time, '00:00:00')</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>renderedDoctor</id>
+            <domain>string</domain>
+            <name>Оказал</name>
+            <expression>
+                coalesce(render_doctor_ind.surname, '') ||
+                coalesce(' ' || substring(render_doctor_ind.name for 1) || '.', '') ||
+                coalesce(' ' || substring(render_doctor_ind.patr_name for 1) || '.', '')
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>status</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>(case when ssr.is_rendered is true then 'Оказана' else 'Запланирована' end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+    </fields>
+
+
+</query>

@@ -1,0 +1,95 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>diseases</object-id>
+    <name>diseases</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from vac_disease vd
+                left join vac_disease2disease vd2d on vd2d.self = vd.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(*)
+                from vac_disease vd
+                left join vac_disease2disease vd2d on vd2d.self = vd.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>vd</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>
+                vd.id
+            </expression>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <expression>vd.code</expression>
+            <search>upper(:expression) like '%'||upper(:code)||'%'</search>
+        </field>
+        <field>
+            <id>label</id>
+            <domain>string</domain>
+            <expression>vd.label</expression>
+            <search>
+                upper(:expression) like '%'||upper(:label)||'%'
+            </search>
+        </field>
+        
+        <field>
+            <id>is_multi</id>
+            <domain>boolean</domain>
+            <expression>
+                case exists (select * from vac_disease2disease where self = vd.id) when false
+                    then false
+                    else true
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>calendar_id</id>
+            <domain>integer</domain>
+            <expression>:calendar_id</expression>
+            <search>
+                exists(SELECT 1
+                from vac.national_calendar__schema ncs
+                JOIN vac.schema s ON ncs.schema_id = s.id
+                JOIN vac.schema_stage ss ON s.id = ss.schema_id
+                WHERE
+                ncs.calendar_code = :calendar_id AND
+                s.is_group_of_risk IS TRUE and ss.disease_id = vd.id limit 1)
+            </search>
+        </field>
+
+        <field>
+            <id>child_id</id>
+            <domain>integer</domain>
+            <expression>
+                case exists (select * from vac_disease2disease where self = vd.id) when false
+                    then vd.id
+                    else vd2d.child
+                end
+            </expression>
+        </field>
+        <field>
+            <id>e_code</id>
+            <domain>string</domain>
+            <expression>vd.e_code</expression>
+        </field>
+        <field>
+            <id>simpleDiseases</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(row_to_json(ol_json)))
+                from (select vd2.id, vd2.label from vac_disease vd2 left join vac_disease2disease vd2d on vd2d.child = vd2.id where vd.id = vd2d.self) as ol_json)
+            </expression>
+        </field>
+    </fields>
+</query>

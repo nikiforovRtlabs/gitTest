@@ -1,0 +1,226 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>departmentsTree</object-id>
+    <name>departmentsTree</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select distinct :select  from (
+                    with recursive t as (
+                        select d.* from pim_department d where d.id in (
+                                    select id
+                                    from pim_department d
+                                    where d.org_id = :org_id and :where
+                                )
+                        union all
+                        select d.* from pim_department d join t on d.id = t.parent_id
+                    )
+                    select * from t where (:parent.oid is null or t.parent_id = :parent.oid)
+                ) d
+                left join pim_department parent on parent.id = d.parent_id
+                order by d.name
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*) from (
+                    select distinct * from (
+                        with recursive t as (
+                            select d.* from pim_department d where d.id in (
+                                select id
+                                from pim_department d
+                                where d.org_id = :org_id and :where
+                            )
+                            union all
+                            select d.* from pim_department d join t on d.id = t.parent_id
+                        )
+                        select * from t where (:parent.oid is null or t.parent_id = :parent.oid)
+                    ) d
+                ) t2
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>d.id</expression>
+            <display/>
+            <search filter-field="id" type="eq" />
+        </field>
+        <field>
+            <id>parent_id</id>
+            <domain>integer</domain>
+            <expression>d.parent_id</expression>
+            <display/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>parent.id</id>
+            <domain>integer</domain>
+            <expression>d.parent_id</expression>
+            <display/>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>parent.oid</id>
+            <domain>integer</domain>
+            <expression>:parent.oid</expression>
+            <display/>
+            <search filter-field="parent.oid" type="eq">d.parent_id = :parent.oid</search>
+        </field>
+        <field>
+            <id>parent.name</id>
+            <domain>string</domain>
+            <expression>parent.name</expression>
+            <display/>
+            <search unavailable="true"/>
+            <!--<search filter-field="parent.name">upper(:expression) like '%'||upper(:name)||'%'</search>-->
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>d.name</expression>
+            <display/>
+            <search filter-field="name">upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>has_child</id>
+            <domain>boolean</domain>
+            <expression>
+                (select count(*) > 0 from pim_department where org_id = :org_id and parent_id = d.id)
+            </expression>
+            <display/>
+        </field>
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>:org_id</expression>
+            <search value="#{stocks.orgId}">(:expression = :org_id)</search>
+        </field>
+        <field>
+            <id>funding_id</id>
+            <domain>integer</domain>
+            <expression>d.funding_id</expression>
+            <display/>
+            <search filter-field="fin_funding_source_type.oid" type="eq" />
+        </field>
+        <field>
+            <id>funding_name</id>
+            <domain>string</domain>
+            <expression>(SELECT name FROM fin_funding_source_type fs WHERE fs.id = d.funding_id)</expression>
+            <display/>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <expression>d.code</expression>
+            <display/>
+            <search filter-field="code">upper(:expression) like '%'||upper(:code)||'%'</search>
+        </field>
+        <field>
+            <id>accounting_center_id</id>
+            <domain>integer</domain>
+            <expression>d.accounting_center_id</expression>
+            <display/>
+            <search filter-field="accounting_center.oid" type="eq" />
+        </field>
+        <field>
+            <id>accounting_center_name</id>
+            <domain>string</domain>
+            <expression>(SELECT name FROM pim_accounting_center ac WHERE ac.id = d.accounting_center_id)</expression>
+            <display/>
+        </field>
+        <field>
+            <id>active.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search filter-field="active.id" type="eq" >
+                <![CDATA[
+                    (
+                        case :active.id
+                        when 0 then
+                            true
+                        when 1 then
+                            (d.from_dt is null and d.to_dt is null) or ((d.to_dt is null or d.to_dt >= now()::date)
+                             and (d.from_dt is null or d.from_dt <= (now()::date + 1)))
+                        when 2 then
+                            not(
+                            (d.from_dt is null and d.to_dt is null) or ((d.to_dt is null or d.to_dt >= now()::date)
+                             and (d.from_dt is null or d.from_dt <= (now()::date + 1))) )
+                        end
+                    )
+                    ]]>
+            </search>
+        </field>
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <expression>d.from_dt</expression>
+            <display/>
+        </field>
+        <field>
+            <id>to_dt</id>
+            <domain>date</domain>
+            <expression>d.to_dt</expression>
+            <display/>
+        </field>
+        <field>
+            <id>type_id</id>
+            <domain>integer</domain>
+            <expression>d.type_id</expression>
+            <display/>
+            <search filter-field="department_type.oid" type="eq" />
+        </field>
+        <field>
+            <id>type_name</id>
+            <domain>string</domain>
+            <expression>(SELECT name FROM pim_department_type t WHERE t.id = d.type_id)</expression>
+            <display/>
+        </field>
+        <field>
+            <id>profiles</id>
+            <domain>integer[]</domain>
+            <display unavailable="true"/>
+            <search filter-field="profiles*.oid" type="eq" >
+                exists (
+                    select from md_department_profile dp
+                    where dp.department_id=d.id and dp.profile_id in (:profiles*.oid)
+                )
+            </search>
+        </field>
+        <field>
+            <id>kind_id</id>
+            <domain>integer</domain>
+            <expression>d.kind_id</expression>
+            <display/>
+            <search filter-field="department_kind.oid" type="eq" />
+        </field>
+        <field>
+            <id>kind_name</id>
+            <domain>string</domain>
+            <expression>(SELECT name FROM pim_department_kind k WHERE k.id = d.kind_id)</expression>
+            <display/>
+        </field>
+        <field>
+            <id>is_payment</id>
+            <domain>boolean</domain>
+            <expression>d.is_payment</expression>
+            <display/>
+            <search filter-field="is_payment" type="eq" />
+        </field>
+        <field>
+            <id>is_branch_type</id>
+            <domain>boolean</domain>
+            <expression>d.is_branch_type</expression>
+            <display/>
+            <search filter-field="is_branch_type" type="eq" />
+        </field>
+        <field>
+            <id>age_group.oid</id>
+            <domain>integer</domain>
+            <expression>d.age_group_id</expression>
+            <display/>
+            <search filter-field="age_group.oid" type="eq" />
+        </field>
+    </fields>
+</query>

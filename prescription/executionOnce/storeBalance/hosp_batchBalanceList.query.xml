@@ -1,0 +1,342 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>batchBalanceList</name>
+    <object-id>hosp_storeBalance</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query><![CDATA[
+            select :select
+            from
+                inventory.store_supply ss
+                join inventory.store s 				    on s.id = ss.store_id
+                join inventory.batch b				    on b.id = ss.batch_id
+                join
+                (select hm.id as modifId
+                        , hm.name as        modifName
+                        , hm.holding_id as  holdingId
+                        , null as           conversion_rate
+                        , hm.mnei_id as     mneiId
+                        , hm.form_type_id as formTypeId
+                        , hm.price_unit_flag as unitFlag
+                        , fpv2.value as     concentration
+                        , fpv2.unit_id as   concentrationMeasureId
+                        , fpv.value as      dose
+                        , fpv.unit_id       doseMeasureId
+                    from
+                    inventory.hold_modif hm
+                    left join inventory.form_param_value fpv 		on fpv.hold_modif_id = hm.id and fpv.form_param_id = 3
+                    left join inventory.form_param_value fpv2 	    on fpv2.hold_modif_id = hm.id and fpv2.form_param_id = 2
+                    where hm.write_off_unit_flag in (1,2)
+                )mod                             	    on mod.modifId = b.hold_modif_id
+                join inventory.holding h                on h.id = mod.holdingId
+                left join inventory.funding_source fs   on fs.id = ss.funding_source_id
+                left join cmn_measure mnei       	    on mnei.id = mod.mneiId
+                left join inventory.form_type ft 	    on ft.id = mod.formTypeId
+                left join inventory.holding_producer hp on hp.id = b.hold_producer_id
+                left join pim_organization org          on org.id = hp.org_id
+                left join
+                (select id, extract(month from age(expire_dt::date, current_date)) monthOfExpiration,
+                            extract(day from age(expire_dt::date, current_date)) dayOfExpiration,
+                            extract(year from age(expire_dt::date, current_date)) yearOfExpiration
+                    from  inventory.batch
+                )ed           					        on ed.id = b.id
+            where ss.act_balance_mnei != 0
+            and :where
+            order by :order
+            ]]>
+            </n2o:items-query>
+            <n2o:count-query><![CDATA[ select count(ss)
+            from
+                inventory.store_supply ss
+                join inventory.store s 				    on s.id = ss.store_id
+                join inventory.batch b				    on b.id = ss.batch_id
+                join
+                (select hm.id as modifId
+                        , hm.name as        modifName
+                        , hm.holding_id as  holdingId
+                        , null as           conversion_rate
+                        , hm.mnei_id as     mneiId
+                        , hm.form_type_id as formTypeId
+                        , hm.price_unit_flag as unitFlag
+                        , fpv2.value as     concentration
+                        , fpv2.unit_id as   concentrationMeasureId
+                        , fpv.value as      dose
+                        , fpv.unit_id       doseMeasureId
+                    from
+                    inventory.hold_modif hm
+                    left join inventory.form_param_value fpv 		on fpv.hold_modif_id = hm.id and fpv.form_param_id = 3
+                    left join inventory.form_param_value fpv2 	    on fpv2.hold_modif_id = hm.id and fpv2.form_param_id = 2
+                    where hm.write_off_unit_flag in (1,2)
+                )mod                                    on mod.modifId = b.hold_modif_id
+                join inventory.holding h                on h.id = mod.holdingId
+                left join inventory.funding_source fs   on fs.id = ss.funding_source_id
+                left join cmn_measure mnei       	    on mnei.id = mod.mneiId
+                left join inventory.form_type ft 	    on ft.id = mod.formTypeId
+                left join inventory.holding_producer hp on hp.id = b.hold_producer_id
+                left join pim_organization org          on org.id = hp.org_id
+            where ss.act_balance_mnei != 0
+            and :where
+                ]]>
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>s.department_id</expression>
+        </field>
+
+        <field>
+            <id>financialTypeId</id>
+            <domain>integer</domain>
+            <expression>fs.id</expression>
+            <search>
+                (:financialTypeId is null or (select count(1) from inventory.funding_source_payment_type fspt1 inner join inventory.funding_source fs1 on fs1.id = fspt1.funding_source_id
+                where fspt1.payment_type_id = :financialTypeId and fspt1.is_check_accounting = true and (fspt1.org_id is null or fspt1.org_id = :org_id) and (fs1.org_id is null or fs1.org_id = :org_id)) = 0 or
+                fs.id in (select fspt2.funding_source_id from inventory.funding_source_payment_type fspt2 inner join inventory.funding_source fs2 on fs2.id = fspt2.funding_source_id
+                where fspt2.payment_type_id = :financialTypeId and fspt2.is_check_accounting = true and (fspt2.org_id is null or fspt2.org_id = :org_id) and (fs2.org_id is null or fs2.org_id = :org_id)))
+            </search>
+        </field>
+
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>:org_id</expression>
+        </field>
+
+        <field>
+            <id>store.id</id>
+            <domain>integer</domain>
+            <expression>ss.store_id</expression>
+            <search filter-field="store*.id" type="in">ss.store_id in (:store*.id)</search>
+        </field>
+
+        <field>
+            <id>store.name</id>
+            <name>Склад</name>
+            <domain>string</domain>
+            <expression>s.name</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>storeSupply.id</id>
+            <domain>integer</domain>
+            <expression>ss.id</expression>
+        </field>
+
+        <field>
+            <id>comGroup.id</id>
+            <domain>integer</domain>
+            <expression>h.commodity_group_id</expression>
+        </field>
+
+        <field>
+            <id>holdModif.id</id>
+            <domain>integer</domain>
+            <expression>mod.modifId</expression>
+        </field>
+
+        <field>
+            <id>modifId</id>
+            <domain>integer</domain>
+            <expression>mod.modifId</expression>
+        </field>
+
+        <field>
+            <id>holdModif.name</id>
+            <name>Модификация</name>
+            <domain>string</domain>
+            <expression>modifName</expression>
+        </field>
+
+        <field>
+            <id>holdingId</id>
+            <domain>integer</domain>
+            <expression>holdingId</expression>
+        </field>
+
+        <field>
+            <id>holdingName</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>(h.name || coalesce(', ' || mnei.name, ''))</expression>
+        </field>
+
+        <field>
+            <id>holdingFullName</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <display>
+                (select name from inventory.holding where id = holdingId) || coalesce(', ' || ft.short_name, '') ||
+                coalesce(', ' || concentration || coalesce(' ' || (select name from cmn_measure where id = concentrationMeasureId),''), '')||
+                coalesce(', ' || trim(to_char(dose::numeric, 'FM9999990.999'), '.') || coalesce(' ' || (select name from cmn_measure where id = doseMeasureId),''), '') ||
+                coalesce(', ' || mnei.name, '')
+            </display>
+        </field>
+
+        <field>
+            <id>holding.org.id</id>
+            <domain>integer</domain>
+            <expression>h.org_id</expression>
+            <search value="#{org.id?}">(:expression = :holding.org.id or :expression is null)</search>
+        </field>
+
+        <field>
+            <id>holding.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>holdingId</expression>
+        </field>
+
+        <field>
+            <id>doseWithMeasure</id>
+            <domain>string</domain>
+            <name>Доза</name>
+            <display>trim(to_char(dose::numeric, 'FM9999990.999'), '.') || ' ' || (select name from cmn_measure where id = doseMeasureId)</display>
+            <sorting>dose</sorting>
+        </field>
+
+        <field>
+            <id>dose</id>
+            <domain>string</domain>
+            <display>dose</display>
+        </field>
+
+        <field>
+            <id>doseMeasureId</id>
+            <domain>integer</domain>
+            <display>doseMeasureId</display>
+        </field>
+
+        <field>
+            <id>doseMeasureName</id>
+            <domain>string</domain>
+            <display>(select name from cmn_measure where id = doseMeasureId)</display>
+        </field>
+
+        <field>
+            <id>concentrationWithMeasure</id>
+            <domain>string</domain>
+            <name>Концентрация</name>
+            <expression>concentration</expression>
+            <display>concentration || ' ' || (select name from cmn_measure where id = concentrationMeasureId)
+            </display>
+        </field>
+
+        <field>
+            <id>formTypeName</id>
+            <domain>string</domain>
+            <name>Лекарственная форма</name>
+            <expression>ft.short_name</expression>
+        </field>
+
+        <field>
+            <id>formTypeId</id>
+            <domain>integer</domain>
+            <display>ft.id</display>
+        </field>
+
+        <field>
+            <id>mneiId</id>
+            <domain>integer</domain>
+            <display>mneiId</display>
+        </field>
+
+        <field>
+            <id>mneiName</id>
+            <domain>string</domain>
+            <display>mnei.name</display>
+        </field>
+
+        <field>
+            <id>producer.id</id>
+            <domain>integer</domain>
+            <expression>hp.id</expression>
+        </field>
+
+        <field>
+            <id>producer.name</id>
+            <name>Производитель</name>
+            <domain>string</domain>
+            <expression>coalesce(org.short_name, org.full_name)</expression>
+        </field>
+
+        <field>
+            <id>series</id>
+            <domain>string</domain>
+            <name>Серия</name>
+            <expression>b.series</expression>
+        </field>
+
+        <field>
+            <id>quantityAndMeasure</id>
+            <name>Остаток</name>
+            <domain>string</domain>
+            <expression>ss.act_balance_mnei</expression>
+            <display>trim(to_char(:expression, 'FM9999990.999'), '.')||' '||(select mnemocode from cmn_measure where id= mneiId)</display>
+        </field>
+
+        <field>
+            <id>deliveryDate</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>b.delivery_dt</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>fs.id</expression>
+        </field>
+
+        <field>
+            <id>fundSource.name</id>
+            <name>Финансирование</name>
+            <domain>string</domain>
+            <expression>fs.name</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>expireDate</id>
+            <domain>date</domain>
+            <name>Срок годности</name>
+            <expression>b.expire_dt</expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>periodOfExpiration</id>
+            <name>Период срока годности</name>
+            <domain>string</domain>
+            <expression><![CDATA[(case
+            when yearOfExpiration<0 or monthOfExpiration<0 or (yearOfExpiration=0 and monthOfExpiration = 0 and (dayOfExpiration=0 or dayOfExpiration<0))
+            then 'text-error'
+            else
+                case
+                    when yearOfExpiration= 0 and (monthOfExpiration = 0 or (monthOfExpiration = 1 and dayOfExpiration = 0))
+                    then 'text-info'
+                    else
+                        case
+                            when yearOfExpiration= 0 and (monthOfExpiration = 1 or (monthOfExpiration = 2 and dayOfExpiration = 0))
+                            then 'text-success'
+                        end
+                end
+            end)]]>
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>store.org_id</id>
+            <domain>integer</domain>
+            <expression>s.org_id</expression>
+            <search value="#{org.id?}">(:expression = :store.org_id)</search>
+        </field>
+    </fields>
+</query>

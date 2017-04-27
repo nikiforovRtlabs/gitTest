@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_storeBalance</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hospital.prescription p
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from hospital.prescription p
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>prescription.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+
+        <field>
+            <id>prescription.prescription_dt</id>
+            <domain>date</domain>
+            <expression>:prescription.prescription_dt::date</expression>
+            <search>1=1</search>
+        </field>
+
+        <field>
+            <id>holdings</id>
+            <domain>object[]</domain>
+            <expression>(
+                select array_to_json(array_agg(t))
+                from
+                (
+                    select
+                        ps.id as schedule_id
+                        , h.name || coalesce(', ' || ft.short_name, '') || coalesce(', ' || ph.hold_con_value || coalesce(' ' || cm.name,''), '')
+                        || coalesce(', ' || trim(to_char(ph.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' ' || dm.name,''), '')
+                        || coalesce(', ' || mnei.name, '') as holding_full_name
+                        , ph.is_patient_medicament as is_patient
+                        , ph.is_patient_medicament as is_patient_medicament
+                        , false as is_patient_for_schedule
+                        , ph.count
+
+                    from hospital.prescription_schedule ps
+                    join hospital.prescription_holding ph on ph.id = ps.prescription_holding_id
+                    join inventory.holding h on h.id = ph.holding_id
+                    left join cmn_measure dm on dm.id = ph.hold_dose_measure_id
+                    left join cmn_measure cm on cm.id = ph.hold_con_measure_id
+                    left join cmn_measure mnei on mnei.id = ph.hold_mnei_id
+                    left join inventory.form_type ft on ft.id = ph.hold_form_type_id
+
+                    where ps.prescription_id = p.id and ps.prescription_dt = :prescription.prescription_dt
+                    order by ph.id)
+                as t
+                )
+            </expression>
+        </field>
+
+        <!--, trim(to_char(ph.hold_dose_value * ph.count, 'FM9999990.999'), '.') || ' ' || dm.name as single_dose-->
+
+    </fields>
+</query>

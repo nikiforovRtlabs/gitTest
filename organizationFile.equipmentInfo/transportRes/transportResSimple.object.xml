@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Ресурс "Транспорт"</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO sr_resource( id, power, res_kind_id, code)
+                    VALUES (nextval('sr_resource_seq'), :power, :kind_id, :code);
+
+                    INSERT INTO amb.pim_transport_resource (id, resource_id, transport_id)
+                    VALUES ( nextval('amb.pim_transport_resource_id_seq'), currval('sr_resource_seq'), :transport_id);
+
+                    select currval('amb.pim_transport_resource_id_seq') as id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="power" mapping="[power]" domain="integer"/>
+                <param name="res_kind.oid" mapping="[kind_id]" domain="integer"/>
+                <param name="code" mapping="[code]" domain="string"/>
+                <param name="transport_id" mapping="[transport_id]" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Ресурс "Транспорт" успешно создан.
+            </success-text>
+        </action>
+        <action id="update">
+            <invocation>
+                <n2o:sql>
+                    update sr_resource set
+                    power = :power,
+                    code = :code
+                    where id=:resource_id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="resource_id" mapping="[resource_id]" domain="integer"/>
+                <param name="power" mapping="[power]" domain="integer"/>
+                <param name="code" mapping="[code]" domain="string"/>
+            </in-parameters>
+            <success-text>
+                Ресурс "Транспорт" успешно изменен.
+            </success-text>
+        </action>
+        <action id="delete" name="Удаление">
+            <invocation>
+                <n2o:sql>
+                    delete from amb.pim_transport_resource where id=:oid;
+                    delete from sr_resource where id=:resource_id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="oid" mapping="[oid]"/>
+                <param name="resource_id" mapping="[resource_id]" domain="integer"/>
+            </in-parameters>
+            <success-text>Ресурс успешно удален</success-text>
+            <confirmation-text>Вы уверены, что хотите удалить ресурс?</confirmation-text>
+            <validations activate="whiteList">
+                <validation ref-id="is_in_complex_resource"/>
+            </validations>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="is_in_complex_resource" level="error" moment="before-action">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select exists(select * from sr_res_group rg
+                            inner join sr_res_group_relationship rs on rs.group_id=rg.id
+                            where rs.resource_id = :resource_id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="resource_id" mapping="[resource_id]" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == false"/>
+            <message>Ресурс не может быть удален, поскольку входит в составной ресурс</message>
+        </constraint>
+    </validations>
+</object>

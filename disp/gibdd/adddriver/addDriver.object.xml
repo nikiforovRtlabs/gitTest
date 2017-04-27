@@ -1,0 +1,205 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+
+    <name>addDriver</name>
+    <actions>
+        <action id="addDriver">
+            <invocation>
+                <sql:sql>
+                    select gibdd.md_event_add_driver_function(:eventId,
+                    :patientId,
+                    :series,
+                    :number,
+                    :blankDate,
+                    :categories);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="eventId" mapping="['eventId']" domain="integer"/>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="reference_series" mapping="['series']" domain="string"/>
+                <param name="reference_number" mapping="['number']" domain="string"/>
+                <param name="categoryTS*.id" mapping="['categories']" domain="integer[]"/>
+                <param name="id" mapping="['refid']" domain="integer"/>
+                <param name="blank_date" mapping="['blankDate']" domain="date"/>
+                <param name="org.id" mapping="['org_id']" domain="integer"/>
+                <param name="event_type_code" mapping="['event_type_code']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqPatient"/>
+                <validation ref-id="checkPassportAndVoen"/>
+                <validation ref-id="isAppropriatePatientByEventConstraint"/>
+                <validation ref-id="setBaseModel"/>
+            </validations>
+        </action>
+        <action id="editCategory">
+            <invocation>
+                <sql:sql>
+                    select gibdd.md_event_update_driver_function(:eventId,
+                    :patientId,
+                    :series,
+                    :number,
+                    :blankDate,
+                    :categories,
+                    :referenceId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['referenceId']" domain="integer"/>
+                <param name="categoryTS*.id" mapping="['categories']" domain="integer[]"/>
+                <param name="id" mapping="['referenceId']" domain="integer"/>
+                <param name="eventId" mapping="['eventId']" domain="integer"/>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="org.id" mapping="['org_id']" domain="integer"/>
+                <param name="reference_series" mapping="['series']" domain="string"/>
+                <param name="reference_number" mapping="['number']" domain="string"/>
+                <param name="blank_date" mapping="['blankDate']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUniqPatient"/>
+            </validations>
+        </action>
+        <action id="saveRef">
+            <invocation>
+                <sql:sql>
+                    insert into gibdd.md_gibdd_reference_reference (series,number,issued_date,exp_date,card_id, is_duplicate, is_valid,note)
+                    values
+                    (:refSeries,:refNumber,:issuedDt, :expDate, :id, true, true,
+                    (select concat('Взамен ',xrr.series,' ',xrr.number) from gibdd.md_gibdd_reference_reference xrr where xrr.id = :refId));
+
+                    UPDATE gibdd.md_gibdd_reference_reference
+                    set  is_valid = false
+                    WHERE id = :refId;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="refSeries" mapping="['refSeries']" domain="string"/>
+                <param name="refNumber" mapping="['refNumber']" domain="string"/>
+                <param name="issuedDate" mapping="['issuedDt']" domain="date"/>
+                <param name="refId" mapping="['refId']" domain="integer"/>
+                <param name="expDate" mapping="['expDate']" domain="date"/>
+
+            </in-parameters>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="checkUniqPatient" level="warning">
+            <invocation>
+                <sql:sql>
+                    select 0 &lt; some (select count(ep.id) from disp.md_event_patient ep
+                    join gibdd.md_gibdd_reference r on r.id = ep.id
+                    join gibdd.md_gibdd_reference_reference rr on rr.card_id = r.id and rr.id = (select max(id) from gibdd.md_gibdd_reference_reference xr where xr.card_id = r.id)
+                    join gibdd.md_gibdd_reference_category rc on rc.reference_id = r.id
+                    where ep.is_deleted is not true and ep.indiv_id = :pid and ep.event_id = :eid
+                    and rc.category_id = some (array(select value::text::int from json_array_elements(cast(:categories as json))))
+                    and rr.issued_date &lt; current_date + integer '730' and current_date &lt; rr.exp_date
+                    and (:refid is null or :refid != r.id)
+                     group by rc.category_id)
+
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['pid']" domain="integer"/>
+                <param name="eventId" mapping="['eid']" domain="integer"/>
+                <param name="id" mapping="['refid']" domain="integer"/>
+                <param name="categoryTS*.id" mapping="['categories']" domain="integer[]"/>
+            </in-parameters>
+            <result expression="[0][0][0] == false"/>
+            <message>Данный пациент уже присутствует в мероприятии.</message>
+        </constraint>
+        <constraint id="checkPassportAndVoen" level="error">
+            <invocation>
+                <sql:sql>
+                    select exists(select 1
+                        from pim_individual_doc id
+                        join pim_doc_type dt on dt.id = id.type_id
+                        where (dt.code = 'PASSPORT_RUSSIAN_FEDERATION' or dt.code = '9' or dt.code = '11') and id.indiv_id = :pid and is_active = true limit 1)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['pid']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Необходимо наличие в карточке пациента одного из документов: Паспорт гражданина РФ; Паспорт иностранного гражданина; Вид на жительство в РФ.</message>
+        </constraint>
+        <constraint id="setBaseModel" level="error">
+            <invocation>
+                <sql:sql>
+                    select exists(select mesm.id
+                    from disp.md_event_service_model mesm
+                    left join disp.md_event_service mes on mes.id=mesm.event_service_id
+                    where mes.event_id=:eventId)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="eventId" mapping="['eventId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>В мероприятии не указаны модели пациентов.</message>
+        </constraint>
+
+        <constraint id="reference_numberUnique" level="error">
+            <message summary ="Справка с  номером '%reference_number%' уже существует ">
+                Номер справки должен быть уникальным. Введите другое значение.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from gibdd.md_gibdd_reference_reference
+                    where number = :reference_number ::text
+                    and series = :reference_series ::text
+                    and (id != :id or :id is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="reference_number" mapping="['reference_number']" domain="string"/>
+                <param name="reference_series" mapping="['reference_series']" domain="string"/>
+                <param name="refId" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="reference_numberUniqueDup" level="error">
+            <message summary ="Справка с  номером '%reference_number%' уже существует ">
+                Номер справки должен быть уникальным. Введите другое значение.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from gibdd.md_gibdd_reference_reference
+                    where number = :reference_number ::text
+                    and series = :reference_series ::text
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="refNumber" mapping="['reference_number']" domain="string"/>
+                <param name="refSeries" mapping="['reference_series']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="isAppropriatePatientByEventConstraint" level="error">
+            <message>Можно отобрать только пациентов, которые соответствуют модели пациента</message>
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/dispensary/isAppropriatePatientByEvent
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="eventId" mapping="['eventId']"/>
+                <param name="patient.id" mapping="['patientId']"/>
+                <param name="event_type_code" mapping="['event_type_code']"/>
+            </in-parameters>
+            <result expression="id == '1'"/>
+        </constraint>
+    </validations>
+</object>

@@ -1,0 +1,104 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>vaccine_control</object-id>
+    <name>vaccine_control</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from vac_vaccine v
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(v)
+                from vac_vaccine v
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>v.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>label</id>
+            <domain>string</domain>
+            <expression>v.label</expression>
+            <search>(upper(v.label) like '%' || upper(:label) || '%')</search>
+        </field>
+        <field>
+            <id>forMantu</id>
+            <domain>boolean</domain>
+            <expression>for_mantu</expression>
+        </field>
+        <field>
+            <id>defDoseId</id>
+            <domain>integer</domain>
+            <expression>
+                (select vvd.dose_id
+                from vac_vaccine_dose vvd where vvd.vaccine_id = v.id and def is true)
+            </expression>
+        </field>
+        <field>
+            <id>defDoseLabel</id>
+            <domain>string</domain>
+            <expression>
+                (select concat(vd.count, ' ', vdt.label)
+                from vac_vaccine_dose vvd
+                join vac_dose vd on vd.id = vvd.dose_id
+                join vac_dose_type vdt on vdt.id = vd.dose_type_id
+                where vvd.vaccine_id = v.id and vvd.def is true)
+            </expression>
+        </field>
+        <field>
+            <id>defInpTypeId</id>
+            <domain>integer</domain>
+            <expression>
+                (select vvit.inp_type_id
+                from vac_vaccine_inp_type vvit where vvit.vaccine_id = v.id and def is true)
+            </expression>
+        </field>
+        <field>
+            <id>defInpTypeLabel</id>
+            <domain>string</domain>
+            <expression>
+                (select vit.label
+                from vac_vaccine_inp_type vvit
+                join vac_inp_type vit on vit.id = vvit.inp_type_id
+                where vvit.vaccine_id = v.id and vvit.def is true)
+            </expression>
+        </field>
+        <field>
+            <id>def_producerId</id>
+            <domain>integer</domain>
+            <expression>
+                v.def_producer
+            </expression>
+        </field>
+        <field>
+            <id>def_producerLabel</id>
+            <domain>string</domain>
+            <expression>
+                (select vp.label from vac_producer vp where v.def_producer = vp.id)
+            </expression>
+        </field>
+        <field>
+            <id>countryId</id>
+            <domain>integer</domain>
+            <expression>
+                (select vc.id from vac_country vc where vc.id = (select vp.country_id from vac_producer vp where v.def_producer = vp.id))
+            </expression>
+        </field>
+        <field>
+            <id>countryLabel</id>
+            <domain>string</domain>
+            <expression>
+                (select vc.full_name from vac_country vc where vc.id = (select vp.country_id from vac_producer vp where v.def_producer = vp.id))
+            </expression>
+        </field>
+    </fields>
+</query>

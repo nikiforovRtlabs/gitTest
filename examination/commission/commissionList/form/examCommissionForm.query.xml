@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>examCommission</object-id>
+    <name>Врачебная комиссия</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from d_accounting.commission com
+                where :where
+                order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from d_accounting.commission com
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>res_group_id</id>
+            <domain>integer</domain>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>com.org_id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>com.name</expression>
+            <search>lower(com.name) like '%'||lower(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>create_dt</id>
+            <domain>date</domain>
+            <expression>com.create_dt</expression>
+        </field>
+
+        <field>
+            <id>chairman.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select srel.resource_id
+                from public.sr_res_group sg
+                join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'CHAIRMAN'
+                where sg.id = com.res_group_id and srel.is_disabled is not true
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>secretary.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select srel.resource_id
+                from public.sr_res_group sg
+                join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'SECRETARY'
+                where sg.id = com.res_group_id and srel.is_disabled is not true
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <expression>com.department_id</expression>
+        </field>
+
+        <field>
+            <id>firstViceChairman.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select srel.resource_id
+                from public.sr_res_group sg
+                join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'VICE_CHAIRMAN'
+                where sg.id = com.res_group_id
+                order by srel.id
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>firstViceChairmanRelationShipId</id>
+            <domain>integer</domain>
+            <expression>
+                (select srel.id
+                from public.sr_res_group sg
+                join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'VICE_CHAIRMAN'
+                where sg.id = com.res_group_id
+                order by srel.id
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>secondViceChairman.id</id>
+            <domain>integer</domain>
+            <expression><![CDATA[
+                (case when (select count(1) from sr_res_group_relationship where group_id = com.res_group_id and role_id = (select id from sr_res_role where code = 'VICE_CHAIRMAN' limit 1)) < 2
+                    then null
+                else
+                    (select srel.resource_id
+                    from public.sr_res_group sg
+                    join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                    join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'VICE_CHAIRMAN'
+                    where sg.id = com.res_group_id
+                    order by srel.id desc
+                    limit 1)
+                end)
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>secondViceChairmanRelationShipId</id>
+            <domain>integer</domain>
+            <expression><![CDATA[
+                (case when (select count(1) from sr_res_group_relationship where group_id = com.res_group_id and role_id = (select id from sr_res_role where code = 'VICE_CHAIRMAN' limit 1)) < 2
+                then null
+                else
+                    (select srel.id
+                    from public.sr_res_group sg
+                    join public.sr_res_group_relationship srel on srel.group_id = sg.id
+                    join public.sr_res_role rol on rol.id = srel.role_id and rol.code = 'VICE_CHAIRMAN'
+                    where sg.id = com.res_group_id
+                    order by srel.id desc
+                    limit 1)
+                end)
+                ]]>
+            </expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,190 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xsi:schemaLocation="http://n2oapp.net/framework/config/schema/object-1.0 http://localhost:8080/n2o/config/schema/object/object-1.0.xsd">
+    <!--<id>step_result</id>-->
+    <name>Результат обращения</name>
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    select amb.insert_into_step_step_regimen(:clinic, :code,trim(:name),:closed,:death,
+                    :refusal,:future,:transfer_permitted,:planning,:reason, :ecode, :fdate, :tdate);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="clinic.id" mapping="['clinic']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name ="name2" mapping = "['name']" domain="string"/>
+                <param name="closed.code" mapping="['closed']" domain="boolean"/>
+                <param name="death.code" mapping="['death']" domain="boolean"/>
+                <param name="refusal.code" mapping="['refusal']" domain="boolean"/>
+                <param name="future.code" mapping="['future']" domain="boolean"/>
+                <param name="transfer_permitted.code" mapping="['transfer_permitted']" domain="boolean"/>
+                <param name="planning.code" mapping="['planning']" domain="boolean"/>
+                <param name="reason.code" mapping="['reason']" domain="boolean"/>
+                <param name="ecode" mapping="['ecode']" domain="string"/>
+                <param name="fdate" mapping="['fdate']" domain="date"/>
+                <param name="tdate" mapping="['tdate']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]"/>
+            </out-parameters>
+        </action>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update mc_step_result set clinic_id=:clinic,code = trim(upper(:code)),name = trim(:name),is_death= :death,is_refusal= :refusal,is_future=:future,
+                    is_transfer_permitted=:transfer_permitted,is_planning=:planning,is_reason=:reason,e_code = trim(upper(:ecode)),from_dt = :fdate,to_dt = :tdate where id = :id;
+                    update mc_step_result_to_care_regimen set from_dt = :fdate, to_dt = :tdate where step_result_id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+                <param name="clinic.id" mapping="['clinic']" domain="integer"/>
+                <param name ="code" mapping = "['code']" domain="string"/>
+                <param name ="name2" mapping = "['name']" domain="string"/>
+                <param name="death.code" mapping="['death']" domain="boolean"/>
+                <param name="refusal.code" mapping="['refusal']" domain="boolean"/>
+                <param name="future.code" mapping="['future']" domain="boolean"/>
+                <param name="transfer_permitted.code" mapping="['transfer_permitted']" domain="boolean"/>
+                <param name="planning.code" mapping="['planning']" domain="boolean"/>
+                <param name="reason.code" mapping="['reason']" domain="boolean"/>
+                <param name="ecode" mapping="['ecode']" domain="string"/>
+                <param name="fdate" mapping="['fdate']" domain="date"/>
+                <param name="tdate" mapping="['tdate']" domain="date"/>
+            </in-parameters>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    <!--delete from mc_step_result where id = :id;-->
+                    select logic_delete_step_res(:id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="step_resultnameUnique" level="error">
+            <!--<message summary ="Результат обращения с именем '%name%' уже существует ->
+                Назовите результат обращения иначе!
+            </message>-->
+            <message>Результат обращения с именем '{name2}' уже существует" Назовите результат обращения иначе!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count (*)
+                    from mc_step_result
+                    where trim(upper(name)) = trim(upper(:name))
+                    and (clinic_id = :clinic
+                        or
+                        case when :clinic is null and clinic_id is null
+                            then true
+                            else false
+                        end
+                        )
+                    and (to_dt >= cast(:fdate as date) or to_dt is null
+                        or
+                        case when cast(:fdate as date) is null and to_dt >= cast(now() as date)
+                            then true
+                            else false
+                        end
+                        )
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+                <param name ="name2" mapping = "['name']" domain="string"/>
+                <param name="clinic.id" mapping="['clinic']" domain="integer"/>
+                <param name="fdate" mapping="['fdate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="step_resultcodeUnique" level="error">
+            <!--<message summary ="Результат обращения   с  кодом %code%' уже существует ->
+                Укажиите иной  код для результат обращения!
+            </message>-->
+            <message>Результат обращения с кодом '{code}' уже существует" Укажите иной код для результат обращения!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count (*)
+                    from mc_step_result
+                    where trim(upper(code)) = trim(upper(:code))
+                    and (clinic_id = :clinic
+                        or
+                        case when :clinic is null and clinic_id is null
+                            then true
+                            else false
+                        end
+                        )
+                    and (to_dt >= cast(:fdate as date) or to_dt is null
+                         or
+                         case when cast(:fdate as date) is null and to_dt >= cast(now() as date)
+                            then true
+                            else false
+                         end
+                        )
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer" required="false"/>
+                <param name ="code" mapping = "['code']" domain="string" required="true"/>
+                <param name="clinic.id" mapping="['clinic']" domain="integer" required="false"/>
+                <param name="fdate" mapping="['fdate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <!--<constraint id="step_resultecodeUnique" level="error">-->
+            <!--<message summary ="Результат обращения   с  дополнительным кодом %ecode%' уже существует ->
+                Укажиите иной дополнительный код для результат обращения!
+            </message>-->
+            <!--<message>Результат обращения '{code} {name2} {ecode}' уже существует!-->
+            <!--</message>-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--<![CDATA[-->
+                    <!--select count (*)-->
+                    <!--from mc_step_result-->
+                    <!--where trim(upper(code)) = trim(upper(:code))-->
+                    <!--and trim(upper(name)) = trim(upper(:name))-->
+
+                    <!--and (trim(upper(e_code)) = trim(upper(:ecode)) and e_code is not null and e_code <> '')-->
+
+                    <!--and (clinic_id = :clinic-->
+                        <!--or-->
+                        <!--case when :clinic is null and clinic_id is null-->
+                            <!--then true-->
+                            <!--else false-->
+                        <!--end-->
+                        <!--)-->
+                    <!--and (to_dt >= cast(:fdate as date) or to_dt is null-->
+                         <!--or-->
+                         <!--case when cast(:fdate as date) is null and to_dt >= cast(now() as date)-->
+                            <!--then true-->
+                            <!--else false-->
+                         <!--end-->
+                        <!--)-->
+                    <!--and (:id is null or id != :id)-->
+                    <!--]]>-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name = "id" mapping = "['id']" domain="integer"/>-->
+                <!--<param name ="code" mapping = "['code']" domain="string" required="true"/>-->
+                <!--<param name ="name2" mapping = "['name']" domain="string"/>-->
+                <!--<param name ="ecode" mapping = "['ecode']" domain="string"/>-->
+                <!--<param name="clinic.id" mapping="['clinic']" domain="integer"/>-->
+                <!--<param name="fdate" mapping="['fdate']" domain="date"/>-->
+            <!--</in-parameters>-->
+            <!--<result expression="[0][0][0] == 0"/>-->
+        <!--</constraint>-->
+    </validations>
+</object>

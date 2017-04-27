@@ -1,0 +1,192 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+>
+
+    <object-id>payment</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>Карточка платежа</name>
+
+    <containers>
+        <container id="main" place="single">
+            <wgt:form detail-field-id="id" master-field-id="id">
+                <wgt:default-values-query-id>paymentFormDefaults</wgt:default-values-query-id>
+                <wgt:query-id>paymentForm</wgt:query-id>
+
+                <fs:field-set field-label-location="top">
+                    <ctrl:hidden id="showBillList" default-value="false"/>
+                    <fs:row>
+                        <ctrl:hidden id="id"/>
+                        <ctrl:hidden id="bill.id"/>
+                        <ctrl:input-text id="number" label="Номер платежа" control-style="width: 260px"
+                                         css-class="n2o-label-5 n2o-control-6" required="true">
+
+                        </ctrl:input-text>
+
+                        <ctrl:date-time id="date" label="Дата" required="true" default-value="today()"
+                                        label-style="width: 160px" control-style="width: 160px"/>
+
+                        <ctrl:hidden id="year">
+                            <ctrl:set-value-expression on="date">
+                                <![CDATA[moment(date,'DD.MM.YYYY HH:mm').get('year')]]></ctrl:set-value-expression>
+                        </ctrl:hidden>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:classifier id="recipient" label="Получатель"
+                                         control-style="width:430px;" search-as-you-type="true"
+                                         autoselect-alone="true" required="true"
+                                         dependency-condition="countOrg != 1">
+                            <ctrl:query query-id="pm_org_by_access_key" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="userId" value="#{user.id}" />
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">#{org.id}</ctrl:value>
+                            </ctrl:default-model>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>showBillList != true</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:radio-group id="payerType"
+                                          label="Тип плательщика"
+                                          inline="true"
+                                          control-style="width:430px;"
+                                          required="true">
+                            <ctrl:options>
+                                <ctrl:option>{"id" : 1, "name" : "Физическое лицо"}</ctrl:option>
+                                <ctrl:option>{"id" : 2, "name" : "Юридическое лицо"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                                <ctrl:value field-id="name">Физическое лицо</ctrl:value>
+                            </ctrl:default-model>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>showBillList != true</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:radio-group>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:classifier id="payerOrg" label="Плательщик"
+                                         control-style="width:430px;"
+                                         search-as-you-type="true"
+                                         autoselect-alone="true"
+                                         dependency-condition="payerType.id == 2">
+                            <ctrl:query query-id="pm_organization" value-field-id="id" label-field-id="name"/>
+
+                            <ctrl:set-value-expression on="payerType" on-invisible="true" on-load="false"
+                                                       on-non-empty="true">
+                                null;
+                            </ctrl:set-value-expression>
+
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>showBillList != true</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="payerInd"
+                                         label="Плательщик"
+                                         control-style="width:430px;"
+                                         dependency-condition="payerType.id == 1">
+                            <ctrl:query query-id="pm_party" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="type" value="1"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on="payerType" on-invisible="true" on-load="false"
+                                                       on-non-empty="true">
+                                null;
+                            </ctrl:set-value-expression>
+
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>showBillList != true</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:classifier id="fundingSourceType" label="Вид финансирования" control-style="width:430px;"
+                                         required="true" css-class="n2o-label-6 n2o-control-6" depends-on="recipient"
+                                         autoselect-alone="true" >
+
+                            <ctrl:query query-id="pm_funding_source_payment" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" ref="recipient.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>showBillList != true</ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:classifier id="contract" label="Договор"
+                                         control-style="width:430px;" search-as-you-type="true"
+                                         autoselect-alone="true" >
+
+                            <ctrl:query query-id="pm_contract_payment" value-field-id="id" label-field-id="title">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="paymentDate" ref="date"/>
+                                    <ctrl:pre-filter field-id="fundingId" ref="fundingSourceType.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition><![CDATA[showBillList != true && typeof fundingSourceType != 'undefined' && fundingSourceType != null &&
+							        ((typeof payerInd != 'undefined' && payerInd != null) || (typeof payerOrg != 'undefined' && payerOrg != null))]]>
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:classifier id="type" label="Тип операции"
+                                         control-style="width:430px;" search-as-you-type="true" required="true">
+                            <ctrl:query query-id="pm_payment_type" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:classifier id="method" label="Способ платежа"
+                                         control-style="width:430px;" search-as-you-type="true" required="true">
+                            <ctrl:query query-id="pm_payment_method" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:hidden id="amountBill"/>
+
+                        <ctrl:input-text id="amount" label="Сумма" label-style="width: 430px"
+                                         required="true" css-class="n2o-label-5 n2o-control-6"
+                                         control-style="width: 430px;">
+
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="paymentAmountByBill" side="client"/>
+                                <ctrl:validation ref-id="moneyFormat"/>
+                            </ctrl:validations>
+
+                        </ctrl:input-text>
+
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:input-text id="note" label="Примечание" label-style="width: 430px"
+                                         css-class="n2o-label-5 n2o-control-6" control-style="width: 430px;" length="256">
+                        </ctrl:input-text>
+                    </fs:row>
+                </fs:field-set>
+
+            </wgt:form>
+        </container>
+    </containers>
+
+</page>

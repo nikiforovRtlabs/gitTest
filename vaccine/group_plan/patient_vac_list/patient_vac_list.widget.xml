@@ -1,0 +1,150 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<table xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0">
+
+    <query-id>patient_vac_list</query-id>
+    <name>Прививки</name>
+
+    <columns>
+        <column column-field-id="individualFIO" />
+        <column column-field-id="vacDate" width="100px"/>
+        <column column-field-id="age" width="80px"/>
+        <column column-field-id="diseaseLabel"/>
+        <column column-field-id="vaccineLabel"/>
+        <column column-field-id="numberLabel" width="80px"/>
+        <column column-field-id="statusLabel">
+            <color color-field-id="columnColor"/>
+        </column>
+        <column column-field-id="doseLabel"/>
+        <column column-field-id="inp_typeLabel"/>
+    </columns>
+
+    <filters opened="true" position="top">
+        <ctrl:classifier id="individual" label="Пациент" search-as-you-type="true">
+            <ctrl:query query-id="patient_filter" label-field-id="displayName" value-field-id="id">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="group_id" ref="groupId"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+
+        <ctrl:date-interval id="vacDate" label="Плановая дата" format="DD.MM.YYYY"/>
+
+        <ctrl:classifier id="disease" label="Инфекция" search-as-you-type="true">
+            <ctrl:query query-id="disease" label-field-id="label" value-field-id="id"/>
+        </ctrl:classifier>
+
+        <ctrl:classifier id="vaccine" label="Вакцина" search-as-you-type="true">
+            <ctrl:query query-id="vac_vaccine" label-field-id="label" value-field-id="id">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="disease.id" ref="disease.id"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+
+        <ctrl:classifier id="number" label="Этап" search-as-you-type="true">
+            <ctrl:query query-id="number" label-field-id="label" value-field-id="id">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="vac_id" ref="vaccine.id"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+        </ctrl:classifier>
+
+        <ctrl:classifier id="status" label="Статус" search-as-you-type="true">
+            <ctrl:query query-id="status_control" label-field-id="label" value-field-id="id"/>
+        </ctrl:classifier>
+        
+        <ctrl:checkbox id="nonLate" label="Не показывать просроченные"/>
+
+
+    </filters>
+
+    <action-menu>
+        <group>
+            <menu-item id="rollback_assignation" label="Отменить все назначения" context="false" type="textAndIcon" icon="glyphicons glyphicons-remove-2">
+                <show-modal page-id="group_rollback_assignation" action-id="rollback-assignation" model="default">
+                    <pre-filters>
+                        <pre-filter field-id="groupId" ref="groupId"/>
+                    </pre-filters>
+                </show-modal>
+                <conditions>
+                    <enabling-condition>
+                        <expression>existsPatientList == true</expression>
+                        <tooltip>В список не добавлены пациенты</tooltip>
+                    </enabling-condition>
+                </conditions>
+            </menu-item>
+            <menu-item id="assign_all_infections" label="Календарь" context="false" type="textAndIcon"
+                       icon="icon-calendar">
+                <show-modal page-id="group_assign_all" action-id="apply-calendar" model="default"
+                            master-field-id="groupId" detail-field-id="group_id">
+                    <pre-filters>
+                        <pre-filter field-id="calendar_id" ref="calendar_id"/>
+                    </pre-filters>
+                </show-modal>
+                <conditions>
+                    <enabling-condition>
+                        <expression>existsPatientList == true</expression>
+                        <tooltip>В список не добавлены пациенты</tooltip>
+                    </enabling-condition>
+                </conditions>
+            </menu-item>
+            <menu-item id="add_scheme_template" label="Задать схему" context="false" type="textAndIcon" icon="glyphicons glyphicons-medicine">
+                <show-modal-form form-id="group_add_scheme_template">
+                    <edit>
+                        <invoke-action action-id="apply-schema"/>
+                    </edit>
+                    <pre-filters>
+                        <pre-filter field-id="groupId" ref="groupId"/>
+                    </pre-filters>
+                </show-modal-form>
+                <conditions>
+                    <enabling-condition>
+                        <expression>existsPatientList == true</expression>
+                        <tooltip>В список не добавлены пациенты</tooltip>
+                    </enabling-condition>
+                </conditions>
+            </menu-item>
+            <menu-item id="addInoculation" label="Прививка" type="textAndIcon" icon="icon-plus" context="false">
+                <show-modal-form form-id="group_inoculation" refresh-on-close="true" page-name="Назначение прививки">
+                    <edit create-more="true">
+                        <invoke-action action-id="inoculations"/>
+                    </edit>
+                    <pre-filters>
+                        <pre-filter field-id="isMantu" value="false"/>
+                        <pre-filter field-id="groupId" ref="groupId"/>
+                    </pre-filters>
+                </show-modal-form>
+                <conditions>
+                    <enabling-condition>
+                        <expression>existsPatientList == true</expression>
+                        <tooltip>В список не добавлены пациенты</tooltip>
+                    </enabling-condition>
+                </conditions>
+            </menu-item>
+            <menu-item id="addMantu" label="Проба" type="textAndIcon" icon="icon-plus" context="false">
+                <show-modal-form form-id="group_inoculation" refresh-on-close="true" page-name="Назначение пробы">
+                    <edit create-more="true">
+                        <invoke-action action-id="inoculations"/>
+                    </edit>
+                    <pre-filters>
+                        <pre-filter field-id="isMantu" value="true"/>
+                        <pre-filter field-id="groupId" ref="groupId"/>
+                    </pre-filters>
+                </show-modal-form>
+                <conditions>
+                    <enabling-condition>
+                        <expression>existsPatientList == true</expression>
+                        <tooltip>В список не добавлены пациенты</tooltip>
+                    </enabling-condition>
+                </conditions>
+            </menu-item>
+        </group>
+        <group>
+            <menu-item id="indivPlan" label="Индивидуальное планирование" context="true">
+                <a href="#vaccine.indiv_plan_grid?main%3Afilter%3Apatient%3Aid=:individual.id:&amp;main%3Afilter%3Apatient%3AdisplayName=:individual.FIO:"
+                       target="newWindow"/>
+            </menu-item>
+        </group>
+    </action-menu>
+</table>

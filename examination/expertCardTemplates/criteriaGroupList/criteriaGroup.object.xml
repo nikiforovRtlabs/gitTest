@@ -1,0 +1,178 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Группы критериев</name>
+    <actions>
+        <action id="create" name="Добавить группу">
+            <invocation>
+                <n2o:sql>
+                    insert into qos_criteria_group(id, from_dt, is_active, is_mandatory,
+                    is_quality_level_excluded, name, start_grade, to_dt, weight, parent_id, template_id, code)
+                    values (nextval('qos_criteria_group_seq'), :fromDate, :isActive, :isMandatory,
+                    :isQualityLevelExcluded, :name, :startGrade, :toDate, :weight, :parent_id, :templateId, :code);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="isActive" mapping="['isActive']" domain="boolean"/>
+                <param name="isMandatory" mapping="['isMandatory']" domain="boolean"/>
+                <param name="isQualityLevelExcluded" mapping="['isQualityLevelExcluded']" domain="boolean"/>
+                <param name="startGrade" mapping="['startGrade']" domain="numeric"/>
+                <param name="weight" mapping="['weight']" domain="numeric"/>
+                <param name="fromDate" mapping="['fromDate']" domain="date"/>
+                <param name="toDate" mapping="['toDate']" domain="date"/>
+                <param name="parent.id" mapping="['parent_id']" domain="integer"/>
+                <param name="templateId" mapping="['templateId']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="isNegativeGrade"/>
+                <validation ref-id="isNegativeWeight"/>
+                <validation ref-id="isStartGradeOverOne"/>
+                <validation ref-id="isWeightOverOne"/>
+            </validations>
+        </action>
+        <action id="update" name="Редактировать группу">
+            <invocation>
+                <n2o:sql>
+                    update qos_criteria_group set
+                    from_dt=:fromDate, is_active=:isActive, is_mandatory=:isMandatory,
+                    is_quality_level_excluded=:isQualityLevelExcluded, name=:name, start_grade=:startGrade, to_dt=:toDate, weight=:weight,
+                    parent_id=:parent_id, code=:code
+                    where id = :id
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="isActive" mapping="['isActive']" domain="boolean"/>
+                <param name="isMandatory" mapping="['isMandatory']" domain="boolean"/>
+                <param name="isQualityLevelExcluded" mapping="['isQualityLevelExcluded']" domain="boolean"/>
+                <param name="startGrade" mapping="['startGrade']" domain="numeric"/>
+                <param name="weight" mapping="['weight']" domain="numeric"/>
+                <param name="fromDate" mapping="['fromDate']" domain="date"/>
+                <param name="toDate" mapping="['toDate']" domain="date"/>
+                <param name="parent.id" mapping="['parent_id']" domain="integer"/>
+                <param name="templateId" mapping="['templateId']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkFromDate"/>
+                <validation ref-id="isNegativeGrade"/>
+                <validation ref-id="isNegativeWeight"/>
+                <validation ref-id="isStartGradeOverOne"/>
+                <validation ref-id="isWeightOverOne"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить группу">
+            <invocation>
+                <n2o:sql>
+                    delete from qos_criteria_group where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkCriteria"/>
+                <validation ref-id="checkParent"/>
+            </validations>
+        </action>
+    </actions>
+    <validations>
+        <condition id="isStartGradeOverOne" level="error">
+            <message>
+                Стартовая оценка не может быть больше единицы!
+            </message>
+            <expression>1 >= startGrade</expression>
+        </condition>
+        <condition id="isWeightOverOne" level="error">
+            <message>
+                Вес группы не может быть больше единицы!
+            </message>
+            <expression>1 >= weight</expression>
+        </condition>
+        <condition id="isNegativeGrade" level="error">
+            <expression>startGrade >= 0</expression>
+            <message>
+                Стартовая оценка для группы не может быть отрицательной!
+            </message>
+        </condition>
+        <condition id="isNegativeWeight" level="error">
+            <expression>weight >= 0</expression>
+            <message>
+                Вес группы при расчете УКЛ не может быть отрицательным!
+            </message>
+        </condition>
+        <constraint id="uniqueName" level="error">
+            <message>Группа с таким названием в рамках шаблона уже существует</message>
+            <invocation>
+                <n2o:sql>
+                    select count(*) from qos_criteria_group where upper(trim(name)) = upper(trim(:name))
+                    and template_id = :templateId and (id != :id or :id is null);
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="templateId" mapping="['templateId']" domain="integer"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+        <constraint id="checkCriteria" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*) from public.qos_criteria
+                    where group_id = :group_id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['group_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Невозможно удалить группу критериев. Существует ссылка из Критериев</message>
+        </constraint>
+        <constraint id="checkParent" level="error">
+            <invocation>
+                <sql:sql>
+                    select count(*) from public.qos_criteria_group
+                    where parent_id = :group_id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['group_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Невозможно удалить группу критериев. Данная группа является родительской</message>
+        </constraint>
+        <constraint id="checkFromDate" level="error">
+            <invocation>
+                <sql:sql>
+                    select :fromDate >= (select case when from_dt is not null
+                    then from_dt
+                    else :fromDate
+                    end from qos_exam_card_template b where b.id = :templateId);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="templateId" mapping="['templateId']" domain="integer"/>
+                <param name="fromDate" mapping="['fromDate']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+            <message>Дата начала Группы критериев не может быть раньше даты начала Шаблона</message>
+        </constraint>
+        <condition id="checkToDate" level="error">
+            <message>Дата начала не может быть позже даты окончания</message>
+            <expression><![CDATA[
+                   (fromDate != null && toDate != null &&
+                    (!moment(fromDate, 'DD.MM.YYYY').isAfter(moment(toDate, 'DD.MM.YYYY'))))
+                    ||fromDate == null||toDate == null || toDate == '' ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

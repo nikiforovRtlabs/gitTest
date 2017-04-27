@@ -1,0 +1,206 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+
+    <object-id>statisticalMap</object-id>
+    <name>Список статистических карт</name>
+    <layout>hospital/n2o/layout/statisticalMapList</layout>
+    <regions>
+        <region place="top" type="none">
+            <container id="statisticalMapList">
+                <wgt:table>
+                    <wgt:action-menu>
+
+                        <wgt:menu-item label="Создать" context="false" id="create">
+                            <wgt:open-page page-id="statisticalMap" container-id="main" refresh-on-close="true"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Изменить" context="true" id="update">
+                            <wgt:open-page page-id="statisticalMap" master-field-id="id"
+                                           detail-field-id="id" refresh-on-close="true"
+                                           page-name="Статистическая карта - {statisticalMapList.uidForTitle} {statisticalMapList.patient.name}"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="delete" context="true" label="Удалить">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="getBill" context="true" label="Перейти на счет" icon="icomoon-stack">
+                            <wgt:show-modal-form form-id="bill" master-field-id="id" detail-field-id="caseId">
+                                <wgt:edit model="default" form-submit-label="Перейти">
+                                    <wgt:a href="/billing/bills/:bill.id:/spec" target="newWindow"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>hasBill.id == 1</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                    <wgt:name>Статистическая карта</wgt:name>
+                    <wgt:query-id>statisticalMapList</wgt:query-id>
+                    <wgt:size>15</wgt:size>
+                    <wgt:columns>
+                        <wgt:column column-field-id="uid">
+                            <wgt:link>
+                                <wgt:open-page container-id="main" page-id="statisticalMap" master-field-id="id"
+                                               detail-field-id="id" refresh-on-close="true"
+                                               model="query" action-id="save"/>
+                            </wgt:link>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="patient.name" width="20%"/>
+                        <wgt:column column-field-id="age" width="5%"/>
+                        <wgt:column column-field-id="admissionDate"/>
+                        <wgt:column column-field-id="outcomeDate"/>
+                        <wgt:column column-field-id="bedDaysAmount"/>
+                        <wgt:column column-field-id="financialType.name"/>
+                        <wgt:column column-field-id="diagnosis"/>
+                        <wgt:column column-field-id="result.name" width="15%"/>
+                        <wgt:column column-field-id="outcome"/>
+                        <wgt:column column-field-id="address" width="15%"/>
+                    </wgt:columns>
+
+                    <wgt:rows>
+                        <wgt:color>
+                            <wgt:switch value-field-id="hasBill.id">
+                                <wgt:case value="1">warning</wgt:case>
+                            </wgt:switch>
+                        </wgt:color>
+                    </wgt:rows>
+
+                    <wgt:filters position="top" opened="true">
+                        <ctrl:date-interval id="admissionDate" format="DD.MM.YYYY" popup-placement="down,right">
+                            <ctrl:default-model begin="beginMonth()"/>
+                        </ctrl:date-interval>
+                        <ctrl:date-interval id="outcomeDate" format="DD.MM.YYYY" popup-placement="down,right"/>
+                        <ctrl:select id="caseState" label="Случаи">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Открытые"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Закрытые"}</ctrl:option>
+                            </ctrl:options>
+                        </ctrl:select>
+                        <ctrl:input-text id="uid"/>
+                        <rc:patient id="patient" label="Пациент" isFilter="true" control-style="width:350px;"/>
+                        <ctrl:classifier id="financialType" label="Вид финансирования" search-as-you-type="true">
+                            <ctrl:query query-id="hosp_financialType" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:multi-classifier id="department" label="Отделение">
+                            <ctrl:query query-id="hosp_clinicalOrResuscitDepartmentByOrg" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:multi-classifier>
+
+                        <ctrl:select id="hasBill" label="Попал в счет">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Да"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Нет"}</ctrl:option>
+                            </ctrl:options>
+                        </ctrl:select>
+
+                        <ctrl:select id="chooseCases" label="Отобрать случаи">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Отказ от госпитализации"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Госпитализированные"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">2</ctrl:value>
+                                <ctrl:value field-id="name">Госпитализированные</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:select>
+
+                        <ctrl:multi-classifier id="bedProfile" label="Профиль койки">
+                            <ctrl:query query-id="hosp_bedProfile" value-field-id="id" label-field-id="name">
+                            </ctrl:query>
+                        </ctrl:multi-classifier>
+
+                        <ctrl:classifier id="regimen" label="Условия оказания" search-as-you-type="true">
+                            <ctrl:query query-id="hosp_careRegimen" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="result" label="Результат" search-as-you-type="true">
+                            <ctrl:query query-id="hosp_closedResult" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="regimenId" ref="regimen.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="csg" label="КСГ" search-as-you-type="true" visible="true">
+                            <ctrl:query query-id="hosp_csg" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" ref="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="vmp" label="ВМП" search-as-you-type="true" visible="true">
+                            <ctrl:query query-id="hosp_vmp" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                    </wgt:filters>
+
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="admissionDate" direction="ASC"/>
+                    </wgt:sortings>
+
+                    <wgt:paging mode="lazy"/>
+
+                </wgt:table>
+
+                <pre-filters>
+                    <pre-filter field-id="clinicId" value="#{org.id?}"/>
+                </pre-filters>
+
+            </container>
+        </region>
+
+        <region place="right" type="list">
+            <container id="services" depends-on="statisticalMapList">
+                <wgt:table detail-field-id="caseId" master-field-id="id">
+                    <wgt:name>Операции</wgt:name>
+                    <wgt:query-id>statMap_srvRendered</wgt:query-id>
+                    <wgt:size>10</wgt:size>
+                    <wgt:columns>
+                        <wgt:column column-field-id="bdate" width="15%"/>
+                        <wgt:column column-field-id="serviceNameCode" width="30%"/>
+                        <wgt:column column-field-id="department"/>
+                        <wgt:column column-field-id="renderedDoctor"/>
+                        <wgt:column column-field-id="finFundingSource"/>
+                    </wgt:columns>
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="bdate" direction="ASC"/>
+                    </wgt:sortings>
+                </wgt:table>
+            </container>
+        </region>
+
+        <region place="left" type="list">
+            <container id="hospitalRecords" depends-on="statisticalMapList">
+                <wgt:table detail-field-id="caseId" master-field-id="id">
+                    <wgt:name>Движение по отделениям</wgt:name>
+                    <wgt:query-id>statMap_hospRecord_list</wgt:query-id>
+                    <wgt:size>10</wgt:size>
+                    <wgt:columns>
+                        <wgt:column column-field-id="admissionDate" format="date 'DD.MM.YYYY HH:mm'"/>
+                        <wgt:column column-field-id="outcomeDate" format="date 'DD.MM.YYYY HH:mm'"/>
+                        <wgt:column column-field-id="department"/>
+                        <wgt:column column-field-id="profile"/>
+                        <wgt:column column-field-id="diagnosis"/>
+                        <wgt:column column-field-id="funding"/>
+                    </wgt:columns>
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="admissionDate" direction="ASC"/>
+                    </wgt:sortings>
+                </wgt:table>
+            </container>
+        </region>
+
+    </regions>
+</page>

@@ -1,0 +1,198 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_prescription</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                <![CDATA[
+                    select :select
+                    from
+                    (
+                        (
+                            select
+                                null as id
+                                , (case when ps.execution_dt is null then '1' else case when is_cancel is true then '3' else '2' end end) as statusIcon
+                                , (case when ps.execution_dt is null then 'Запланировано' else case when is_cancel is true then 'Отменено' else 'Выполнено' end end) as statusIconTooltip
+                                , ps.prescription_dt
+                                , ps.execution_dt
+                                , (select
+                                    coalesce(i.surname, '') || ' ' || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end
+                                    || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for 1) || '.' end
+                                    from pim_employee_position_resource epr
+                                    left join pim_employee_position ep on ep.id = epr.employee_position_id
+                                    left join pim_employee e on e.id = ep.employee_id
+                                    left join pim_individual i on i.id = e.individual_id
+                                    where epr.id = ps.executor_employee_id) as employee
+                                , null as holding
+                                , null as count
+                                , ps.comment
+                                , ps.prescription_dt as dt
+                                , null as is_patient_medicament
+
+                            from hospital.prescription_schedule ps
+                            join hospital.prescription pr on pr.id = ps.prescription_id
+                            where :where
+                            and (pr.status_id != 5 or ps.prescription_dt < pr.cancel_dt)
+                            group by prescription_dt, ps.executor_employee_id, ps.execution_dt, ps.comment, ps.is_cancel
+                            order by prescription_dt
+                        )
+                        union all
+                        (
+                            select
+                                ps.id as id
+                                , '' as statusIcon
+                                , '' as statusIconTooltip
+                                , null
+                                , null as execution_dt
+                                , null as employee
+                                , coalesce(hm.name,
+                                    case
+                                    when ph.is_patient_medicament is true
+                                        then
+                                            h.name || coalesce(', ' || ft.short_name, '') || coalesce(', ' || ph.hold_con_value || coalesce(' ' || cm.name,''), '')
+                                            || coalesce(', ' || trim(to_char(ph.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' ' || dm.name,''), '')
+                                            || coalesce(', ' || mnei.name, '')
+                                        else ''
+					                 end
+                                 ) as holding
+                                , trim(to_char(ps.count_execution, 'FM9999990.999'), '.') || coalesce(' ' || mm.name, ' ' || mmp.name, '' ) as count
+                                , null as comment
+                                , ps.prescription_dt as dt
+                                , ph.is_patient_medicament
+
+                                    from hospital.prescription_schedule ps
+                                    join hospital.prescription pr on pr.id = ps.prescription_id
+                                    join hospital.prescription_holding ph on ph.id = ps.prescription_holding_id
+                                    left join inventory.hold_modif hm on hm.id = ps.hold_modif_id
+                                    left join cmn_measure mm on mm.id = hm.mnei_id
+
+                                    left join cmn_measure mmp on mmp.id = ph.hold_mnei_id
+
+                                    left join inventory.holding h on h.id = ph.holding_id
+                                    left join cmn_measure dm on dm.id = ph.hold_dose_measure_id
+                                    left join cmn_measure cm on cm.id = ph.hold_con_measure_id
+                                    left join cmn_measure mnei on mnei.id = ph.hold_mnei_id
+                                    left join inventory.form_type ft on ft.id = ph.hold_form_type_id
+
+                                    where :where
+                                    and (pr.status_id != 5 or ps.prescription_dt < pr.cancel_dt) and execution_dt is not null and is_cancel is not true
+                                    and (select count(1) from hospital.prescription_schedule where prescription_id = pr.id and prescription_dt = ps.prescription_dt and hold_modif_id is not null) > 0
+                                    order by prescription_dt
+                        )
+                        order by dt, statusIcon desc, id
+                    ) t
+                 ]]>
+            </n2o:items-query>
+            <n2o:count-query>
+                <![CDATA[
+                    select count(1)
+                    from
+                    (
+                        (
+                            select
+                            null as id
+                            from hospital.prescription_schedule ps
+                            join hospital.prescription pr on pr.id = ps.prescription_id
+                            where :where
+                            and (pr.status_id != 5 or ps.prescription_dt < pr.cancel_dt)
+                            group by prescription_dt, ps.executor_employee_id, ps.execution_dt, ps.comment, ps.is_cancel
+                        )
+                        union all
+                        (
+                            select
+                            ps.id as id
+
+                            from hospital.prescription_schedule ps
+                            join hospital.prescription pr on pr.id = ps.prescription_id
+                            where :where
+                            and (pr.status_id != 5 or ps.prescription_dt < pr.cancel_dt) and execution_dt is not null and is_cancel is not true
+                            and (select count(1) from hospital.prescription_schedule where prescription_id = pr.id and prescription_dt = ps.prescription_dt and hold_modif_id is not null) > 0
+                            order by prescription_dt
+                        )
+                    ) t
+                ]]>
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>id</expression>
+        </field>
+
+        <field>
+            <id>prescriptionId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>ps.prescription_id = :prescriptionId</search>
+        </field>
+
+        <field>
+            <id>prescriptionDt</id>
+            <name>Планируемая дата</name>
+            <domain>date</domain>
+            <expression>prescription_dt</expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>executeDt</id>
+            <name>Фактическая дата</name>
+            <domain>date</domain>
+            <expression>execution_dt</expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>employee</id>
+            <name>Сотрудник</name>
+            <domain>string</domain>
+            <expression>employee</expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>holding</id>
+            <name>Выполненный препарат</name>
+            <domain>string</domain>
+            <expression>holding</expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>count</id>
+            <name>Количество</name>
+            <domain>integer</domain>
+            <expression>count</expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>comment</id>
+            <name>Комментарий</name>
+            <domain>string</domain>
+            <expression>comment</expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>statusIcon</id>
+            <name/>
+            <expression>statusIcon</expression>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>statusIconTooltip</id>
+            <name>statusIconTooltip</name>
+            <expression>statusIconTooltip</expression>
+            <sorting unavailable="true"/>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,143 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>examinationCard</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from qos_examination_card qec
+                join mc_case c on c.id = qec.case_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+
+                left join sr_res_group res on res.id = qec.res_group_id
+                left join qos_exam_card_control_level cl on cl.id = qec.control_level_id
+                where :where and c.case_type_id in (1, 2)
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(qec)
+                from qos_examination_card qec
+                join mc_case c on c.id = qec.case_id
+                join pci_patient p on p.id = c.patient_id
+                join pim_individual i on i.id = p.id
+
+                left join sr_res_group res on res.id = qec.res_group_id
+                left join qos_exam_card_control_level cl on cl.id = qec.control_level_id
+                where :where and c.case_type_id in (1, 2)
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>qec.id</expression>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>qec.case_id</expression>
+        </field>
+
+        <field>
+            <id>caseUid</id>
+            <name>Номер случая</name>
+            <domain>string</domain>
+            <expression>(select uid from mc_case where id = qec.case_id)</expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>i.surname
+                || ' ' || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end
+                || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for 1) || '.' end
+            </expression>
+            <sorting>upper(i.surname), upper(i.name), upper(i.patr_name)</sorting>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>createDate</id>
+            <domain>date</domain>
+            <name>Дата экспертизы</name>
+            <expression>qec.create_dt</expression>
+        </field>
+
+        <field>
+            <id>expertGroup</id>
+            <name>Состав экспертов</name>
+            <domain>string</domain>
+            <expression>
+                (select array_to_string(
+                    array_agg(name), ', ')
+                    from
+                    (select
+                        coalesce(ei.surname, '') ||
+                        coalesce(' ' || substring(ei.name for 1) || '.', '') ||
+                        coalesce(' ' || substring(ei.patr_name for 1) || '.', '') as name
+                    from sr_res_group_relationship relation
+                    left join sr_resource srr on srr.id = relation.resource_id
+                    left join pim_employee_position_resource epr on epr.id = srr.id
+                    left join pim_employee_position epos on epos.id = epr.employee_position_id
+                    left join pim_employee e on e.id = epos.employee_id
+                    left join pim_individual ei on e.individual_id = ei.id
+                    where relation.group_id = res.id
+                        and res_kind_id = 1
+                    ) t
+                )
+            </expression>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>qualityLevel</id>
+            <domain>string</domain>
+            <name>УКЛ</name>
+            <expression>qec.quality_level</expression>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search value="#{org.id?}">c.clinic_id = :orgId</search>
+        </field>
+
+        <field>
+            <id>controlLevel</id>
+            <name>Ступень</name>
+            <domain>string</domain>
+            <expression>coalesce(cl.code, cl.name)</expression>
+        </field>
+
+        <field>
+            <id>defectsExist</id>
+            <domain>boolean</domain>
+            <name>Обнаружены дефекты</name>
+            <expression>(select count(1) > 0 from qos_exam_card_criteria_value where examination_card_id = qec.id)
+            </expression>
+        </field>
+
+        <field>
+            <id>templateId</id>
+            <domain>integer</domain>
+            <expression>template_id</expression>
+        </field>
+
+    </fields>
+</query>

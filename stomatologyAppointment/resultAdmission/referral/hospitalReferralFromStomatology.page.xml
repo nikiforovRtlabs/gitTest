@@ -1,0 +1,206 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0">
+
+    <object-id>clinicReferral</object-id>
+    <layout>n2o/layout/single</layout>
+    <name>Направление на госпитализацию</name>
+    <regions>
+        <region place="single" type="none">
+            <container id="main">
+                <wgt:form detail-field-id="id" master-field-id="id"
+                          customize="css,js" src="hospital/n2o/custom/referral/form/hospReferral">
+                    <wgt:query-id>hospReferralFromClinic</wgt:query-id>
+                    <wgt:name>Направление на госпитализацию</wgt:name>
+                    <wgt:default-values-query-id>hospReferralFromClinic_default</wgt:default-values-query-id>
+
+                    <wgt:edit after-submit="closeModal" refresh-after-submit="true">
+                        <wgt:invoke-action action-id="saveHospReferral"/>
+                    </wgt:edit>
+
+                    <!--Направлен из-->
+
+                    <fs:field-set header="line" field-label-location="top" label="Направлен из">
+                        <fs:row>
+                            <ctrl:classifier id="referralOrganizationRole" label="Тип организации"
+                                             search-as-you-type="true" autoselect-alone="true">
+                                <ctrl:query query-id="hosp_party_role" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="typeId" value="2"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="referralOrganization" label="Организация" required="true"
+                                             search-as-you-type="true" control-style="width:450px;">
+                                <ctrl:query query-id="hosp_clinic_role" master-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="role.id" ref="referralOrganizationRole.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="referralDepartment" label="Отделение" depends-on="referralOrganization"
+                                             search-as-you-type="true">
+                                <ctrl:query query-id="hosp_clinicalOrOutpatientOrFosterDepartment" value-field-id="id" label-field-id="name"
+                                            master-field-id="id" detail-field-id="organizationId">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="date" value="today()"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="referralEmployee" label="Специалист" depends-on="referralOrganization"
+                                             search-as-you-type="true">
+                                <ctrl:query query-id="hosp_employeePosition" value-field-id="id" label-field-id="nameIndiv">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="orgId" ref="referralOrganization.id"/>
+                                        <ctrl:pre-filter field-id="depId" ref="referralDepartment.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                        </fs:row>
+                    </fs:field-set>
+
+                    <!--Направлен в-->
+
+                    <fs:field-set header="line" field-label-location="top" label="Направлен в">
+                        <fs:row>
+                            <ctrl:classifier id="recvOrganization" label="Организация" required="true"
+                                             search-as-you-type="true">
+                                <ctrl:query query-id="hosp_clinic" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="recvDepartment" label="Отделение" depends-on="recvOrganization"
+                                             search-as-you-type="true">
+                                <ctrl:query query-id="hosp_clinicalDepartment" value-field-id="id" label-field-id="name"
+                                            master-field-id="id" detail-field-id="organizationId">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="date" value="today()"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="recvEmployee" label="Специалист" depends-on="recvOrganization"
+                                             search-as-you-type="true">
+                                <ctrl:query query-id="hosp_employeePosition" value-field-id="id" label-field-id="nameIndiv"
+                                            master-field-id="id" detail-field-id="orgId">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="depId" ref="recvDepartment.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+                        </fs:row>
+                    </fs:field-set>
+
+                    <!--Основные данные-->
+
+                    <fs:field-set header="line" field-label-location="top" label="Основные данные">
+                        <fs:row>
+                            <ctrl:date-time id="referralDate" label="Дата" default-value="now()" required="true"/>
+
+                            <ctrl:checkbox id="enableLink" visible="false">
+                                <ctrl:set-value if="typeof referralOrganization != 'undefined' &amp;&amp; referralOrganization != null &amp;&amp; referralOrganization.id != null
+                                     &amp;&amp; referralOrganization.id == contextClinicId
+                                     &amp;&amp; typeof referralDate != 'undefined' &amp;&amp; referralDate != null
+                                     &amp;&amp; typeof referralType != 'undefined' &amp;&amp; referralType != null &amp;&amp; referralType.id != null"
+                                                then="true" else="false"/>
+                            </ctrl:checkbox>
+
+                            <ctrl:input-text id="orderNumber" label="Номер" control-style="width:140px;">
+                                <ctrl:actions>
+                                    <ctrl:link label="Заполнить">
+                                        <ctrl:on-click src="hospital/n2o/custom/referral/form/orderNumber.js" function-name="getOrderNumberForReferralForm"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:enabling-condition on="enableLink">enableLink == true</ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:link>
+                                </ctrl:actions>
+                            </ctrl:input-text>
+
+                            <ctrl:hidden id="contextClinicId" default-value="#{org.id?}"/>
+
+                            <ctrl:checkbox id="cito" label="Cito" default-value="false"/>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="referralType" label="Вид направления" required="true" autoselect-alone="true"
+                                             search-as-you-type="true">
+                                <ctrl:query query-id="hosp_referral_hsp_rsv_mark" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="recvRegimen" label="Условия оказания"
+                                             search-as-you-type="true">
+                                <ctrl:query query-id="hosp_careRegimen" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="date" ref="referralDate" reset-mode="off"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="financialType" label="Вид финансирования"
+                                             search-as-you-type="true" depends-on="recvOrganization">
+                                <ctrl:query query-id="hosp_financialTypeByOrg" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId" ref="recvOrganization.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression on-load="false">
+                                    recvOrganization.defOMSId
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:input-text id="referralComment" label="Обоснование" control-style="width:450px;"/>
+                        </fs:row>
+                    </fs:field-set>
+
+                    <!--Диагноз-->
+
+                    <fs:field-set header="line" field-label-location="top" label="Диагноз">
+                        <fs:row>
+                            <ctrl:classifier id="referralDiagnosis" label="Диагноз направления"
+                                             search-as-you-type="true"  control-style="width:450px;" readonly="false">
+                                <ctrl:query query-id="hosp_diagnosisWithCodeNameSearch"
+                                            value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:text-area id="referralDiagnosisComment" label="Дополнение" rows="1"/>
+
+                            <!--<ctrl:input-text id="caseUid" label="Номер ИБ" readonly="true"-->
+                            <!--dependency-condition="typeof caseId != 'undefined' &amp;&amp; caseId != null">-->
+                            <!--<ctrl:actions>-->
+                            <!--<ctrl:link label="Открыть">-->
+                            <!--<ctrl:open-page page-id="medicalHistoryForm"-->
+                            <!--master-field-id="caseId" detail-field-id="caseId"-->
+                            <!--container-id="medicalHistoryContainerForm" refresh-on-close="true"-->
+                            <!--page-name="История болезни - {hospReferral.uidForTitle} {hospReferral.patient.name}"/>-->
+                            <!--</ctrl:link>-->
+                            <!--</ctrl:actions>-->
+                            <!--</ctrl:input-text>-->
+                        </fs:row>
+                    </fs:field-set>
+
+                    <!--Статус-->
+
+                    <fs:field-set header="line" field-label-location="top" label="Статус">
+                        <fs:row>
+                            <ctrl:hidden id="status.id"/>
+                            <ctrl:output-text id="status.name" label="" control-style="width:450px" css-class="status-field"/>
+                        </fs:row>
+                    </fs:field-set>
+
+                </wgt:form>>
+
+            </container>
+
+        </region>
+    </regions>
+
+</page>

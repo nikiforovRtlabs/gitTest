@@ -1,0 +1,455 @@
+﻿<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>vac_inoculation</id>-->
+    <name>Журнал прививок</name>
+    <object-id>inoculation</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from vac_inoculation vi
+                join vac_vaccine vv on vv.id = vi.vaccine_id
+                join vac_inoculation_status vis on vis.id = vi.status_id
+                left join vac_number vn on vn.id = vi.number_id
+                left join vac_inp_type vit on vit.id = vi.inp_type_id
+                --/*
+                left join public.pim_organization po on po.id = vi.org_id
+                left join public.pim_employee pe on pe.id = vi.employee_id
+                --*/
+                left join vac_dose vd on vd.id = vi.dose_id
+                left join vac_series vs on vs.id = vi.series_id
+
+                left join public.pim_indiv_code pic on pic.code = vi.patient_uid and pic.type_id = (select id from public.pim_code_type where upper(code) = upper('UID'))
+                left join public.pim_individual pi on pi.id = pic.indiv_id
+                left join public.pim_gender pg on pg.id = pi.gender_id
+
+                join vac_disease vdis on vdis.id = vv.disease_id
+                left join vac_dose_type vdt on vdt.id = vd.dose_type_id
+
+                <!--left join public.pim_organization jobpo on jobpo.id = ppj.organization_id-->
+
+                where vi.deleted is false and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from vac_inoculation vi
+                join vac_vaccine vv on vv.id = vi.vaccine_id
+                join vac_inoculation_status vis on vis.id = vi.status_id
+                left join vac_number vn on vn.id = vi.number_id
+                left join vac_inp_type vit on vit.id = vi.inp_type_id
+                --/*
+                left join pim_organization po on po.id = vi.org_id
+                left join pim_employee pe on pe.id = vi.employee_id
+                --*/
+                left join vac_dose vd on vd.id = vi.dose_id
+                left join vac_series vs on vs.id = vi.series_id
+
+                left join public.pim_indiv_code pic on pic.code = vi.patient_uid and pic.type_id = (select id from public.pim_code_type where upper(code) = upper('UID'))
+                left join public.pim_individual pi on pi.id = pic.indiv_id
+                left join public.pim_gender pg on pg.id = pi.gender_id
+
+                join vac_disease vdis on vdis.id = vv.disease_id
+                left join vac_dose_type vdt on vdt.id = vd.dose_type_id
+                <!--left join public.pim_organization jobpo on jobpo.id = ppj.organization_id-->
+
+                where vi.deleted is false and :where
+            </n2o:count-query>
+            <n2o:alias>vi</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <expression>vi.id</expression>
+        </field>
+        <field>
+            <id>emplPosRes.id</id>
+            <domain>integer</domain>
+            <display value="#{emplPosRes.id?}" unavailable="true"/>
+        </field>
+        <field>
+            <id>individual.id</id>
+            <domain>integer</domain>
+            <expression>pi.id</expression>
+        </field>
+        <field>
+            <id>individual.FIO</id>
+            <domain>string</domain>
+            <name>Пациент</name>
+            <expression>concat(pi.surname, ' ', pi.name, ' ', pi.patr_name)</expression>
+            <search>upper(:expression) like upper('%'||:individual.FIO||'%')</search>
+        </field>
+        <field>
+            <id>gender.id</id>
+            <domain>integer</domain>
+            <expression>pg.id</expression>
+        </field>
+        <field>
+            <id>gender.name</id>
+            <domain>string</domain>
+            <expression>pg.name</expression>
+        </field>
+        <field>
+            <id>reg.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select mc.id
+                from pci_patient_reg ppr
+                join public.md_clinic mc on mc.id = ppr.clinic_id
+                where ppr.patient_id = pi.id
+
+                    and (
+                        ppr.reg_dt >= :dateInt.begin or ppr.reg_dt is null or cast(now() as date) >= ppr.reg_dt
+                    )
+                    and (
+                        ppr.unreg_dt >= :dateInt.begin or ppr.unreg_dt is null or ppr.unreg_dt >= cast(now() as date) or :dateInt.end >= ppr.reg_dt
+                    )
+                    and (
+                        :dateInt.end >= ppr.reg_dt or ppr.reg_dt is null or cast(now() as date) >= ppr.reg_dt
+                    )
+                    and (
+                        :dateInt.end >= ppr.unreg_dt or ppr.unreg_dt is null or ppr.unreg_dt >= cast(now() as date) or cast(now() as date) >= ppr.unreg_dt
+                    )
+
+                    and ppr.type_id = (select id from public.md_reg_type where code = '1')
+                    and ppr.state_id = (select id from public.md_reg_state where code = '1')
+                limit 1
+                )
+            </expression>
+            <search>:expression = :reg.id</search>
+        </field>
+        <field>
+            <id>birth_dt</id>
+            <domain>date</domain>
+            <name>Дата рождения</name>
+            <expression>pi.birth_dt</expression>
+        </field>
+        <field>
+            <id>district.id</id>
+            <domain>integer</domain>
+            <name>Участок</name>
+            <expression>
+                (select mcd.id
+                from pci_patient_reg ppr
+                join public.md_clinic_district mcd on mcd.id = case when ppr.district_by_addr_id is not null then ppr.district_by_addr_id
+                                                                                                             else ppr.district_id end
+                where ppr.patient_id = pi.id
+                and ppr.clinic_id = :reg.id
+                limit 1
+                )
+            </expression>
+        </field>
+        <field>
+            <id>data</id>
+            <domain>string</domain>
+            <name>Дата</name>
+            <expression>to_char(vi.date,'DD.MM.YYYY')</expression>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <name>Дата</name>
+            <expression>vi.date</expression>
+            <search type="eq" unavailable="true"/>
+            <search filter-field="dateInt.begin" type="more">:expression >= :dateInt.begin</search>
+            <search filter-field="dateInt.end" type="less">
+                <![CDATA[
+                    :expression <= :dateInt.end
+                ]]>
+            </search>
+        </field>
+        <field>
+            <id>dateInt.begin</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>dateInt.end</id>
+            <domain>date</domain>
+            <search unavailable="true"/>
+            <display unavailable="true"/>
+            <sorting unavailable="true"/>
+        </field>
+        <field>
+            <id>age</id>
+            <domain>string</domain>
+            <name>Возраст</name>
+            <expression>
+                <![CDATA[
+                case
+                    when pi.birth_dt is null then null
+                    when (vi.date -pi.birth_dt)<0
+                    then (concat(vi.date -pi.birth_dt,'д'))
+                    ELSE
+                         (case
+                               when EXTRACT(YEAR FROM (AGE(vi.date,pi.birth_dt))) != 0
+                               then concat(EXTRACT(YEAR FROM (AGE(vi.date,birth_dt))),
+                                   case
+                                        when(right(EXTRACT(YEAR FROM (AGE(vi.date,birth_dt)))::VARCHAR,1) in ('1','2','3','4')
+                                            and right(EXTRACT(YEAR FROM (AGE(vi.date,birth_dt)))::VARCHAR,2) not in ('11','12','13','14'))
+                                        then 'г ' else 'л '
+                                   end,
+                                   EXTRACT(MONTH FROM (AGE(vi.date,birth_dt))), 'м ', EXTRACT(DAY FROM (AGE(vi.date,birth_dt))),'д')
+                               else (case
+                                         when (EXTRACT(YEAR FROM (AGE(vi.date,birth_dt))) = 0 and EXTRACT(MONTH FROM (AGE(vi.date,birth_dt))) != 0)
+                                         then concat(EXTRACT(MONTH FROM (AGE(vi.date,birth_dt))), 'м ',  EXTRACT(DAY FROM (AGE(vi.date,birth_dt))),'д')
+                                         else concat( EXTRACT(DAY FROM (AGE(vi.date,birth_dt))),'д')
+                                     end)
+                         end)
+                end
+                ]]>
+            </expression>
+            <search type="eq" unavailable="true"/>
+            <search type="more" filter-field="age.alter">
+                case when get_age(cast (pi.birth_dt as date),cast(now() as date)) = -1
+                    then null
+                    else get_age(cast (pi.birth_dt as date),cast(now() as date))
+                end >= cast(:age.alter as integer)
+            </search>
+            <search type="less" filter-field="age.yunger">
+                <![CDATA[
+                case when get_age(cast (pi.birth_dt as date),cast(now() as date)) = -1
+                    then null
+                    else get_age(cast (pi.birth_dt as date),cast(now() as date))
+                end <= cast(:age.yunger as integer)
+                ]]>
+            </search>
+            <sorting>
+                case when EXTRACT(DAY FROM (AGE(vi.date,birth_dt))) = 0
+                    then AGE(vi.date,pi.birth_dt) + '1M'::interval
+                    else AGE(vi.date,pi.birth_dt)
+                end
+            </sorting>
+        </field>
+        <field>
+            <id>disease.id</id>
+            <domain>integer</domain>
+            <name>Инфекция</name>
+            <expression>vdis.id</expression>
+            <search type="eq" unavailable="true"/>
+            <search type="in" filter-field="diseases*.id">
+                vdis.id in
+                (select distinct id
+                from
+                (select id as id,
+                id as child
+                from vac_disease
+                where position('+' in label) = 0
+                union
+                select vd.id as id,
+                vd2d.child as child
+                from vac_disease vd
+                join vac_disease2disease vd2d on vd2d.self = vd.id
+                ) tab
+                where tab.child = any(select id from vac_disease where id in (:diseases*.id))
+                )
+            </search>
+        </field>
+        <field>
+            <id>disease.label</id>
+            <domain>string</domain>
+            <name>Инфекция</name>
+            <expression>vdis.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>number.id</id>
+            <domain>integer</domain>
+            <name>Этап вакцинации</name>
+            <expression>vn.id</expression>
+        </field>
+        <field>
+            <id>number.label</id>
+            <domain>string</domain>
+            <name>Этап вакцинации</name>
+            <expression>vn.label</expression>
+        </field>
+        <field>
+            <id>vaccine.id</id>
+            <domain>integer</domain>
+            <name>Вакцина</name>
+            <expression>vv.id</expression>
+            <search type="in" filter-field="vaccine*.id">vv.id in (:vaccine*.id)</search>
+        </field>
+        <field>
+            <id>vaccine.label</id>
+            <domain>string</domain>
+            <name>Вакцина</name>
+            <expression>vv.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <name>Статус</name>
+            <expression>vis.id</expression>
+            <search type="in" filter-field="status*.id">vis.id in (:status*.id)</search>
+        </field>
+        <field>
+            <id>status.label</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>vis.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>statusForClinic.id</id>
+            <domain>integer</domain>
+            <name>Статус</name>
+            <expression>vis.id</expression>
+        </field>
+        <field>
+            <id>statusForClinic.label</id>
+            <domain>string</domain>
+            <name>Статус</name>
+            <expression>vis.label</expression>
+        </field>
+        <field>
+            <id>dose.id</id>
+            <domain>integer</domain>
+            <name>Доза</name>
+            <expression>vd.id</expression>
+        </field>
+        <field>
+            <id>dose.label</id>
+            <domain>string</domain>
+            <name>Доза</name>
+            <expression>vd.count||vdt.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>inp_type.id</id>
+            <domain>integer</domain>
+            <name>Тип введения</name>
+            <expression>vit.id</expression>
+        </field>
+        <field>
+            <id>inp_type.label</id>
+            <domain>string</domain>
+            <name>Тип введения</name>
+            <expression>vit.label</expression>
+        </field>
+        <field>
+            <id>series.id</id>
+            <domain>integer</domain>
+            <name>Серия</name>
+            <expression>vs.id</expression>
+        </field>
+        <field>
+            <id>series.label</id>
+            <domain>string</domain>
+            <name>Серия</name>
+            <expression>vs.label</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <expression>vi.org_id</expression>
+        </field>
+
+        <field>
+            <id>dep.id</id>
+            <domain>integer</domain>
+            <expression>:dep.id</expression>
+            <search>exists(select 1
+                from vac_inoculation vix
+                LEFT JOIN  pim_employee_position_resource peprx ON vix.empl_pos_res_id = peprx.id
+                LEFT JOIN  pim_employee_position pepx ON peprx.employee_position_id = pepx.id
+                LEFT JOIN  pim_position pp ON pepx.position_id = pp.id
+                where vix.id = vi.id AND ((pp.department_id = :dep.id and :depChild is not true) or
+                (pp.department_id in (WITH RECURSIVE tt As (
+                select id, parent_id from pim_department where id = :dep.id
+                UNION
+                select c.id, c.parent_id from pim_department c, tt where c.parent_id = tt.id)
+                SELECT id from tt) and :depChild is true)))</search>
+        </field>
+
+        <field>
+            <id>depChild</id>
+            <domain>boolean</domain>
+            <expression>:depChild</expression>
+        </field>
+
+        <field>
+            <id>deleted</id>
+            <domain>boolean</domain>
+            <expression>vi.deleted</expression>
+        </field>
+        <field>
+            <id>joborg.id</id>
+            <domain>integer</domain>
+            <name>Место пребывания</name>
+            <expression>
+                (select org.id
+                from pci_patient_job ppj
+                join pim_organization org on org.id = ppj.organization_id
+
+                where ppj.patient_id = pi.id
+
+                    and (
+                        ppj.from_dt >= :dateInt.begin or ppj.from_dt is null or cast(now() as date) >= ppj.from_dt
+                    )
+                    and (
+                        ppj.to_dt >= :dateInt.begin or ppj.to_dt is null or ppj.to_dt >= cast(now() as date) or :dateInt.end >= ppj.from_dt
+                    )
+                    and (
+                        :dateInt.end >= ppj.from_dt or ppj.from_dt is null or cast(now() as date) >= ppj.from_dt
+                    )
+                    and (
+                        :dateInt.end >= ppj.to_dt or ppj.to_dt is null or ppj.to_dt >= cast(now() as date) or cast(now() as date) >= ppj.to_dt
+                    )
+                    and ppj.organization_type_id in (2,3)
+                limit 1
+                )
+            </expression>
+        </field>
+        <field>
+            <id>empl_pos_res.id</id>
+            <domain>integer</domain>
+            <expression>vi.empl_pos_res_id</expression>
+        </field>
+        <field>
+            <id>color</id>
+            <domain>string</domain>
+            <expression>
+                case
+                    when (vi.status_id = 1 or vi.status_id = 2) and cast(now() as date) > vi.date then 'overdue'
+                    when (vi.status_id = 3) then 'execute'
+                    when (vi.status_id = 4) then 'deny'
+                end
+            </expression>
+        </field>
+        <field>
+            <id>overdue</id>
+            <domain>boolean</domain>
+            <expression>
+                case when (vi.status_id = 1 or vi.status_id = 2) and cast(now() as date) > vi.date then true else false end
+            </expression>
+        </field>
+        <field>
+            <id>result</id>
+            <domain>string</domain>
+            <name>Результат</name>
+            <expression>
+                case when vi.is_mantu = false then
+                  case when vi.complication != '' then 'Осложнения' else
+                    case when vi.global_result != '' then 'Общая реакция' else
+                      case when vi.local_result != '' then 'Местная реакция'
+                      end
+                    end
+                  end
+                else (select vmr.label from vac_inoculation_mantu vim
+                      join vac_mantu_result vmr on vmr.id = vim.result_id
+                      where vim.id = vi.id)
+                end
+            </expression>
+        </field>
+    </fields>
+</query>

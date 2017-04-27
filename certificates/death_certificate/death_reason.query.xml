@@ -1,0 +1,539 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>death_reason</id>-->
+    <name>Причины смерти</name>
+    <object-id>death_reason</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from certificates.death_reason dr
+                join public.md_diagnosis md on md.id = dr.diagnos_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from certificates.death_reason dr
+                join public.md_diagnosis md on md.id = dr.diagnos_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>dc</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <display/>
+            <expression>dr.id</expression>
+            <filters>
+                <filter type="eq" filter-field="id">
+                    :expression = :id
+                </filter>
+            </filters>
+        </field>
+        
+        <field>
+            <id>diagnos.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>dr.diagnos_id</expression>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <name>Код по МКБ</name>
+            <display/>
+            <expression>dr.diagnos_code</expression>
+            <filters>
+                <filter type="eq" filter-field="code">
+                    trim(:expression) like '%'||trim(:code)||'%'
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <display/>
+            <expression>dr.diagnos_name</expression>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    trim(:expression) like '%'||trim(:name)||'%'
+                </filter>
+            </filters>
+            <sorting>
+                    <!--case when (:is_perinatal is not null and :is_perinatal = true)-->
+                        <!--then cast(trim(ec.perinatal_code) as integer)-->
+                        <!--else cast(trim(ec.code) as integer)-->
+                    <!--end    -->
+                case when (:is_perinatal is null or :is_perinatal = false)
+                then
+                case when dr.is_direct is true
+                then 1
+                when dr.is_interim is true
+                then 2
+                when dr.is_primary is true
+                then 3
+                when dr.is_foreign is true
+                then 4
+                end
+                else
+                case when dr.is_direct is true
+                then 1
+                when dr.is_other_baby_reason is true
+                then 2
+                when dr.is_mother_direct is true
+                then 3
+                when dr.is_mother_other_reason is true
+                then 4
+                when dr.is_foreign is true
+                then 5
+                end
+                end
+            </sorting>
+        </field>
+
+        <field>
+            <id>certificate.id</id>
+            <domain>integer</domain>
+            <name>Свидетельство</name>
+            <display/>
+            <expression>
+                case when (:is_perinatal is null or :is_perinatal = false)
+                    then dr.death_certificate_id
+                    else dr.perinatal_death_certificate_id
+                end
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="certificate.id">
+                    :expression = :certificate.id
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>is_direct</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>dr.is_direct</expression>
+            <filters>
+                <filter type="eq" filter-field="is_direct">
+                    :expression = :is_direct
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>is_interim</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>dr.is_interim</expression>
+        </field>
+        <field>
+            <id>is_primary</id>
+            <domain>boolean</domain>
+            <name></name>
+            <display/>
+            <expression>dr.is_primary</expression>
+            <filters>
+                <filter type="eq" filter-field="is_primary">
+                    :expression = :is_primary
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>is_foreign</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>dr.is_foreign</expression>
+            <filters>
+                <filter type="eq" filter-field="is_foreign">
+                    :expression = :is_foreign
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>is_print</id>
+            <domain>boolean</domain>
+            <display>
+                case when dr.is_print is true
+                    then '!'
+                    else ''
+                end
+            </display>
+            <expression>dr.is_print</expression>
+            <filters>
+                <filter type="eq" filter-field="is_print">
+                    :expression = :is_print
+                </filter>
+            </filters>
+        </field>
+
+        <!--только для перинатальной-->
+        <field>
+            <id>is_other_baby_reason</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>dr.is_other_baby_reason</expression>
+            <filters>
+                <filter type="eq" filter-field="is_other_baby_reason">
+                    :expression = :is_other_baby_reason
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>is_mother_direct</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>dr.is_mother_direct</expression>
+            <filters>
+                <filter type="eq" filter-field="is_mother_direct">
+                    :expression = :is_mother_direct
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>is_mother_other_reason</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>dr.is_mother_other_reason</expression>
+            <filters>
+                <filter type="eq" filter-field="is_mother_other_reason">
+                    :expression = :is_mother_other_reason
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>minutes</id>
+            <domain>integer</domain>
+            <name>минут</name>
+            <display/>
+            <expression>dr.minutes</expression>
+        </field>
+        <field>
+            <id>hours</id>
+            <domain>integer</domain>
+            <name>часов</name>
+            <display/>
+            <expression>dr.hours</expression>
+        </field>
+        <field>
+            <id>days</id>
+            <domain>integer</domain>
+            <name>дней</name>
+            <display/>
+            <expression>dr.days</expression>
+        </field>
+        <field>
+            <id>weeks</id>
+            <domain>integer</domain>
+            <name>недель</name>
+            <display/>
+            <expression>dr.weeks</expression>
+        </field>
+        <field>
+            <id>months</id>
+            <domain>integer</domain>
+            <name>месяцев</name>
+            <display/>
+            <expression>dr.months</expression>
+        </field>
+        <field>
+            <id>years</id>
+            <domain>integer</domain>
+            <name>год(а)/лет</name>
+            <display/>
+            <expression>dr.years</expression>
+        </field>
+        
+        <field>
+            <id>length</id>
+            <domain>string</domain>
+            <name>Приблизительный период времени между началом патологического процесса и смертью</name>
+            <display/>
+            <expression>
+                <!--(select '1')-->
+                concat (
+                        case when dr.years is not null
+                                then cast(dr.years as varchar)
+                                else ''
+                        end,
+                        case when cast(dr.years as varchar) in ('11','12','13','14')
+                                then ' лет '
+                                else
+                                    case when right(cast(dr.years as varchar), 1) = '1'
+                                            then ' год '
+                                         when right(cast(dr.years as varchar), 1) in ('2','3','4')
+                                            then ' года '
+                                        when right(cast(dr.years as varchar), 1) in ('5','6','7','8','9','0')
+                                            then ' лет '
+                                    end
+                        end,
+                        case when dr.months is not null
+                            then cast(dr.months as varchar)
+                            else ''
+                        end,
+                        case when cast(dr.months as varchar) in ('11','12','13','14')
+                            then ' месяцев '
+                            else
+                                case when right(cast(dr.months as varchar), 1) = '1'
+                                        then ' месяц '
+                                     when right(cast(dr.months as varchar), 1) in ('2','3','4')
+                                        then ' месяца '
+                                     when right(cast(dr.months as varchar), 1) in ('5','6','7','8','9','0')
+                                        then ' месяцев '
+                                end
+                        end,
+                        case when dr.weeks is not null
+                            then cast(dr.weeks as varchar)
+                            else ''
+                        end,
+                        case when cast(dr.weeks as varchar) in ('11','12','13','14')
+                            then ' недель '
+                            else
+                                case when right(cast(dr.weeks as varchar), 1) = '1'
+                                        then ' неделя '
+                                     when right(cast(dr.weeks as varchar), 1) in ('2','3','4')
+                                        then ' недели '
+                                     when right(cast(dr.weeks as varchar), 1) in ('5','6','7','8','9','0')
+                                        then ' недель '
+                                end
+                        end,
+                        case when dr.days is not null
+                            then cast(dr.days as varchar)
+                            else ''
+                        end,
+                        case when cast(dr.days as varchar) in ('11','12','13','14')
+                            then ' дней '
+                            else
+                                case when right(cast(dr.days as varchar), 1) = '1'
+                                        then ' день '
+                                     when right(cast(dr.days as varchar), 1) in ('2','3','4')
+                                        then ' дня '
+                                     when right(cast(dr.days as varchar), 1) in ('5','6','7','8','9','0')
+                                        then ' дней '
+                                end
+                        end,
+                        case when dr.hours is not null
+                            then cast(dr.hours as varchar)
+                            else ''
+                        end,
+                        case when cast(dr.hours as varchar) in ('11','12','13','14')
+                            then ' часов '
+                            else
+                                case when right(cast(dr.hours as varchar), 1) = '1'
+                                        then ' час '
+                                     when right(cast(dr.hours as varchar), 1) in ('2','3','4')
+                                        then ' часа '
+                                     when right(cast(dr.hours as varchar), 1) in ('5','6','7','8','9','0')
+                                        then ' часов '
+                                end
+                        end,
+                        case when dr.minutes is not null
+                            then cast(dr.minutes as varchar)
+                            else ''
+                        end,
+                        case when cast(dr.minutes as varchar) in ('11','12','13','14')
+                            then ' минут '
+                            else
+                                case when right(cast(dr.minutes as varchar), 1) = '1'
+                                        then ' минута '
+                                     when right(cast(dr.minutes as varchar), 1) in ('2','3','4')
+                                        then ' минуты '
+                                     when right(cast(dr.minutes as varchar), 1) in ('5','6','7','8','9','0')
+                                        then ' минут '
+                                end
+                            end
+                )
+            </expression>
+        </field>
+
+        <!--доп поля для фильтраций и "красоты"-->
+        <field>
+            <id>orderAll.id</id>
+            <domain>string</domain>
+            <!--<display/>-->
+            <!--<expression>-->
+            <display>
+                case when (:is_perinatal is null or :is_perinatal = false)
+                    then
+                        case when dr.is_direct is true
+                                then 'а'
+                             when dr.is_interim is true
+                                then 'б'
+                             when dr.is_primary is true
+                                then 'в'
+                             when dr.is_foreign is true
+                                then 'г'
+                             when dr.is_primary_diagnosis is true
+                                then '!'
+                        end
+                    else
+                        case when dr.is_direct is true
+                                then 'а'
+                             when dr.is_other_baby_reason is true
+                                then 'б'
+                             when dr.is_mother_direct is true
+                                then 'в'
+                             when dr.is_mother_other_reason is true
+                                then 'г'
+                             when dr.is_foreign is true
+                                then 'д'
+                        end
+                end
+            </display>
+            <!--</expression>-->
+            <!--<sorting>-->
+            <expression>
+                case when (:is_perinatal is null or :is_perinatal = false)
+                    then
+                        case when dr.is_primary_diagnosis is true
+                                then 1
+                            when dr.is_direct is true
+                                then 2
+                             when dr.is_interim is true
+                                then 3
+                             when dr.is_primary is true
+                                then 4
+                             when dr.is_foreign is true
+                                then 5
+                        end
+                    else
+                        case when dr.is_direct is true
+                                then 1
+                             when dr.is_other_baby_reason is true
+                                then 2
+                             when dr.is_mother_direct is true
+                                then 3
+                             when dr.is_mother_other_reason is true
+                                then 4
+                             when dr.is_foreign is true
+                                then 5
+                    end
+                end
+            <!--</sorting>-->
+            </expression>
+            <sorting>
+                case when (:is_perinatal is null or :is_perinatal = false)
+                    then
+                        case when dr.is_direct is true
+                                then 1
+                             when dr.is_interim is true
+                                then 2
+                             when dr.is_primary is true
+                                then 3
+                             when dr.is_foreign is true
+                                then 4
+                    end
+                    else
+                        case when dr.is_direct is true
+                                then 1
+                             when dr.is_other_baby_reason is true
+                                then 2
+                             when dr.is_mother_direct is true
+                                then 3
+                             when dr.is_mother_other_reason is true
+                                then 4
+                             when dr.is_foreign is true
+                                then 5
+                    end
+                end
+
+            </sorting>
+        </field>
+        <field>
+            <id>is_I</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>
+                case when (:is_perinatal is null or :is_perinatal = false) and (dr.is_primary is true or dr.is_interim is true or dr.is_direct is true or dr.is_foreign is true or is_primary_diagnosis is true)
+                    then true
+                    else false
+                end
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="is_I">
+                    :expression = :is_I
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>orderI-1.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                case
+                    when dr.is_direct is true
+                        then 1
+                    when dr.is_interim is true
+                        then 2
+                end
+            </expression>
+        </field>
+        <field>
+            <id>orderI-3.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                case when dr.is_primary is true
+                        then 3
+                end
+            </expression>
+
+        </field>
+        <field>
+            <id>orderI-4.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                case when dr.is_foreign is true
+                    then 4
+                end
+            </expression>
+
+        </field>
+
+        <field>
+            <id>is_perinatal</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>dr.is_perinatal</expression>
+            <filters>
+                <filter type="eq" filter-field="is_perinatal">
+                    :expression = :is_perinatal
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>color</id>
+            <domain>string</domain>
+            <display/>
+            <expression>
+                case when dr.is_primary_diagnosis is true
+                        then 'text-error'
+                        else 'text'
+                end
+            </expression>
+        </field>
+        
+        <field>
+            <id>has_foreign</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>
+                case when exists(select * from certificates.death_reason
+                                    where death_certificate_id = dr.death_certificate_id and is_foreign is true)
+                    then 2
+                    else 1
+                end
+            </expression>
+        </field>
+
+    </fields>
+</query>

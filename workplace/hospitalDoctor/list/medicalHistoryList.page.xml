@@ -1,0 +1,566 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+
+    <object-id>medicalHistory</object-id>
+    <name>Врач стационара / Список пациентов в отделении</name>
+    <layout>n2o/layout/top-bottom(left-right)</layout>
+    <regions>
+        <region place="top" type="none">
+            <container id="medicalHistoryList">
+                <wgt:table>
+                    <wgt:name>Истории болезни</wgt:name>
+                    <wgt:query-id>medicalHistoryList</wgt:query-id>
+                    <wgt:size>15</wgt:size>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item label="История болезни" context="true" id="medicalHistory" icon="icomoon-book">
+                            <wgt:open-page  page-id="medicalHistoryForm"
+                                            master-field-id="caseId" detail-field-id="caseId"
+                                            container-id="medicalHistoryContainerForm" refresh-on-close="true"
+                                            page-name="История болезни - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}"/>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Сменить диагноз" context="true" id="changeDiagnosis" icon="icomoon-tab">
+                            <wgt:show-modal-form form-id="change_diagnosis" master-field-id="id" detail-field-id="stepId"
+                                                 page-name="Смена диагноза - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}">
+                                <wgt:edit model="query">
+                                    <wgt:invoke-action action-id="changeDiagnosis"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>diagnosis!=null &amp;&amp; isClosed == false  &amp;&amp; outcomeDate == null</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Перевод в другое отделение" context="true" id="createHospitalRecord" icon="icomoon-forward">
+                            <wgt:show-modal-form width="1000px;" form-id="movePatient_form"
+                                                 page-name="Движение по отделениям - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="caseId" ref="caseId"/>
+                                    <wgt:pre-filter field-id="create" value="true"/>
+                                </wgt:pre-filters>
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="create"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>isClosed == false</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Выписать" context="true" id="discharge" icon="icomoon-exit">
+                            <wgt:show-modal-form width="1000px;" form-id="discharge"
+                                                 page-name="Выписать из стационара - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="id" ref="id"/>
+                                </wgt:pre-filters>
+                                <wgt:edit model="default">
+                                    <wgt:redirect action-id="discharge" href-field-id="url" target="self"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isClosed == false</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Редактировать выписку" context="true" id="editDischarge" icon="icomoon-enter">
+                            <wgt:show-modal-form width="1000px;" form-id="discharge"
+                                                 page-name="Выписать из стационара - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}">
+                                <wgt:pre-filters>
+                                    <wgt:pre-filter field-id="id" ref="id"/>
+                                </wgt:pre-filters>
+                                <wgt:edit model="query" after-submit="edit" refresh-after-submit="true">
+                                    <wgt:invoke-action action-id="discharge"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isClosed == true</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Отмена выписки" context="true" id="reopen" icon="icomoon-cross">
+                            <wgt:invoke-action action-id="reopen" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isClosed == true</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="sub" label="Еще">
+                            <wgt:sub-menu>
+                                <wgt:menu-item label="Загруженность врачей" context="false" id="doctorWorkload" icon="icomoon-users">
+                                    <wgt:show-modal page-id="doctorWorkload" container-id="doctorWorkload"/>
+                                </wgt:menu-item>
+                                <wgt:menu-item label="Назначить врача" context="true" id="assignDoctor" icon="icomoon-user-plus">
+                                    <wgt:show-modal page-id="assignDoctor" container-id="assignDoctorContainerForm"
+                                                    detail-field-id="id" master-field-id="id" refresh-on-close="true"
+                                                    page-name="Назначить врача - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}"/>
+                                    <wgt:conditions>
+                                        <wgt:enabling-condition>
+                                            <wgt:expression>isClosed == false</wgt:expression>
+                                        </wgt:enabling-condition>
+                                    </wgt:conditions>
+                                </wgt:menu-item>
+                                <wgt:menu-item id="create" context="true" label="Направить на ЦВКК">
+                                    <wgt:show-modal page-id="commissionReferral" refresh-on-close="true"
+                                                    action-id="create" model="default"
+                                                    master-field-id="patient.id" detail-field-id="patient.id"
+                                                    page-name="Создание направления пациента {medicalHistoryList.patient.name} на ЦВКК"/>
+                                </wgt:menu-item>
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="uid">
+                            <wgt:link>
+                                <wgt:open-page  page-id="medicalHistoryForm"
+                                                master-field-id="caseId" detail-field-id="caseId"
+                                                container-id="medicalHistoryContainerForm" refresh-on-close="true"
+                                                page-name="История болезни - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}"/>
+                            </wgt:link>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="roomNumber"/>
+                        <wgt:column column-field-id="patient.name" width="20%"/>
+                        <wgt:column column-field-id="age"/>
+                        <wgt:column column-field-id="doctor.name"/>
+                        <wgt:column column-field-id="csg.name"/>
+                        <wgt:column column-field-id="department.name"/>
+                        <wgt:column column-field-id="admissionDate"/>
+                        <wgt:column column-field-id="reanimationDate"/>
+                        <wgt:column column-field-id="bedDaysAmount"/>
+                        <wgt:column column-field-id="funding"/>
+                        <wgt:column column-field-id="diagnosis"/>
+                        <wgt:column column-field-id="issuePlannedDate" format="date DD.MM.YYYY"/>
+                        <wgt:column column-field-id="outcomeDate" format="date DD.MM.YYYY"/>
+                    </wgt:columns>
+
+                    <wgt:rows>
+                        <wgt:color color-field-id="reanimation"/>
+                    </wgt:rows>
+
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="admissionDateSort" direction="DESC"/>
+                        <wgt:sorting sorting-field-id="admissionTimeSort" direction="DESC"/>
+                        <wgt:sorting sorting-field-id="patient.name" direction="ASC"/>
+                    </wgt:sortings>
+
+                    <wgt:filters  position="top">
+                        <ctrl:radio-group id="mode" label="Режим">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Лечащий врач"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Дежурный врач"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                                <ctrl:value field-id="name">Лечащий врач</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:radio-group>
+                        <ctrl:date-interval id="admissionDate" label="Дата поступления" format="DD.MM.YYYY" popup-placement="down,right"/>
+                        <ctrl:input-text id="uid" label="Номер случая"/>
+                        <rc:patient id="patient" label="Пациент" isFilter="true" control-style="width:350px;"/>
+
+                        <ctrl:multi-classifier id="department" label="Отделение">
+                            <ctrl:query query-id="hosp_clinicalOrResuscitDepartmentByOrg" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:multi-classifier>
+
+                        <ctrl:classifier id="financialType" label="Вид оплаты" search-as-you-type="true">
+                            <ctrl:query query-id="hosp_financialType" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="doctor" label="Лечащий врач" search-as-you-type="true">
+                            <ctrl:query query-id="hosp_resourceEmployeePositionResource" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="depId" ref="department.id"/>
+                                    <ctrl:pre-filter field-id="organizationId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="csg" label="КСГ" search-as-you-type="true" visible="true">
+                            <ctrl:query query-id="hosp_csg" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" ref="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="vmp" label="ВМП" search-as-you-type="true" visible="true">
+                            <ctrl:query query-id="hosp_vmp" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="regimen" label="Условия оказания" search-as-you-type="true">
+                            <ctrl:query query-id="hosp_careRegimen" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+
+                        <ctrl:date-interval id="outcomeDate" label="Дата выписки" format="DD.MM.YYYY" popup-placement="down,right">
+                            <ctrl:default-model begin="today()" end="today()"/>
+                        </ctrl:date-interval>
+                        <ctrl:checkbox id="showClosedCases" default-value="true" label="Отображать выписанных пациентов"/>
+                    </wgt:filters>
+                    <wgt:paging mode="lazy"/>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="userEmplPosId" value="#{emplPos.id?}"/>
+                    <pre-filter field-id="clinicId" value="#{org.id?}"/>
+                </pre-filters>
+            </container>
+        </region>
+
+        <region place="left" type="list">
+            <container id="serviceRenderedList" depends-on="medicalHistoryList">
+                <wgt:table detail-field-id="stepId" master-field-id="id">
+                    <wgt:name>Осмотры</wgt:name>
+                    <wgt:query-id>mdHistoryList_physical</wgt:query-id>
+                    <wgt:size>15</wgt:size>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Добавить" context="false" id="create">
+                            <wgt:open-page page-id="srvRenderedProtocol"
+                                           container-id="main"
+                                           width="50%"
+                                           refresh-on-close="true"
+                                           page-name="Осмотр - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}"/>
+                            <!--<wgt:pre-filters>-->
+                            <!--<wgt:pre-filter field-id="stepId" ref="stepId"/>-->
+                            <!--</wgt:pre-filters>-->
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="createRendered" context="true" label="Внести результат">
+                            <wgt:open-page page-id="renderedService"
+                                           action-id="createRenderedService"
+                                           model="default"
+                                           after-submit="edit"
+                                           master-field-id="id" detail-field-id="id"
+                                           width="800px;" refresh-on-close="true">
+                            </wgt:open-page>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isRendered == false &amp;&amp; protocolId == null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="editRendered" context="true" label="Внести результат">
+                            <wgt:open-page page-id="renderedService"
+                                           model="query"
+                                           after-submit="edit"
+                                           action-id="updateRenderedService"
+                                           master-field-id="id" detail-field-id="id"
+                                           width="800px;" refresh-on-close="true">
+                            </wgt:open-page>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isRendered == true &amp;&amp; protocolId == null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="renderedWithProtocol" context="true" label="Изменить результат">
+                            <wgt:open-page page-id="renderedService"
+                                           model="query"
+                                           after-submit="edit"
+                                           action-id="updateRenderedService"
+                                           master-field-id="id" detail-field-id="id"
+                                           width="800px;" refresh-on-close="true"
+                                           page-name="Изменить результат">
+                            </wgt:open-page>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>protocolId != null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Отменить результат" id="cancelRendered" context="true">
+                            <wgt:invoke-action action-id="cancelRendered" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isRendered == true</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isRendered == true &amp;&amp; isCreateByAppointment != true</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="deletePlannedService" context="true">
+                            <wgt:invoke-action action-id="deletePlannedService" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isPlannedServiceWithoutAppointment == true</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Печать" id="print" context="true" icon="icomoon-printer">
+                            <wgt:a href="${rmis.report.birt.url}/run?__report=protocol/:printForm|s:&amp;p=:protocolId:&amp;user_id=:user.id:&amp;__format=pdf" target="newWindow"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>protocolId != null</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="appointmentCancelReason" context="true" label="Отмена">
+                            <wgt:show-modal-form form-id="appointmentCancelReason" refresh-on-close="true"
+                                                 master-field-id="id" detail-field-id="id">
+
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="appointmentCancelReason"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isCancelAppointment == true</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="service"/>
+                        <wgt:column column-field-id="renderedDoctor"/>
+                        <wgt:column column-field-id="status"/>
+                        <wgt:column column-field-id="renderedDate" format="date 'DD.MM.YYYY HH:mm'"/>
+                    </wgt:columns>
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="renderedDate" direction="ASC"/>
+                    </wgt:sortings>
+                </wgt:table>
+            </container>
+        </region>
+
+        <region place="right" type="list">
+            <container id="prescriptionList" depends-on="medicalHistoryList">
+                <wgt:table detail-field-id="case.id" master-field-id="case.id" customize="jsp" src="hospital/n2o/custom/prescription/prescriptionList">
+                    <wgt:name>Лекарственные назначения</wgt:name>
+                    <wgt:query-id>prescriptionList</wgt:query-id>
+                    <wgt:size>15</wgt:size>
+
+                    <wgt:action-menu>
+
+                        <wgt:menu-item label="Добавить" context="false" id="create">
+                            <wgt:sub-menu>
+                                <wgt:menu-item label="Назначение" context="false" id="prescription">
+                                    <wgt:show-modal-form
+                                            form-id="hosp_prescription"
+                                            width="960px;"
+                                            refresh-on-close="true"
+                                            page-name="Лекарственное назначение. {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}">
+                                        <wgt:edit model="default">
+                                            <wgt:invoke-action action-id="save"/>
+                                        </wgt:edit>
+                                    </wgt:show-modal-form>
+                                </wgt:menu-item>
+
+                                <wgt:menu-item label="По шаблону" context="false" id="prescriptionByTemplate">
+                                    <wgt:show-modal-form form-id="prescriptionByTemplate"
+                                                         width="width:80%;min-width:800px;max-width:960px;" refresh-on-close="true"
+                                                         master-field-id="case.id" detail-field-id="case.id"
+                                                         page-name="Лекарственное назначение.По шаблону - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}">
+                                        <wgt:edit model="default"/>
+                                    </wgt:show-modal-form>
+                                </wgt:menu-item>
+
+                            </wgt:sub-menu>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Изменить" context="true" id="update">
+                            <wgt:show-modal-form
+                                    form-id="hosp_prescription"
+                                    width="960px;"
+                                    refresh-on-close="true"
+                                    master-field-id="id"
+                                    detail-field-id="id"
+                                    page-name="Лекарственное назначение - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}">
+                                <wgt:edit model="query">
+                                    <wgt:invoke-action action-id="save"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>statusId == 1 || statusId == 2</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>statusId == 1 || statusId == 2</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Подтвердить" id="confirm" context="true">
+                            <wgt:invoke-action action-id="confirm" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>statusId == 1</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Отменить" context="true" id="cancel">
+                            <wgt:show-modal-form
+                                    form-id="hosp_prescription_cancel"
+                                    refresh-on-close="true">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="cancel"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>statusId == 3</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Возобновить" context="true" id="resume">
+                            <wgt:invoke-action action-id="resume" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>statusId == 5</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Просмотр" context="true" id="read">
+                            <wgt:show-modal
+                                    master-field-id="id"
+                                    detail-field-id="id"
+                                    width="90%;max-width:1024px;min-width:960px;"
+                                    page-id="hosp_prescription_read"
+                                    page-name="Просмотр лекарственного назначения - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}">
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>statusId != 1</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Копировать" context="true" id="copy">
+                            <wgt:show-modal-form
+                                    form-id="hosp_prescription_copy"
+                                    width="960px;"
+                                    refresh-on-close="true"
+                                    master-field-id="id"
+                                    detail-field-id="id"
+                                    page-name="Лекарственное назначение - {medicalHistoryList.uidForTitle} {medicalHistoryList.patient.name}">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="copy"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Продлить" context="true" id="prolong">
+                            <wgt:show-modal-form
+                                    form-id="hosp_prescription_prolong"
+                                    refresh-on-close="true"
+                                    master-field-id="id"
+                                    detail-field-id="id">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="prolong"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>statusId == 3</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+                    <wgt:columns>
+                        <wgt:column column-field-id="name">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="dose" width="10%">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="periodBeginDt" width="10%">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="periodEndDt" width="10%">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="periodicity">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="visitTerm">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="status">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+
+                        <wgt:column column-field-id="doctor">
+                            <wgt:color color-field-id="patientMedicament"/>
+                        </wgt:column>
+                    </wgt:columns>
+
+                    <wgt:rows>
+                        <wgt:color color-field-id="statusColor"/>
+                    </wgt:rows>
+
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="periodBeginDt" direction="ASC"/>
+                    </wgt:sortings>
+
+                    <wgt:filters>
+                        <ctrl:classifier id="hospRecordDepartment" label="Отделение" search-as-you-type="true">
+                            <ctrl:query query-id="hosp_departmentByCase" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="caseId" ref="case.id"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:checkbox id="all" label="Все назначения"/>
+                    </wgt:filters>
+                </wgt:table>
+
+                <pre-filters>
+                    <pre-filter field-id="case.id" ref="case.id"/>
+                    <pre-filter field-id="step.id" ref="step.id"/>
+                </pre-filters>
+            </container>
+        </region>
+
+    </regions>
+
+</page>

@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<wgt:form
+        xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+        xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+        xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+
+
+    <wgt:id>searchService</wgt:id>
+    <wgt:query-id>searchService</wgt:query-id>
+    <wgt:name>Услуга</wgt:name>
+    <wgt:edit refresh-after-submit="true">
+        <wgt:invoke-action action-id="search"/>
+    </wgt:edit>
+    <fs:field-set field-label-location="left" header="none">
+        <fs:row>
+            <ctrl:checkbox id="hasCreateService" label="Создать такую услугу"/>
+
+            <ctrl:classifier id="org" label="Организация" required="true">
+                <ctrl:query query-id="organization" value-field-id="id" label-field-id="short_name"/>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="service_rendered" label="Услуга" required="true"
+                             dependency-condition="typeof(hasCreateService) == 'undefined' || !(hasCreateService)">
+                <ctrl:query query-id="serviceRendered" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="org.id" ref="org.id"/>
+                        <ctrl:pre-filter field-id="patient.id" ref="patient.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+
+            <ctrl:classifier id="service_type" label="Вид услуги" required="true"
+                             dependency-condition="hasCreateService">
+                <ctrl:query query-id="serviceType" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="orgId" ref="org.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+            </ctrl:classifier>
+
+            <ctrl:date-time id="date" label="Дата" required="true">
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition on="hasCreateService">typeof(hasCreateService) != 'undefined' ||
+                        (hasCreateService) || hasCreateService == true
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+                <ctrl:set-value-expression on="service_rendered.date">if (service_rendered != null &amp;&amp;
+                    service_rendered.date != null) service_rendered.date; else throw '!'
+                </ctrl:set-value-expression>
+            </ctrl:date-time>
+
+            <ctrl:classifier id="resource" label="Ресурс">
+                <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                    <ctrl:pre-filters>
+                        <ctrl:pre-filter field-id="orgId" ref="org.id"/>
+                        <ctrl:pre-filter field-id="srvTypeId" ref="service_type.id"/>
+                    </ctrl:pre-filters>
+                </ctrl:query>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition on="hasCreateService">(typeof(hasCreateService) != 'undefined') &amp;&amp;
+                        (hasCreateService != null) &amp;&amp; (hasCreateService == true)
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+                <ctrl:set-value-expression on="service_rendered">
+                    var o = new Object(); //создаёт javaScript объект
+                    o.id = service_rendered.resource.id;
+                    o.name = service_rendered.resource.name;
+                    o;
+                </ctrl:set-value-expression>
+                <!--<ctrl:set-value if="service_rendered != null &amp;&amp; service_rendered.id != null &amp;&amp; service_rendered.resource.id != null">-->
+                <!--<ctrl:then>-->
+                <!--<ctrl:value field-id="id">service_rendered.resource.id</ctrl:value>-->
+                <!--<ctrl:value field-id="name">service_rendered.resource.name</ctrl:value>-->
+                <!--</ctrl:then>-->
+                <!--</ctrl:set-value>-->
+            </ctrl:classifier>
+        </fs:row>
+    </fs:field-set>
+
+    <wgt:action-menu>
+        <wgt:menu-item label="Заполнить данные" id="search">
+            <wgt:go-edit action-id="search"/>
+        </wgt:menu-item>
+        <!-- <wgt:menu-item id="clearService" label="Очистить" icon="icon-ban-circle" type="textAndIcon" context="true" color="btn-warning">
+             <wgt:invoke-action action-id="clearService" confirmation="true" />
+
+         </wgt:menu-item>-->
+    </wgt:action-menu>
+
+
+</wgt:form>

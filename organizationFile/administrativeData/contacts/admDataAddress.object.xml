@@ -1,0 +1,134 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Адрес</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    select stocks_add_address(:note,:is_valid,:address_id,:type_id,:party_id)
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="is_valid" mapping="['is_valid']" domain="boolean"/>
+                <param name="address.id" mapping="['address_id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="party_id" mapping="['party_id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Адрес успешно добавлен.
+            </success-text>
+            <validations activate="all">
+                <validation ref-id="uniqueTypeAddrCheck"/>
+                <validation ref-id="isSingularAddrCheck"/>
+            </validations>
+        </action>
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_party_address set
+                    addr_id = :address_id,
+                    note=:note,
+                    is_valid=:is_valid
+                    where id = :id;
+
+                    update pim_party_addr_to_addr_type set address_type_id = :type_id where id = :addr_type_id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="is_valid" mapping="['is_valid']" domain="boolean"/>
+                <param name="address.id" mapping="['address_id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="party_id" mapping="['party_id']" domain="integer"/>
+                <param name="addr_type_id" mapping="['addr_type_id']" domain="integer"/>
+            </in-parameters>
+            <success-text>
+                Адрес успешно изменен.
+            </success-text>
+            <validations activate="all">
+                <validation ref-id="uniqueTypeAddrCheck"/>
+                <validation ref-id="isSingularAddrCheck"/>
+            </validations>
+        </action>
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from pim_party_address where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы действительно хотите удалить адрес?
+            </confirmation-text>
+            <success-text>
+                Адрес успешно удален.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <condition id="maxChar" level="error">
+            <message>Превышено допустимое количество символов</message>
+            <expression on="note"><![CDATA[note.length <= 256]]></expression>
+        </condition>
+        <constraint id="uniqueTypeAddrCheck" level="error">
+            <message>Запись уже существует в списке</message>
+            <invocation>
+                <n2o:sql>
+                select exists (
+                select 1 from pim_party_address a
+                    left join pim_party_addr_to_addr_type ata on ata.party_address_id=a.id
+                    left join pim_address_type at on at.id=ata.address_type_id
+                WHERE a.party_id = :party_id AND
+                    at.id = :type_id AND
+                    a.addr_id = :address_id AND
+                    ((:is_valid is true and a.is_valid is TRUE) or (:is_valid is not true AND a.is_valid is not TRUE)) AND
+                    (a.id != :id or :id is null))
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="is_valid" mapping="['is_valid']" domain="boolean"/>
+                <param name="address.id" mapping="['address_id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="party_id" mapping="['party_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == false"/>
+        </constraint>
+        <constraint id="isSingularAddrCheck" level="error">
+            <message>У указанного типа адреса уже создана действительная запись</message>
+            <invocation>
+                <n2o:sql>
+                    select CASE WHEN :is_valid = false OR :is_valid IS NULL THEN false ELSE exists (
+
+                    select 1 from pim_party_address a
+                    left join pim_party_addr_to_addr_type ata on ata.party_address_id=a.id
+                    left join pim_address_type at on at.id=ata.address_type_id
+                    WHERE a.party_id = :party_id AND
+                    at.id = :type_id AND
+                    at.is_singular = true AND
+                    a.is_valid is TRUE  AND
+                    (a.id != :id or :id is null)
+                    ) END;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="is_valid" mapping="['is_valid']" domain="boolean"/>
+                <param name="address.id" mapping="['address_id']" domain="integer"/>
+                <param name="type.id" mapping="['type_id']" domain="integer"/>
+                <param name="party_id" mapping="['party_id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == false"/>
+        </constraint>
+    </validations>
+</object>

@@ -1,0 +1,363 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>serviceAreasDistrict</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_clinic_district cd
+                left join md_clinic_district_kind k on k.id = cd.kind_id
+                left join md_clinic_district_type t on t.id = cd.type_id
+                left join md_clinic_separation cs on cs.id = cd.separation_id
+                left join md_profile p on p.id = cs.profile_id
+                left join md_reg_type rt on rt.id = cs.reg_type_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(cd)
+                from md_clinic_district cd
+                left join md_clinic_district_kind k on k.id = cd.kind_id
+                left join md_clinic_district_type t on t.id = cd.type_id
+                left join md_clinic_separation cs on cs.id = cd.separation_id
+                left join md_profile p on p.id = cs.profile_id
+                left join md_reg_type rt on rt.id = cs.reg_type_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>oid</id>
+            <domain>integer</domain>
+            <expression>cd.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+            <sorting/>
+        </field>
+        <field>
+            <id>district_id</id>
+            <domain>integer</domain>
+            <expression>cd.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>cd.name</expression>
+            <display/>
+            <sorting/>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    upper(:expression) like '%'||upper(:name)||'%'
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>order_number</id>
+            <domain>integer</domain>
+            <expression>cd.order_number</expression>
+            <display/>
+            <sorting/>
+        </field>
+        <field>
+            <id>attache_number</id>
+            <domain>integer</domain>
+            <expression>cd.attache_number</expression>
+            <display/>
+            <sorting/>
+        </field>
+        <field>
+            <id>type.name</id>
+            <domain>string</domain>
+            <expression>t.name</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>type.oid</id>
+            <domain>integer</domain>
+            <expression>t.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>kind.name</id>
+            <domain>string</domain>
+            <expression>k.name</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>kind.oid</id>
+            <domain>integer</domain>
+            <expression>k.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>separation.name</id>
+            <domain>string</domain>
+            <expression>cs.name</expression>
+            <display/>
+            <sorting/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>separation.oid</id>
+            <domain>integer</domain>
+            <expression>cs.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>profile.oid</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+            <display/>
+            <filters auto-generate="true"/>
+        </field>
+        <field>
+            <id>profile.name</id>
+            <domain>string</domain>
+            <expression>p.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>reg_type.oid</id>
+            <domain>integer</domain>
+            <expression>rt.id</expression>
+            <filters auto-generate="true"/>
+            <display/>
+        </field>
+        <field>
+            <id>reg_type.name</id>
+            <domain>string</domain>
+            <expression>rt.name</expression>
+            <display/>
+        </field>
+        <field>
+            <id>period.begin</id>
+            <domain>date</domain>
+            <expression>cd.from_dt</expression>
+            <display/>
+            <sorting/>
+            <filters>
+                <filter type="eq" filter-field="period.begin">
+                    <![CDATA[
+                    ((cd.from_dt is null and cd.to_dt is null) or
+                     (cd.to_dt is null or cd.to_dt >= :period.begin))
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>period.end</id>
+            <domain>date</domain>
+            <expression>cd.to_dt</expression>
+            <display/>
+            <sorting/>
+            <filters>
+                <filter type="eq" filter-field="period.end">
+                    <![CDATA[
+                    ((cd.from_dt is null and cd.to_dt is null) or
+                     (cd.from_dt is null or cd.from_dt <= :period.end))
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>active.id</id>
+            <domain>integer</domain>
+            <filters>
+                <filter type="eq" filter-field="active.id">
+                    <![CDATA[
+                    (
+                        case :active.id
+                        when 0 then true
+                        when 1 then
+                            (cd.from_dt is null and cd.to_dt is null) or
+                            ((cd.to_dt is null or cd.to_dt >= now()::date) and
+                             (cd.from_dt is null or cd.from_dt <= (now()::date + 1)))
+                        when 2 then
+                            not ((cd.from_dt is null and cd.to_dt is null) or
+                            ((cd.to_dt is null or cd.to_dt >= now()::date) and
+                             (cd.from_dt is null or cd.from_dt <= (now()::date + 1))))
+                        end
+                    )
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>address.id</id>
+            <domain>boolean</domain>
+            <filters>
+                <filter type="eq" filter-field="address.id">
+                    <![CDATA[
+                    (
+                        :address.id is null or
+                        exists (
+                            select * from md_district_address da
+                            where da.district_id = cd.id and (
+                                select count(*) from (
+                                    with recursive t as (
+                                        select ae.* from address_element ae where ae.id = da.address_id
+                                        union all
+                                        select ae.* from address_element ae join t on ae.id = t.parent_id
+                                    )
+                                    select id from t
+                                    where t.id = (:address.id -> 'id')::integer
+                            ) t1) > 0
+                        )
+                    )
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>org.id</id>
+            <domain>integer</domain>
+            <filters>
+                <filter type="eq" filter-field="org.id">
+                    exists (select * from md_district_organization o
+                        left join md_clinic c on c.id = o.organization_id
+                        where c.id = :org.id and o.district_id = cd.id)
+                   </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>gender.oid</id>
+            <domain>integer</domain>
+            <filters>
+                <filter type="eq" filter-field="gender.oid">
+                    exists (
+                        select * from md_district_gender g where g.district_id = cd.id and g.gender_id = :gender.oid
+                    )
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <filters>
+                <filter type="eq" filter-field="age">
+                    <![CDATA[
+                    exists (
+                        select *
+                        from md_district_age a where a.district_id = cd.id
+                        and a.from_age <= :age and a.to_age >= :age
+                    )
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>departments</id>
+            <domain>string</domain>
+            <expression>
+                (
+                    select string_agg(d.name, '; ')
+                    from md_district_org_department dod
+                    inner join pim_department d on d.id = dod.department_id
+                    inner join md_district_organization mdo on mdo.id = dod.district_org_id
+                    where mdo.district_id=cd.id and mdo.organization_id=:org_id
+                )
+            </expression>
+            <display/>
+            <sorting/>
+        </field>
+
+        <field>
+            <id>district_departments</id>
+            <domain>object[]</domain>
+            <expression>
+                (
+                    select format('[%s]', string_agg(distinct item, ',')) from
+                    (
+                        select format('{ "oid": %s, "name": "%s", "org_id": %s}', d.id::text, d.name, mdo.organization_id ) as item
+                        from md_district_org_department dod
+                        inner join pim_department d on d.id = dod.department_id
+                        inner join md_district_organization mdo on mdo.id = dod.district_org_id
+                        where mdo.district_id=cd.id
+                    ) t
+                 )
+            </expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>distr_departments</id>
+            <domain>integer[]</domain>
+            <filters>
+                <filter type="in" filter-field="distr_departments*.oid">
+                    <![CDATA[
+                    exists (
+                        select from md_district_org_department dod
+                        inner join pim_department d on d.id = dod.department_id
+                        inner join md_district_organization mdo on mdo.id = dod.district_org_id
+                        where mdo.district_id=cd.id
+                              and d.id in (:distr_departments*.oid)
+                    )
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>org.oid</id>
+            <domain>integer</domain>
+            <expression>:org.oid</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="org.oid">
+                    <![CDATA[
+                    exists (
+                        select id
+                        from md_district_organization
+                        where district_id = cd.id and organization_id = :org.oid
+                    )
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+
+        <field>
+            <id>org_id</id>
+            <domain>integer</domain>
+            <expression>:org_id</expression>
+            <display/>
+            <filters>
+                <filter type="eq" filter-field="org_id" default-value="#{stocks.orgId}">
+                    <![CDATA[
+                    case when :org.oid is null
+                    then
+                        exists (
+                            select id
+                            from md_district_organization
+                            where
+                                district_id = cd.id
+                                and organization_id =
+                                    any(array(select :org_id union all select select_organization_children_list(:org_id)))
+                        )
+                    else
+                        true
+                    end
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+
+    </fields>
+</query>
+

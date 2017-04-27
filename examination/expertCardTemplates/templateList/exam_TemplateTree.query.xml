@@ -1,0 +1,197 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <object-id>expertCardTemplates</object-id>
+    <name>exam_TemplateTree</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                FROM (
+
+                with recursive crit_group
+                as (
+                WITH RECURSIVE parent_group
+                AS (
+                SELECT
+                qect.id   AS templateId,
+                qect.name AS templateName,
+                coalesce(qcg.parent_id, qcg.id)::text AS criteriaId,
+                qcg.name  AS criteriaName,
+                null::text as valueId,
+                null::text as critId
+                FROM qos_criteria_group qcg
+                JOIN qos_exam_card_template qect ON qect.id = qcg.template_id
+                WHERE qcg.parent_id IS NULL
+
+                UNION
+
+                SELECT
+                pg.templateId,
+                pg.templateName,
+                qcg2.id::text AS criteriaId,
+                qcg2.name as criteriaName,
+                qcg2.parent_id::text as valueId,
+                null::text as critId
+                FROM parent_group pg
+                join qos_criteria_group qcg2 on pg.criteriaId = qcg2.parent_id::text
+
+                ) SELECT
+                *
+                FROM parent_group
+
+                union
+
+                SELECT
+                cg.templateId,
+                cg.templateName,
+                concat(qc.id, '_CR')::text as criteriaId,
+                qc.name as criteriaName,
+                cg.criteriaId::text as valueId,
+                qc.id::text as critId
+                FROM crit_group cg
+                JOIN qos_criteria qc on cg.criteriaId = qc.group_id::text
+                )
+                SELECT templateId,
+                templateName,
+                criteriaId as id,
+                criteriaName,
+                valueId,
+                case
+                when substring(criteriaId, 1, length(criteriaId) - 1) = valueId then false
+                else true
+                end as haveChild
+                from crit_group
+
+                union
+
+
+                SELECT cg.templateId,
+                cg.templateName,
+                concat(qcv.id, '_CRV' ) as id,
+                concat(qcv.value_description, ' (' || qcv.grade::numeric || ')' ) as criteriaName,
+                cg.criteriaId as value_id,
+                case
+                when concat(qcv.criteria_id, '_CR') = cg.criteriaId then false
+                else true
+                end as haveChild
+                from crit_group cg
+                left join qos_criteria_value qcv on cg.critId = qcv.criteria_id::text
+                where nullif(trim(concat(qcv.value_description, ' (' || qcv.grade::numeric || ')' )), '') is not null
+                ) a
+                where :where
+                order by a.criteriaName, :order
+            </n2o:items-query>
+            <n2o:count-query>select count(a)
+                FROM (
+
+                with recursive crit_group
+                as (
+                WITH RECURSIVE parent_group
+                AS (
+                SELECT
+                qect.id   AS templateId,
+                qect.name AS templateName,
+                coalesce(qcg.parent_id, qcg.id)::text AS criteriaId,
+                qcg.name  AS criteriaName,
+                null::text as valueId,
+                null::text as critId
+                FROM qos_criteria_group qcg
+                JOIN qos_exam_card_template qect ON qect.id = qcg.template_id
+                WHERE qcg.parent_id IS NULL
+
+                UNION
+
+                SELECT
+                pg.templateId,
+                pg.templateName,
+                qcg2.id::text AS criteriaId,
+                qcg2.name as criteriaName,
+                qcg2.parent_id::text as valueId,
+                null::text as critId
+                FROM parent_group pg
+                join qos_criteria_group qcg2 on pg.criteriaId = qcg2.parent_id::text
+
+                ) SELECT
+                *
+                FROM parent_group
+
+                union
+
+                SELECT
+                cg.templateId,
+                cg.templateName,
+                concat(qc.id, '_CR')::text as criteriaId,
+                qc.name as criteriaName,
+                cg.criteriaId::text as valueId,
+                qc.id::text as critId
+                FROM crit_group cg
+                JOIN qos_criteria qc on cg.criteriaId = qc.group_id::text
+                )
+                SELECT templateId,
+                templateName,
+                criteriaId as id,
+                criteriaName,
+                valueId,
+                case
+                when substring(criteriaId, 1, length(criteriaId) - 1) = valueId then false
+                else true
+                end as haveChild
+                from crit_group
+
+                union
+
+
+                SELECT cg.templateId,
+                cg.templateName,
+                concat(qcv.id, '_CRV' ) as id,
+                concat(qcv.value_description, ' (' || qcv.grade::numeric || ')' ) as criteriaName,
+                cg.criteriaId as value_id,
+                case
+                when concat(qcv.criteria_id, '_CR') = cg.criteriaId then false
+                else true
+                end as haveChild
+                from crit_group cg
+                left join qos_criteria_value qcv on cg.critId = qcv.criteria_id::text
+                where nullif(trim(concat(qcv.value_description, ' (' || qcv.grade::numeric || ')' )), '') is not null
+                ) a
+                where :where
+            </n2o:count-query>
+            <n2o:alias>a</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>templateId</id>
+            <domain>integer</domain>
+            <display/>
+            <sorting/>
+            <filters>
+                <filter type="eq" filter-field="templateId"/>
+            </filters>
+        </field>
+        <field>
+            <id>id</id>
+            <domain>string</domain>
+            <display/>
+        </field>
+        <field>
+            <id>criteriaName</id>
+            <domain>string</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>valueId</id>
+            <domain>string</domain>
+            <display/>
+        </field>
+
+        <field>
+            <id>haveChild</id>
+            <domain>boolean</domain>
+            <display/>
+        </field>
+    </fields>
+
+</query>

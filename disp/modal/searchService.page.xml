@@ -1,0 +1,106 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-1.0">
+    <name>Поиск услуги</name>
+    <object-id>searchService</object-id>
+    <layout>n2o/layout/single</layout>
+    <containers>
+        <container id="main" place="single">
+            <wgt:form>
+                <wgt:id>searchService</wgt:id>
+                <wgt:query-id>searchService</wgt:query-id>
+                <wgt:name>Поиск услуги</wgt:name>
+                <wgt:grid>
+                    <wgt:column>
+                        <fs:field-set inline="false" field-label-location="left" header="none">
+
+                            <ctrl:checkbox id="hasCreateService" label="Создать такую услугу">
+                                <ctrl:set-value-expression>
+                                    if (link_id == null &amp;&amp; eventOrg!=org.id) true; else throw '!'
+                                </ctrl:set-value-expression>
+                            </ctrl:checkbox>
+
+                            <ctrl:classifier id="org" label="Организация" required="true" >
+                                <ctrl:query query-id="organization" value-field-id="id" label-field-id="short_name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="service_rendered" label="Услуга" required="true" dependency-condition="typeof(hasCreateService) == 'undefined' || !(hasCreateService)">
+                                <ctrl:query query-id="serviceRendered" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="org.id" ref="org.id" />
+                                        <ctrl:pre-filter field-id="patient.id" ref="patient.id" />
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression on="hasCreateService" on-load="false">
+                                    if (hasCreateService == null) null; else throw '!'
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="service_type" label="Вид услуги" required="true" dependency-condition="hasCreateService">
+                                <ctrl:query query-id="serviceType" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="orgId" ref="org.id" />
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression on="hasCreateService" on-load="false">
+                                    if (hasCreateService &amp;&amp; eventOrg!=org.id) {var o = new Object(); o.id=service_type_id; o.name = service_type_name; o;} else null
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:date-time id="date" label="Дата" required="true">
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition on="hasCreateService">(typeof(hasCreateService) != 'undefined') &amp;&amp; (hasCreateService != null) &amp;&amp; (hasCreateService == true)</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                                <ctrl:set-value-expression on="service_rendered.date">if (service_rendered != null &amp;&amp; service_rendered.date != null) service_rendered.date; else throw '!'</ctrl:set-value-expression>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="checkDateByCase"/>
+                                    <ctrl:validation ref-id="checkDateCurrentDate"/>
+                                    <ctrl:validation ref-id="checkDateAfterEvent"/>
+                                </ctrl:validations>
+                            </ctrl:date-time>
+                            <ctrl:hidden id="date">
+                                <ctrl:set-value-expression on="hasCreateService" on-load="false">
+                                    if (hasCreateService == null) null; else throw '!'
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+
+                            <ctrl:classifier id="resource" label="Ресурс" autoselect-alone="true">
+                                <ctrl:query query-id="resourceGroupService" value-field-id="srg_id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="orgId" ref="org.id" />
+                                        <ctrl:pre-filter field-id="srvTypeId" ref="service_type.id" />
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:dependencies>
+                                    <ctrl:enabling-condition on="hasCreateService">(typeof(hasCreateService) != 'undefined') &amp;&amp; (hasCreateService != null) &amp;&amp; (hasCreateService == true)</ctrl:enabling-condition>
+                                </ctrl:dependencies>
+                                <ctrl:set-value-expression on="service_rendered"><![CDATA[
+                                        if ((typeof service_rendered != 'undefinded') && (service_rendered != null) && (service_rendered.id != null) && (service_rendered.resource.id != null)) {
+                                        var o = new Object(); //создаёт javaScript объект
+                                        o.srg_id = service_rendered.resource.id;
+                                        o.name = service_rendered.resource.name;
+                                        o; } else throw '!';
+                                ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                            <ctrl:hidden id="resource">
+                                <ctrl:set-value-expression on="hasCreateService" on-load="false"><![CDATA[
+                                        if (hasCreateService && eventOrg!=org.id) {var o = new Object(); o.srg_id=resource_id; o.name = resource_name; o;}
+                                        else null;
+                                ]]>
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+                        </fs:field-set>
+                    </wgt:column>
+                </wgt:grid>
+                <wgt:action-menu>
+                    <wgt:menu-item label="Заполнить данные" id="search">
+                        <wgt:go-edit action-id="search" />
+                    </wgt:menu-item>
+                </wgt:action-menu>
+            </wgt:form>
+        </container>
+    </containers>
+</page>

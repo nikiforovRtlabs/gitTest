@@ -1,0 +1,116 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>sd_classifier</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from mc_case c
+                join mc_case_type case_type on case_type.id = c.case_type_id
+                join pci_patient patient on patient.id = c.patient_id
+                join pim_individual patient_indiv on patient_indiv.id = patient.id
+                left join mc_step closing_step on closing_step.id = c.closing_step_id
+                left join mc_step_result closing_step_result on closing_step_result.id = closing_step.result_id
+                where
+                 (case
+                    when :careForPatient1 NOTNULL then c.patient_id=:careForPatient1
+                    when :patientId NOTNULL then c.patient_id=:patientId
+                    else true end) and
+                :where
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(c)
+                from mc_case c
+                join mc_case_type case_type on case_type.id = c.case_type_id
+                join pci_patient patient on patient.id = c.patient_id
+                join pim_individual patient_indiv on patient_indiv.id = patient.id
+                left join mc_step closing_step on closing_step.id = c.closing_step_id
+                left join mc_step_result closing_step_result on closing_step_result.id = closing_step.result_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+            <search>:expression = :id</search>
+        </field>
+        <field>
+            <id>clinicId</id>
+            <domain>integer</domain>
+            <expression>c.clinic_id</expression>
+        </field>
+        <!--
+        <field>
+            <id>initialDiagnosis.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select md.id
+                from mc_diagnosis mc
+                join mc_diagnosis_type mct on mct.id = mc.type_id
+                join mc_stage mcs on mcs.id = mc.stage_id
+                join md_diagnosis md on mc.diagnos_id = md.id
+                where mc.case_id = c.id and mct.code = '1' and mcs.code in ('2','3')
+                order by mcs.code, mc.establishment_date limit 1)
+            </expression>
+        </field>
+        <field>
+            <id>initialDiagnosis.name</id>
+            <domain>integer</domain>
+            <expression>
+                (select md.code || ' ' || md.name
+                from mc_diagnosis mc
+                join mc_diagnosis_type mct on mct.id = mc.type_id
+                join mc_stage mcs on mcs.id = mc.stage_id
+                join md_diagnosis md on mc.diagnos_id = md.id
+                where mc.case_id = c.id and mct.code = '1' and mcs.code in ('2','3')
+                order by mcs.code, mc.establishment_date limit 1)
+            </expression>
+        </field>
+        -->
+        <field>
+            <id>initialDiagnosis.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select id from md_diagnosis where id = (select diagnos_id from mc_diagnosis where id = c.main_diagnos_id))
+            </expression>
+        </field>
+        <field>
+            <id>initialDiagnosis.name</id>
+            <domain>integer</domain>
+            <expression>
+                (select code || ' ' || name from md_diagnosis where id = (select diagnos_id from mc_diagnosis where id = c.main_diagnos_id))
+            </expression>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <display>
+                '№ ' || c.uid ||
+                coalesce(' ' || to_char(c.open_date,'dd.mm.yyyy'), '') ||
+                coalesce('-' || to_char(closing_step.outcome_date, 'dd.mm.yyyy'), '') || ' ' ||
+                coalesce((select code || ' ' || name from md_diagnosis where id = (select diagnos_id from mc_diagnosis where id = c.main_diagnos_id)), 'Основной диагноз не указан')
+            </display>
+            <search>upper(c.uid) like '%' || upper(:name) || '%'</search>
+        </field>
+        <field>
+            <id>patientId</id>
+            <domain>integer</domain>
+            <expression>1=1</expression>
+            <search>1=1</search>
+        </field>
+        <field>
+            <id>careForPatient1</id>
+            <domain>integer</domain>
+            <expression>1=1</expression>
+            <search>1=1</search>
+        </field>
+    </fields>
+
+</query>

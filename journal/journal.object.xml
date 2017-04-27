@@ -1,0 +1,138 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sp="http://n2oapp.net/framework/config/schema/action-stored-procedure-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+
+    <name>Журнал выдачи ЛН</name>
+
+    <fields>
+        <field id="id" domain="integer"/>
+        <field id="activePeriod.begin" domain="date"/>
+        <field id="activePeriod.end" domain="date"/>
+        <field id="clinic.id" domain="integer"/>
+        <field id="name" domain="string"/>
+        <field id="responsible" domain="string"/>
+    </fields>
+
+    <actions>
+        <action id="create" name="Создать">
+            <invocation>
+                <sql:sql>
+                    select sickdoc.journal_create(
+                    :clinic_id
+                    ,:name
+                    ,:begin_dt::date
+                    ,:end_dt::date
+                    ,:responsible_id
+                    );
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="activePeriod.begin" mapping="['begin_dt']"/>
+                <param name="activePeriod.end" mapping="['end_dt']"/>
+                <param name="clinic.id" mapping="['clinic_id']" value="#{org.id}"/>
+                <param name="name" mapping="['name']"/>
+                <param name="responsible.id" mapping="['responsible_id']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0][0]" domain="integer"/>
+            </out-parameters>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    select sickdoc.journal_update(
+                    :id
+                    ,:clinic_id
+                    ,:name
+                    ,:begin_dt::date
+                    ,:end_dt::date
+                    ,:responsible_id
+                    );
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="activePeriod.begin" mapping="['begin_dt']"/>
+                <param name="activePeriod.end" mapping="['end_dt']"/>
+                <param name="clinic.id" mapping="['clinic_id']" value="#{org.id}"/>
+                <param name="name" mapping="['name']"/>
+                <param name="responsible.id" mapping="['responsible_id']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkDates"/>
+            </validations>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    DELETE FROM sickdoc.journal WHERE id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkDeletePossible"/>
+            </validations>
+        </action>
+        <action id="close" name="Завершить">
+            <invocation>
+                <sql:sql>
+                    UPDATE sickdoc.journal SET end_dt = CURRENT_DATE WHERE id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkFinishDate"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="checkDates" level="error">
+            <message>
+                Невозможно изменить временной интервал. В системе имеется относящийся к данному журналу ЛН, дата которого лежит в усекаемом диапазоне!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select * from sickdoc.journal_date_check(:id, :start, :end);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="activePeriod.begin" mapping="['start']" domain="date"/>
+                <param name="activePeriod.end" mapping="['end']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+        <constraint id="checkFinishDate" level="error">
+            <message>
+                Невозможно завершить журнал. В системе имеется относящийся к данному журналу ЛН, дата которого лежит в усекаемом диапазоне!
+            </message>
+            <invocation>
+                <sql:sql>
+                    SELECT CASE WHEN (select MAX(end_dt) from sickdoc.sickdoc where journal_id = :id) > CURRENT_DATE THEN FALSE ELSE TRUE END;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+        <constraint id="checkDeletePossible" level="error">
+            <message>Невозможно удалить журнал. В системе имеется относящийся к данному журналу ЛН!</message>
+            <invocation>
+                <sql:sql>
+                    SELECT CASE WHEN (SELECT COUNT(*) FROM sickdoc.sickdoc WHERE journal_id = :id)>0 THEN FALSE ELSE TRUE END;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == true"/>
+        </constraint>
+    </validations>
+</object>

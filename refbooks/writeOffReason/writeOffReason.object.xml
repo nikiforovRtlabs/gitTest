@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Причина списания</name>
+
+    <actions>
+        <action id="create">
+            <invocation>
+                <sql:sql>
+                    insert into inventory.write_off_reason(id, short_name, full_name, org_id)
+                    values(nextval('inventory.write_off_reason_seq'),:shortName, :fullName, :orgId)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id"/>
+                <param name="shortName" mapping="['shortName']" domain="string"/>
+                <param name="fullName" mapping="['fullName']" domain="string"/>
+                <param name="org.id" mapping="['orgId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]"/>
+            </out-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUnique"/>
+            </validations>
+        </action>
+
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update inventory.write_off_reason
+                    set short_name = :shortName,
+                    full_name= :fullName,
+                    org_id = :orgId
+                    where id= :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="shortName" mapping="['shortName']" domain="string"/>
+                <param name="fullName" mapping="['fullName']" domain="string"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkUnique"/>
+            </validations>
+        </action>
+
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from inventory.write_off_reason where id= :id
+                </sql:sql>
+            </invocation>
+            <confirmation-text>Вы уверены, что хотите удалить причину списания?</confirmation-text>
+            <success-text>Запись успешно удалена</success-text>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <validations activate="nothing"/>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="checkUnique" level="error">
+            <message>Причина списания уже зарегистрирована в системе</message>
+            <invocation>
+                <sql:sql>
+                    select count(1) from inventory.write_off_reason
+                    where short_name = :shortName and full_name = :fullName
+                    and (id != :id or :id is null)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="shortName" mapping="['shortName']" domain="string"/>
+                <param name="fullName" mapping="['fullName']" domain="string"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+
+</object>

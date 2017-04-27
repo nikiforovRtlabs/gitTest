@@ -1,0 +1,148 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>patPartCase</id>-->
+    <name>Особые случаи</name>
+    <actions>
+        <action id="create" name="Создать">
+        <invocation>
+            <sql:sql>
+                <![CDATA[
+                    UPDATE public.pci_patient_part_case
+                    SET to_dt = cast(cast(:from_date as date) - cast('1 day' as interval) as date)
+                        WHERE id in
+                            (select pppc.id
+                            FROM pci_patient_part_case pppc
+                            WHERE pppc.patient_id = :party_id
+                                and pppc.to_dt is null
+                                and pppc.from_dt < :from_date
+                                and (:id is null or pppc.id != :id));
+
+                    insert into public.pci_patient_part_case (patient_id,part_case_id,from_dt,to_dt)
+                        values(:party_id,:part_case,cast(:from_date as date),cast(:to_date as date));
+                ]]>
+            </sql:sql>
+        </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['party_id']" domain="integer"/>
+                <param name="part_case.id" mapping="['part_case']" domain="integer"/>
+                <param name="from_date" mapping="['from_date']" domain="date"/>
+                <param name="to_date" mapping="['to_date']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[1][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Особый случай сохранен в системе.
+            </success-text>
+        </action>
+        <action id="update" name="Изменить">
+            <invocation>
+                <sql:sql>
+                    update public.pci_patient_part_case set part_case_id = :part_case,from_dt = :from_date,to_dt = :to_date where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="part_case.id" mapping="['part_case']" domain="integer"/>
+                <param name="from_date" mapping="['from_date']" domain="date"/>
+                <param name="to_date" mapping="['to_date']" domain="date"/>
+            </in-parameters>
+            <success-text>
+                Измененный особый случай сохранен в системе.
+            </success-text>
+        </action>
+        <action id="delete" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from public.pci_patient_part_case where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="part_case.name" mapping="['part_case']" domain="string"/>
+                <param name="mfrom_date" mapping="['mfrom_date']" domain="string"/>
+                <param name="mto_date" mapping="['mto_date']" domain="string"/>
+                <param name="full_name" mapping="['full_name']" domain="string"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что особый случай "{full_name}" должен быть удален?
+            </confirmation-text>
+            <success-text>
+                Особый случай "{full_name}" успешно удален.
+            </success-text>
+            <validations activate="blackList">
+                <validation ref-id="checkDate" />
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+
+        <constraint id="checkUniquePartCase" level="error" moment="before-action">
+            <message>Даты действия пересекаются с другими особыми случаями выбранного вида.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(*)
+                    from pci_patient_part_case pppc
+                    where pppc.patient_id = :pat
+                            and pppc.part_case_id = :part_case
+                            and not ( pppc.from_dt > :to_date and cast(:to_date as date) is not null
+                            and pppc.from_dt is not null
+                            or pppc.to_dt < :from_date and pppc.to_dt is not null)
+                            and not (pppc.to_dt is null and pppc.from_dt < :from_date and :id is null)
+                            and (:id is null or pppc.id != :id)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['pat']" domain="integer"/>
+                <param name="part_case.id" mapping="['part_case']" domain="integer"/>
+                <param name="from_date" mapping="['from_date']" domain="date"/>
+                <param name="to_date" mapping="['to_date']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <constraint id="messPartCase" level="warning" moment="before-action">
+            <message>Действующие записи будут закрыты датой {date}.</message>
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(*), to_char(cast(cast(:from_date as date) - cast('1 day' as interval) as date),'dd.mm.yyyy')
+                        from pci_patient_part_case pppc
+                        where pppc.patient_id = :pat
+                            and :id is null
+                            and pppc.from_dt < :from_date
+                            and pppc.to_dt is null
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="patient.id" mapping="['pat']" domain="integer"/>
+                <param name="part_case.id" mapping="['part_case']" domain="integer"/>
+                <param name="from_date" mapping="['from_date']" domain="date"/>
+                <param name="to_date" mapping="['to_date']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="date" mapping="[0][0][1]" domain="date"/>
+            </out-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="checkDate" level="error" moment="before-action">
+            <message>Дата окончания должна быть позже даты начала.</message>
+            <expression on="to_date,from_date"><![CDATA[
+                ((to_date == null) ||
+                (moment(to_date, 'DD.MM.YYYY') >= moment(from_date, 'DD.MM.YYYY'))
+                )
+                ]]>
+            </expression>
+        </condition>
+
+    </validations>
+</object>

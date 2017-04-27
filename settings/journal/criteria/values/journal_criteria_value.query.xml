@@ -1,0 +1,173 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>journal_criteria_value</object-id>
+    <name>journal_criteria_value</name>
+    <execution>
+       <n2o:sql>
+           <n2o:items-query>
+               select :select
+               from monitoring.mn_journal_criteria_value cv
+               inner join monitoring.mn_journal_criteria c on c.id = cv.criteria_id
+               left join monitoring.mn_age_measure am on am.id = cv.age_measure_id
+               left join monitoring.mn_journal_criteria_refbook jcr on jcr.criteria_id = c.id
+               where :where
+           </n2o:items-query>
+           <n2o:count-query>
+               select count(cv.id)
+               from monitoring.mn_journal_criteria_value cv
+               inner join monitoring.mn_journal_criteria c on c.id = cv.criteria_id
+               left join monitoring.mn_age_measure am on am.id = cv.age_measure_id
+               where :where
+           </n2o:count-query>
+           <n2o:alias>cv</n2o:alias>
+       </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>cv.id</expression>
+        </field>
+
+        <field>
+            <id>criteria_id</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+        </field>
+
+        <field>
+            <id>displayValue</id>
+            <domain>string</domain>
+            <name>Значение критерия</name>
+            <sorting unavailable="true"/>
+            <expression>
+                <![CDATA[
+                    (case when c.type_id = 1
+                          then
+                            case when cv.value::boolean
+                            then 'Да'
+                            else 'Нет'
+                            end
+                          when c.type_id = 2
+                          then
+                            case when c.is_range
+                            then concat(cv.value_start::varchar, ' - ', value_end::varchar, ' ', am.name)
+                            else concat(cv.value::varchar, ' ', am.name)
+                            end
+                          when c.type_id = 3
+                            then (select concat(code||' ',name) from md_diagnosis where id = cv.value::integer)
+                          when c.type_id = 4
+                            then (select name from monitoring.get_refbook_value(jcr.schema_name||'.'||jcr.table_name, cv.value::integer, null, 0, 1, null))
+                    end)
+                ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>point</id>
+            <domain>integer</domain>
+            <name>Количество баллов</name>
+            <sorting unavailable="true"/>
+        </field>
+
+        <field>
+            <id>type_id</id>
+            <domain>integer</domain>
+            <expression>c.type_id</expression>
+        </field>
+
+        <field>
+            <id>age</id>
+            <domain>integer</domain>
+            <expression>
+                (case when c.type_id = 2 and c.is_range != true
+                      then cv.value::int
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>is_range</id>
+            <domain>boolean</domain>
+            <expression>c.is_range</expression>
+        </field>
+
+        <field>
+            <id>event.id</id>
+            <domain>string</domain>
+            <expression>
+                (case when c.type_id = 1
+                      then case when cv.value::boolean
+                                then 1
+                                else 2
+                            end
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>measure.id</id>
+            <domain>integer</domain>
+            <expression>cv.age_measure_id</expression>
+        </field>
+
+        <field>
+            <id>age_from</id>
+            <domain>integer</domain>
+            <expression>
+                (case when c.type_id = 2 and c.is_range
+                      then cv.value_start::int
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>age_to</id>
+            <domain>integer</domain>
+            <expression>
+                (case when c.type_id = 2 and c.is_range
+                      then cv.value_start::int
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>diagnosis.id</id>
+            <domain>integer</domain>
+            <expression>
+                (case when c.type_id = 3
+                      then cv.value::int
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>refbook.id</id>
+            <domain>integer</domain>
+            <expression>
+                (case when c.type_id = 4
+                    then (select id from monitoring.get_refbook_value(jcr.schema_name||'.'||jcr.table_name, cv.value::integer, null, 0, 1, null))
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>refbook.name</id>
+            <domain>string</domain>
+            <expression>
+                (case when c.type_id = 4
+                then (select name from monitoring.get_refbook_value(jcr.schema_name||'.'||jcr.table_name, cv.value::integer, null, 0, 1, null))
+                end)
+            </expression>
+        </field>
+
+        <field>
+            <id>refbookName</id>
+            <domain>string</domain>
+            <expression>jcr.schema_name||'.'||jcr.table_name</expression>
+        </field>
+
+    </fields>
+</query>

@@ -1,0 +1,110 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>hosp_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from sr_service s
+                join sr_srv_composition sc on s.id = sc.complex_id
+                join public.sr_srv_type st on st.id=s.type_id and st.app_code in ('LABORATORY','PROBES')
+                left join public.md_clinic_laboratory_research mclr on mclr.service_id=s.id
+                left join public.md_clinic_biomaterial mcb on mcb.id = mclr.clinic_biomaterial_id
+                where :where
+            </n2o:items-query>
+            <n2o:count-query>select count(s)
+                from sr_service s
+                join sr_srv_composition sc on s.id = sc.complex_id
+                join public.sr_srv_type st on st.id=s.type_id and st.app_code in ('LABORATORY','PROBES')
+                left join public.md_clinic_laboratory_research mclr on mclr.service_id=s.id
+                left join public.md_clinic_biomaterial mcb on mcb.id = mclr.clinic_biomaterial_id
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+            <search>:expression = :id</search>
+        </field>
+
+        <field>
+            <id>stomatologyService</id>
+            <domain>integer</domain>
+            <expression>s.is_stomat</expression>
+            <display/>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>concat('[+] ',s.code,' ',s.name)</expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>:orgId</expression>
+            <search>(case when :labId is not null then s.org_id = :labId else s.org_id = :orgId end)</search>
+        </field>
+
+        <field>
+            <id>labId</id>
+            <domain>integer</domain>
+            <expression>:labId</expression>
+        </field>
+
+        <field>
+            <id>requiredFields</id>
+            <domain>object[]</domain>
+            <expression>
+                (
+                select array_to_json(array_agg(r)) from (
+                select s1.id as id,
+                (case when sc1.is_required is true
+                    then concat('[!] ',s1.code,' ', s1.name)
+                    else concat(s1.code,' ', s1.name
+                ) end )as name
+                from sr_service s1
+                join sr_srv_composition sc1 on s1.id = sc1.service_id
+                join public.sr_srv_type st on st.id=s.type_id and st.app_code in ('LABORATORY','PROBES')
+                where sc1.complex_id = s.id and sc1.is_default is true
+                and s1.org_id = :orgId
+                ) r
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>requiredFieldsIds</id>
+            <domain>integer[]</domain>
+            <expression>
+                (
+                select array_agg(s1.id) from sr_service s1
+                join sr_srv_composition sc1 on s1.id = sc1.service_id
+                where sc1.complex_id = s.id and sc1.is_required = true
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>EtBiomaterial_id</id>
+            <domain>integer</domain>
+            <name>Биоматериал по умолчанию</name>
+            <display/>
+            <expression>mcb.id</expression>
+        </field>
+        <field>
+            <id>EtBiomaterial_name</id>
+            <domain>string</domain>
+            <display/>
+            <expression>mcb.name</expression>
+        </field>
+
+
+    </fields>
+</query>

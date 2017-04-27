@@ -1,0 +1,583 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>clinicAppointment</object-id>
+    <name>clinicAppointmentList</name>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                SELECT :select FROM (
+                SELECT
+                ssr.id AS id,
+                a.id AS appointmentId,
+                a.bdatetime AS appointmentDate,
+                coalesce(s.bdatetime, sf.bdatetime)::date AS bdate,
+                to_char(s.bdatetime, 'HH24:MI') AS bdatetime,
+                concat_ws(' ', i.surname, i.name, i.patr_name, '(' || to_char(i.birth_dt, 'DD.MM.YYYY') || ')') AS patient_name,
+                (case when a.state_id = (select id from md_appointment_state where code = 'RENDERED') then 'Оказана'
+                else
+                (case when a.queue_state_id = (select id from md_appointment_queue_state where code = 'WAIT') then
+                'Ожидает'
+                when a.queue_state_id = (select id from md_appointment_queue_state where code = 'CALLED') then 'Вызван'
+                when a.queue_state_id = (select id from md_appointment_queue_state where code = 'NOT_RECEIVED') then 'Не явился'
+                when a.state_id = (select id from md_appointment_state where code = 'CANCELED') then 'Отменена'
+                else ''
+                end)
+                end) AS appointmentState,
+                i.id AS patient_id,
+                a.ticket_number AS ticket_number,
+                (a.queue_state_id != 4) as patientCome,
+                ser.name AS serviceName,
+                aps.name AS sourceName,
+                a.registration_dt AS registration_dt,
+                f.name AS fundingName,
+                srg.responsible_id AS employeePosId,
+                (case when ssr.is_rendered = true then 'text-info' else '' end) AS appointmentStateColor,
+                ssr.is_rendered AS isState,
+                s.is_house_call AS isHouseCall,
+                srg.id AS resourceGroup_id,
+                null as res_group_respurce_id,
+                ssr.id AS serviceRendered_id,
+                ssr.org_id AS serviceRendered_orgId,
+                ssr.customer_id AS serviceRendered_patientId,
+                ssr.res_group_id AS serviceRendered_resGroupId,
+                a.service_id AS serviceRendered_serviceId,
+                false AS isNoRecord,
+                s.is_house_call AS createCase_isHouseCall,
+                srg.id AS createCase_resourceGroupId,
+                ssr.id AS createCase_serviceRenderedId,
+                ssr.org_id AS createCase_serviceRenderedOrgId,
+                ssr.customer_id AS createCase_serviceRenderedPatientId,
+                ssr.res_group_id AS createCase_serviceRenderedResGroupId,
+                a.id AS createCase_appointmentId,
+                ssr.is_rendered AS createCase_isState,
+                i.id AS createCase_patientId,
+                a.bdatetime AS createCase_visitDate,
+                (case when a.state_id = (select id from md_appointment_state where code = 'RENDERED') then 'badge
+                badge-success'
+                else
+                (case when a.queue_state_id = (select id from md_appointment_queue_state where code = 'WAIT') then
+                'badge badge-warning'
+                when a.queue_state_id = (select id from md_appointment_queue_state where code = 'CALLED') then 'badge
+                badge-info'
+                when a.queue_state_id = (select id from md_appointment_queue_state where code = 'NOT_RECEIVED') then
+                'badge badge-important'
+                when a.state_id = (select id from md_appointment_state where code = 'CANCELED') then 'badge'
+                else ''
+                end)
+                end) AS badge,
+                msr.case_id AS caseId,
+                case when a.is_cito = true then 'badge badge-important'
+                else '' end
+                AS citoBadge,
+                msr.step_id as stepId
+
+                FROM sr_session s
+                JOIN sr_shift sf ON ( s.shift_id = sf.id )
+                JOIN sr_timetable_res_group trg ON ( sf.timetable_id = trg.id )
+                LEFT JOIN sr_session_ticket st ON ( s.id = st.session_id )
+                LEFT JOIN md_appointment a ON ( st.ticket_id = a.id )
+                LEFT JOIN sr_srv_rendered ssr ON ( a.srv_rendered_id = ssr.id )
+                LEFT JOIN md_srv_rendered msr ON ( ssr.id = msr.id )
+                LEFT JOIN sr_res_group srg ON ( trg.res_group_id = srg.id )
+                LEFT JOIN pim_individual i ON i.id = ( a.customer_id )
+                LEFT JOIN fin_funding_source_type f ON ( f.id = a.funding_id )
+                LEFT JOIN md_appointment_source aps ON ( aps.id = a.source_id )
+                LEFT JOIN sr_service ser ON ( ser.id = a.service_id )
+                WHERE
+                (:id is not null or (sf.bdatetime::date >= :dt.begin and sf.bdatetime::date &lt;= :dt.end))
+                AND s.is_house_call = false AND srg.id = :resourceGroup.id AND :where
+
+                UNION ALL
+
+                SELECT
+                ssr.id AS id,
+                null AS appointmentId,
+                null AS appointmentDate,
+                ssr.bdate::date AS bdate,
+                to_char(ssr.planned_time, 'HH24:MI') AS bdatetime,
+                concat_ws(' ', i.surname, i.name, i.patr_name, '(' || to_char(i.birth_dt, 'DD.MM.YYYY') || ')') AS patient_name,
+                (case when ssr.is_rendered = true then 'Оказана' else '' end) AS appointmentState,
+                i.id AS patient_id,
+                'Без Записи' AS ticket_number,
+                null AS patientCome,
+                ser.name AS serviceName,
+                null AS sourceName,
+                null AS registration_dt,
+                null AS fundingName,
+                srg.responsible_id AS employeePosId,
+                (case when ssr.is_rendered = true then 'text-info' else '' end) AS appointmentStateColor,
+                ssr.is_rendered AS isState,
+                null AS isHouseCall,
+                srg.id AS resourceGroup_id,
+                srgr.resource_id as res_group_respurce_id,
+                ssr.id AS serviceRendered_id,
+                ssr.org_id AS serviceRendered_orgId,
+                ssr.customer_id AS serviceRendered_patientId,
+                ssr.res_group_id AS serviceRendered_resGroupId,
+                null AS serviceRendered_serviceId,
+                true AS isNoRecord,
+                null AS createCase_isHouseCall,
+                srg.id AS createCase_resourceGroupId,
+                ssr.id AS createCase_serviceRenderedId,
+                ssr.org_id AS createCase_serviceRenderedOrgId,
+                ssr.customer_id AS createCase_serviceRenderedPatientId,
+                ssr.res_group_id AS createCase_serviceRenderedResGroupId,
+                null AS createCase_appointmentId,
+                ssr.is_rendered AS createCase_isState,
+                i.id AS createCase_patientId,
+                now() AS createCase_visitDate,
+                (case when ssr.is_rendered = true then 'badge badge-success' else '' end) AS badge,
+                msr.case_id AS caseId,
+                '' AS citoBadge,
+                msr.step_id as stepId
+
+                FROM sr_srv_rendered ssr
+                LEFT JOIN md_srv_rendered msr ON ( ssr.id = msr.id )
+                LEFT JOIN pim_individual i ON ( ssr.customer_id = i.id )
+                LEFT JOIN sr_res_group srg ON ( ssr.res_group_id = srg.id )
+                LEFT JOIN sr_res_group_relationship srgr on srgr.group_id = srg.id
+                LEFT JOIN sr_service ser ON  ser.id = ssr.service_id
+                WHERE not exists(select ma.id from md_appointment ma where ma.srv_rendered_id = ssr.id) AND ssr.planned_date is not null AND
+                <![CDATA[(:id is not null or(ssr.bdate >= :dt.begin and ssr.bdate <= :dt.end))]]>
+                AND (:employeePosId in (select pepr1.employee_position_id from pim_employee_position_resource pepr1
+                where srgr.resource_id = pepr1.id))
+                and :where
+                ) AS ssrr
+                ORDER BY :order
+
+            </n2o:items-query>
+            <n2o:count-query>
+                SELECT count(ssrr) FROM (
+                SELECT s.id
+                FROM sr_session s
+                JOIN sr_shift sf ON ( s.shift_id = sf.id )
+                JOIN sr_timetable_res_group trg ON ( sf.timetable_id = trg.id )
+                LEFT JOIN sr_session_ticket st ON ( s.id = st.session_id )
+                LEFT JOIN md_appointment a ON ( st.ticket_id = a.id )
+                LEFT JOIN sr_srv_rendered ssr ON ( a.srv_rendered_id = ssr.id )
+                LEFT JOIN md_srv_rendered msr ON ( ssr.id = msr.id )
+                LEFT JOIN sr_res_group srg ON ( trg.res_group_id = srg.id )
+                LEFT JOIN pim_individual i ON i.id = ( a.customer_id )
+                LEFT JOIN fin_funding_source_type f ON ( f.id = a.funding_id )
+                LEFT JOIN md_appointment_source aps ON ( aps.id = a.source_id )
+                LEFT JOIN sr_service ser ON ( ser.id = a.service_id )
+                WHERE
+                (:id is not null or (sf.bdatetime::date >= :dt.begin and sf.bdatetime::date &lt;= :dt.end))
+                AND s.is_house_call = false AND srg.id = :resourceGroup.id AND :where
+
+                UNION ALL
+
+                SELECT ssr.id
+                FROM sr_srv_rendered ssr
+                LEFT JOIN md_srv_rendered msr ON ( ssr.id = msr.id )
+                LEFT JOIN pim_individual i ON ( ssr.customer_id = i.id )
+                LEFT JOIN sr_res_group srg ON ( ssr.res_group_id = srg.id )
+                LEFT JOIN sr_res_group_relationship srgr on srgr.group_id = srg.id
+                WHERE not exists(select ma.id from md_appointment ma where ma.srv_rendered_id = ssr.id) AND ssr.planned_date is not null AND
+                <![CDATA[(:id is not null or(ssr.bdate >= :dt.begin and ssr.bdate <= :dt.end))]]>
+                AND (:employeePosId in (select pepr1.employee_position_id from pim_employee_position_resource pepr1
+                where srgr.resource_id = pepr1.id))
+                and :where
+                ) AS ssrr
+            </n2o:count-query>
+            <n2o:alias>ssrr</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ssrr.id</expression>
+        </field>
+
+        <field>
+            <id>appointmentId</id>
+            <domain>integer</domain>
+            <expression>ssrr.appointmentId</expression>
+        </field>
+
+        <field>
+            <id>isTodayAppointment</id>
+            <domain>boolean</domain>
+            <expression>case when ssrr.appointmentDate::date = now()::date then true else false end</expression>
+        </field>
+
+        <field>
+            <id>isTodayAppointmentdate</id>
+            <domain>date</domain>
+            <expression>ssrr.appointmentDate</expression>
+        </field>
+
+        <field>
+            <id>isTodayAppointmentnow</id>
+            <domain>date</domain>
+            <expression>now()</expression>
+        </field>
+
+        <field>
+            <id>bdate</id>
+            <domain>string</domain>
+            <name>Дата</name>
+            <expression>ssrr.bdate</expression>
+            <sorting>ssrr.bdate</sorting>
+        </field>
+
+        <field>
+            <id>bdatetime</id>
+            <domain>string</domain>
+            <name>Время</name>
+            <expression>ssrr.bdatetime</expression>
+            <sorting>ssrr.bdatetime</sorting>
+        </field>
+
+        <field>
+            <id>patient.name</id>
+            <domain>string</domain>
+            <name>ФИО (дата рождения)</name>
+            <expression>ssrr.patient_name</expression>
+            <sorting>ssrr.patient_name</sorting>
+        </field>
+
+        <field>
+            <id>appointmentState</id>
+            <domain>string</domain>
+            <expression>ssrr.appointmentState</expression>
+            <sorting>ssrr.appointmentState</sorting>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>ssrr.patient_id</expression>
+        </field>
+
+        <field>
+            <id>ticket_number</id>
+            <domain>string</domain>
+            <name>Талон №</name>
+            <expression>ssrr.ticket_number</expression>
+            <sorting>ssrr.ticket_number</sorting>
+        </field>
+
+        <field>
+            <id>patientCome</id>
+            <domain>boolean</domain>
+            <name>Пациент пришел</name>
+            <expression>ssrr.patientCome</expression>
+            <sorting>ssrr.patientCome</sorting>
+        </field>
+
+        <field>
+            <id>serviceName</id>
+            <domain>string</domain>
+            <name>Услуга</name>
+            <expression>ssrr.serviceName</expression>
+            <sorting>ssrr.serviceName</sorting>
+        </field>
+
+        <field>
+            <id>sourceName</id>
+            <domain>string</domain>
+            <name>Способ записи</name>
+            <expression>ssrr.sourceName</expression>
+            <sorting>ssrr.sourceName</sorting>
+        </field>
+
+       <!-- <field>
+            <id>registration_dt</id>
+            <domain>date</domain>
+            <name>Дата записи</name>
+            <expression>ssrr.registration_dt</expression>
+            <sorting>10</sorting>
+        </field>-->
+
+        <!--<field>
+            <id>fundingName</id>
+            <domain>string</domain>
+            <name>Вид оплаты</name>
+            <expression>ssrr.fundingName</expression>
+            <sorting>11</sorting>
+        </field>-->
+
+        <field>
+            <id>employeePosId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <expression>srg.responsible_id</expression>
+            <search unavailable="true">(:expression = :employeePosId or
+                (:employeePosId in (select pepr1.employee_position_id from sr_res_group_relationship  ssgr1
+                join sr_resource sr1 on sr1.id = ssgr1.resource_id
+                left join pim_employee_position_resource pepr1 on pepr1.id = sr1.id
+                where ssgr1.group_id = srg.id))
+                )</search>
+        </field>
+
+        <field>
+            <id>cito</id>
+            <domain>string</domain>
+            <name>Сito</name>
+            <expression>null</expression>
+            <sorting>ssrr.citoBadge</sorting>
+        </field>
+
+        <field>
+            <id>citoBadge</id>
+            <domain>string</domain>
+            <expression>ssrr.citoBadge</expression>
+        </field>
+
+        <field>
+            <id>phoneNumber</id>
+            <domain>string</domain>
+            <name>Контактный телефон</name>
+            <expression>
+                'тел. ' ||
+                 coalesce((select value from pim_indiv_contact pic2 where pic2.indiv_id = ssrr.patient_id and is_main = true and pic2.type_id = 2 order by pic2.id ASC limit 1),
+                (select value from pim_indiv_contact pic3 where pic3.indiv_id = ssrr.patient_id and pic3.type_id = 2 order by pic3.id ASC limit 1))
+            </expression>
+        </field>
+
+        <field>
+            <id>dt.begin</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>dt.end</id>
+            <domain>date</domain>
+            <display unavailable="true"/>
+            <search unavailable="true"/>
+        </field>
+
+        <field>
+            <id>appointmentStateColor</id>
+            <domain>string</domain>
+            <expression>ssrr.appointmentStateColor</expression>
+        </field>
+
+        <field>
+            <id>isState</id>
+            <domain>boolean</domain>
+            <expression>ssrr.isState</expression>
+        </field>
+
+        <field>
+            <id>isHouseCall</id>
+            <domain>boolean</domain>
+            <expression>ssrr.isHouseCall</expression>
+        </field>
+
+        <field>
+            <id>resourceGroup.id</id>
+            <domain>integer</domain>
+            <expression>ssrr.resourceGroup_id</expression>
+            <search unavailable="true">srgr.resource_id = (select srgr.resource_id from sr_res_group_relationship srgr where srgr.group_id = :resourceGroup.id limit 1)</search>
+        </field>
+
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>(select mp.id from md_profile mp where code='1')</expression>
+        </field>
+
+        <field>
+            <id>caseType.id</id>
+            <domain>integer</domain>
+            <expression>(select mct.id from mc_case_type mct where code='1')</expression>
+        </field>
+
+        <field>
+            <id>initGoal.id</id>
+            <domain>integer</domain>
+            <expression>(select mcig.id from mc_case_init_goal mcig where code='5')</expression>
+        </field>
+
+        <field>
+            <id>newCase</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.id</id>
+            <domain>integer</domain>
+            <expression>ssrr.serviceRendered_id</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.orgId</id>
+            <domain>integer</domain>
+            <expression>ssrr.serviceRendered_orgId</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.patientId</id>
+            <domain>integer</domain>
+            <expression>ssrr.serviceRendered_patientId</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.resGroupId</id>
+            <domain>integer</domain>
+            <expression>ssrr.serviceRendered_resGroupId</expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.resGroupIsSystem</id>
+            <domain>boolean</domain>
+            <expression>(select srgg.is_system from sr_res_group srgg where id = ssrr.serviceRendered_resGroupId)
+            </expression>
+        </field>
+
+        <field>
+            <id>serviceRendered.serviceId</id>
+            <domain>integer</domain>
+            <expression>ssrr.serviceRendered_serviceId</expression>
+        </field>
+
+        <field>
+            <id>caseBlock</id>
+            <domain>string</domain>
+            <display value="Новый случай"/>
+            <expression>:caseBlock</expression>
+        </field>
+
+        <field>
+            <id>url</id>
+            <domain>string</domain>
+            <expression>:url</expression>
+        </field>
+
+        <field>
+            <id>isNoRecord</id>
+            <domain>boolean</domain>
+            <expression>ssrr.isNoRecord</expression>
+        </field>
+
+        <field>
+            <id>appointmentIsNull</id>
+            <domain>boolean</domain>
+            <expression>:appointmentIsNull</expression>
+            <search>(case when :expression = true then ssr.id is not null end)</search>
+        </field>
+
+        <!--create case-->
+        <field>
+            <id>createCase.isHouseCall</id>
+            <domain>boolean</domain>
+            <expression>ssrr.createCase_isHouseCall</expression>
+        </field>
+
+        <field>
+            <id>createCase.resourceGroupId</id>
+            <domain>integer</domain>
+            <expression>ssrr.createCase_resourceGroupId</expression>
+        </field>
+
+        <field>
+            <id>createCase.profileId</id>
+            <domain>integer</domain>
+            <expression>(select mp.id from md_profile mp where code='1')</expression>
+        </field>
+
+        <field>
+            <id>createCase.serviceRenderedId</id>
+            <domain>integer</domain>
+            <expression>ssrr.createCase_serviceRenderedId</expression>
+        </field>
+
+        <field>
+            <id>createCase.serviceRenderedOrgId</id>
+            <domain>integer</domain>
+            <expression>ssrr.createCase_serviceRenderedOrgId</expression>
+        </field>
+
+        <field>
+            <id>createCase.serviceRenderedPatientId</id>
+            <domain>integer</domain>
+            <expression>ssrr.createCase_serviceRenderedPatientId</expression>
+        </field>
+
+        <field>
+            <id>createCase.serviceRenderedResGroupId</id>
+            <domain>integer</domain>
+            <expression>ssrr.createCase_serviceRenderedResGroupId</expression>
+        </field>
+
+        <field>
+            <id>createCase.serviceRenderedResGroupIsSystem</id>
+            <domain>boolean</domain>
+            <expression>(select srgg.is_system from sr_res_group srgg where id = ssrr.serviceRendered_resGroupId)
+            </expression>
+        </field>
+
+        <field>
+            <id>createCase.appointmentId</id>
+            <domain>integer</domain>
+            <expression>ssrr.createCase_appointmentId</expression>
+        </field>
+
+        <field>
+            <id>createCase.isState</id>
+            <domain>boolean</domain>
+            <expression>ssrr.createCase_isState</expression>
+        </field>
+
+        <field>
+            <id>createCase.patientId</id>
+            <domain>integer</domain>
+            <expression>ssrr.createCase_patientId</expression>
+        </field>
+
+        <field>
+            <id>createCase.visitDate</id>
+            <domain>date</domain>
+            <expression>ssrr.createCase_visitDate</expression>
+        </field>
+
+        <field>
+            <id>doctorId</id>
+            <domain>integer</domain>
+            <expression>
+                (select peprg.id from sr_res_group srgrg
+                left join pim_employee_position peprg on ( srgrg.responsible_id = peprg.id )
+                where srgrg.id = ssrr.serviceRendered_resGroupId)
+            </expression>
+        </field>
+
+        <field>
+            <id>badge</id>
+            <domain>string</domain>
+            <expression>ssrr.badge</expression>
+        </field>
+
+        <field>
+            <id>caseState</id>
+            <domain>boolean</domain>
+            <expression>
+                case when (select closing_step_id from mc_case where id = ssrr.caseId) is not null then true
+                else false
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>mcCaseId</id>
+            <domain>integer</domain>
+            <expression>ssrr.caseId</expression>
+        </field>
+
+        <field>
+            <id>stepId</id>
+            <domain>integer</domain>
+            <expression>ssrr.stepId</expression>
+        </field>
+
+
+    </fields>
+
+</query>

@@ -1,0 +1,331 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <!--<id>patBenefit</id>-->
+    <name>Льготы</name>
+    <object-id>patBenefit</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from pci_benefit pb
+                join pci_benefit_type pbt on pbt.id = pb.benefit_type_id
+                join pci_benefit_definition pbd on pbd.id = pb.benefit_def_id
+                left join md_diagnosis md on md.id = pb.diagnos_id
+                left join pci_benefit_register inpbr on inpbr.id = pb.benefit_reg_in_id
+                left join pci_benefit_register outpbr on outpbr.id = pb.benefit_reg_out_id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from pci_benefit pb
+                join pci_benefit_type pbt on pbt.id = pb.benefit_type_id
+                join pci_benefit_definition pbd on pbd.id = pb.benefit_def_id
+                left join md_diagnosis md on md.id = pb.diagnos_id
+                left join pci_benefit_register inpbr on inpbr.id = pb.benefit_reg_in_id
+                left join pci_benefit_register outpbr on outpbr.id = pb.benefit_reg_out_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>pb</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pb.id</expression>
+            <filters>
+                <filter type="eq" filter-field="id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>full_name</id>
+            <domain>string</domain>
+            <name>Льгота</name>
+            <display/>
+            <expression>
+                <![CDATA[
+                    concat(pbt.name, ': ', pbd.name,
+                    case when pb.from_dt is not null then ' с ' || to_char(pb.from_dt, 'dd.mm.yyyy') end,
+                    case when pb.to_dt is not null then ' по ' || to_char(pb.to_dt, 'dd.mm.yyyy') end,
+                    case when pb.is_confirmed is null then ', не подтверждена' end,
+                    case when pb.is_confirmed is true then ', подтверждена'
+                    when pb.is_confirmed is false then ', не подтверждена' end)
+                 ]]>
+            </expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Льгота</name>
+            <display/>
+            <expression>
+                pbd.name
+            </expression>
+        </field>
+
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <display/>
+            <expression>pb.patient_id</expression>
+            <filters>
+                <filter type="eq" filter-field="patient.id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>benefit.id</id>
+            <domain>integer</domain>
+            <name>Льгота</name>
+            <display/>
+            <expression>pbd.id</expression>
+        </field>
+        <field>
+            <id>benefit.codename</id>
+            <domain>string</domain>
+            <name>Льгота</name>
+            <display/>
+            <expression>concat(pbd.code,' ',pbd.name)</expression>
+        </field>
+        <field>
+            <id>benefit.name</id>
+            <domain>string</domain>
+            <name>Льгота</name>
+            <display/>
+            <expression>pbd.name</expression>
+        </field>
+
+        <field>
+            <id>benefit_type.id</id>
+            <domain>integer</domain>
+            <name>Тип льготы</name>
+            <display/>
+            <expression>pbt.id</expression>
+        </field>
+        <field>
+            <id>benefit_type.name</id>
+            <domain>string</domain>
+            <name>Тип льготы</name>
+            <display/>
+            <expression>pbt.name</expression>
+        </field>
+        <field>
+            <id>benefit_type.codename</id>
+            <domain>string</domain>
+            <name>Тип льготы</name>
+            <display/>
+            <expression>pbt.code</expression>
+        </field>
+
+        <field>
+            <id>benefit_type.is_required_diagnosis</id>
+            <domain>boolean</domain>
+            <name>Требуется диагноз</name>
+            <display/>
+            <expression>pbt.is_required_diagnosis</expression>
+        </field>
+
+        <field>
+            <id>diagnos.id</id>
+            <domain>integer</domain>
+            <name>Диагноз</name>
+            <display/>
+            <expression>
+                case when pbt.is_required_diagnosis
+                then md.id
+                else null
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>diagnos.codename</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <display/>
+            <expression>
+                case when pbt.is_required_diagnosis
+                then concat(md.code,' ',md.name)
+                else null
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>created_dt</id>
+            <domain>string</domain>
+            <name>Дата создания</name>
+            <display/>
+            <expression>
+                to_char(pb.created_dt,'dd.mm.yyyy hh24:mi')
+            </expression>
+        </field>
+
+        <field>
+            <id>doc</id>
+            <domain>string</domain>
+            <name>Документ</name>
+            <display/>
+            <expression>
+                concat(pb.doc_name,' №',doc_number,' выдан ',pb.doc_issuer,' ',pb.doc_issuer_dt)
+            </expression>
+        </field>
+
+        <field>
+            <id>doc_name</id>
+            <domain>string</domain>
+            <name>Наименование документа</name>
+            <display/>
+            <expression>pb.doc_name</expression>
+        </field>
+        <field>
+            <id>doc_number</id>
+            <domain>string</domain>
+            <name>Номер документа</name>
+            <display/>
+            <expression>pb.doc_number</expression>
+        </field>
+        <field>
+            <id>doc_issuer</id>
+            <domain>string</domain>
+            <name>Кем выдан документ</name>
+            <display/>
+            <expression>pb.doc_issuer</expression>
+        </field>
+        <field>
+            <id>doc_issuer_dt</id>
+            <domain>date</domain>
+            <name>Дата выдачи</name>
+            <display/>
+            <expression>pb.doc_issuer_dt</expression>
+        </field>
+
+        <field>
+            <id>benefit_reg_in.id</id>
+            <domain>integer</domain>
+            <name>Регистр включения</name>
+            <display/>
+            <expression>pb.benefit_reg_in_id</expression>
+        </field>
+        <field>
+            <id>benefit_reg_out_id.id</id>
+            <domain>integer</domain>
+            <name>Регистр исключения</name>
+            <display/>
+            <expression>pb.benefit_reg_out_id</expression>
+        </field>
+
+        <field>
+            <id>from_dt</id>
+            <domain>date</domain>
+            <name>Дата начала</name>
+            <display/>
+            <expression>pb.from_dt</expression>
+        </field>
+        <field>
+            <id>to_dt</id>
+            <domain>date</domain>
+            <name>Дата окончания</name>
+            <display/>
+            <expression>pb.to_dt</expression>
+        </field>
+
+        <field>
+            <id>is_confirmed</id>
+            <domain>boolean</domain>
+            <name>Подтверждена</name>
+            <display/>
+            <expression>pb.is_confirmed</expression>
+            <filters>
+                <filter type="eq" filter-field="is_confirmed"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <name>Примечание</name>
+            <display/>
+            <expression>pb.note</expression>
+        </field>
+
+        <field>
+            <id>uncan_modif</id>
+            <domain>boolean</domain>
+            <display/>
+            <expression>pbt.is_available_register</expression>
+            <!--<filters>-->
+                <!--<filter type="eq" filter-field="is_available_register"/>-->
+            <!--</filters>-->
+        </field>
+
+        <field>
+            <id>in_register.id</id>
+            <domain>integer</domain>
+            <name>Регистр включения</name>
+            <display/>
+            <expression>inpbr.id</expression>
+        </field>
+        <field>
+            <id>in_register.name</id>
+            <domain>string</domain>
+            <name>Регистр включения</name>
+            <display/>
+            <expression>
+                case when pb.benefit_reg_in_id is not null
+                    then concat(inpbr.reg_number,' от ',to_char(inpbr.reg_dt,'dd.mm.yyyy'))
+                    else null
+                end
+            </expression>
+        </field>
+        <field>
+            <id>out_register.id</id>
+            <domain>integer</domain>
+            <name>Регистр исключения</name>
+            <display/>
+            <expression>outpbr.id</expression>
+        </field>
+        <field>
+            <id>out_register.name</id>
+            <domain>string</domain>
+            <name>Регистр исключения</name>
+            <display/>
+            <expression>
+                case when pb.benefit_reg_out_id is not null
+                    then concat(outpbr.reg_number,' от ',to_char(outpbr.reg_dt,'dd.mm.yyyy'))
+                    else null
+                end
+            </expression>
+        </field>
+
+        <field>
+            <id>is_valid</id>
+            <domain>boolean</domain>
+            <name>Действующая льгота</name>
+            <display/>
+            <expression>
+                case when
+                <!--cast(now() as date) >= pb.from_dt and -->
+                (pb.to_dt >= cast(now() as date) or pb.to_dt is null)
+                    then true
+                    else false
+                end
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="is_valid"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>upd</id>
+            <domain>boolean</domain>
+            <expression>true</expression>
+            <display/>
+        </field>
+    </fields>
+</query>

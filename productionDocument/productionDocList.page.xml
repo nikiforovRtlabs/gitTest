@@ -1,0 +1,187 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <object-id>productionDoc</object-id>
+    <layout>n2o/layout/top-bottom</layout>
+    <name>Документы на изготовление</name>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="prodDocList">
+                <wgt:table>
+                    <wgt:name>Документы на изготовление</wgt:name>
+                    <wgt:query-id>productionDocList</wgt:query-id>
+                    <wgt:action-menu >
+                        <wgt:menu-item label="Добавить" context="false" id="create">
+                            <wgt:show-modal page-id="productionDoc" container-id="main" width="90%;" max-width="1000px;" min-width="500px;"
+                                            focus-after-submit="true"
+                                            action-id="save"
+                                            refresh-on-close="true">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Изменить" context="true" id="update">
+                            <wgt:show-modal page-id="productionDoc"  container-id="main" width="90%;" max-width="1000px;" min-width="500px;"
+                                            focus-after-submit="true"
+                                            refresh-on-close="true" detail-field-id="id" master-field-id="id"
+                                            page-name="Документ №{prodDocList.docNumber} от {prodDocList.docDateString}">
+                            </wgt:show-modal>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Провести" id="execute" context="true" icon="icon-ok-sign" type="textAndIcon">
+                            <wgt:show-modal page-id="executeProductionDoc" action-id="execute" page-name="Проводка документа" focus-after-submit="true"
+                                            width="30%" max-width="500px" min-width="500px" master-field-id="id" detail-field-id="id" model="default">
+                            </wgt:show-modal>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status.id==1 &amp;&amp; specExists ==true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Вернуть" context="true" id="cancel" icon="icon-circle-arrow-left"
+                                       type="textAndIcon">
+                            <wgt:invoke-action action-id="cancel" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status.id==2 &amp;&amp; specExists ==true</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item label="Удалить" id="delete">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>status.id==1</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="docNumber" width="10%"/>
+                        <wgt:column column-field-id="docDate" width="5%"/>
+                        <wgt:column column-field-id="isExecutedSimbol" width="5%" tooltip-field-id="statusTooltip">
+                            <wgt:color>
+                                <wgt:switch value-field-id="status.id">
+                                    <wgt:case value="1">badge badge-important</wgt:case>
+                                    <wgt:case value="2">badge badge-success</wgt:case>
+                                </wgt:switch>
+                            </wgt:color>
+                        </wgt:column>
+                        <wgt:column column-field-id="statusDate" width="5%"/>
+                        <wgt:column column-field-id="modif.name" width="35%"/>
+                        <wgt:column column-field-id="sendStore.name"/>
+                        <wgt:column column-field-id="fundSource.name"/>
+                        <wgt:column column-field-id="amount" format="${inv.amount.format}"/>
+                    </wgt:columns>
+
+                    <wgt:rows>
+                        <wgt:color>
+                            <wgt:switch value-field-id="status.id">
+                                <wgt:case value="2">success</wgt:case>
+                            </wgt:switch>
+                        </wgt:color>
+                    </wgt:rows>
+
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="docDate" direction="DESC"/>
+                    </wgt:sortings>
+
+                    <wgt:filters>
+                        <ctrl:date-interval id="docDate" label="Дата документа" format="DD.MM.YYYY">
+                            <ctrl:default-model begin="beginMonth()" end="today()"/>
+                        </ctrl:date-interval>
+                        <ctrl:input-text id="docNumber" domain="numberPositive"/>
+                        <ctrl:classifier id="status" label="Статус">
+                            <ctrl:query query-id="inv_docStatus" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:date-time id="statusDate"/>
+                        <ctrl:classifier id="sendStore" label="Склад">
+                            <ctrl:query query-id="inv_store" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="storeTypeId" value="1"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="fundSource" label="Финансирование">
+                            <ctrl:query query-id="inv_storeForArrInvoice" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                    </wgt:filters>
+                </wgt:table>
+            </container>
+        </region>
+
+        <region place="bottom" type="list">
+            <container id="prodSpecList" depends-on="prodDocList" refresh-dependent-container="true">
+                <pre-filters>
+                    <pre-filter field-id="sendStore.id" ref="sendStore.id"/>
+                    <pre-filter field-id="docStatus.id" ref="status.id"/>
+                </pre-filters>
+                <wgt:table detail-field-id="doc.id" master-field-id="id">
+                    <wgt:action-menu>
+                        <wgt:menu-item id="create" label="Добавить" context="false">
+                            <wgt:open-page page-id="storeSuppliesListForProdDoc" container-id="batchList"
+                                           result-container-id="batchList"
+                                           detail-field-id="doc.id" master-field-id="doc.id" refresh-on-close="true"
+                                           page-name="Документ на изготовление: №{prodDocList.docNumber} от {prodDocList.docDateString}. Добавление спецификации."
+                                           focus-after-submit="true">
+                            </wgt:open-page>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>docStatus.id==1</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                            <wgt:properties>
+                                <wgt:property key="security-action" value="save"/>
+                                <wgt:property key="security-object" value="productionSpec"/>
+                            </wgt:properties>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="update" label="Изменить" default="true" context="true">
+                            <wgt:show-modal page-id="productionSpec" detail-field-id="id"
+                                            master-field-id="id"
+                                            focus-after-submit="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Удалить" id="delete">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>docStatus.id==1</wgt:expression>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:name>Спецификации</wgt:name>
+                    <wgt:query-id>productionSpecList</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="modif.name" width="40%"/>
+                        <wgt:column column-field-id="series"/>
+                        <wgt:column column-field-id="mneiQuantity" format="${inv.quantity.format}"/>
+                        <wgt:column column-field-id="price" format="${inv.price.format}"/>
+                        <wgt:column column-field-id="amount" format="${inv.amount.format}"/>
+                    </wgt:columns>
+
+                    <wgt:rows>
+                        <wgt:color>
+                            <wgt:switch value-field-id="docStatus.id">
+                                <wgt:case value="2">success</wgt:case>
+                            </wgt:switch>
+                        </wgt:color>
+                    </wgt:rows>
+
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="id" direction="DESC"/>
+                    </wgt:sortings>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+
+</page>

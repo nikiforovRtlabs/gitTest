@@ -1,0 +1,62 @@
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Товарный запас</name>
+
+
+    <actions>
+        <action id="writeOff" name="Списание">
+            <invocation>
+                <sql:sql>
+                    UPDATE inventory.store_supply
+                    SET
+                    act_balance_mnei = (act_balance_mnei - :mneiQuantity)
+                    WHERE id= :storeSupplyId;
+
+                    INSERT INTO inventory.store_opr_jur(
+                    id, org_id, date, store_opr_id, store_send_id, mnei_quantity,
+                    send_store_sup_id, emp_position_id, patient_id, case_id)
+                    VALUES (nextval('inventory.store_opr_jur_seq'), :orgId,
+                    (select prescription_dt from hospital.prescription_schedule where id = :prescriptionScheduleId),
+                    (select id from inventory.store_opr where code = '6' and :storeTypeCode = '1' or code = '7' and :storeTypeCode = '2'
+                    or code = '5' and :storeTypeCode = '0'),
+                    :storeId, :mneiQuantity, :storeSupplyId, :employeePosId,
+                    :patientId, :caseId);
+
+                    UPDATE hospital.prescription_schedule SET execution_dt=prescription_dt,
+                    store_opr_id = currval('inventory.store_opr_jur_seq')
+                    WHERE id = :prescriptionScheduleId;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="prescription.schedule.id" mapping="['prescriptionScheduleId']"/>
+                <param name="storeSupplyId" mapping="['storeSupplyId']"/>
+                <param name="holdModifId" mapping="['holdModifId']"/>
+                <param name="conversionRate" mapping="['conversionRate']"/> <!-- not used in calculation anymore -->
+                <param name="mneiQuantity" mapping="['mneiQuantity']"/>
+                <param name="employeePosResId" mapping="['employeePosResId']" value="#{emplPosRes.id?}"/>
+                <param name="employeePosId" mapping="['employeePosId']" value="#{emplPos.id?}"/>
+                <param name="store.id" mapping="['storeId']"/>
+                <param name="storeTypeCode" mapping="['storeTypeCode']"/>
+                <param name="orgId" mapping="['orgId']"/>
+                <param name="caseId" mapping="['caseId']"/>
+                <param name="patientId" mapping="['patientId']"/>
+                <param name="residue" mapping="['residue']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="checkValidMneiQuantity"/>
+            </validations>
+        </action>
+    </actions>
+
+    <validations>
+        <condition id="checkValidMneiQuantity" level="error">
+            <expression on="residue, mneiQuantity">
+                typeof residue != 'undefined' &amp;&amp; residue != null
+                &amp;&amp; typeof mneiQuantity != 'undefined' &amp;&amp; mneiQuantity != null
+                &amp;&amp; residue >= mneiQuantity
+            </expression>
+            <message>В остатке количество меньше требуемого списания. Возможны отрицательные остатки</message>
+        </condition>
+    </validations>
+
+</object>

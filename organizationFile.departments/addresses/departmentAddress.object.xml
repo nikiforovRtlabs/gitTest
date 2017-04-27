@@ -1,0 +1,124 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>departmentAddress</name>
+
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    insert into md_department_address(
+                      id,
+                      dep_id,
+                      addr_id,
+                      is_display
+                    ) values (
+                      nextval('md_department_address_seq'),
+                      :dep_id,
+                      :addr_id,
+                      :is_display
+                    );
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="department_id" mapping="['dep_id']" domain="integer"/>
+                <param name="address.id" mapping="['addr_id']" domain="integer"/>
+                <param name="is_display" mapping="['is_display']" domain="boolean"/>
+                <param name="id" mapping="['id']" domain="integer"/> <!-- just for validation -->
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Адрес подразделения успешно добавлен.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="is_department_address_already_exists"/>
+                <validation ref-id="is_requisite_address_already_exists"/>
+            </validations>
+        </action>
+
+        <action id="update">
+            <invocation>
+                <n2o:sql>
+                    update md_department_address set
+                      addr_id = :addr_id,
+                      is_display = :is_display
+                    where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="department_id" mapping="['dep_id']" domain="integer"/>
+                <param name="address.id" mapping="['addr_id']" domain="integer"/>
+                <param name="is_display" mapping="['is_display']" domain="boolean"/>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Адрес подразделения успешно обновлен.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="is_department_address_already_exists"/>
+                <validation ref-id="is_requisite_address_already_exists"/>
+            </validations>
+        </action>
+
+        <action id="delete">
+            <invocation>
+                <n2o:sql>
+                    delete from md_department_address
+                    where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <success-text>
+                Удалить запись?
+            </success-text>
+        </action>
+
+    </actions>
+    <validations>
+
+        <constraint id="is_department_address_already_exists" level="error">
+            <message>Заданный адрес уже существует в списке</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                    select count(1) from md_department_address
+                    where dep_id = :dep_id and addr_id = :addr_id and (:id isnull or id <> :id)
+                ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="address.id" mapping="['addr_id']" domain="integer"/>
+                <param name="department_id" mapping="['dep_id']" domain="integer"/>
+
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+        <constraint id="is_requisite_address_already_exists" level="error">
+            <message>Адрес для вывода в реквизитах уже задан</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                    select count(1) from md_department_address
+                    where dep_id = :dep_id and ( is_display and :is_display ) and (:id isnull or id <> :id)
+                ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="address.id" mapping="['addr_id']" domain="integer"/>
+                <param name="department_id" mapping="['dep_id']" domain="integer"/>
+                <param name="is_display" mapping="['is_display']" domain="boolean"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+    </validations>
+</object>

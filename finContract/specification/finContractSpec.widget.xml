@@ -1,0 +1,230 @@
+<form xmlns="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      customize="js"  src="inventory/custom/finContract/spec/finContractSpec">
+    <query-id>finContractSpec</query-id>
+    <default-values-query-id>finContractSpecDefValues</default-values-query-id>
+
+    <fs:field-set header="line" field-label-location="top">
+        <ctrl:classifier id="modif" label="Наименование ЛС и ИМН" search-as-you-type="true" required="true"
+                         css-class="n2o-label-5 n2o-control-10" copied="false" control-style="width:520px">
+            <ctrl:query query-id="inv_holdModifWithParamsForOrg" value-field-id="id" label-field-id="name">
+                <ctrl:pre-filters>
+                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                </ctrl:pre-filters>
+            </ctrl:query>
+            <ctrl:dependencies>
+                <ctrl:enabling-condition>
+                    typeof refFromArrivalSpecExists=='undefined' || refFromArrivalSpecExists==null || refFromArrivalSpecExists==false
+                </ctrl:enabling-condition>
+            </ctrl:dependencies>
+        </ctrl:classifier>
+    </fs:field-set>
+
+    <fs:field-set header="line" field-label-location="top">
+        <fs:row>
+            <ctrl:input-text label="Серия партии" id="series" copied="false" label-style="width:290px">
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        typeof refFromArrivalSpecExists=='undefined' || refFromArrivalSpecExists==null ||
+                        refFromArrivalSpecExists==false
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:input-text>
+            <ctrl:date-time id="expireDate" label="Срок годности" format="DD.MM.YYYY" copied="false">
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        typeof refFromArrivalSpecExists=='undefined' || refFromArrivalSpecExists==null ||
+                        refFromArrivalSpecExists==false
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:date-time>
+        </fs:row>
+
+        <fs:row>
+            <ctrl:classifier id="producer" label="Производитель" search-as-you-type="true" copied="false"
+                             depends-on="modif" label-style="width:290px">
+                <ctrl:query query-id="inv_holdingProducer" value-field-id="id" label-field-id="name"
+                            detail-field-id="modifId" master-field-id="id"/>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        typeof refFromArrivalSpecExists=='undefined' || refFromArrivalSpecExists==null ||
+                        refFromArrivalSpecExists==false
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:classifier>
+            <ctrl:date-time id="prodDate" label="Дата производства" format="DD.MM.YYYY" copied="false">
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        typeof refFromArrivalSpecExists=='undefined' || refFromArrivalSpecExists==null ||
+                        refFromArrivalSpecExists==false
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:date-time>
+        </fs:row>
+
+        <fs:row>
+            <ctrl:classifier id="country" label="Страна" search-as-you-type="true" label-style="width:290px"
+                             copied="false">
+                <ctrl:query query-id="inv_country" value-field-id="id" label-field-id="name"/>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        typeof refFromArrivalSpecExists=='undefined' || refFromArrivalSpecExists==null ||
+                        refFromArrivalSpecExists==false
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:classifier>
+            <ctrl:input-text label="Сертификат" id="certificate" copied="false">
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        typeof refFromArrivalSpecExists=='undefined' || refFromArrivalSpecExists==null ||
+                        refFromArrivalSpecExists==false
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:input-text>
+        </fs:row>
+    </fs:field-set>
+
+    <fs:field-set header="line" field-label-location="top">
+        <fs:row>
+            <ctrl:input-text id="quantity" label="Кол-во" depends-on="modif" label-style="width: 100px" copied="false"
+                             control-style="width: 100px" domain="integer" required="true">
+                <ctrl:validations>
+                    <ctrl:validation ref-id="checkQuantity"/>
+                </ctrl:validations>
+            </ctrl:input-text>
+            <ctrl:output-text id="modif.unitName" label="&#144;" label-style="width: 185px;" copied="false"
+                              control-style="width: 60px;" depends-on="modif" readonly="true"/>
+
+            <ctrl:input-text id="mneiQuantity" label="Кол-во в МНЕИ:" label-style="width: 110px" copied="false"
+                             control-style="width: 100px" readonly="true" required="true">
+                <ctrl:set-value-expression on="quantity">quantity*modif.countInMNEI</ctrl:set-value-expression>
+                <ctrl:set-value-expression on="modif">quantity*modif.countInMNEI</ctrl:set-value-expression>
+                <ctrl:validations>
+                    <ctrl:validation ref-id="checkMneiQuantity"/>
+                </ctrl:validations>
+            </ctrl:input-text>
+
+            <ctrl:output-text id="modif.MNEI" label="&#144;" label-style="width: 0px" depends-on="quantity" copied="false"
+                              readonly="true" control-style="width: 60px"/>
+        </fs:row>
+    </fs:field-set>
+
+    <fs:field-set header="line" field-label-location="top">
+        <fs:row>
+            <ctrl:input-text id="amount" label="Сумма (руб.)" required="true" label-style="width:290px" copied="false">
+                <ctrl:set-value-expression on-load="false" silent-mode="true" on="price">
+                    if(price &amp;&amp; quantity) {
+                        price*quantity;
+                    }
+                    else amount;
+                </ctrl:set-value-expression>
+                <ctrl:validations>
+                    <ctrl:validation ref-id="checkAmount"/>
+                    <ctrl:validation ref-id="compare_prices_and_amounts" side="client,server"/>
+                </ctrl:validations>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        typeof refFromArrivalSpecExists=='undefined' || refFromArrivalSpecExists==null || refFromArrivalSpecExists==false
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:input-text>
+
+            <ctrl:input-text id="price" label="Цена (руб.)" required="true" copied="false">
+                <ctrl:set-value-expression on-load="false" silent-mode="true" on="amount,quantity">
+                    if(amount &amp;&amp; quantity) {
+                          amount/quantity;
+                    }
+                    else price;
+                </ctrl:set-value-expression>
+                <ctrl:validations>
+                    <ctrl:validation ref-id="checkPrice"/>
+                </ctrl:validations>
+                <ctrl:dependencies>
+                    <ctrl:enabling-condition>
+                        typeof refFromArrivalSpecExists=='undefined' || refFromArrivalSpecExists==null || refFromArrivalSpecExists==false
+                    </ctrl:enabling-condition>
+                </ctrl:dependencies>
+            </ctrl:input-text>
+        </fs:row>
+        <fs:row>
+            <ctrl:hidden id="hidden1"/>
+        </fs:row>
+    </fs:field-set>
+
+    <fs:field-set label="График поставок" header="line" css-class="deliveryPlan">
+        <fs:row>
+            <ctrl:hidden id="hidden2"/>
+        </fs:row>
+        <fs:row>
+            <ctrl:output-text id="specDeliveryDate.0.date" label="&#144;" label-style="width: 0px" visible="false"
+                              css-class="n2o-label-1 n2o-control-2" domain="string"/>
+            <ctrl:input-text id="specDeliveryDate.0.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+            <ctrl:output-text id="specDeliveryDate.1.date" label="&#144;" label-style="width: 0px" domain="string" visible="false"
+                              css-class="n2o-label-5 n2o-control-2" />
+            <ctrl:input-text id="specDeliveryDate.1.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+            <ctrl:output-text id="specDeliveryDate.2.date" label="&#144;" label-style="width: 0px" visible="false"
+                              css-class="n2o-label-5 n2o-control-2"/>
+            <ctrl:input-text id="specDeliveryDate.2.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+        </fs:row>
+        <fs:row>
+            <ctrl:output-text id="specDeliveryDate.3.date" label="&#144;" label-style="width: 0px" visible="false"
+                              css-class="n2o-label-1 n2o-control-2" />
+            <ctrl:input-text id="specDeliveryDate.3.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+            <ctrl:output-text id="specDeliveryDate.4.date" label="&#144;" label-style="width: 0px" visible="false"
+                              css-class="n2o-label-1 n2o-control-2"/>
+            <ctrl:input-text id="specDeliveryDate.4.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+            <ctrl:output-text id="specDeliveryDate.5.date" label="&#144;" label-style="width: 0px" visible="false"
+                              css-class="n2o-label-1 n2o-control-2"/>
+            <ctrl:input-text id="specDeliveryDate.5.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+        </fs:row>
+        <fs:row>
+            <ctrl:output-text id="specDeliveryDate.6.date" label="&#144;" visible="false"
+                            css-class="n2o-label-7 n2o-control-2" label-style="width: 0px" />
+            <ctrl:input-text id="specDeliveryDate.6.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+            <ctrl:output-text id="specDeliveryDate.7.date" label="&#144;" visible="false"
+                            css-class="n2o-label-5 n2o-control-2" label-style="width: 0px" />
+            <ctrl:input-text id="specDeliveryDate.7.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+            <ctrl:output-text id="specDeliveryDate.8.date" label="&#144;" visible="false"
+                            css-class="n2o-label-5 n2o-control-2" label-style="width: 0px" />
+            <ctrl:input-text id="specDeliveryDate.8.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+        </fs:row>
+        <fs:row>
+            <ctrl:output-text id="specDeliveryDate.9.date" label="&#144;" visible="false"
+                            css-class="n2o-label-7 n2o-control-2" label-style="width: 0px" />
+            <ctrl:input-text id="specDeliveryDate.9.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+            <ctrl:output-text id="specDeliveryDate.10.date" label="&#144;" visible="false"
+                            css-class="n2o-label-5 n2o-control-2" label-style="width: 0px" />
+            <ctrl:input-text id="specDeliveryDate.10.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+            <ctrl:output-text id="specDeliveryDate.11.date" label="&#144;" visible="false"
+                            css-class="n2o-label-5 n2o-control-2" label-style="width: 0px" />
+            <ctrl:input-text id="specDeliveryDate.11.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+        </fs:row>
+        <fs:row>
+            <ctrl:output-text id="specDeliveryDate.12.date" label="&#144;" visible="false"
+                            css-class="n2o-label-7 n2o-control-2" label-style="width: 0px" />
+            <ctrl:input-text id="specDeliveryDate.12.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+            <ctrl:output-text id="specDeliveryDate.13.date" label="&#144;" visible="false"
+                            css-class="n2o-label-5 n2o-control-2" label-style="width: 0px" />
+            <ctrl:input-text id="specDeliveryDate.13.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+            <ctrl:output-text id="specDeliveryDate.14.date" label="&#144;" visible="false"
+                            css-class="n2o-label-5 n2o-control-2" label-style="width: 0px" />
+            <ctrl:input-text id="specDeliveryDate.14.quantity" css-class="n2o-label-5 n2o-control-3" label="&#144;" label-style="width: 15px"
+                             visible="false"/>
+        </fs:row>
+    </fs:field-set>
+</form>

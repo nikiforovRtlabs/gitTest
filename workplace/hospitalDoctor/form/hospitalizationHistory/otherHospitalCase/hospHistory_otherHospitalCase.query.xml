@@ -1,0 +1,160 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hospHistory_otherHospitalCase</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select from hsp_record hr
+                join mc_step s on s.id = hr.id
+                join mc_case c on c.id = s.case_id
+                left join mc_diagnosis cd on cd.id = c.main_diagnos_id
+                left join md_diagnosis d on d.id = cd.diagnos_id
+                left join mc_step_result sr on sr.id = s.result_id
+                left join mc_step_care_result cr on cr.id = s.outcome_id
+                where
+                not exists(select 1 from hsp_record h2 inner join mc_step s2 on s2.id = h2.id
+                where s2.case_id = c.id and h2.previous_id = hr.id) and c.id != :caseId  and :where
+                order by :order, hr.id
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1) from hsp_record hr
+                join mc_step s on s.id = hr.id
+                join mc_case c on c.id = s.case_id
+                left join mc_diagnosis cd on cd.id = c.main_diagnos_id
+                left join md_diagnosis d on d.id = cd.diagnos_id
+                left join mc_step_result sr on sr.id = s.result_id
+                left join mc_step_care_result cr on cr.id = s.outcome_id
+                where
+                not exists(select 1 from hsp_record h2 inner join mc_step s2 on s2.id = h2.id
+                where s2.case_id = c.id and h2.previous_id = hr.id) and c.id != :caseId  and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>hr.id</expression>
+        </field>
+
+        <field>
+            <id>userId</id>
+            <domain>integer</domain>
+            <expression>:userId</expression>
+            <search value="#{user.id?}">
+                (
+                c.is_social_significant is null or
+                c.is_social_significant = 2 and (
+
+                exists(select 1 from sec_user_role ur
+                join sec_role r on r.id = ur.role_id
+                join sec_role_element re on re.role_id = r.id
+                join sec_class_method cm on cm.id = re.method_id
+                where ur.user_id = :expression and cm.code = 'SocialSignificant.PsychiatricProfile')
+
+                or
+
+                exists(select 1 from sec_user u
+                join sec_user_party up on up.id = u.id
+                join pim_employee e on e.individual_id = up.party_id and not(e.is_dismissed)
+                join pim_employee_position ep on ep.employee_id = e.id
+                join pim_position p on p.id = ep.position_id
+                join pim_department d on d.id = p.department_id and d.is_social_significant = 2
+                where u.id = :expression)
+                ) or
+
+                c.is_social_significant = 1 and (
+
+                exists(select 1 from sec_user_role ur
+                join sec_role r on r.id = ur.role_id
+                join sec_role_element re on re.role_id = r.id
+                join sec_class_method cm on cm.id = re.method_id
+                where ur.user_id = :expression and cm.code = 'SocialSignificant.NarcologicProfile')
+
+                or
+
+                exists(select 1 from sec_user u
+                join sec_user_party up on up.id = u.id
+                join pim_employee e on e.individual_id = up.party_id and not(e.is_dismissed)
+                join pim_employee_position ep on ep.employee_id = e.id
+                join pim_position p on p.id = ep.position_id
+                join pim_department d on d.id = p.department_id and d.is_social_significant = 1
+                where u.id = :expression)
+                )
+
+                )
+            </search>
+        </field>
+
+        <field>
+            <id>organizationId</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search><![CDATA[c.clinic_id = :organizationId]]></search>
+        </field>
+
+        <field>
+            <id>caseId</id>
+            <domain>integer</domain>
+            <expression>c.id</expression>
+            <search>c.patient_id = (select patient_id from mc_case where id = :caseId)</search>
+        </field>
+
+        <field>
+            <id>uid</id>
+            <domain>string</domain>
+            <name>Номер ИБ</name>
+            <expression>c.uid</expression>
+        </field>
+
+        <field>
+            <id>uidForTitle</id>
+            <domain>string</domain>
+            <expression>coalesce('№' || c.uid, '')</expression>
+        </field>
+
+        <field>
+            <id>openDate</id>
+            <domain>date</domain>
+            <name>Дата госпитализации</name>
+            <expression>c.open_date</expression>
+        </field>
+
+        <field>
+            <id>outcomeDate</id>
+            <domain>date</domain>
+            <name>Дата выписки</name>
+            <expression>s.outcome_date</expression>
+        </field>
+
+        <field>
+            <id>diagnosis</id>
+            <domain>string</domain>
+            <name>Диагноз</name>
+            <expression>d.code || ' ' || d.name</expression>
+        </field>
+
+        <field>
+            <id>result</id>
+            <domain>string</domain>
+            <name>Результат</name>
+            <expression>sr.name</expression>
+        </field>
+
+        <field>
+            <id>outcome</id>
+            <domain>string</domain>
+            <name>Исход</name>
+            <expression>cr.name</expression>
+        </field>
+
+    </fields>
+
+
+</query>

@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <name>inv_storeWithRespPerson</name>
+    <object-id>inventory_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from(select s.id id, s.name sname,s.org_id org_id, s.store_type_id store_type_id,
+                central_store_id centralStoreId,
+                (select count(1) from inventory.resp_person where store_id=s.id) countOfRespPerson
+                from inventory.store s
+                left outer join inventory.funding_source fs on fs.id=s.funding_source_id) s
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(s)
+                from(select s.id id, s.name sname,s.org_id org_id, s.store_type_id store_type_id,
+                central_store_id centralStoreId,
+                (select count(1) from inventory.resp_person where store_id=s.id) countOfRespPerson
+                from inventory.store s
+                left outer join inventory.funding_source fs on fs.id=s.funding_source_id) s
+                where :where
+            </n2o:count-query>
+            <n2o:alias>s</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>sname</expression>
+            <search>upper(sname) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>orgId</id>
+            <domain>integer</domain>
+            <expression>org_id</expression>
+        </field>
+        <field>
+            <id>storeTypeId</id>
+            <domain>integer</domain>
+            <expression>s.store_type_id</expression>
+        </field>
+        <field>
+            <id>respPerson.id</id>
+            <domain>integer</domain>
+            <expression>
+                case when countOfRespPerson!=1 then null
+                else(select employee_pos_id from inventory.resp_person where store_id=s.id) end
+            </expression>
+        </field>
+        <field>
+            <id>respPerson.name</id>
+            <domain>string</domain>
+            <expression> case when countOfRespPerson!=1 then null
+                else
+                (select ind.surname||' '||lpad(ind.name,1,'.')||'.'||lpad(ind.patr_name,1,'.')||'.'||', '||p.name
+                from pim_employee_position emp
+                inner join pim_position p on p.id=emp.position_id
+                inner join pim_employee e on e.id=emp.employee_id
+                inner join pim_individual ind on ind.id=e.individual_id where emp.id= (select employee_pos_id from inventory.resp_person where store_id=s.id))
+                end
+            </expression>
+        </field>
+        <field>
+            <id>centralStore.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>(id = :centralStore.id or :centralStore.id is null)</search>
+        </field>
+    </fields>
+</query>

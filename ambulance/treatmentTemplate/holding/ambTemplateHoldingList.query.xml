@@ -1,0 +1,175 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>ambTreatmentTemplate</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from services_template_prescription stp
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(stp)
+                from services_template_prescription stp
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>stp.id</expression>
+        </field>
+
+        <field>
+            <id>templateId</id>
+            <domain>integer</domain>
+            <expression>stp.template_id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>(
+                select array_to_string(array_agg(name_hold), ' + ')
+                from (
+                    select h.name
+                        || coalesce(', ' || ft.short_name, '')
+                        || coalesce(', ' || stph.hold_con_value || coalesce(' ' || (select name from cmn_measure where id = stph.hold_con_measure_id),''), '')
+                        || coalesce(', ' || trim(to_char(stph.hold_dose_value::numeric, 'FM9999990.999'), '.') || coalesce(' ' || (select name from cmn_measure where id = stph.hold_dose_measure_id),''), '')
+                        || coalesce(', ' || mnei.name, '') as name_hold
+                    from services_template_prescription stpp
+                    inner join services_template_prescription_holding stph 	on stph.prescription_id = stpp.id
+                    inner join inventory.holding h				        on h.id = stph.holding_id
+                    left join cmn_measure mnei       				    on mnei.id = stph.hold_mnei_id
+                    left join inventory.form_type ft 				    on ft.id = stph.hold_form_type_id
+                    where stpp.id = stp.id
+                    order by stph.id
+                ) hold
+            )
+            </expression>
+        </field>
+
+        <field>
+            <id>dose</id>
+            <domain>string</domain>
+            <name>Доза</name>
+            <expression>
+                (
+                select array_to_string(array_agg(dose), ' + ')
+                from
+                (
+                select trim(to_char(sum(hold_dose_value * count), 'FM9999990.999'), '.') || ' ' || (select name from cmn_measure where id = hold_dose_measure_id) as dose
+                from services_template_prescription_holding
+                where prescription_id = stp.id
+                group by hold_dose_measure_id, id
+                order by id
+                ) doses
+                )
+            </expression>
+        </field>
+
+        <field>
+            <id>administrationRoute</id>
+            <domain>string</domain>
+            <name>Способ введения</name>
+            <expression>(select full_name from md_administration_route where id = stp.administration_route_id)</expression>
+        </field>
+
+        <field>
+            <id>periodicity</id>
+            <domain>string</domain>
+            <name>Периодичность</name>
+            <expression>(select name from hospital.prescription_periodicity where id = stp.periodicity_id)</expression>
+        </field>
+
+        <field>
+            <id>visitTerm</id>
+            <domain>string</domain>
+            <name>Условия</name>
+            <expression>(select name from md_visit_term where id = stp.visit_term_id)</expression>
+        </field>
+
+        <field>
+            <id>beginDay</id>
+            <domain>integer</domain>
+            <name>Дата начала</name>
+            <expression>stp.begin_day</expression>
+        </field>
+
+        <field>
+            <id>countDay</id>
+            <domain>integer</domain>
+            <name>Количество дней</name>
+            <expression>stp.count_day</expression>
+        </field>
+
+        <field>
+            <id>presCount</id>
+            <name>Кол-во</name>
+            <domain>numeric</domain>
+            <expression>
+                (select count
+                from services_template_prescription_holding
+                where prescription_id = stp.id
+                limit 1)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>presDose</id>
+            <name>Доза</name>
+            <domain>numeric</domain>
+            <expression>
+                (select hold_dose_value
+                from services_template_prescription_holding
+                where prescription_id = stp.id
+                limit 1)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>measureDose</id>
+            <name>Ед. изм.</name>
+            <domain>string</domain>
+            <expression>
+                (select cm.name
+                from services_template_prescription_holding ph
+                join public.cmn_measure cm on ph.hold_dose_measure_id = cm.id
+                where ph.prescription_id = stp.id
+                limit 1)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>mnei</id>
+            <name>Ед. изм.</name>
+            <domain>string</domain>
+            <expression>
+                (select cm.name
+                from services_template_prescription_holding ph
+                join public.cmn_measure cm on ph.hold_mnei_id = cm.id
+                where ph.prescription_id = stp.id
+                limit 1)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>note</id>
+            <name>Комментарий</name>
+            <domain>string</domain>
+            <expression>stp.note</expression>
+        </field>
+    </fields>
+</query>

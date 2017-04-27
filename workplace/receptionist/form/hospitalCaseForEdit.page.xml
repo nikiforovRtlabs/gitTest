@@ -1,0 +1,576 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/info-panel-widget-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+
+    <object-id>hospitalCase</object-id>
+    <layout>n2o/layout/single</layout>
+    <regions>
+        <region place="single" type="tabs">
+            <container id="main">
+                <wgt:form detail-field-id="id" master-field-id="id">
+                    <wgt:query-id>hospitalCase</wgt:query-id>
+                    <wgt:name>Случай госпитализации</wgt:name>
+                    <wgt:default-values-query-id>hospitalCase_default_values</wgt:default-values-query-id>
+
+                    <wgt:action-menu>
+                        <wgt:menu-item label="Направить в отделение"  context="true" id="createFirstHospitalRecord">
+                            <wgt:show-modal-form form-id="receptionist_hospitalRecord"
+                                                 master-field-id="id" detail-field-id="caseId"
+                                                 width="90%;max-width:670px;min-width:300px;" refresh-on-close="true"
+                                                 page-name="Направление в отделение - {main.uidForTitle} {main.patientName}">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="saveHospitalRecord"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression><![CDATA[secondStepId == null && !isFirstStepRefusal && !isClosed]]></wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <!--<wgt:menu-item label="Зарегистрировать происшествие" context="true" id="accidentRecord">-->
+                            <!--<wgt:show-modal-form form-id="accidentRecord"-->
+                                                 <!--width="90%;max-width:670px;min-width:300px;"-->
+                                                 <!--master-field-id="id" detail-field-id="case.id"-->
+                                                 <!--page-name="Зарегистрировать происшествие - {main.uidForTitle} {main.patientName}">-->
+                                <!--<wgt:edit model="default">-->
+                                    <!--<wgt:invoke-action action-id="saveAccidentRecord"/>-->
+                                <!--</wgt:edit>-->
+                            <!--</wgt:show-modal-form>-->
+                            <!--<wgt:conditions>-->
+                                <!--<wgt:visibility-condition>-->
+                                    <!--<wgt:expression>isRegisteredAccident==false</wgt:expression>-->
+                                <!--</wgt:visibility-condition>-->
+                            <!--</wgt:conditions>-->
+                        <!--</wgt:menu-item>-->
+
+                        <wgt:menu-item label="Отказ от госпитализации"  context="true" id="refusal">
+                            <wgt:show-modal-form form-id="receptionist_refusal"
+                                                 master-field-id="id" detail-field-id="caseId"
+                                                 width="90%;max-width:670px;min-width:300px;" refresh-on-close="true"
+                                                 page-name="Отказ от госпитализации - {main.uidForTitle} {main.patientName}">
+                                <wgt:edit model="default">
+                                    <wgt:invoke-action action-id="saveRefusal"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression><![CDATA[secondStepId == null && !isFirstStepRefusal && !isClosed]]></wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="save" label="Изменить">
+                            <wgt:edit refresh-after-submit="true">
+                                <wgt:invoke-action action-id="save"/>
+                            </wgt:edit>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="removeClinicalHospitalRecord" label="Отменить направление">
+                            <wgt:invoke-action action-id="removeHospitalRecord" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression><![CDATA[secondStepId != null && !isTransferredFromClinical && !isClosed]]></wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="removeAccidentRecord" label="Удалить происшествие">
+                            <wgt:invoke-action action-id="removeAccidentRecord" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isRegisteredAccident</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                        <wgt:menu-item id="cancelRefusal" label="Отменить отказ">
+                            <wgt:invoke-action action-id="cancelRefusal" confirmation="true"/>
+                            <wgt:conditions>
+                                <wgt:visibility-condition>
+                                    <wgt:expression>isFirstStepRefusal</wgt:expression>
+                                </wgt:visibility-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+
+                    </wgt:action-menu>
+
+                    <wgt:info-panel id="patient" show-personal-data="true" show-medical-data="false"/>
+
+                    <fs:field-set header="line" field-label-location="top" label="Направление">
+
+                        <fs:row>
+                            <ctrl:classifier id="rreferral" label="Направление" search-as-you-type="true"
+                                             depends-on="patient" control-style="width:450px;">
+                                <ctrl:query query-id="hosp_referralVMPAndHosp" value-field-id="id" label-field-id="name"
+                                            detail-field-id="patientId" master-field-id="id">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:actions>
+                                    <ctrl:button label="Ручное заполнение" icon="icon-pencil" type="icon">
+                                        <ctrl:on-click src="hospital/n2o/custom/handMade.js" function-name="setHandmade"/>
+                                    </ctrl:button>
+                                </ctrl:actions>
+                                <ctrl:validations>
+                                    <ctrl:validation ref-id="validExistingParallelCase"/>
+                                </ctrl:validations>
+                            </ctrl:classifier>
+
+                            <ctrl:checkbox id="showReferralFields" label="Ручное заполнение" visible="false"/>
+
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="referralOrganizationRole" label="Тип организации" search-as-you-type="true"
+                                             dependency-condition="showReferralFields == true &amp;&amp; (typeof rreferral == 'undefined' || rreferral == null || rreferral.id == null)">
+                                <ctrl:query query-id="hosp_party_role" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="typeId" value="2"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression>
+                                    if(rreferral == null) null; else
+                                    rreferral.referralOrganizationRole;
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="referralOrganizationRole" label="Тип организации" search-as-you-type="true"
+                                             dependency-condition="showReferralFields == true &amp;&amp; rreferral.id != null">
+                                <ctrl:query query-id="hosp_party_role" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression>
+                                    if(rreferral == null) null; else
+                                    rreferral.referralOrganizationRole;
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="referralOrganization" label="Кем направлен" required="true"
+                                             search-as-you-type="true" control-style="width:450px;"
+                                             dependency-condition="showReferralFields == true &amp;&amp; (typeof rreferral == 'undefined' || rreferral == null || rreferral.id == null)">
+                                <ctrl:query query-id="hosp_clinic_role" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="role.id" ref="referralOrganizationRole.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression>if(rreferral == null) null; else
+                                    rreferral.referralOrganization;
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="referralOrganization" label="Кем направлен" required="true"
+                                             search-as-you-type="true" control-style="width:450px;"
+                                             dependency-condition="showReferralFields == true &amp;&amp; rreferral.id != null">
+                                <ctrl:query query-id="hosp_clinic_role" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="role.id" ref="referralOrganizationRole.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression>if(rreferral == null) null; else
+                                    rreferral.referralOrganization;
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+
+                            <ctrl:classifier id="referralDepartment" label="Направившее подразделение"
+                                             search-as-you-type="true" control-style="width:450px;" label-style="width:200px;"
+                                             dependency-condition="showReferralFields == true &amp;&amp; (typeof rreferral == 'undefined' || rreferral == null || rreferral.id == null)"
+                                             depends-on="referralOrganization">
+                                <ctrl:query query-id="hosp_department" value-field-id="id" label-field-id="name" master-field-id="id" detail-field-id="organizationId">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId">referralOrganization.id</ctrl:pre-filter>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:set-value-expression>if(rreferral == null) null; else
+                                    rreferral.referralDepartment;
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="referralDepartment" label="Направившее подразделение"
+                                             search-as-you-type="true" control-style="width:450px;" label-style="width:200px;"
+                                             dependency-condition="showReferralFields == true &amp;&amp; rreferral.id != null"
+                                             depends-on="referralOrganization">
+                                <ctrl:query query-id="hosp_department" value-field-id="id" label-field-id="name" master-field-id="id" detail-field-id="organizationId"/>
+                                <ctrl:set-value-expression>if(rreferral == null) null; else
+                                    rreferral.referralDepartment;
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+                        </fs:row>
+
+
+                        <fs:row>
+                            <ctrl:input-text id="referralNumber" label="Номер" label-style="margin-top: 5px"
+                                             dependency-condition="showReferralFields == true &amp;&amp; (typeof rreferral == 'undefined' || rreferral == null || rreferral.id == null)">
+                                <ctrl:set-value-expression>if(rreferral == null) ''; else rreferral.referralNumber;
+                                </ctrl:set-value-expression>
+                            </ctrl:input-text>
+
+                            <ctrl:input-text id="referralNumber" label="Номер" label-style="margin-top: 5px"
+                                             dependency-condition="showReferralFields == true &amp;&amp; rreferral.id != null">
+                                <ctrl:set-value-expression>if(rreferral == null) ''; else rreferral.referralNumber;
+                                </ctrl:set-value-expression>
+                            </ctrl:input-text>
+
+                            <!--</fs:row>-->
+
+                            <!--<fs:row>-->
+
+                            <ctrl:date-time id="referralDate" dependency-condition="showReferralFields == true &amp;&amp; (typeof rreferral == 'undefined' || rreferral == null || rreferral.id == null)"
+                                            label="Дата"  required="true">
+                                <ctrl:set-value-expression>if(rreferral == null) ''; else rreferral.referralDate;
+                                </ctrl:set-value-expression>
+                            </ctrl:date-time>
+
+                            <ctrl:date-time id="referralDate" label="Дата"
+                                            dependency-condition="showReferralFields == true &amp;&amp; rreferral.id != null" required="true">
+                                <ctrl:set-value-expression>if(rreferral == null) ''; else rreferral.referralDate;
+                                </ctrl:set-value-expression>
+                            </ctrl:date-time>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="referralDiagnosis" label="Диагноз направления"
+                                             search-as-you-type="true" control-style="width:450px;"
+                                             dependency-condition="showReferralFields == true &amp;&amp; (typeof rreferral == 'undefined' || rreferral == null || rreferral.id == null)">
+                                <ctrl:query query-id="hosp_diagnosisWithCodeNameSearch" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression>if(rreferral == null) null; else
+                                    rreferral.referralDiagnosis;
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="referralDiagnosis" label="Диагноз направления"
+                                             search-as-you-type="true"
+                                             control-style="width:450px;"
+                                             dependency-condition="showReferralFields == true &amp;&amp; rreferral.id != null">
+                                <ctrl:query query-id="hosp_diagnosisWithCodeNameSearch" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression>if(rreferral == null) null; else
+                                    rreferral.referralDiagnosis;
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:text-area id="referralDiagnosisComment" label="Дополнение" rows="1" label-style="margin-top: 5px"
+                                            dependency-condition="showReferralFields == true &amp;&amp; (typeof rreferral == 'undefined' || rreferral == null || rreferral.id == null)">
+                                <ctrl:set-value-expression>if(rreferral == null) ''; else
+                                    rreferral.referralDiagnosisComment;
+                                </ctrl:set-value-expression>
+                            </ctrl:text-area>
+
+                            <ctrl:text-area id="referralDiagnosisComment" label="Дополнение" rows="1" label-style="margin-top: 5px"
+                                            dependency-condition="showReferralFields == true &amp;&amp; rreferral.id != null">
+                                <ctrl:set-value-expression>if(rreferral == null) ''; else
+                                    rreferral.referralDiagnosisComment;
+                                </ctrl:set-value-expression>
+                            </ctrl:text-area>
+
+                            <ctrl:input-text id="comment" label="Обоснование" label-style="margin-top: 5px"
+                                             dependency-condition="showReferralFields == true &amp;&amp; (typeof rreferral == 'undefined' || rreferral == null || rreferral.id == null)">
+                                <ctrl:set-value-expression>if(rreferral == null) ''; else
+                                    rreferral.comment;
+                                </ctrl:set-value-expression>
+                            </ctrl:input-text>
+
+                            <ctrl:input-text id="comment" label="Обоснование" label-style="margin-top: 5px"
+                                             dependency-condition="showReferralFields == true &amp;&amp; rreferral.id != null">
+                                <ctrl:set-value-expression>if(rreferral == null) ''; else
+                                    rreferral.comment;
+                                </ctrl:set-value-expression>
+                            </ctrl:input-text>
+                        </fs:row>
+                        
+                    </fs:field-set>
+
+
+                    <fs:field-set header="line" field-label-location="top" label="Информация о госпитализации">
+
+                        <fs:row>
+                            <ctrl:classifier id="careProvidingForm" label="Тип госпитализации"
+                                             search-as-you-type="true" required="true">
+                                <ctrl:query query-id="hosp_careProvidingForm" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="financialType" label="Вид финансирования"
+                                             search-as-you-type="true" required="true">
+                                <ctrl:query query-id="hosp_financialTypeByOrg" value-field-id="id"
+                                            label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                            </ctrl:classifier>
+
+                            <ctrl:checkbox id="isFinanceTypeControl" label="контроль источника финансирования" default-value="false"/>
+
+                            <ctrl:classifier id="initGoal" label="Причина госпитализации" required="true" search-as-you-type="true">
+                                <ctrl:query query-id="hosp_initGoalByHospitalCase" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                        </fs:row>
+                        <fs:row>
+                        <ctrl:classifier id="paymentMethod" label="Способ оплаты" search-as-you-type="true"
+                                         label-style="width:210px">
+                            <ctrl:query query-id="hosp_paymentMethod" label-field-id="name" value-field-id="id">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="caseTypeGosp" value="true"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="careLevel" label="Уровень медицинской помощи" search-as-you-type="true" label-style="width: 210px">
+                            <ctrl:query query-id="hosp_careLevel" label-field-id="name" value-field-id="id"/>
+                        </ctrl:classifier>
+
+                            <ctrl:classifier id="rankin" label="Степень тяжести состояния при поступлении"
+                                             search-as-you-type="true" label-style="width: 280px">
+                                <ctrl:query query-id="hosp_mc_rankin_scale" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+
+
+                        <fs:row>
+                            <ctrl:classifier id="hspCanal" label="Кем доставлен" search-as-you-type="true"
+                                             dependency-condition="careProvidingForm.id == 1" control-style="width:450px;">
+                                <ctrl:query query-id="hosp_hspCanal" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression>if(careProvidingForm == null || careProvidingForm.id != 1) null; else throw '!';</ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:input-text id="whoDeliveredCode" label="Код"
+                                             dependency-condition="careProvidingForm.id == 1">
+                                <ctrl:set-value-expression>if(careProvidingForm == null || careProvidingForm.id != 1) null; else throw '!';</ctrl:set-value-expression>
+                            </ctrl:input-text>
+                            <ctrl:input-text id="whoDeliveredTeamNumber" label="Номер наряда"
+                                             dependency-condition="careProvidingForm.id == 1">
+                                <ctrl:set-value-expression>if(careProvidingForm == null || careProvidingForm.id != 1) null; else throw '!';</ctrl:set-value-expression>
+                            </ctrl:input-text>
+                        </fs:row>
+
+                        <fs:row>
+
+                            <ctrl:classifier id="timeGone" label="Количество часов с начала заболевания"
+                                             search-as-you-type="true"
+                                             dependency-condition="careProvidingForm.id == 1"
+                                             control-style="width:450px;"
+                                             label-style="width:300px;">
+                                <ctrl:query query-id="hosp_timeGone" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression>if(careProvidingForm == null || careProvidingForm.id != 1) null; else throw '!';</ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                            <ctrl:input-text id="notesToWork" label="Замечание к работе бригады"
+                                             dependency-condition="careProvidingForm.id == 1"
+                                             control-style="width: 450px;"
+                                             label-style="width:200px;">
+                                <ctrl:set-value-expression>if(careProvidingForm == null || careProvidingForm.id != 1) null; else throw '!';</ctrl:set-value-expression>
+                            </ctrl:input-text>
+
+                        </fs:row>
+                        <fs:row>
+                            <ctrl:classifier id="drunkennessType" label="Состояние опьянения"
+                                             search-as-you-type="true"
+                                             dependency-condition="careProvidingForm.id == 1">
+                                <ctrl:query query-id="hosp_drunkennessType" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression>if(careProvidingForm == null || careProvidingForm.id != 1) null; else throw '!';</ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+
+                            <ctrl:input-text id="narcoticSubstance" label="Наркотическое вещество"
+                                             dependency-condition="typeof drunkennessType != 'undefined' &amp;&amp; drunkennessType != null &amp;&amp; drunkennessType.id == 2">
+                                <ctrl:set-value-expression>if(drunkennessType == null || drunkennessType.id != 2) null; else throw '!';</ctrl:set-value-expression>
+                            </ctrl:input-text>
+                            <ctrl:input-text id="whereFromDelivered" label="Откуда доставлен"
+                                             control-style="width: 450px;"
+                                             dependency-condition="typeof drunkennessType != 'undefined' &amp;&amp; drunkennessType != null &amp;&amp; drunkennessType.id == 2">
+                                <ctrl:set-value-expression>if(drunkennessType == null || drunkennessType.id != 2) null; else throw '!';</ctrl:set-value-expression>
+                            </ctrl:input-text>
+
+                        </fs:row>
+
+                        <fs:row>
+                            <!--<ctrl:classifier id="initGoal" label="Причина госпитализации" required="true"-->
+                                             <!--search-as-you-type="true">-->
+                                <!--<ctrl:query query-id="hosp_initGoalByHospitalCase" value-field-id="id" label-field-id="name"/>-->
+                            <!--</ctrl:classifier>-->
+
+                            <ctrl:classifier id="severityLevel" label="Общее состояние"
+                                             search-as-you-type="true" required="true">
+                                <ctrl:query query-id="hosp_case_severity_level" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="transportingType" label="Вид транспортировки"
+                                             search-as-you-type="true" required="true">
+                                <ctrl:query query-id="hosp_transportingType" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="repeatCount" label="Кратность госпитализации"
+                                             search-as-you-type="true" required="true"
+                                             label-style="width: 200px;">
+                                <ctrl:query query-id="hosp_repeatCount" value-field-id="id" label-field-id="name"/>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <!--<fs:row>-->
+                            <!--<ctrl:classifier id="admissionReason" label="Вид травмы" search-as-you-type="true">-->
+                                <!--<ctrl:query query-id="hosp_admissionReason" value-field-id="id" label-field-id="name"/>-->
+                            <!--</ctrl:classifier>-->
+                        <!--</fs:row>-->
+
+                    </fs:field-set>
+
+                    <fs:field-set header="line" field-label-location="top" label="Приемное отделение">
+
+                        <fs:row>
+                            <ctrl:date-time id="admissionDate" label="Дата поступления" default-value="now()"
+                                            required="true" format="DD.MM.YYYY HH:mm"/>
+
+                            <ctrl:classifier id="admissionDepartment" label="Приемное отделение"
+                                             search-as-you-type="true" required="true">
+                                <ctrl:query query-id="hosp_admissionDepartmentByOrg" value-field-id="id"
+                                            label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                                        <ctrl:pre-filter field-id="date" ref="admissionDate" reset-mode="off"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">#{dep.id?}</ctrl:value>
+                                    <ctrl:value field-id="name">#{dep.name?}</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+
+                            <ctrl:classifier id="doctor" label="Врач приемного отделения" search-as-you-type="true"
+                                             label-style="width: 200px;">
+                                <ctrl:query query-id="hosp_resourceEmployeePositionResource" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="organizationId" ref="clinicId"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+                                <ctrl:default-model>
+                                    <ctrl:value field-id="id">#{emplPosRes.id?}</ctrl:value>
+                                    <ctrl:value field-id="name">#{emplPosRes.name?}</ctrl:value>
+                                </ctrl:default-model>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="admissionDiagnosis" label="Диагноз приемного отделения"
+                                             search-as-you-type="true" control-style="width:411px" label-style="width:200px;">
+                                <ctrl:query query-id="hosp_diagnosisWithCodeNameSearch" value-field-id="id" label-field-id="name"/>
+                                <ctrl:actions>
+                                    <!--<ctrl:link label="Скопировать">-->
+                                    <ctrl:button type="icon" icon="icomoon-undo2" label="Скопировать диагноз направления">
+                                        <ctrl:on-click src="hospital/n2o/custom/hospitalCaseCustom.js" function-name="copeFromReferral"/>
+                                    </ctrl:button>
+                                    <!--</ctrl:link>-->
+                                </ctrl:actions>
+
+                            </ctrl:classifier>
+
+                            <ctrl:text-area id="stepDiagnosisNotice" label="Дополнение" control-style="margin-left: -10px;"
+                                            dependency-condition="admissionDiagnosis.id != null" rows="1"/>
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="admissionDiagnosisInjuryReason" label="Причина травмы" search-as-you-type="true"
+                                             control-style="width:411px" label-style="width:200px;" depends-on="admissionDiagnosis"
+                                             dependency-condition="admissionDiagnosis.isInjury == true" required="true">
+                                <ctrl:query query-id="hosp_injuryDiagnosis" value-field-id="id" label-field-id="name"/>
+                                <ctrl:set-value-expression on="admissionDiagnosis.isInjury">
+                                    if (admissionDiagnosis.isInjury == true) admissionDiagnosisInjuryReason; else null;
+                                </ctrl:set-value-expression>
+                            </ctrl:classifier>
+
+                        </fs:row>
+
+                        <fs:row>
+                            <ctrl:classifier id="attendantIndiv" label="Сопровождающее лицо"
+                                             search-as-you-type="true" control-style="width:411px">
+                                <!--control-style="max-width:510px;width:100%;min-width:250px">-->
+                                <ctrl:query query-id="hosp_indivWithRelation" value-field-id="id" label-field-id="name">
+                                    <ctrl:pre-filters>
+                                        <ctrl:pre-filter field-id="patientId" ref="patient.id"/>
+                                    </ctrl:pre-filters>
+                                </ctrl:query>
+
+                                <ctrl:update-model query-id="hosp_indivWithRelation" master-field-id="attendantIndiv.id" detail-field-id="id"/>
+
+                                <ctrl:actions>
+                                    <!--<ctrl:link label="Добавить">-->
+                                    <ctrl:button type="icon" icon="icon-plus">
+                                        <ctrl:show-modal
+                                                page-id="individualRelation"
+                                                detail-field-id="patientId" master-field-id="patient.id"
+                                                page-name="Добавление родственника - {main.uidForTitle} {main.patientName}"
+                                                result-container-id="individualRelationContainer"
+                                                action-id="save"
+                                                model="default"
+                                                width="35%">
+
+                                        </ctrl:show-modal>
+                                        <!--</ctrl:link>-->
+                                    </ctrl:button>
+
+                                    <ctrl:button type="icon" icon="icon-pencil">
+                                        <ctrl:a href="${rmis.external.host}/pats/patients/:attendantIndiv.id:/edit?backUrl=%2Fpats%2Fresource%2F0%2Fhtml%2Fself-close.html" target="newWindow"/>
+                                        <ctrl:dependencies>
+                                            <ctrl:enabling-condition>
+                                                attendantIndiv.id != null
+                                            </ctrl:enabling-condition>
+                                        </ctrl:dependencies>
+                                    </ctrl:button>
+
+                                </ctrl:actions>
+                            </ctrl:classifier>
+                        </fs:row>
+
+                    </fs:field-set>
+                    <fs:field-set header="line" field-label-location="top" >
+                        <fs:row>
+                            <ctrl:hidden id="mark">
+                                <ctrl:set-value-expression on="relatives,institution">
+                                    if(markMsg == true) {
+                                        var value = 0;
+                                        if(relatives == true) {
+                                            value += 1;
+                                        }
+                                        if( institution == true) {
+                                            value += 2;
+                                        }
+                                    }
+                                    value == 0 ? null : value;
+                                </ctrl:set-value-expression>
+                            </ctrl:hidden>
+                            <ctrl:checkbox id="markMsg" label="Отметка о сообщении">
+                                <ctrl:set-value if="(typeof mark != 'undefined' &amp;&amp; mark != null)" then="true" else="false"/>
+                            </ctrl:checkbox>
+                            <ctrl:checkbox id="relatives" label="Родственникам"
+                                           dependency-condition="(typeof markMsg != 'undefined' &amp;&amp; markMsg == true)" >
+                                <ctrl:set-value if="mark == 1 || mark == 3" then="true" else="false"/>
+                            </ctrl:checkbox>
+                            <ctrl:checkbox id="institution"  label="Учреждению"
+                                           dependency-condition="(typeof markMsg != 'undefined' &amp;&amp; markMsg == true)">
+                                <ctrl:set-value if="mark == 2 || mark == 3" then="true" else="false"/>
+                            </ctrl:checkbox>
+                        </fs:row>
+                    </fs:field-set>
+                </wgt:form>
+            </container>
+
+            <container id="hospitalRecord" depends-on="main" dependency-condition="main.secondStepId != null">
+                <wgt:form ref-id="receptionist_hospitalRecord" detail-field-id="caseId" master-field-id="id"/>
+            </container>
+
+            <container id="refusal" depends-on="main" dependency-condition="main.isFirstStepRefusal">
+                <wgt:form ref-id="receptionist_refusal" detail-field-id="caseId" master-field-id="id"/>
+            </container>
+
+            <container id="accidentRecord" depends-on="main" dependency-condition="main.isRegisteredAccident">
+                <wgt:form ref-id="accidentRecord" detail-field-id="case.id" master-field-id="id"/>
+            </container>
+
+        </region>
+    </regions>
+
+</page>

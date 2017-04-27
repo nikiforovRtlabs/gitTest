@@ -1,0 +1,77 @@
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <object-id>inventory_classifier</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from fin_contract contract
+                inner join fin_contract_type fct on fct.id=contract.type_id
+                where fct.is_drug_supply is true and :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(contract)
+                from fin_contract contract
+                inner join fin_contract_type fct on fct.id=contract.type_id
+                where fct.is_drug_supply is true and :where
+            </n2o:count-query>
+            <n2o:alias>contract</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>customerId</id>
+            <domain>integer</domain>
+            <expression>(select organization_id from fin_contractor c
+                inner join fin_contractor_role role on role.id=c.role_id and role.code='CUSTOMER' where c.contract_id=contract.id limit 1)</expression>
+            <search>:expression = :customerId</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>performerId</id>
+            <domain>integer</domain>
+            <expression>(select organization_id from fin_contractor c
+                inner join fin_contractor_role role on role.id=c.role_id and role.code='PERFORMER' where c.contract_id=contract.id limit 1)</expression>
+            <search>:expression = :performerId</search>
+            <display unavailable="true"/>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <expression>(case when fct.code='DRUG_SUPPLY' then 'Контр.'||contract.number||', '||coalesce(to_char(contract.date,'dd.mm.yyyy'),'')
+                         else 'Дог.'||contract.number||', '||coalesce(to_char(contract.date,'dd.mm.yyyy'),'') end)
+            </expression>
+            <search>upper(:expression) like '%'||upper(:name)||'%'</search>
+        </field>
+        <field>
+            <id>status.id</id>
+            <domain>integer</domain>
+            <expression>contract.status_id</expression>
+            <search> :expression= :status.id</search>
+        </field>
+        <field>
+            <id>number</id>
+            <domain>string</domain>
+            <expression>contract.number</expression>
+        </field>
+        <field>
+            <id>date</id>
+            <domain>date</domain>
+            <expression>contract.date</expression>
+        </field>
+        <field>
+            <id>fundSource.id</id>
+            <domain>integer</domain>
+            <expression>contract.inv_fund_source_id</expression>
+        </field>
+        <field>
+            <id>fundSource.name</id>
+            <domain>string</domain>
+            <expression>(select name from inventory.funding_source where id=contract.inv_fund_source_id)</expression>
+        </field>
+    </fields>
+</query>

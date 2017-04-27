@@ -1,0 +1,119 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0">
+
+    <object-id>requestDoc</object-id>
+    <layout>n2o/layout/single</layout>
+
+    <containers>
+        <container id="main" place="single">
+            <wgt:form detail-field-id="id" master-field-id="id" style="width: 100%">
+                <wgt:query-id>requestDoc</wgt:query-id>
+                <wgt:name>Требование</wgt:name>
+                <fs:field-set field-label-location="top">
+                    <fs:row>
+                        <ctrl:hidden id="requestDoc.id"/>
+                        <ctrl:hidden id="org.id" default-value="#{org.id?}"/>
+                        <ctrl:classifier id="docType" label="Тип документа"  readonly="true" css-class="n2o-label-9 n2o-control-8">
+                            <ctrl:query query-id="inv_documentType" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="sectionId" value="3"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">4</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:classifier>
+                        <ctrl:input-text id="docNumber" label="Номер" label-style="width: 60px" control-style="width: 145px; margin-right: 40px" copied="false">
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="reqDocCheckUnique"/>
+                            </ctrl:validations>
+                            <ctrl:dependencies>
+                                <ctrl:required-condition>typeof id!='undefined' &amp;&amp; id!=null</ctrl:required-condition>
+                            </ctrl:dependencies>
+                        </ctrl:input-text>
+                        <ctrl:date-time id="docDate" label="Дата" default-value="today()" required="true" copied="false"
+                                        format="DD.MM.YYYY" label-style="width: 40px" control-style="width: 145px"/>
+                        <ctrl:hidden id="year">
+                            <ctrl:set-value-expression on="docDate"><![CDATA[moment(docDate,'DD.MM.YYYY HH:mm').get('year')]]></ctrl:set-value-expression>
+                        </ctrl:hidden>
+                    </fs:row>
+                </fs:field-set>
+                <fs:field-set field-label-location="top">
+                    <fs:row>
+                        <ctrl:classifier id="sendStore" label="Склад-отправитель" required="true"
+                                         autoselect-alone="true" search-as-you-type="true"
+                                         css-class="n2o-label-9 n2o-control-8"
+                                         copied="true">
+                            <ctrl:query query-id="inv_storeForRequestDoc" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="storeTypeId" ref="recStore.sendStoreTypeId"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:set-value-expression on-load="false" on="recStore">
+                                if (typeof recStore != undefined &amp;&amp; recStore!=null &amp;&amp; recStore.centralStore!=null &amp;&amp;
+                                    recStore.centralStore.is_for_request_doc)
+                                    recStore.centralStore
+                            </ctrl:set-value-expression>
+                        </ctrl:classifier>
+
+                        <ctrl:classifier id="recStore" label="Склад-получатель" required="true" autoselect-alone="true"
+                                         search-as-you-type="true" css-class="n2o-label-9 n2o-control-9" copied="true">
+                            <ctrl:query query-id="inv_store" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="orgId" value="#{org.id?}"/>
+                                    <ctrl:pre-filter field-id="isForRequestDoc" value="true"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>
+                                    (typeof id=='undefined' || id==null || specExists==null || specExists==false)
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+                    </fs:row>
+
+                    <fs:row>
+                        <ctrl:select-tree id="fundSource" label="Финансирование" ajax="false" search="true"
+                                          css-class="n2o-label-9 n2o-control-8" copied="true">
+                            <ctrl:inheritance-nodes query-id="inv_fundingSource_inheritance" parent-field-id="parentId"
+                                                    has-children-field-id="hasChildren" search-field-id="name"
+                                                    label-field-id="name" icon-field-id="iconId">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:inheritance-nodes>
+                        </ctrl:select-tree>
+
+                        <ctrl:classifier id="comGroup" label="Товарная группа" search-as-you-type="true"
+                                         css-class="n2o-label-9 n2o-control-9"
+                                         copied="true">
+                            <ctrl:query query-id="inv_commodityGroup" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                            <ctrl:dependencies>
+                                <ctrl:enabling-condition>typeof id=='undefined' || id==null || specExists==null ||
+                                    specExists==false
+                                </ctrl:enabling-condition>
+                            </ctrl:dependencies>
+                        </ctrl:classifier>
+                    </fs:row>
+
+                    <ctrl:classifier id="trustDoc" label="Доверенность" search-as-you-type="true"
+                                     css-class="n2o-label-9 n2o-control-8" copied="false">
+                        <ctrl:query query-id="inv_trustDoc" value-field-id="id" label-field-id="name">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="org.id" value="#{org.id?}"/>
+                            </ctrl:pre-filters>
+                        </ctrl:query>
+                    </ctrl:classifier>
+                </fs:field-set>
+            </wgt:form>
+        </container>
+    </containers>
+</page>

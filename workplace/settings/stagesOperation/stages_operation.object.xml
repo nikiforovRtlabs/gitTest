@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-2.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>stages_operation</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    <rest:query>
+                        ${n2o.backend.path}/hospital/stages-operation
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="stageName" mapping="['stageName']" domain="string"/>
+                <param name="parent.id" mapping="['parentId']" domain="integer"/>
+                <param name="code" mapping="['code']"/>
+                <param name="stageDescription" mapping="['stageDescription']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удаление этапа операции">
+            <invocation>
+                <rest:rest method="DELETE">
+                    <rest:query>
+                        ${n2o.backend.path}/hospital/stages-operation?id={id}
+                    </rest:query>
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="deleteValidate"/>
+            </validations>
+            <confirmation-text>Вы уверены, что хотите удалить этап операции?</confirmation-text>
+        </action>
+    </actions>
+
+    <validations>
+        <!--<condition id="countNumberFormat" level="error">-->
+            <!--<message>Введенное значение должно быть натуральным числом!</message>-->
+            <!--<expression><![CDATA[-->
+                <!--var regex = new RegExp('^[0-9]*[1-9][0-9]*$');-->
+                <!--regex.test(count);-->
+                <!--]]>-->
+            <!--</expression>-->
+        <!--</condition>-->
+
+        <!--<condition id="intervalNumberFormat" level="error">-->
+            <!--<message>Введенное значение должно быть числом!</message>-->
+            <!--<expression><![CDATA[-->
+                <!--var regex = new RegExp('\^[0-9]+\$');-->
+                <!--regex.test(interval);-->
+                <!--]]>-->
+            <!--</expression>-->
+        <!--</condition>-->
+
+
+        <constraint id="deleteValidate" level="error" >
+            <invocation>
+                <sql:sql><![CDATA[
+                    select count(1) = 0 from hospital.stages_operation where parent_id = :id
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+            <message>Невозможно завершить операцию. Существует ссылка из справочника Этапы операции.</message>
+        </constraint>
+    </validations>
+
+
+</object>

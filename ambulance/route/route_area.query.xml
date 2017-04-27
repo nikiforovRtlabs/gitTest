@@ -1,0 +1,182 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>route_area</id>-->
+    <name>Территория обслуживания направления</name>
+    <object-id>route_area</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from amb.md_ambulance_route_area ra
+                join amb.md_ambulance_route r on ra.route_id = r.id
+                join pim_organization po on r.org_id = po.id
+                <!--left join amb.md_ambulance_route_service rs on rs.route_id = r.id -->
+                <!--left join pim_department pd on rs.department_id = pd.id-->
+
+                <!--left join address_element_data aed on cal.address_id = aed.id-->
+                left join address_element ael on ra.address_id = ael.id
+                left join address_element_data aed on ael.id = aed.id
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from amb.md_ambulance_route_area ra
+                join amb.md_ambulance_route r on ra.route_id = r.id
+                join pim_organization po on r.org_id = po.id
+                <!--left join amb.md_ambulance_route_service rs on rs.route_id = r.id -->
+                <!--left join pim_department pd on rs.department_id = pd.id-->
+
+                <!--left join address_element_data aed on cal.address_id = aed.id-->
+                left join address_element ael on ra.address_id = ael.id
+                left join address_element_data aed on ael.id = aed.id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>ra</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>№№</name>
+            <expression>ra.id</expression>
+        </field>
+        <field>
+            <id>route.id</id>
+            <domain>integer</domain>
+            <expression>r.id</expression>
+        </field>
+        <field>
+            <id>route.name</id>
+            <domain>string</domain>
+            <name>Направление</name>
+            <expression>r.name</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>route.code</id>
+            <domain>string</domain>
+            <name>Код направления</name>
+            <expression>r.code</expression>
+            <search>trim(upper(r.code)) like trim(upper(:route.code||'%'))</search>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>route.rorgId</id>
+            <domain>integer</domain>
+            <expression>r.org_id</expression>
+        </field>
+        <field>
+            <id>route.ractive</id>
+            <domain>integer</domain>
+            <expression><![CDATA[
+                case when (r.to_time is null) or (r.to_time > now()) then 1
+                when (r.to_time is not null) and (r.to_time <= now()) then 2
+                end
+                ]]></expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>station.id</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+        </field>
+        <field>
+            <id>station.name</id>
+            <domain>string</domain>
+            <name>Станция</name>
+            <expression>coalesce(po.short_name,po.full_name)</expression>
+            <search unavailable="true"/>
+        </field>
+        <field>
+            <id>rorgId</id>
+            <domain>integer</domain>
+            <expression>po.id</expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>substation.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>pd.id</expression>-->
+        <!--</field>-->
+        <!--<field>-->
+            <!--<id>substation.name</id>-->
+            <!--<domain>string</domain>-->
+            <!--<name>Подстанция</name>-->
+            <!--<expression>pd.name</expression>-->
+            <!--<search unavailable="true"/>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>myAddress.id</id>-->
+            <!--<domain>integer</domain>-->
+            <!--<expression>ael.id</expression>-->
+        <!--</field>-->
+
+
+        <field>
+            <id>adressId</id>
+            <domain>integer</domain>
+            <expression>ra.address_id</expression>
+        </field>
+        <field>
+            <id>address</id>
+            <domain>string</domain>
+            <name>Адрес</name>
+            <expression>concat (adr__get_element_as_text(ra.address_id, '(6,s,1)(7,s,1)(8,s,1)'),', ',adr__get_element_as_text(ra.address_id, '(4,s,0)'))</expression>
+        </field>
+        <field>
+            <id>addr_data.id</id>
+            <domain>integer</domain>
+            <expression>aed.id</expression>
+        </field>
+        <field>
+            <id>addr_data.search_name</id>
+            <domain>string</domain>
+            <name>Улица</name>
+            <expression>aed.search_name</expression>
+        </field>
+        <field>
+            <id>addr_data.displayName</id>
+            <domain>string</domain>
+            <name>Улица</name>
+            <expression>aed.search_name</expression>
+        </field>
+        <field>
+            <id>building_pattent</id>
+            <domain>string</domain>
+            <name>Диапазон домов</name>
+            <expression>ra.building_pattent</expression>
+        </field>
+
+        <field>
+            <id>from_time</id>
+            <domain>date</domain>
+            <name>Действует с</name>
+            <!--<display>to_char(ra.from_time,'dd.mm.yyyy')</display>-->
+            <expression>ra.from_time</expression>
+        </field>
+        <field>
+            <id>to_time</id>
+            <domain>date</domain>
+            <name>Действует по</name>
+            <!--<display>to_char(ra.to_time,'dd.mm.yyyy')</display>-->
+            <expression>ra.to_time</expression>
+        </field>
+
+        <field>
+            <id>active</id>
+            <domain>integer</domain>
+            <name>Действующие</name>
+            <expression><![CDATA[
+                case when (ra.to_time is null) or (ra.to_time > now()) then 1
+                when (ra.to_time is not null) and (ra.to_time <= now()) then 2
+                end
+                ]]>
+            </expression>
+        </field>
+
+    </fields>
+</query>

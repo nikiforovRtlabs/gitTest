@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>Статистическая карта</name>
+
+    <actions>
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/hospital/stat-map
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient.id" mapping="['patientId']"/>
+                <param name="uid" mapping="['uid']" domain="string"/>
+                <param name="financialType.id" mapping="['financialTypeId']"/>
+                <param name="referral.id" mapping="['referralId']" domain="integer"/>
+                <param name="referralDiagnosis.id" mapping="['referralDiagnosisId']" domain="integer"/>
+                <param name="referralOrganization.id" mapping="['referralOrganizationId']" domain="integer"/>
+                <param name="referralNumber" mapping="['referralNumber']" domain="string"/>
+                <param name="referralDate" mapping="['referralDate']" domain="date"/>
+                <param name="careProvidingForm.id" mapping="['careProvidingFormId']" domain="integer"/>
+                <param name="drunkennessType.id" mapping="['drunkennessTypeId']" domain="integer"/>
+                <param name="admissionReason.id" mapping="['admissionReasonId']" domain="integer"/>
+                <param name="whoDeliveredCode" mapping="['whoDeliveredCode']" domain="string"/>
+                <param name="hspCanal.id" mapping="['hspCanalId']" domain="integer"/>
+                <param name="whoDeliveredTeamNumber" mapping="['whoDeliveredTeamNumber']" domain="string"/>
+                <param name="timeGone.id" mapping="['timeGoneId']" domain="integer"/>
+                <param name="initGoal.id" mapping="['initGoalId']" domain="integer"/>
+                <param name="repeatCount.id" mapping="['repeatCountId']" domain="integer"/>
+
+                <param name="firstStepId" mapping="['firstStepId']" domain="integer"/>
+                <param name="admissionDepartment.id" mapping="['admissionDepartmentId']" domain="integer"/>
+                <param name="admissionDate" mapping="['admissionDate']" domain="date"/>
+                <param name="admissionDiagnosis.id" mapping="['admissionDiagnosisId']" domain="integer"/>
+                <param name="injuryReason.id" mapping="['admissionDiagnosisInjuryReasonId']" domain="integer"/>
+                <param name="admissionCaseDiagnosisId" mapping="['admissionCaseDiagnosisId']" domain="integer"/>
+                <param name="resGroupId" mapping="['resGroupId']" domain="integer"/>
+                <param name="doctor.id" mapping="['doctorId']" domain="integer"/>
+                <param name="doctor.employeePositionId" mapping="['employeePositionId']" domain="integer"/>
+
+                <param name="clinicId" mapping="['clinicId']"/>
+
+                <param name="createSickList" mapping="['createSickList']" domain="boolean"/>
+                <param name="sickListId" mapping="['sickListId']" domain="integer"/>
+                <param name="beginSickListPeriodId" mapping="['beginSickListPeriodId']" domain="integer"/>
+                <param name="endSickListPeriodId" mapping="['endSickListPeriodId']" domain="integer"/>
+                <param name="sickListPeriod.begin" mapping="['beginSickListPeriod']" domain="date"/>
+                <param name="sickListPeriod.end" mapping="['endSickListPeriod']" domain="date"/>
+                <param name="nursingCare" mapping="['nursingCare']" domain="boolean"/>
+                <param name="attendant.id" mapping="['attendantId']" domain="integer"/>
+                <param name="caseResultId" mapping="['caseResultId']" domain="integer"/>
+                <param name="prehospitalStageDefect.id" mapping="['prehospitalStageDefectId']" domain="integer"/>
+                <param name="transportingType.id" mapping="['transportingTypeId']" domain="integer"/>
+
+                <param name="paymentMethod.id" mapping="['paymentMethodId']" domain="integer"/>
+                <param name="careLevel.id" mapping="['careLevelId']" domain="integer"/>
+
+                <param name="isFinanceTypeControl" mapping="['isFinanceTypeControl']" domain="boolean"/>
+                <param name="initialIsFinanceTypeControl" mapping="['initialIsFinanceTypeControl']" domain="boolean"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <validations activate="blackList">
+                <validation ref-id="hasBill"/>
+            </validations>
+        </action>
+
+        <action id="saveR" form-submit-label="Сохранить" name="Сохранить">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                	update mc_case set
+       				rankin_scale_for_admission_id = :rankinAdmissionId,
+       				rankin_scale_on_disposal_id = :rankinDisposalId
+       				where id = :id
+            	]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="rankinAdmission.id" mapping="['rankinAdmissionId']" domain="integer"/>
+                <param name="rankinDisposal.id" mapping="['rankinDisposalId']" domain="integer"/>
+                <param name="patient.id" mapping="['patientId']"/> <!-- Only for validation -->
+                <param name="admissionDate" mapping="['admissionDate']"/><!-- Only for validation -->
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="validExistingParallelCase"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/hospital/hospital-case
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <validations activate="whiteList">
+                <validation ref-id="hasBill"/>
+            </validations>
+            <confirmation-text>Вы уверены, что хотите удалить случай ?</confirmation-text>
+        </action>
+
+    </actions>
+
+    <validations>
+        <constraint id="checkAdmissionDatesInFirstAndSecondRecord" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select s.admission_time is not null and s.admission_date + s.admission_time >= :admissionDate
+                    or s.admission_time is null and s.admission_date >= :admissionDate
+                    from mc_step where s.id = :secondStepId;
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="admissionDate" mapping="['admissionDate']"/>
+                <param name="secondStepId" mapping="['secondStepId']"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+            <message>Дата/время поступления в приемное отделение не может быть больше даты/времени поступления в отделение</message>
+        </constraint>
+
+        <constraint id="checkAdmissionAndOutcomeDateInFirstRecord" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select s.outcome_date is null or s.outcome_time is not null and s.outcome_date + s.outcome_time >= :admissionDate or
+                    s.outcome_time is null and s.outcome_date >= :admissionDate
+                    from mc_step s where s.id = :firstStepId
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="admissionDate" mapping="['admissionDate']"/>
+                <param name="firstStepId" mapping="['firstStepId']"/>
+            </in-parameters>
+            <result expression="[0].length == 0 or [0][0][0] == true"/>
+            <message>Дата/время поступления в приемное отделение не может быть больше даты/времени выбытия</message>
+        </constraint>
+
+        <constraint id="hasBill" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                    select count(bsi.id) > 0 from fin_bill_spec_item bsi
+                    join fin_bill b on b.id = bsi.bill_id
+                    join md_srv_rendered msr on msr.id = bsi.service_id
+                    where b.status_id <> 0 and msr.case_id = :id
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == false"/>
+            <message>Удаление карты недоступно, так как сформирован счет</message>
+        </constraint>
+
+        <!--<condition id="sickListPeriod" level="error">-->
+            <!--<expression><![CDATA[(sickListPeriod.begin != null && (sickListPeriod.end != null || sickListPeriod.end == null)) ||-->
+             <!--(sickListPeriod.begin == null && sickListPeriod.end == null)]]></expression>-->
+            <!--<message>Необходимо задать дату начала периода ЛН.</message>-->
+        <!--</condition>-->
+
+        <!--<constraint id="checkBeginSickListPeriod" level="error">-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--<![CDATA[-->
+                    <!--select sp.to_dt is null or sp.to_dt >= :beginSickListPeriodDate from md_sicklist_period sp-->
+                    <!--where sp.id = :beginSickListPeriodId-->
+                    <!--]]>-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="beginSickListPeriodId" mapping="['beginSickListPeriodId']"/>-->
+                <!--<param name="sickListPeriod.begin" mapping="['beginSickListPeriodDate']"/>-->
+            <!--</in-parameters>-->
+            <!--<result expression="[0].length == 0 or [0][0][0] == true"/>-->
+            <!--<message>Пересечение дат в первом периоде больничного листа.</message>-->
+        <!--</constraint>-->
+
+        <!--<constraint id="checkEndSickListPeriod" level="error">-->
+            <!--<invocation>-->
+                <!--<sql:sql>-->
+                    <!--<![CDATA[-->
+                    <!--select :endSickListPeriodDate::date is null or sp.from_dt <= :endSickListPeriodDate from md_sicklist_period sp-->
+                    <!--where sp.id = :endSickListPeriodId-->
+                    <!--]]>-->
+                <!--</sql:sql>-->
+            <!--</invocation>-->
+            <!--<in-parameters>-->
+                <!--<param name="endSickListPeriodId" mapping="['endSickListPeriodId']"/>-->
+                <!--<param name="sickListPeriod.end" mapping="['endSickListPeriodDate']"/>-->
+            <!--</in-parameters>-->
+            <!--<result expression="[0].length == 0 or [0][0][0] == true"/>-->
+            <!--<message>Пересечение дат в последнем периоде больничного листа.</message>-->
+        <!--</constraint>-->
+
+        <condition id="fundingSourceTypeSetConfirmation" level="warning">
+            <message>Вид финансирования будет изменён во всех связанных объектах учёта по данному случаю.</message>
+            <expression><![CDATA[initialIsFinanceTypeControl == isFinanceTypeControl || isFinanceTypeControl != true]]></expression>
+        </condition>
+
+        <condition id="fundingSourceTypeUnsetConfirmation" level="success">
+            <message>Контроль параметра "Вид финансирования" снят</message>
+            <expression><![CDATA[initialIsFinanceTypeControl == isFinanceTypeControl || isFinanceTypeControl == true]]></expression>
+        </condition>
+
+        <constraint id="validExistingParallelCase" level="warning">
+            <invocation>
+                <n2o:rest method="POST">
+                    <n2o:query>
+                        ${n2o.backend.path}/hospital/hospital-record/valid
+                    </n2o:query>
+                </n2o:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient.id" mapping="['patientId']"/>
+                <param name="admissionDate" mapping="['admissionDate']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="message" mapping="['message']"/>
+            </out-parameters>
+            <result expression="['success']"/>
+            <message>{message}</message>
+        </constraint>
+
+    </validations>
+
+</object>

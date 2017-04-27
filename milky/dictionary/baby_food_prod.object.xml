@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <!--<id>baby_food_prod</id>-->
+    <name>Продукт питания</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <sql:sql>
+                    insert into ehr.baby_food_product(id,code,name,measure_id)
+                        values (nextval('ehr.baby_food_product_id_seq'),:code,:name,:measure_id);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="measure.id" mapping="['measure_id']" domain="integer"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Продукт питания сохранен в системе успешно
+            </success-text>
+        </action>
+        <action id="update">
+            <invocation>
+                <sql:sql>
+                    update ehr.baby_food_product set
+                        code = :code,
+                        name = :name,
+                        measure_id = :measure_id
+                    where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="measure.id" mapping="['measure_id']" domain="integer"/>
+            </in-parameters>
+            <success-text>
+                Изменение данных о продукте питания сохранено в системе успешно
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <constraint id="prodCodeUnique" level="error">
+            <message>
+                Код '{code}' уже используется для продукта {name}. Укажите другой код!
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count(*)
+                    from ehr.baby_food_product
+                    where trim(upper(code)) = trim(upper(:code))
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+                <param name ="code" mapping = "['code']" domain="string"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="name" mapping="[0][0][0]" domain="string"/>
+            </out-parameters>
+            <!--[0].length == 0 or [0][0][0] == true-->
+            <result expression="[0].length == 0 or [0][0][0] == 0"/>
+        </constraint>
+        <constraint id="prodNameUnique" level="error">
+            <message>Продукт с наименованием '{name}' уже существует.
+            </message>
+            <invocation>
+                <sql:sql>
+                    select count (*)
+                    from ehr.baby_food_product
+                    where trim(upper(name)) = trim(upper(:name))
+                    and (:id is null or id != :id)
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name ="name" mapping = "['name']" domain="string"/>
+                <param name = "id" mapping = "['id']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+    </validations>
+</object>

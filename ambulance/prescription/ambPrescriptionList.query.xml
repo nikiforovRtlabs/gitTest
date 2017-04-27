@@ -1,0 +1,239 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>ambPrescription</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hospital.prescription p
+                left join md_visit_term vt on vt.id = p.visit_term_id
+                left join hospital.prescription_status ps on ps.id = p.status_id
+                left join hospital.prescription_periodicity pp on pp.id = p.periodicity_id
+                left join hsp_record hr on hr.id = p.step_id
+                left join pim_employee_position_resource epr on epr.id = p.doctor_id
+                left join pim_employee_position ep on ep.id = epr.employee_position_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual i on i.id = e.individual_id
+                where p.type_id = 1 and (:all::boolean is true or p.status_id in (1,2,3)) and p.is_operation!=true and
+                :where order by :order, p.id
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1)
+                from hospital.prescription p
+                left join md_visit_term vt on vt.id = p.visit_term_id
+                left join hospital.prescription_status ps on ps.id = p.status_id
+                left join hospital.prescription_periodicity pp on pp.id = p.periodicity_id
+                left join hsp_record hr on hr.id = p.step_id
+                where p.type_id = 1 and (:all::boolean is true or p.status_id in (1,2,3)) and p.is_operation!=true and :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>p.case_id</expression>
+            <search>:expression = :case.id</search>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <expression>p.name_holding</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>presCount</id>
+            <name>Кол-во</name>
+            <domain>numeric</domain>
+            <expression>
+                (select count
+                from hospital.prescription_holding
+                where prescription_id = p.id
+                limit 1)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>presDose</id>
+            <name>Доза</name>
+            <domain>numeric</domain>
+            <expression>
+                (select hold_dose_value
+                from hospital.prescription_holding
+                where prescription_id = p.id
+                limit 1)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>measureDose</id>
+            <name>Ед. изм.</name>
+            <domain>string</domain>
+            <expression>
+                (select cm.name
+                from hospital.prescription_holding ph
+                join public.cmn_measure cm on ph.hold_dose_measure_id = cm.id
+                where ph.prescription_id = p.id
+                limit 1)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>mnei</id>
+            <name>Ед. изм.</name>
+            <domain>string</domain>
+            <expression>
+                (select cm.name
+                from hospital.prescription_holding ph
+                join public.cmn_measure cm on ph.hold_mnei_id = cm.id
+                where ph.prescription_id = p.id
+                limit 1)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>dose</id>
+            <name>Доза</name>
+            <domain>string</domain>
+            <expression>
+                (
+                    select array_to_string(array_agg(dose), ' + ')
+                    from
+                    (
+                        select trim(to_char(sum(hold_dose_value * count), 'FM9999990.999'), '.') || ' ' || (select name from cmn_measure where id = hold_dose_measure_id) as dose
+                        from hospital.prescription_holding
+                        where prescription_id = p.id
+                        group by hold_dose_measure_id, id
+                        order by id
+                    ) doses
+                )
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>status</id>
+            <name>Статус</name>
+            <domain>string</domain>
+            <expression>ps.name || (case when ps.id = 5 then ' (' || to_char(p.cancel_dt, 'dd.MM.yyyy') || ')' else '' end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>statusId</id>
+            <domain>integer</domain>
+            <expression>ps.id</expression>
+        </field>
+
+        <field>
+            <id>administrationRoute.name</id>
+            <name>Способ введения</name>
+            <domain>string</domain>
+            <expression>(select ar.full_name from md_administration_route ar where id = p.administration_route_id)</expression>
+        </field>
+
+        <field>
+            <id>note</id>
+            <name>Комментарий</name>
+            <domain>string</domain>
+            <expression>p.note</expression>
+        </field>
+
+        <field>
+            <id>hospRecordDepartment.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>hr.department_id = :hospRecordDepartment.id</search>
+        </field>
+
+        <field>
+            <id>all</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search value="false" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>statusColor</id>
+            <domain>string</domain>
+            <expression>(case when p.status_id = 4 then 'success' else case when p.status_id = 1 then 'error' else '' end end)</expression>
+        </field>
+
+        <field>
+            <id>patientMedicament</id>
+            <domain>string</domain>
+            <expression>
+                (case when
+                (select count(1) = 0 from hospital.prescription_holding ph where prescription_id = p.id and (is_patient_medicament = false or is_patient_medicament is null))
+                is true then 'text-info' else '' end)
+            </expression>
+        </field>
+
+        <field>
+            <id>prescription.firstScheduleId</id>
+            <domain>integer</domain>
+            <expression>
+                (select psc.id
+                from hospital.prescription_schedule psc
+                where psc.prescription_id = p.id
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>executionDt</id>
+            <domain>integer</domain>
+            <expression>
+                (select psc.execution_dt
+                from hospital.prescription_schedule psc
+                where psc.prescription_id = p.id
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>storeOprId</id>
+            <domain>integer</domain>
+            <expression>
+                (select psc.store_opr_id
+                from hospital.prescription_schedule psc
+                where psc.prescription_id = p.id
+                limit 1)
+            </expression>
+        </field>
+
+        <field>
+            <id>isPatientMedicament</id>
+            <name>Препарат пациента</name>
+            <domain>boolean</domain>
+            <expression>
+                (select case when psc.is_patient_medicament is null then false else psc.is_patient_medicament end
+                from hospital.prescription_schedule psc
+                where psc.prescription_id = p.id
+                limit 1)
+            </expression>
+            <sorting>:expression</sorting>
+        </field>
+
+    </fields>
+
+</query>

@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Невыплата</name>
+    <actions>
+        <action id="create">
+            <invocation>
+                <n2o:sql>
+                    INSERT INTO nonpayment(id, type_id, employee_id, from_dt, to_dt)
+                    VALUES ( nextval('nonpayment_id_seq'), :type_id, :employee_id, :from_dt, :to_dt );
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="type.oid" mapping="['type_id']" domain="integer"/>
+                <param name="employee_id" mapping="['employee_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="oid" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Невыплата успешно добавлена.
+            </success-text>
+        </action>
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update nonpayment set
+                    type_id = :type_id,
+                    from_dt = :from_dt,
+                    to_dt = :to_dt
+                    where id = :oid
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="oid" mapping="['oid']" domain="integer"/>
+                <param name="type.oid" mapping="['type_id']" domain="integer"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <success-text>
+                Невыплата успешно изменена.
+            </success-text>
+        </action>
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from nonpayment where id = :oid;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="oid" mapping="['oid']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы действительно хотите удалить невыплату?
+            </confirmation-text>
+            <success-text>
+                Невыплата успешно удалена.
+            </success-text>
+        </action>
+    </actions>
+    <validations>
+        <condition id="checkFromDt" level="error" moment="before-action">
+            <message>Не может быть раньше рождения</message>
+            <expression on="from_dt">
+                <![CDATA[
+                  moment(from_dt, 'DD.MM.YYYY') < moment(patient.birthDate, 'DD.MM.YYYY') ? false : true;
+                ]]>
+            </expression>
+        </condition>
+        <condition id="checkToDt" level="error" moment="before-action">
+            <message>Дата окончания должна быть больше даты начала или равна ей</message>
+            <expression on="to_dt">
+                <![CDATA[
+                  to_dt == null ? true : moment(from_dt, 'DD.MM.YYYY') > moment(to_dt, 'DD.MM.YYYY') ? false : true;
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

@@ -1,0 +1,119 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-3.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+    <!--<id>certif_diagnosis</id>-->
+    <name>Диагноз МКБ-10</name>
+    <object-id>certif_diagnosis</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from md_diagnosis md1
+                join md_diagnosis md2 on md2.id = md1.parent_id
+                where md1.is_leaf is true and :where
+                order by md1.code ASC, :order
+            </n2o:items-query>
+            <n2o:count-query>
+                select count(*)
+                from md_diagnosis md1
+                join md_diagnosis md2 on md2.id = md1.parent_id
+                where md1.is_leaf is true and :where
+            </n2o:count-query>
+            <n2o:alias>md1</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <name>Идентификатор</name>
+            <display/>
+            <expression>md1.id</expression>
+            <filters>
+                <filter type="eq" filter-field="id">
+                    :expression = :id
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>code</id>
+            <domain>string</domain>
+            <name>Код</name>
+            <display/>
+            <expression>md1.code</expression>
+            <filters>
+                <filter type="in" filter-field="code">
+                    :expression like upper('%'||:code||'%')
+                </filter>
+                <filter type="eq" filter-field="codeIn">
+                    :expression = :codeIn
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Наименование</name>
+            <display/>
+            <expression>md1.name</expression>
+            <filters>
+                <filter type="eq" filter-field="name">
+                    :expression like upper('%'||:name||'%')
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>codename</id>
+            <domain>string</domain>
+            <name>Код и Наименование</name>
+            <display/>
+            <expression>md1.code || ' ' ||md1.name</expression>
+            <filters>
+                <filter type="eq" filter-field="codename">
+                    <![CDATA[
+                        ((:codename = '' and md1.parent_id is null) or (:codename <> '' and
+                        (upper(md1.code || ' ' || md1.name) = upper(:codename)
+                        or upper(md1.code) like upper(:codename || '%')
+                        or upper(md1.name) like upper('%' || :codename || '%')
+                        or upper(md1.code) like translate(upper(:codename), 'ЙЦУКЕНГШЩЗФЫВАПРОЛДЯЧСМИТЬ,', 'QWERTYUIOPASDFGHJKLZXCVBNM.')||'%'
+                        or upper(md1.name) like '%' || translate(upper(:codename), 'QWERTYUIOP[]ASDFGHJKL;''ZXCVBNM,.','ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ') || '%')))
+                    ]]>
+                </filter>
+            </filters>
+        </field>
+        <field>
+            <id>injury</id>
+            <domain>boolean</domain>
+            <name>Признак травмы</name>
+            <expression>md1.is_injury</expression>
+        </field>
+        <field>
+            <id>level</id>
+            <domain>integer</domain>
+            <name>Уровень</name>
+            <expression>md1.level</expression>
+        </field>
+        <field>
+            <id>leaf</id>
+            <domain>boolean</domain>
+            <name>Листик</name>
+            <display/>
+            <expression>md1.is_leaf</expression>
+        </field>
+        <field>
+            <id>is_psycho</id>
+            <domain>boolean</domain>
+            <expression>
+                case when md1.code like ('F%') then true else false end
+            </expression>
+        </field>
+
+        <field>
+            <id>parent_code</id>
+            <domain>string</domain>
+            <expression>
+                md2.code
+            </expression>
+        </field>
+    </fields>
+</query>

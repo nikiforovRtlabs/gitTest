@@ -1,0 +1,122 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0">
+    <name>discountCard</name>
+
+    <actions>
+        <action id="save" name="Добавить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/payment/discount_card
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="beginDate" mapping="['beginDate']"/>
+                <param name="endDate" mapping="['endDate']"/>
+                <param name="org.id" mapping="['orgId']"/>
+                <param name="cardType.id" mapping="['cardTypeId']"/>
+                <param name="cardKind.id" mapping="['cardKindId']"/>
+                <param name="patient.id" mapping="['patientId']"/>
+                <param name="cardStatus.id" mapping="['cardStatusId']"/>
+                <param name="cardDiscount.id" mapping="['cardDiscountId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Дисконтная карта № {number} сохранена</success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="delete" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/payment/discount_card
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить дисконтную карту № {number}?
+            </confirmation-text>
+            <success-text>Дисконтная карта удалена</success-text>
+            <validations activate="nothing"/>
+        </action>
+
+        <action id="saveConfine" name="Добавить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST">
+                    ${n2o.backend.path}/payment/discount_card/confine
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="discountCardId" mapping="['discountCardId']"/>
+                <param name="patient.id" mapping="['patientId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']"/>
+            </out-parameters>
+            <success-text>Ограничение сохранено</success-text>
+            <validations activate="whiteList">
+                <validation ref-id="checkPatientId"/>
+            </validations>
+        </action>
+
+        <action id="deleteConfine" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/payment/discount_card/confine
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить ограничение ?
+            </confirmation-text>
+            <success-text>Ограничение удалено</success-text>
+            <validations activate="nothing"/>
+        </action>
+
+    </actions>
+    <validations>
+        <constraint id="checkPatientId" level="error">
+            <message>Данный пациент уже был добавлен!</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                    select count(*)
+                    from public.fin_discount_card_confines t
+                    where t.patient_id = :patientId
+                    ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patientId']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+        </constraint>
+
+        <condition id="discountCardPeriodValidation" level="error">
+            <message>Дата начала не должна быть больше даты окончания</message>
+            <expression on="beginDate,endDate">
+                <![CDATA[
+                    (endDate == null) ||
+                    moment(beginDate, 'DD.MM.YYYY').isBefore(moment(endDate, 'DD.MM.YYYY')) ||
+                    moment(beginDate, 'DD.MM.YYYY').isSame(moment(endDate, 'DD.MM.YYYY'))
+                ]]>
+            </expression>
+        </condition>
+        <condition id="discountCardNumberValidation" level="error">
+            <message>Номер дисконтной карты должен быть не более 32 символов!</message>
+            <expression>
+                <![CDATA[
+                    var regex = new RegExp('^[а-яА-Яa-zA-Z0-9]{1,32}$');
+                    regex.test(number);
+                ]]>
+            </expression>
+        </condition>
+    </validations>
+</object>

@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0">
+    <name>Индивидуальная карта беременной</name>
+    <actions>
+        <action id="read">
+            <invocation/>
+        </action>
+
+        <action id="save" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/motherhood/save
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+                <param name="riskLevel.id" mapping="['riskLevelId']" domain="integer"/>
+                <param name="outcome.id" mapping="['outcomeId']" domain="integer"/>
+                <param name="clinic.id" mapping="['clinicId']" domain="integer"/>
+                <param name="employee.id" mapping="['employeeId']" domain="integer"/>
+                <param name="reg_dt" mapping="['regDate']" domain="date"/>
+                <param name="birth_dt" mapping="['birthDate']" domain="date"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="clinicObservation.id" mapping="['clinicObservationId']" domain="integer"/>
+                <param name="pregnant_age" mapping="['pregnantAge']" domain="integer"/>
+                <param name="is_auto_create" mapping="['autoCreate']" domain="boolean"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Индивидуальная карта беременной сохранена в системе.
+            </success-text>
+        </action>
+
+        <action id="saveMainData" form-submit-label="Сохранить">
+            <invocation>
+                <sql:sql>
+                    select motherhood.add_patient_main_data (:patientId, :maritalStatusId, :bloodGroupId, :jobId, :professionWorkingId,
+                        :mainDataId, :pregnantMapId, :husbandSurname, :husbandAge, :husbandBloodGroupId, :husbandJobId, :husbandPhone);
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['mainDataId']" domain="integer"/>
+                <param name="patient_id" mapping="['patientId']" domain="integer"/>
+                <param name="maritalStatus.id" mapping="['maritalStatusId']" domain="integer"/>
+                <param name="bloodGroup.id" mapping="['bloodGroupId']" domain="integer"/>
+                <param name="job.id" mapping="['jobId']" domain="integer"/>
+                <param name="professionWorking.id" mapping="['professionWorkingId']" domain="integer"/>
+                <param name="pregnant_map_id" mapping="['pregnantMapId']" domain="integer"/>
+                <param name="husbandSurname" mapping="['husbandSurname']" domain="string"/>
+                <param name="husbandAge" mapping="['husbandAge']" domain="integer"/>
+                <param name="husbandBloodGroup.id" mapping="['husbandBloodGroupId']" domain="integer"/>
+                <param name="husbandJob.id" mapping="['husbandJobId']" domain="integer"/>
+                <param name="husbandPhone" mapping="['husbandPhone']" domain="string"/>
+            </in-parameters>
+            <success-text>
+                Данные сохранены в системе.
+            </success-text>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <sql:sql>
+                    delete from public.pci_patient_reg where
+                    patient_id = (select patient_id from motherhood.mh_pregnant_map where id = :id)
+                    and type_id in
+                    (select id from public.md_reg_type mrt where mrt.code in ('3','5','8'))
+                    and reg_dt >= (select reg_dt from motherhood.mh_pregnant_map where id = :id);
+
+                    delete from motherhood.mh_pregnant_map where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить индивидуальную карту беременной? Автоматически будут удалены прикрепления по беременности</confirmation-text>
+        </action>
+
+        <action id="unreg" name="Закрыть случай">
+            <invocation>
+                <sql:sql>
+                     update motherhood.mh_pregnant_map set unreg_dt = :unregDate, clinic_unreg_id = :clinicUnregisterationId where id = :id;
+                     update public.pci_patient_reg set state_id = 2, unreg_dt = :unregDate where patient_id = :patientId and state_id = 1 and type_id = 8;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="unreg_dt" mapping="['unregDate']" domain="date"/>
+                <param name="clinicUnregisteration.id" mapping="['clinicUnregisterationId']" domain="integer"/>
+                <param name="patientId" mapping="['patientId']" domain="integer"/>
+            </in-parameters>
+        </action>
+
+        <action id="reopen" name="Переоткрыть случай">
+            <invocation>
+                <sql:sql>
+                    update motherhood.mh_pregnant_map set unreg_dt = null, clinic_unreg_id = null where id = :id;
+                    update public.pci_patient_reg set state_id = 1, unreg_dt = null where patient_id = :patientId
+                    and state_id = 2 and type_id = 8 and unreg_dt >= :regDate;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="reg_dt" mapping="['regDate']" domain="date"/>
+                <param name="patient.id" mapping="['patientId']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите переоткрыть случай?</confirmation-text>
+        </action>
+
+        <action id="setObservation" name="Установить наблюдение">
+            <invocation>
+                <sql:sql>
+                    update motherhood.mh_pregnant_map set clinic_observ_id = :orgId  where id = :id;
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="orgId" mapping="['orgId']" value="#{org.id}"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите установить наблюдение?</confirmation-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="hasOpenPregnantMap" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                     select
+                        (select id
+	                    from motherhood.mh_pregnant_map pm
+	                    where pm.patient_id = :patientId and :id is null and :regDt between pm.reg_dt and coalesce (pm.unreg_dt, current_date)
+	                    limit 1),
+	                    (select number
+	                    from motherhood.mh_pregnant_map pm
+	                    where pm.patient_id = :patientId and :id is null and :regDt between pm.reg_dt and coalesce (pm.unreg_dt, current_date)
+	                    limit 1)
+                    ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="patient.id" mapping="['patientId']"/>
+                <param name="id" mapping="['id']"/>
+                <param name="reg_dt" mapping="['regDt']"/>
+            </in-parameters>
+            <result expression="[0][0][0] == null"/>
+            <message>У пациента уже имеется индивидуальная карта беременной</message>
+        </constraint>
+    </validations>
+
+</object>

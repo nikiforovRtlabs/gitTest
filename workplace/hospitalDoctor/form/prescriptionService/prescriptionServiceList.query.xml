@@ -1,0 +1,181 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_prescriptionService</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                <![CDATA[
+                select :select
+                from hospital.prescription_service ps
+                left join sr_service s on s.id = ps.service_id
+                join hospital.prescription p on p.id = ps.prescription_id
+                left join md_visit_term vt on vt.id = p.visit_term_id
+                left join hospital.prescription_status pst on pst.id = p.status_id
+                left join hospital.prescription_periodicity pp on pp.id = p.periodicity_id
+                left join hsp_record hr on hr.id = p.step_id
+                left join pim_employee_position_resource epr on epr.id = p.doctor_id
+                left join pim_employee_position ep on ep.id = epr.employee_position_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual i on i.id = e.individual_id
+                where (:all is true or
+                (p.status_id in (1,2,3) and (p.period_begin_dt >= current_date or
+                p.period_begin_dt < current_date and p.period_end_dt >= current_date))) and :where
+                order by :order
+               ]]>
+            </n2o:items-query>
+
+            <n2o:count-query>
+                <![CDATA[
+                select count(1)
+                from hospital.prescription_service ps
+                left join sr_service s on s.id = ps.service_id
+                join hospital.prescription p on p.id = ps.prescription_id
+                left join md_visit_term vt on vt.id = p.visit_term_id
+                left join hospital.prescription_status pst on pst.id = p.status_id
+                left join hospital.prescription_periodicity pp on pp.id = p.periodicity_id
+                left join hsp_record hr on hr.id = p.step_id
+                left join pim_employee_position_resource epr on epr.id = p.doctor_id
+                left join pim_employee_position ep on ep.id = epr.employee_position_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual i on i.id = e.individual_id
+                where (:all is true or
+                (p.status_id in (1,2,3) and (p.period_begin_dt >= current_date or
+                p.period_begin_dt < current_date and p.period_end_dt >= current_date))) and :where
+                ]]>
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>case.id</id>
+            <domain>integer</domain>
+            <expression>p.case_id</expression>
+            <search>:expression = :case.id</search>
+        </field>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>ps.id</expression>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <name>Препарат</name>
+            <expression>p.name_holding</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>periodBeginDt</id>
+            <name>Период с</name>
+            <domain>date</domain>
+            <expression>p.period_begin_dt</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>periodEndDt</id>
+            <name>Период по</name>
+            <domain>date</domain>
+            <expression>p.period_end_dt</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>periodicity</id>
+            <name>Периодичность</name>
+            <domain>string</domain>
+            <expression>pp.name</expression>
+        </field>
+
+        <field>
+            <id>visitTerm</id>
+            <name>Условия</name>
+            <domain>string</domain>
+            <expression>vt.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>status</id>
+            <name>Статус</name>
+            <domain>string</domain>
+            <expression>pst.name</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>statusId</id>
+            <domain>integer</domain>
+            <expression>pst.id</expression>
+        </field>
+
+        <field>
+            <id>doctor</id>
+            <domain>string</domain>
+            <name>Назначил</name>
+            <expression>coalesce(i.surname, '') || ' '
+                || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end
+                || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for 1) || '.' end
+            </expression>
+        </field>
+
+        <field>
+            <id>count</id>
+            <domain>integer</domain>
+            <name>Кол-во</name>
+            <expression>ps.count</expression>
+        </field>
+
+        <field>
+            <id>statusColor</id>
+            <domain>string</domain>
+            <expression>(case when p.status_id = 4 then 'success' else case when p.status_id = 1 then 'error' else '' end end)</expression>
+        </field>
+
+        <field>
+            <id>department.id</id>
+            <domain>integer</domain>
+            <display unavailable="true"/>
+            <search>hr.department_id = :department.id</search>
+        </field>
+
+        <field>
+            <id>serviceId</id>
+            <domain>integer</domain>
+            <expression>s.id</expression>
+        </field>
+
+        <field>
+            <id>all</id>
+            <domain>boolean</domain>
+            <display unavailable="true"/>
+            <search value="false" unavailable="true"/>
+        </field>
+
+        <field>
+            <id>prescriptionId</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+        </field>
+
+        <field>
+            <id>hasRenderedServices</id>
+            <domain>boolean</domain>
+            <expression>
+                (select count(1) > 0 from md_srv_rendered msr
+                join sr_srv_rendered ssr on ssr.id = msr.id
+                where prescription_id = p.id and ssr.bdate is not null)
+            </expression>
+        </field>
+
+    </fields>
+
+</query>

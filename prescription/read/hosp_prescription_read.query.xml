@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0"
+       xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+
+    <object-id>hosp_prescription</object-id>
+
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from hospital.prescription p
+                left join hospital.prescription_status ps on ps.id = p.status_id
+                left join md_administration_route ar on ar.id = p.administration_route_id
+                left join md_visit_term vt on vt.id = p.visit_term_id
+                left join hospital.prescription_periodicity pp on pp.id = p.periodicity_id
+                left join pim_employee_position_resource epr on epr.id = p.doctor_id
+                left join pim_employee_position ep on ep.id = epr.employee_position_id
+                left join pim_employee e on e.id = ep.employee_id
+                left join pim_individual i on i.id = e.individual_id
+                where :where order by :order
+            </n2o:items-query>
+
+            <n2o:count-query>
+                select count(1) from hospital.prescription p
+                where :where
+            </n2o:count-query>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+            <expression>p.id</expression>
+            <search>p.id = :id</search>
+        </field>
+
+        <field>
+            <id>status</id>
+            <domain>string</domain>
+            <expression>ps.name || (case when ps.id = 5 then ' (' || to_char(p.cancel_dt, 'dd.MM.yyyy') || ')' else '' end)</expression>
+            <sorting>:expression</sorting>
+        </field>
+
+        <field>
+            <id>holdings</id>
+            <domain>object[]</domain>
+            <expression>(select array_to_json(array_agg(t)) from (
+                select h.name || coalesce(', ' || ft.short_name, '')
+                || coalesce(', ' || phold.hold_con_value || coalesce(' ' || (select name from cmn_measure where id = phold.hold_con_measure_id),''), '')
+                || coalesce(', ' || trim(to_char(phold.hold_dose_value::numeric, 'FM999999999990.999'), '.') || coalesce(' ' || (select name from cmn_measure where id = phold.hold_dose_measure_id),''), '')
+                || coalesce(', ' || mnei.name, '') as name_holding
+                , trim(to_char((phold.hold_dose_value * phold.count)::numeric, 'FM999999999990.999'), '.') || ' ' || dm.name as single_dose
+                , trim(to_char((phold.hold_dose_value * phold.count * pp.count)::numeric, 'FM999999999990.999'), '.') || ' ' || dm.name as daily_dose
+                , dm.name as dose_measure
+                , trim(to_char((phold.hold_dose_value * phold.count)::numeric, 'FM999999999990.999'), '.') as s_dose
+                , trim(to_char((phold.hold_dose_value * phold.count * pp.count)::numeric, 'FM999999999990.999'), '.') as d_dose
+
+                from hospital.prescription_holding phold
+                join inventory.holding h on h.id = phold.holding_id
+                left join inventory.form_type ft on ft.id = phold.hold_form_type_id
+                left join cmn_measure dm on dm.id = phold.hold_dose_measure_id
+                left join cmn_measure mnei on mnei.id = phold.hold_mnei_id
+                where phold.prescription_id = p.id
+                order by phold.id) t)
+            </expression>
+        </field>
+
+        <field>
+            <id>administrationRoute</id>
+            <domain>string</domain>
+            <expression>ar.full_name</expression>
+        </field>
+
+        <field>
+            <id>prescriptionPeriodicity.name</id>
+            <domain>string</domain>
+            <expression>pp.name</expression>
+        </field>
+
+        <field>
+            <id>prescriptionPeriodicity.id</id>
+            <domain>integer</domain>
+            <expression>pp.id</expression>
+        </field>
+
+        <field>
+            <id>prescriptionPeriodicity.count</id>
+            <domain>integer</domain>
+            <expression>pp.count</expression>
+        </field>
+
+        <field>
+            <id>prescriptionPeriodicity.interval</id>
+            <domain>integer</domain>
+            <expression>pp.interval</expression>
+        </field>
+
+        <field>
+            <id>prescriptionPeriodicity.times</id>
+            <domain>string</domain>
+            <expression>(select string_agg(to_char(pt.receipt_time, 'HH24:MI:SS'), ',') from hospital.prescription_time pt where pt.periodicity_id = p.periodicity_id)</expression>
+        </field>
+
+        <field>
+            <id>visitTerm</id>
+            <domain>integer</domain>
+            <expression>vt.name</expression>
+        </field>
+
+        <field>
+            <id>doctor</id>
+            <domain>string</domain>
+            <expression>
+                coalesce(i.surname, '') || ' '
+                || case coalesce(substring(i.name for 1), '') when '' then '' else substring(i.name for 1) || '.' end
+                || ' ' || case coalesce(substring(i.patr_name for 1), '') when '' then '' else substring(i.patr_name for 1) || '.' end
+            </expression>
+        </field>
+
+        <field>
+            <id>periodBeginDt</id>
+            <domain>date</domain>
+            <expression>p.period_begin_dt</expression>
+        </field>
+
+        <field>
+            <id>periodEndDt</id>
+            <domain>date</domain>
+            <expression>p.period_end_dt</expression>
+        </field>
+
+        <!--<field>-->
+            <!--<id>cancelDt</id>-->
+            <!--<domain>string</domain>-->
+            <!--<expression>to_char(p.cancel_dt, 'DD.MM.YYYY HH:mm')</expression>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>cancelReason</id>-->
+            <!--<domain>string</domain>-->
+            <!--<expression>p.cancel_reason</expression>-->
+        <!--</field>-->
+
+        <!--<field>-->
+            <!--<id>note</id>-->
+            <!--<domain>string</domain>-->
+            <!--<expression>p.note</expression>-->
+        <!--</field>-->
+
+    </fields>
+</query>

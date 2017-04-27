@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<query xmlns="http://n2oapp.net/framework/config/schema/query-2.0">
+    <object-id>phthisiatryStep</object-id>
+    <name>Посещение</name>
+    <execution xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0">
+        <n2o:sql>
+            <n2o:items-query>
+                select :select
+                from mc_step t
+                join plc_visit v on v.id=t.id
+                join mc_case mc on mc.id=t.case_id
+                left join public.mc_diagnosis diag on diag.id = t.main_diagnosis_id
+                where :where order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(t)
+                from mc_step t
+                join plc_visit v on v.id=t.id
+                join mc_case mc on mc.id = t.case_id
+                left join public.mc_diagnosis diag on diag.id = t.main_diagnosis_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>t</n2o:alias>
+        </n2o:sql>
+    </execution>
+    <fields>
+        <field>
+            <id>id</id>
+            <domain>integer</domain>
+        </field>
+        <field>
+            <id>admission_date</id>
+            <name>Дата оказания</name>
+            <domain>date</domain>
+        </field>
+        <field>
+            <id>admission_time</id>
+            <name>Время оказания</name>
+        </field>
+        <field>
+            <id>resVrachRelaition.id</id>
+            <domain>integer</domain>
+            <expression>(select sgr.id from public.sr_res_group_relationship sgr
+                join public.sr_res_role rrol on rrol.id = sgr.role_id and rrol.code = 'DOCTOR'
+                where sgr.group_id = t.res_group_id limit 1)</expression>
+        </field>
+        <field>
+            <id>resEquipRelation.id</id>
+            <domain>integer</domain>
+            <expression>(select sgr.id from public.sr_res_group_relationship sgr
+                join public.sr_res_role rrol on rrol.id = sgr.role_id and rrol.code = 'EQUIPMENTUNIT'
+                where sgr.group_id = t.res_group_id limit 1)</expression>
+        </field>
+        <field>
+            <id>vrach.id</id>
+            <name>Врач</name>
+            <domain>integer</domain>
+            <expression>
+                (select eps.id
+                from public.mc_step step
+                join public.sr_res_group res ON res.id = step.res_group_id
+                join public.pim_employee_position epos ON epos.id = res.responsible_id
+                join public.pim_employee_position_resource eps on eps.employee_position_id = epos.id
+                WHERE step.id = t.id
+                LIMIT 1)
+            </expression>
+        </field>
+        <!-- это поле используется для создания сопутствующих диагнозов, поэтому в выборку добавлена
+            таблица md_employee_position-->
+        <field>
+            <id>doctor.id</id>
+            <domain>integer</domain>
+            <expression>
+                (select epos.id
+                from public.mc_step step
+                join public.sr_res_group res ON res.id = step.res_group_id
+                join public.pim_employee_position epos ON epos.id = res.responsible_id
+                join public.md_employee_position mdpos ON epos.id = mdpos.id
+                WHERE step.id = t.id
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>vrach_label</id>
+            <name>Врач</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name))
+                from public.mc_step step
+                join public.sr_res_group res ON res.id = step.res_group_id
+                join public.pim_employee_position epos ON epos.id = res.responsible_id
+                JOIN public.pim_employee empl ON empl.id = epos.employee_id
+                JOIN public.pim_individual ind ON ind.id = empl.individual_id
+                WHERE step.id = t.id
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>equip.id</id>
+            <name>Оборудование</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT res.id FROM  public.sr_res_group resg
+                join public.sr_res_group_relationship sgr on sgr.group_id = resg.id
+                join public.sr_res_role rrol on rrol.id = sgr.role_id and rrol.code = 'EQUIPMENTUNIT'
+                join public.sr_resource res on res.id = sgr.resource_id
+                WHERE resg.id = t.res_group_id
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>mc_main_diagnos.id</id>
+            <domain>integer</domain>
+            <expression>t.main_diagnosis_id</expression>
+        </field>
+        <field>
+            <id>md_diagnos.id</id>
+            <domain>integer</domain>
+            <expression>(select mcd.diagnos_id from public.mc_diagnosis mcd where mcd.id=t.main_diagnosis_id)</expression>
+        </field>
+        <field>
+            <id>main_diagnos</id>
+            <domain>object</domain>
+            <expression>(select get_diagnosis_init(diag.diagnos_id, (select array_agg(attr_value_id) from mc_diag_attr where diagnosis_id = t.main_diagnosis_id)))</expression>
+        </field>
+        <field>
+            <id>mainDiagnosName</id>
+            <name>Диагноз</name>
+            <domain>string</domain>
+            <expression>
+                (select get_diagnosis_full_name(t.main_diagnosis_id))
+            </expression>
+        </field>
+        <field>
+            <id>main_diagnos_type.id</id>
+            <name>Вид диагноза</name>
+            <domain>integer</domain>
+            <expression>
+                (SELECT mdd.id FROM public.mc_diagnosis_type mdd where mdd.id = diag.type_id LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>main_diagnos_type.name</id>
+            <name>Вид диагноза</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT mdd.name FROM public.mc_diagnosis_type mdd where mdd.id = diag.type_id LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>srv_service.id</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT msr.id FROM public.md_srv_rendered msr
+                WHERE msr.step_id = t.id
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>service.id</id>
+            <domain>integer</domain>
+            <expression>
+                (SELECT sr.id FROM public.md_srv_rendered msr
+                JOIN public.sr_srv_rendered srv ON srv.id = msr.id
+                JOIN public.sr_service sr ON sr.id = srv.service_id
+                WHERE msr.step_id = t.id
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>service.name</id>
+            <name>Услуга</name>
+            <domain>string</domain>
+            <expression>
+                (SELECT sr.name FROM public.md_srv_rendered msr
+                JOIN public.sr_srv_rendered srv ON srv.id = msr.id
+                JOIN public.sr_service sr ON sr.id = srv.service_id
+                WHERE msr.step_id = t.id
+                LIMIT 1)
+            </expression>
+        </field>
+        <field>
+            <id>death_date</id>
+            <domain>date</domain>
+        </field>
+        <field>
+            <id>death_time</id>
+        </field>
+        <field>
+            <id>outcome_date</id>
+            <domain>date</domain>
+        </field>
+        <field>
+            <id>outcome_time</id>
+        </field>
+        <field>
+            <id>death_employee.id</id>
+            <domain>integer</domain>
+            <expression>t.death_employee_id</expression>
+        </field>
+        <field>
+            <id>disease_type.id</id>
+            <domain>integer</domain>
+            <expression>(SELECT disease_type_id FROM mc_diagnosis WHERE id = t.main_diagnosis_id LIMIT 1)</expression>
+        </field>
+        <field>
+            <id>mcase.id</id>
+            <domain>integer</domain>
+            <expression>t.case_id</expression>
+        </field>
+        <field>
+            <id>patient.id</id>
+            <domain>integer</domain>
+            <expression>mc.patient_id</expression>
+        </field>
+        <field>
+            <id>patient.fio</id>
+            <domain>string</domain>
+            <expression>(select initcap(concat_ws(' ', ind.surname, ind.name, ind.patr_name)) from pim_individual ind where ind.id = mc.patient_id limit 1)</expression>
+        </field>
+        <field>
+            <id>regimen.id</id>
+            <domain>integer</domain>
+            <expression>t.regimen_id</expression>
+        </field>
+        <field>
+            <id>result.id</id>
+            <domain>integer</domain>
+            <expression>t.result_id</expression>
+        </field>
+        <field>
+            <id>reason.id</id>
+            <domain>integer</domain>
+            <expression>t.reason_id</expression>
+        </field>
+        <field>
+            <id>profile.id</id>
+            <domain>integer</domain>
+            <expression>t.profile_id</expression>
+        </field>
+        <field>
+            <id>mes.id</id>
+            <domain>integer</domain>
+            <expression>t.mes_id</expression>
+        </field>
+        <field>
+            <id>mes_quality_criterion.id</id>
+            <domain>integer</domain>
+            <expression>t.mes_quality_criterion_id</expression>
+        </field>
+        <field>
+            <id>is_continue</id>
+            <domain>boolean</domain>
+        </field>
+        <field>
+            <id>is_continue_editable</id>
+            <domain>boolean</domain>
+        </field>
+        <field>
+            <id>standard.id</id>
+            <domain>integer</domain>
+            <expression>t.standard_id</expression>
+        </field>
+        <field>
+            <id>csg.id</id>
+            <domain>integer</domain>
+            <expression>t.csg_id</expression>
+        </field>
+        <field>
+            <id>vmp_type.id</id>
+            <domain>integer</domain>
+            <expression>t.vmp_type_id</expression>
+        </field>
+        <field>
+            <id>vmp_method.id</id>
+            <domain>integer</domain>
+            <expression>t.vmp_method_id</expression>
+        </field>
+        <field>
+            <id>place.id</id>
+            <domain>integer</domain>
+            <expression>(SELECT place_id FROM plc_visit WHERE id = t.id LIMIT 1)</expression>
+        </field>
+        <field>
+            <id>initGoal.id</id>
+            <domain>integer</domain>
+            <expression>(select id from public.mc_case_init_goal g where g.id=v.goal_id)</expression>
+        </field>
+        <field>
+            <id>caseClosingStepId</id>
+            <domain>integer</domain>
+            <expression>mc.closing_step_id</expression>
+        </field>
+        <field>
+            <id>clinicalForm.id</id>
+            <domain>integer</domain>
+            <expression>diag.clinical_form_id</expression>
+        </field>
+        <field>
+            <id>complication.id</id>
+            <domain>integer</domain>
+            <expression>diag.complication_id</expression>
+        </field>
+        <field>
+            <id>localization.id</id>
+            <domain>integer</domain>
+            <expression>diag.localization_id</expression>
+        </field>
+        <field>
+            <id>mo.id</id>
+            <domain>integer</domain>
+            <expression>mc.clinic_id</expression>
+        </field>
+        <field>
+            <id>res.id</id>
+            <domain>integer</domain>
+            <expression>t.res_group_id</expression>
+        </field>
+    </fields>
+</query>
+

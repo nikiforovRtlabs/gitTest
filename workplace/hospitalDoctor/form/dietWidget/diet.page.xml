@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <object-id>diet</object-id>
+    <layout>n2o/layout/left-right</layout>
+    <name>Список назначеных диет</name>
+
+    <regions>
+        <region place="left" type="none" name="dietTable">
+            <container id="dietTable">
+                <wgt:table>
+                    <wgt:query-id>diet</wgt:query-id>
+                    <wgt:name>Список диет</wgt:name>
+                    <wgt:action-menu>
+
+                        <wgt:menu-item label="Удалить" id="delete" context="true">
+                            <wgt:invoke-action action-id="delete" confirmation="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item label="Создать новую запись" id="create">
+                            <wgt:show-modal-form form-id="dietCreate"
+                                                 width="90%;max-width:900px;min-width:500px;"
+                                                 master-field-id="caseId"
+                                                 detail-field-id="case.id"
+                                                 refresh-on-close="true">
+                                <wgt:edit model="default" create-more="true" refresh-after-submit="true">
+                                    <wgt:invoke-action action-id="create"/>
+                                </wgt:edit>
+                            </wgt:show-modal-form>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                    <wgt:columns>
+                        <wgt:column column-field-id="diet.name" name="Диета"/>
+                        <wgt:column column-field-id="dateFrom" name="Дата с" format="date DD.MM.YYYY"/>
+                        <wgt:column column-field-id="dateTo" name="Дата по" format="date DD.MM.YYYY"/>
+                        <wgt:column column-field-id="note" name="Комментарий"/>
+                    </wgt:columns>
+                    <wgt:sortings>
+                        <wgt:sorting sorting-field-id="dateFrom" direction="ASC"/>
+                    </wgt:sortings>
+                </wgt:table>
+            </container>
+        </region>
+        <region place="right" type="none">
+            <container id="dietFormUpdate" depends-on="dietTable" refresh-dependent-container="true">
+                <wgt:edit-form detail-field-id="id" master-field-id="id">
+                    <wgt:query-id>diet</wgt:query-id>
+                    <wgt:name>Диета</wgt:name>
+                    <wgt:model>query</wgt:model>
+                    <fs:field-set field-label-location="left">
+                        <ctrl:classifier id="diet" label="Диета:" depends-on="diet.name" search-are-you-type="true"
+                                         required="true">
+                            <ctrl:query query-id="hosp_mdDiet" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:date-time id="dateFrom" format="DD.MM.YYYY" control-style="width:150px;" label="Дата c:"
+                                        required="true"/>
+                        <ctrl:date-time id="dateTo" format="DD.MM.YYYY" control-style="width:150px;" label="Дата по:">
+                            <ctrl:validations>
+                                <ctrl:validation ref-id="todate_gt_fromdate" side="client"/>
+                            </ctrl:validations>
+                        </ctrl:date-time>
+                        <ctrl:text-area id="note" label="Комментарий:" rows="5"/>
+                    </fs:field-set>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="update" color="btn-primary" label="Сохранить">
+                            <wgt:invoke-action action-id="update" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>
+                                        <![CDATA[
+                                            (typeof dateTo == 'undefined') || (dateTo == null)
+                                            || (moment(dateTo, 'DD.MM.YYYY').diff(moment(dateFrom, 'DD.MM.YYYY')) == 0)
+                                            || (moment(dateTo, 'DD.MM.YYYY').diff(moment(dateFrom, 'DD.MM.YYYY')) >= 0)
+                                        ]]>
+                                    </wgt:expression>
+                                    <wgt:tooltip>
+                                        Дата окончания диеты не может быть ранее даты начала диеты.
+                                    </wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+                </wgt:edit-form>
+            </container>
+        </region>
+    </regions>
+
+</page>

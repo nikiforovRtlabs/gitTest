@@ -1,0 +1,219 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<query xmlns:n2o="http://n2oapp.net/framework/config/schema/n2o-query-executions-1.0"
+       xmlns="http://n2oapp.net/framework/config/schema/query-3.0">
+    <name>Полисы ОМС</name>
+    <object-id>policyDMS</object-id>
+    <execution>
+        <n2o:sql>
+            <n2o:items-query>select :select
+                from pim_individual_doc doc
+                inner join pim_doc_type dt on dt.id = doc.type_id and dt.code = 'MHI_VOLUNTARY'
+                inner join pim_doc_type_category dtc on dtc.category_id = 2 and dtc.type_id = dt.id
+                left join pim_organization org on org.id = doc.issuer_id
+                left join pim_party_doc_org_issued doi ON doi.org_id=org.id
+                left join pim_org_code oc ON org.id=oc.org_id and oc.type_id = (select ct.id from pim_code_type ct where code = 'CODE_OMS')
+                where :where
+                order by :order
+            </n2o:items-query>
+            <n2o:count-query>select count(doc)
+                from pim_individual_doc doc
+                inner join pim_doc_type dt on dt.id = doc.type_id and dt.code = 'MHI_VOLUNTARY'
+                inner join pim_doc_type_category dtc on dtc.category_id = 2 and dtc.type_id = dt.id
+                left join pim_organization org on org.id = doc.issuer_id
+                left join pim_party_doc_org_issued doi ON doi.org_id=org.id
+                left join pim_org_code oc ON org.id=oc.org_id
+                where :where
+            </n2o:count-query>
+            <n2o:alias>doc</n2o:alias>
+        </n2o:sql>
+    </execution>
+
+    <fields>
+
+        <field>
+            <id>id</id>
+            <expression>doc.id</expression>
+            <domain>integer</domain>
+            <display>doc.id</display>
+            <filters>
+                <filter type="eq" filter-field="id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>patient_id</id>
+            <expression>doc.indiv_id</expression>
+            <domain>integer</domain>
+            <display>doc.indiv_id</display>
+            <filters>
+                <filter type="eq" filter-field="patient_id"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>displayNumber</id>
+            <domain>integer</domain>
+            <display>dt.name || ': '
+                || concat(doc.series, ' ', doc.number)
+                || ' ' || coalesce(org.short_name, '')
+                || case when doc.issue_dt is not null then ' с ' || to_char(doc.issue_dt,'dd.mm.yyyy') else '' end
+                || case when doc.expire_dt is not null then ' по ' || to_char(doc.expire_dt,'dd.mm.yyyy') else '' end
+            </display>
+        </field>
+
+        <field>
+            <id>docType.id</id>
+            <domain>integer</domain>
+            <display>dt.id</display>
+        </field>
+
+        <field>
+            <id>docType.name</id>
+            <name>Тип</name>
+            <domain>string</domain>
+            <display>dt.name</display>
+        </field>
+
+        <field>
+            <id>docType.code</id>
+            <domain>string</domain>
+            <display>dt.code</display>
+        </field>
+
+        <field>
+            <id>issuer.id</id>
+            <domain>integer</domain>
+            <display>org.id</display>
+        </field>
+
+        <field>
+            <id>issuer.name</id>
+            <name>Кем выдан</name>
+            <domain>string</domain>
+            <display>concat(oc.code, ' ', org.short_name)</display>
+        </field>
+
+        <field>
+            <id>issuer.seriesMessagePattern</id>
+            <domain>string</domain>
+            <display>doi.series_message_pattern</display>
+        </field>
+
+        <field>
+            <id>issuer.numberMessagePattern</id>
+            <domain>string</domain>
+            <display>doi.number_message_pattern</display>
+        </field>
+
+        <field>
+            <id>issuerText</id>
+            <domain>string</domain>
+            <display>doc.issuer_text</display>
+        </field>
+
+        <field>
+            <id>docType.hiddenSeries</id>
+            <domain>boolean</domain>
+            <display>dt.is_series_hidden</display>
+        </field>
+
+        <field>
+            <id>docType.hiddenNumber</id>
+            <domain>boolean</domain>
+            <display>dt.is_number_hidden</display>
+        </field>
+
+        <field>
+            <id>docType.seriesMessagePattern</id>
+            <domain>string</domain>
+            <display>dt.series_message_pattern</display>
+        </field>
+
+        <field>
+            <id>docType.numberMessagePattern</id>
+            <domain>string</domain>
+            <display>dt.number_message_pattern</display>
+        </field>
+
+        <field>
+            <id>series.value</id>
+            <name>Серия</name>
+            <domain>integer</domain>
+            <display>case when dt.is_series_hidden is true then '' else doc.series end</display>
+        </field>
+
+        <field>
+            <id>number.value</id>
+            <name>Номер</name>
+            <domain>integer</domain>
+            <display>case when dt.is_number_hidden is true then '' else doc.number end</display>
+        </field>
+
+        <field>
+            <id>surname</id>
+            <domain>string</domain>
+            <display>doc.surname</display>
+        </field>
+
+        <field>
+            <id>name</id>
+            <domain>string</domain>
+            <display>doc.name</display>
+        </field>
+
+        <field>
+            <id>patrName</id>
+            <domain>string</domain>
+            <display>doc.patr_name</display>
+        </field>
+
+        <field>
+            <id>birthDate</id>
+            <domain>date</domain>
+            <display>doc.birth_dt</display>
+        </field>
+
+        <field>
+            <id>is_valid</id>
+            <domain>boolean</domain>
+            <name>Действительность</name>
+            <display/>
+            <expression>
+                case when current_date between coalesce(doc.issue_dt, current_date) and coalesce(doc.expire_dt, current_date)
+                then true
+                else false
+                end
+            </expression>
+            <filters>
+                <filter type="eq" filter-field="is_valid"/>
+            </filters>
+        </field>
+
+        <field>
+            <id>issueDate</id>
+            <name>Дата выдачи</name>
+            <domain>date</domain>
+            <display>doc.issue_dt</display>
+        </field>
+
+        <field>
+            <id>expireDate</id>
+            <name>Дата окончания действия</name>
+            <domain>date</domain>
+            <display>doc.expire_dt</display>
+        </field>
+
+        <field>
+            <id>active</id>
+            <name>Действительность</name>
+            <domain>boolean</domain>
+            <display>current_date between coalesce(doc.issue_dt, current_date) and coalesce(doc.expire_dt, current_date)</display>
+        </field>
+
+        <field>
+            <id>note</id>
+            <domain>string</domain>
+            <display>doc.note</display>
+        </field>
+    </fields>
+</query>

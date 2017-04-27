@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wgt:form xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+          xmlns:fs="http://n2oapp.net/framework/config/schema/fieldset-2.0"
+          xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0">
+    <wgt:id>disprCardRenderingServiceTherapeutist</wgt:id>
+    <wgt:query-id>disprCardRenderingServiceTherapeutist</wgt:query-id>
+    <wgt:default-values-query-id>disprCardRenderingServiceTherapeutist</wgt:default-values-query-id>
+    <wgt:name>Прием терапевта</wgt:name>
+    <wgt:edit refresh-after-submit="true" model="default">
+        <wgt:invoke-action action-id="update" />
+    </wgt:edit>
+            <fs:field-set header="none" field-label-location="top">
+                <fs:row>
+                <!-- <ctrl:checkbox id="hasOtherOrg" label="Услуга оказана в другом МО" />-->
+
+                <ctrl:classifier id="org" label="Организация" required="true" dependency-condition="hasOtherOrg!=null &amp;&amp; hasOtherOrg">
+                    <ctrl:query query-id="organization" value-field-id="id" label-field-id="short_name"/>
+                    <ctrl:actions>
+                        <ctrl:link label="Найти услугу">
+                            <ctrl:show-modal page-id="ServiceByDoc" refresh-on-close="true"></ctrl:show-modal>
+                        </ctrl:link>
+                    </ctrl:actions>
+                </ctrl:classifier>
+
+                <ctrl:classifier id="resource" label="Ресурс" depends-on="org" dependency-condition="hasOtherOrg!=null &amp;&amp; hasOtherOrg" autoselect-alone="true">
+                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                        <ctrl:pre-filters>
+                            <ctrl:pre-filter field-id="orgId" ref="org.id" />
+                            <ctrl:pre-filter field-id="srvTypeId" ref="service.id" />
+                            <ctrl:pre-filter field-id="date" ref="date" reset-mode="off"/>
+                        </ctrl:pre-filters>
+                    </ctrl:query>
+                </ctrl:classifier>
+
+                <ctrl:classifier id="resource" label="Ресурс" required="true" dependency-condition="typeof(hasOtherOrg) == 'undefined' || !(hasOtherOrg)" autoselect-alone="true">
+                    <ctrl:query query-id="resourceGroupService" value-field-id="id" label-field-id="name">
+                        <ctrl:pre-filters>
+                            <ctrl:pre-filter field-id="orgId" ref="org_id"/>
+                            <ctrl:pre-filter field-id="srvTypeId" ref="service_type_id"/>
+                        </ctrl:pre-filters>
+                    </ctrl:query>
+                </ctrl:classifier>
+                <ctrl:date-time id="date" label="Дата" required="true" css-class="n2o-label-4 n2o-control-4">
+                    <ctrl:validations>
+                        <ctrl:validation ref-id="checkDate"/>
+                        <ctrl:validation ref-id="checkDateBeforeEvent"/>
+                        <ctrl:validation ref-id="checkDateCurrentDate"/>
+                    </ctrl:validations>
+                </ctrl:date-time>
+
+                    <ctrl:classifier id="service" label="Вид услуги" required="true"
+                                     dependency-condition="hasOtherOrg!=null &amp;&amp; hasOtherOrg">
+                        <ctrl:query query-id="serviceType" value-field-id="id" label-field-id="name">
+                            <ctrl:pre-filters>
+                                <ctrl:pre-filter field-id="orgId" ref="org.id"/>
+                            </ctrl:pre-filters>
+                        </ctrl:query>
+                    </ctrl:classifier>
+
+                    <ctrl:classifier id="main_diagnosis" label="Основной диагноз" required="true">
+                    <ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name">
+                        <ctrl:pre-filters>
+                            <ctrl:pre-filter field-id="leaf" value="true"/>
+                        </ctrl:pre-filters>
+                    </ctrl:query>
+                    <ctrl:update-model query-id="is_d_by_diagnosis" master-field-id="indiv.id" detail-field-id="indiv_id" target="field" target-field-id="is_d" value-field-id="is_d">
+                        <ctrl:pre-filters>
+                            <ctrl:pre-filter field-id="diagnosis_id" ref="main_diagnosis.id"/>
+                            <ctrl:pre-filter field-id="org_id" ref="org_id"/>
+                            <ctrl:pre-filter field-id="mdds_id" ref="mdds_id"/>
+                        </ctrl:pre-filters>
+                    </ctrl:update-model>
+                </ctrl:classifier>
+                    <ctrl:checkbox id="is_suspicion" label="Подозрение" css-class="n2o-label-4 n2o-control-4"
+                            >
+                        <ctrl:set-value-expression on="main_diagnosis">
+                            if ((main_diagnosis==null)||(main_diagnosis &amp;&amp; typeof main_diagnosis.id==
+                            'undefined' ))
+                            null
+                            else throw('!');
+                        </ctrl:set-value-expression>
+                    </ctrl:checkbox>
+                    <ctrl:classifier id="disease" label="Характер заболевания">
+                        <ctrl:query query-id="disprCardDiagnosisDis" value-field-id="id" label-field-id="name"/>
+                        <ctrl:dependencies>
+                            <ctrl:required-condition on="is_suspicion,main_diagnosis">(((typeof is_suspicion ==
+                                'undefined')||(is_suspicion==false)||(is_suspicion==null))
+                                &amp;&amp;(( typeof main_diagnosis != 'undefined' )&amp;&amp;(main_diagnosis.id!=null)&amp;&amp;(main_diagnosis.code.indexOf('Z')
+                                == -1))
+                                )
+                            </ctrl:required-condition>
+                        </ctrl:dependencies>
+                        <ctrl:set-value-expression on="main_diagnosis" on-load="false" on-non-empty="true">
+                            if ((main_diagnosis!=null)&amp;&amp;(!main_diagnosis || typeof main_diagnosis.code!= 'undefined' )&amp;&amp;(main_diagnosis.code.indexOf('Z')== 0))
+                            {var o = new Object(); o.id=parseInt(character); o.code = '40'; o.name = 'Прочее (для Z00-Z99)'; o;} else throw '!'
+                        </ctrl:set-value-expression>
+                    </ctrl:classifier>
+                <ctrl:checkbox id="is_d" label="Состоит на Д-учете" readonly="true" />
+                <ctrl:checkbox id="make_d" label="Взят на Д-учет">
+                    <ctrl:set-value-expression on="is_d">
+                        if ((typeof is_d != 'undefined') &amp;&amp; (is_d != null) &amp;&amp; (is_d == true)) {
+                        false
+                        } else {throw '!'}
+                    </ctrl:set-value-expression>
+                    <ctrl:dependencies>
+                        <ctrl:enabling-condition on="is_d">(typeof is_d == 'undefined') || (is_d == null) || (is_d == false)</ctrl:enabling-condition>
+                    </ctrl:dependencies>
+                </ctrl:checkbox>
+                <ctrl:classifier id="nosol_registr" label="Регистр">
+                    <ctrl:query query-id="nosolRegistr" value-field-id="id" label-field-id="name">
+                        <ctrl:pre-filters>
+                            <ctrl:pre-filter field-id="org_id" ref="org_id"/>
+                            <ctrl:pre-filter field-id="diagnosis_code" ref="main_diagnosis.code"/>
+                        </ctrl:pre-filters>
+                    </ctrl:query>
+                    <ctrl:dependencies>
+                        <ctrl:enabling-condition on="make_d">make_d == true</ctrl:enabling-condition>
+                        <ctrl:required-condition on="make_d">make_d == true</ctrl:required-condition>
+                    </ctrl:dependencies>
+                    <ctrl:set-value-expression on="make_d">
+                        if ((typeof make_d == 'undefined') || (make_d == null) || (make_d == false)) {
+                        null
+                        } else {throw '!'}
+                    </ctrl:set-value-expression>
+                </ctrl:classifier>
+                <!--<ctrl:classifier id="other_diagnos_1" label="Сопутствующий диагноз">-->
+                <!--<ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name"/>-->
+                <!--</ctrl:classifier>-->
+                <!--<ctrl:classifier id="other_diagnos_2" label="Сопутствующий диагноз">-->
+                <!--<ctrl:query query-id="disprCardDiagnosisD" value-field-id="id" label-field-id="name"/>-->
+                <!--</ctrl:classifier>-->
+                <ctrl:text-area id="counsel" label="Заключение" rows="2" css-class="n2o-label-10 n2o-control-10"/>
+                <ctrl:text-area id="reference" label="Рекомендации" rows="2" css-class="n2o-label-10 n2o-control-10"/>
+                <ctrl:checkbox id="is_mobile_medical_teams" label="Мобильные медицинские бригады"/>
+                <ctrl:hidden id="service_type_id" />
+                </fs:row>
+            </fs:field-set>
+    <wgt:action-menu>
+        <wgt:menu-item label="Заполнить данные" id="update" type="textAndIcon" icon="icon-edit">
+            <wgt:go-edit action-id="update" />
+        </wgt:menu-item>
+    </wgt:action-menu>
+</wgt:form>

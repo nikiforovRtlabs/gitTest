@@ -1,0 +1,137 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:n2o="http://n2oapp.net/framework/config/schema/action-invocation-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0">
+
+    <name>buildingDetail</name>
+    <actions>
+
+        <action id="create" form-submit-label="Добавить">
+            <invocation>
+                <sql:sql>
+                    insert into pim_building_floor(
+                      id,
+                      code,
+                      index,
+                      name,
+                      floor_area,
+                      effective_area,
+                      from_dt,
+                      to_dt,
+                      building_id)
+                    values(
+                      nextval('pim_building_floor_seq'),
+                      :code,
+                      :index,
+                      :name,
+                      :floor_area,
+                      :effective_area,
+                      :from_dt,
+                      :to_dt,
+                      :building_id
+                    );
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="index" mapping="['index']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="floor_area" mapping="['floor_area']" domain="numeric"/>
+                <param name="effective_area" mapping="['effective_area']" domain="numeric"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <param name="bld.id" mapping="['building_id']" domain="integer"/>
+
+                <param name="flr.id" mapping="['id']" domain="integer"/> <!-- stub for validation -->
+            </in-parameters>
+            <out-parameters>
+                <param name="flr.id" mapping="[0][0]" domain="integer"/>
+            </out-parameters>
+            <success-text>
+                Этаж успешно сохранен в системе.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="is_floor_already_exists"/>
+            </validations>
+        </action>
+
+        <action id="update" form-submit-label="Изменить">
+            <invocation>
+                <sql:sql>
+                    update pim_building_floor set
+                      code = :code,
+                      index = :index,
+                      name = :name,
+                      floor_area = :floor_area,
+                      effective_area = :effective_area,
+                      from_dt = :from_dt,
+                      to_dt = :to_dt
+                    where id = :id
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="code" mapping="['code']" domain="string"/>
+                <param name="index" mapping="['index']" domain="integer"/>
+                <param name="name" mapping="['name']" domain="string"/>
+                <param name="floor_area" mapping="['floor_area']" domain="numeric"/>
+                <param name="effective_area" mapping="['effective_area']" domain="numeric"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+                <param name="bld.id" mapping="['building_id']" domain="integer"/>
+
+                <param name="flr.id" mapping="['id']" domain="integer"/>
+                <param name="bld.id" mapping="['building_id']" domain="integer"/>
+            </in-parameters>
+            <success-text>
+                Этаж успешно изменен.
+            </success-text>
+            <validations activate="whiteList">
+                <validation ref-id="is_floor_already_exists"/>
+            </validations>
+        </action>
+
+        <action id="delete" form-submit-label="Удалить" name="Удалить">
+            <invocation>
+                <n2o:sql>
+                    delete from public.pim_building_floor where id = :id;
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="flr.id" mapping="['id']" domain="integer"/>
+            </in-parameters>
+            <confirmation-text>
+                Вы уверены, что этаж "{name}" должен быть удален?
+            </confirmation-text>
+            <success-text>
+                Этаж успешно удален.
+            </success-text>
+        </action>
+    </actions>
+
+    <validations>
+        <constraint id="is_floor_already_exists" level="error">
+            <message>В указанном периоде уже существует этаж с заданным индексом</message>
+            <invocation>
+                <n2o:sql>
+                    <![CDATA[
+                    select count(1) from pim_building_floor
+                    where index = :index and building_id = :building_id and (:id isnull or id <> :id)
+                    and
+                    ( ( (coalesce( from_dt,       date '-infinity'),coalesce(  to_dt, date       'infinity') ) OVERLAPS
+                        (coalesce(:from_dt::date, date '-infinity'),coalesce( :to_dt::date, date 'infinity') ) ) )
+                ]]>
+                </n2o:sql>
+            </invocation>
+            <in-parameters>
+                <param name="flr.id" mapping="['id']" domain="integer"/>
+                <param name="bld.id" mapping="['building_id']" domain="integer"/>
+                <param name="index" mapping="['index']" domain="index"/>
+                <param name="from_dt" mapping="['from_dt']" domain="date"/>
+                <param name="to_dt" mapping="['to_dt']" domain="date"/>
+            </in-parameters>
+            <result expression="[0][0][0]==0"/>
+        </constraint>
+
+    </validations>
+</object>

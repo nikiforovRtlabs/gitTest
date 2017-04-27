@@ -1,0 +1,141 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<object xmlns="http://n2oapp.net/framework/config/schema/object-1.0"
+        xmlns:sql="http://n2oapp.net/framework/config/schema/action-sql-1.0"
+        xmlns:rest="http://n2oapp.net/framework/config/schema/action-rest-1.0"
+        xmlns:wf="http://n2oapp.net/framework/config/schema/action-workflow-1.0">
+    <name>payment</name>
+
+    <actions>
+        <action id="save" name="Добавить" form-submit-label="Сохранить">
+            <invocation>
+                <rest:rest method="POST" >
+                    ${n2o.backend.path}/payment/payment
+                </rest:rest>
+            </invocation>
+
+            <in-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="amount" mapping="['amount']" domain="string"/>
+                <param name="date" mapping="['date']" domain="date"/>
+                <param name="year" mapping="['year']" domain="integer"/>
+                <param name="note" mapping="['note']" domain="string"/>
+                <param name="payerType.id" mapping="['payerTypeId']" domain="integer"/>
+                <param name="payerInd.id" mapping="['payerIndividualId']" domain="integer"/>
+                <param name="payerOrg.id" mapping="['payerOrganizationId']" domain="integer"/>
+                <param name="recipient.id" mapping="['recipientId']" domain="integer"/>
+                <param name="method.id" mapping="['methodId']" domain="integer"/>
+                <param name="type.id" mapping="['transactionTypeId']" domain="integer"/>
+                <param name="contract.id" mapping="['contractId']" domain="integer"/>
+                <param name="fundingSourceType.id" mapping="['fundingSourceTypeId']" domain="integer"/>
+                <param name="bill.id" mapping="['billId']" domain="integer"/>
+                <param name="userId" value="#{user.id}" domain="integer" mapping="['userId']"/>
+            </in-parameters>
+            <out-parameters>
+                <param name="id" mapping="['id']" domain="integer"/>
+            </out-parameters>
+            <success-text>Платеж №{number} сохранен</success-text>
+
+            <validations activate="whiteList">
+                <validation ref-id="checkPaymentUnique"/>
+            </validations>
+
+        </action>
+
+        <action id="delete" name="Удалить" form-submit-label="Удалить">
+            <invocation>
+                <rest:rest method="DELETE">
+                    ${n2o.backend.path}/payment/payment
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="number" mapping="['number']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите удалить платеж {number} ?
+            </confirmation-text>
+            <success-text>Платеж {number} удален</success-text>
+        </action>
+
+        <action id="distribCancel" name="Отменить распределение платежа">
+            <invocation>
+                <wf:workflow start-task-id="1">
+                    <wf:tasks>
+                        <wf:service-task id="1" in-parameters-context-type="ACTION">
+                            <wf:note></wf:note>
+                            <wf:invocation>
+                                <rest:rest method="GET">
+                                    ${n2o.backend.path}/payment/payment/distrib_cancel
+                                </rest:rest>
+                            </wf:invocation>
+                            <wf:out-parameters>
+                                <param name="wf_result" mapping="['result']"/>
+                            </wf:out-parameters>
+                        </wf:service-task>
+                    </wf:tasks>
+                </wf:workflow>
+            </invocation>
+
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="paymentId" mapping="['paymentId']"/>
+            </in-parameters>
+            <!--<union-by-parameter union-parameter-name="id" output-parameter-name="list"/>-->
+            <success-text>Распределение платежа отмененно</success-text>
+        </action>
+
+        <action id="register" name="Провести платеж" form-submit-label="Провести платеж">
+            <invocation>
+                <rest:rest method="GET">
+                    ${n2o.backend.path}/payment/payment/register
+                </rest:rest>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="number" mapping="['number']"/>
+            </in-parameters>
+            <confirmation-text>Вы уверены, что хотите провести платеж {number} ?
+            </confirmation-text>
+            <success-text>Платеж проведен</success-text>
+        </action>
+
+    </actions>
+
+    <validations>
+
+        <constraint id="checkPaymentUnique" level="error">
+            <invocation>
+                <sql:sql>
+                    <![CDATA[
+                        select count(1) from public.fin_payment doc
+                        where doc.recipient_id = :recipientId and doc.number = :number
+                            and doc.year = :year and (doc.id <> :id or :id is null)
+                              ]]>
+                </sql:sql>
+            </invocation>
+            <in-parameters>
+                <param name="id" mapping="['id']"/>
+                <param name="year" mapping="['year']" domain="integer"/>
+                <param name="number" mapping="['number']" domain="string"/>
+                <param name="recipient.id" mapping="['recipientId']" domain="integer"/>
+            </in-parameters>
+            <result expression="[0][0][0] == 0"/>
+            <message>Номер платежа не уникален.</message>
+        </constraint>
+
+
+        <condition id="paymentAmountByBill" level="error">
+            <expression on="amount">(((typeof amountBill != 'undefined') &amp;&amp; (amountBill != null) &amp;&amp; (typeof amount != 'undefined') &amp;&amp; (amount != null) &amp;&amp; (Number(amount) >= Number(amountBill))) || (typeof amountBill == 'undefined') || (amountBill == null))</expression>
+            <message>Сумма платежа меньше чем стоимость выбранных услуг, необходимо перевыбрать услуги для оплаты</message>
+        </condition>
+
+        <condition id="moneyFormat" level="error">
+            <message>Сумма должна быть больше 0, меньше 1000000000, содержать числа, при необходимости, точку-разделитель и до двух чисел после точки.</message>
+            <expression on="amount">
+                <![CDATA[
+                /^(\d{1,9})(\.\d{1,2})?$/.test(amount) && parseFloat(amount) !== 0]]></expression>
+        </condition>
+
+    </validations>
+
+</object>

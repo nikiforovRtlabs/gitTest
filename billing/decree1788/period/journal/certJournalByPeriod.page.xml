@@ -1,0 +1,150 @@
+<page xmlns="http://n2oapp.net/framework/config/schema/page-1.0"
+      xmlns:wgt="http://n2oapp.net/framework/config/schema/n2o-widget-2.0"
+      xmlns:ctrl="http://n2oapp.net/framework/config/schema/n2o-control-1.0"
+      xmlns:rc="http://atria.cz/app/config/schema/rmis-control-1.0">
+
+    <!--Журнал выданных справок и отказов-->
+    <object-id>servicesCostCertificate</object-id>
+    <name>Журнал выданных справок и отказов</name>
+    <layout>billing/n2o/layout/certJournal</layout>
+
+    <regions>
+        <region place="top" type="none">
+            <container id="certs">
+                <wgt:table>
+                    <wgt:action-menu>
+                        <wgt:menu-item id="view" label="Просмотр" context="true">
+                            <wgt:show-modal page-id="certByPeriod"
+                                            container-id="main"
+                                            master-field-id="id"
+                                            detail-field-id="id"
+                                            refresh-on-close="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="createCert" label="Выдать справку" context="false">
+                            <wgt:show-modal action-id="createCert"
+                                            page-id="certByPeriodAdd"
+                                            page-name="Справка о стоимости услуг"
+                                            container-id="main"
+                                            master-field-id="id"
+                                            detail-field-id="id"
+                                            refresh-on-close="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="createRefusal" label="Зарегистрировать отказ" context="false">
+                            <wgt:show-modal action-id="createRefusal"
+                                            page-id="certByPeriodAdd"
+                                            page-name="Отказ от справки о стоимости услуг"
+                                            container-id="main"
+                                            master-field-id="id"
+                                            detail-field-id="id"
+                                            refresh-on-close="true"/>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="annule" label="Аннулировать" context="true">
+                            <wgt:invoke-action action-id="annule" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>!annuled</wgt:expression>
+                                    <wgt:tooltip>Аннулировать</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                        <wgt:menu-item id="cancelAnnuled" label="Отменить аннулирование" context="true">
+                            <wgt:invoke-action action-id="cancelAnnuled" confirmation="false"/>
+                            <wgt:conditions>
+                                <wgt:enabling-condition>
+                                    <wgt:expression>annuled</wgt:expression>
+                                    <wgt:tooltip>Отменить аннулирование</wgt:tooltip>
+                                </wgt:enabling-condition>
+                            </wgt:conditions>
+                        </wgt:menu-item>
+                    </wgt:action-menu>
+
+                    <wgt:query-id>certJournalCertList</wgt:query-id>
+                    <wgt:size>20</wgt:size>
+                    <wgt:columns>
+                        <wgt:column column-field-id="number"/>
+                        <wgt:column column-field-id="creationDate"/>
+                        <wgt:column column-field-id="patient.name"/>
+                        <wgt:column column-field-id="periodBegin"/>
+                        <wgt:column column-field-id="periodEnd"/>
+                        <wgt:column column-field-id="totalCost"/>
+                        <wgt:column column-field-id="receiver.name"/>
+                        <wgt:column column-field-id="employeeIssued.name"/>
+                    </wgt:columns>
+                    <wgt:rows>
+                        <wgt:color>
+                            <wgt:switch value-field-id="refused">
+                                <wgt:case value="false">success</wgt:case>
+                                <wgt:case value="true">warning</wgt:case>
+                            </wgt:switch>
+                        </wgt:color>
+                    </wgt:rows>
+                    <wgt:filters position="top">
+                        <ctrl:input-text id="number"/>
+                        <ctrl:date-interval id="creationDate" format="DD.MM.YYYY" popup-placement="down,right">
+                            <ctrl:default-model begin="beginWeek()" end="endWeek()"/>
+                        </ctrl:date-interval>
+                        <rc:patient id="patient" label="Пациент" isFilter="true" control-style="width:350px;"/>
+                        <ctrl:input-text id="uid" label="Номер случая"/>
+                        <ctrl:date-interval id="periodBegin" format="DD.MM.YYYY" popup-placement="down,right"/>
+                        <ctrl:date-interval id="periodEnd" format="DD.MM.YYYY" popup-placement="down,right"/>
+                        <ctrl:input-text id="totalCost.begin" label="Сумма">
+                        </ctrl:input-text>
+                        <ctrl:input-text id="totalCost.end" label=" "/>
+                        <ctrl:classifier id="receiver" label="Получатель" search-as-you-type="true" control-style="width:330px;">
+                            <ctrl:query query-id="cert_receiver" value-field-id="id" label-field-id="name"/>
+                        </ctrl:classifier>
+                        <ctrl:classifier id="employeeIssued" label="Сотрудник" search-as-you-type="true" control-style="width:330px;">
+                            <ctrl:query query-id="cert_employeePos" value-field-id="id" label-field-id="name">
+                                <ctrl:pre-filters>
+                                    <ctrl:pre-filter field-id="organizationId" value="#{org.id?}"/>
+                                </ctrl:pre-filters>
+                            </ctrl:query>
+                        </ctrl:classifier>
+                        <ctrl:select id="receiverTypeFilter" label="Выданы">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Всем"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Пациентам"}</ctrl:option>
+                                <ctrl:option>{"id":3, "name":"Представителям пациентов"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                                <ctrl:value field-id="name">Всем</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:select>
+                        <ctrl:checkbox-group id="certAndRefusalFilter" label=" ">
+                            <ctrl:options>
+                                <ctrl:option>{"id":1, "name":"Справка"}</ctrl:option>
+                                <ctrl:option>{"id":2, "name":"Отказ"}</ctrl:option>
+                            </ctrl:options>
+                            <ctrl:default-model>
+                                <ctrl:value field-id="id">1</ctrl:value>
+                            </ctrl:default-model>
+                        </ctrl:checkbox-group>
+                        <ctrl:checkbox id="annuled" default-value="false" label="Аннулированные"/>
+                    </wgt:filters>
+                </wgt:table>
+                <pre-filters>
+                    <pre-filter field-id="mcaseIsNull" type="isNull"/>
+                </pre-filters>
+            </container>
+        </region>
+
+        <region place="bottom" type="list">
+            <container id="cases" depends-on="certs">
+                <wgt:table master-field-id="id" detail-field-id="certId">
+                    <wgt:query-id>certJournalCaseListByPeriod</wgt:query-id>
+                    <wgt:columns>
+                        <wgt:column column-field-id="uid"/>
+                        <wgt:column column-field-id="typeName"/>
+                        <wgt:column column-field-id="careRegimen.name"/>
+                        <wgt:column column-field-id="initGoal.name"/>
+                        <wgt:column column-field-id="openDate"/>
+                        <wgt:column column-field-id="closedDate"/>
+                        <wgt:column column-field-id="resultName"/>
+                        <wgt:column column-field-id="doctor"/>
+                    </wgt:columns>
+                </wgt:table>
+            </container>
+        </region>
+    </regions>
+</page>
